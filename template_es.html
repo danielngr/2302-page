@@ -34,7 +34,7 @@
   .btn-primary .arr { font-size:22px; }
   .hero-strip { position:absolute; top:clamp(24px,4vw,48px); right:clamp(24px,4vw,48px); display:flex; flex-direction:column; align-items:flex-end; gap:6px; opacity:0; animation:fadeIn 0.8s 1.3s forwards; }
   .strip-badge { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:8px 14px; font-size:12px; font-weight:300; color:rgba(255,255,255,0.7); letter-spacing:1px; backdrop-filter:blur(8px); }
-  #tour-screen { position:fixed; inset:0; z-index:50; opacity:0; pointer-events:none; transition:opacity 0.8s ease; display:flex; flex-direction:column; background-size:cover; background-position:center; }
+  #tour-screen { position:fixed; inset:0; z-index:50; opacity:0; pointer-events:none; transition:opacity 0.8s ease; display:flex; flex-direction:column; background:var(--ocean-deep); }
   #tour-screen.active { opacity:1; pointer-events:all; }
   .tour-bar { display:flex; align-items:center; justify-content:space-between; padding:14px 24px; background:var(--ocean-deep); border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0; }
   .tour-brand { font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:white; letter-spacing:1px; }
@@ -140,7 +140,6 @@
     <div id="chapterOverlay">
       <div class="chapter-card" id="chapterContent"></div>
     </div>
-    <div id="kuulaWrap" style="width:100%;height:100%;"></div>
   </div>
 </div>
 
@@ -174,7 +173,6 @@ function initPage() {
   document.title = `${D.name} · ${D.location}`;
 
   // Tour screen
-  document.getElementById('tour-screen').style.backgroundImage = `url('${D.bgImage}')`;
   document.getElementById('tourBrand').innerHTML = `${D.name} <em>PV</em>`;
   document.getElementById('waBtn').href = `https://wa.me/${D.phone}`;
 
@@ -195,7 +193,7 @@ function buildPills() {
     { icon:'🏊', label:'Terraza & Alberca' },
     { icon:'🌮', label:'Spots Locales' },
     { icon:'ℹ️', label:'Info casa' },
-    ...(D.hasKovay ? [{ icon:'🍽', label:'Restaurante Kovay' }] : []),
+    ...(D.hasQuiya ? [{ icon:'🍽', label:'Restaurante Quiya' }] : []),
     { icon:'🌤', label:'Clima de hoy' },
     { icon:'🆘', label:'Tengo un problema', sos: true },
   ];
@@ -241,7 +239,7 @@ function getChapters() {
       desc:'Aquí empieza tu experiencia. Sigue las instrucciones de llegada y en minutos estarás adentro.',
       map: D.coordinates,
       info:[
-        { icon:'📋', title:'Registro en caseta', body:'Al llegar a Kovay Gardens dirígete a la <strong>caseta de entrada</strong> donde el personal realizará el registro para su ingreso.<br><br>⚠️ <em>Asegúrate de haber enviado previamente la lista de nombres de todos los huéspedes al host — sin ella el acceso puede demorar.</em>' },
+        { icon:'📋', title:'Registro en caseta', body:'Al llegar a Quiya dirígete a la <strong>caseta de entrada</strong> donde el personal realizará el registro para su ingreso.<br><br>⚠️ <em>Asegúrate de haber enviado previamente la lista de nombres de todos los huéspedes al host — sin ella el acceso puede demorar.</em>' },
         { icon:'🔑', title:'Acceso al departamento', body: D.keyAccess_es },
         { icon:'🚗', title:'Estacionamiento', body: D.parking_es },
       ]
@@ -264,7 +262,7 @@ function getChapters() {
         { icon:'🍽', title:'Vajilla', body:'Platos, vasos, tazas, copas de vino, bowls, cubiertos y jarra de agua.' },
         { icon:'🔪', title:'Cuchillos y más', body:'Set de cuchillos, tuppers y sacacorchos.' },
         { icon:'☕', title:'Electrodomésticos', body:'Cafetera, tostador, licuadora, microondas y horno con guantes.' },
-        { icon:'💧', title:'Agua', body:'Todo el complejo Kovay Gardens cuenta con sistema de filtración de agua potable — el agua de la llave es completamente segura para tomar.' },
+        { icon:'💧', title:'Agua', body:'Todo el complejo Quiya cuenta con sistema de filtración de agua potable — el agua de la llave es completamente segura para tomar.' },
         { icon:'🧂', title:'Básicos de despensa', body:'Café, azúcar, té, sal, pimienta y aceite.' },
         { icon:'🗑', title:'Basura', body:'El personal pasa a recoger a las <strong>10:00 am</strong> y <strong>2:00 pm</strong>.' },
       ]
@@ -299,7 +297,7 @@ function getChapters() {
       info:[
         { icon:'🏊', title:'Alberca privada', body:'La terraza cuenta con alberca privada de uso exclusivo. Sin horario — disponible las 24 horas.' },
         { icon:'🌊', title:'Piscinas del complejo', body:'Además tienes acceso a las piscinas Selva, Bar y frente a la playa. Toallas en la zona de alberca.' },
-        { icon:'⚠️', title:'Áreas comunes del complejo', body:'En las piscinas del complejo (Selva, Bar, playa) <strong>solo se permite consumir productos comprados en el restaurante Kovay</strong>. Si llevas bebidas propias, deben ir en termo o Yeti cerrado — sin vasos ni botellas a la vista.' },
+        { icon:'⚠️', title:'Áreas comunes del complejo', body:'En las piscinas del complejo (Selva, Bar, playa) <strong>solo se permite consumir productos comprados en el restaurante Quiya</strong>. Si llevas bebidas propias, deben ir en termo o Yeti cerrado — sin vasos ni botellas a la vista.' },
       ]
     },
     {
@@ -312,14 +310,14 @@ function getChapters() {
       desc:'Información clave para tu estadía. Ante cualquier duda, escríbenos por WhatsApp.',
       info:[
         { icon:'📶', title:`WiFi · ${D.wifi.network}`, body:`Contraseña: <strong>${D.wifi.password}</strong>`, copy: D.wifi.password },
-        { icon:'📋', title:'Registro en caseta', body:'Al llegar a Kovay Gardens dirígete a la <strong>caseta de entrada</strong> donde el personal realizará el registro para su ingreso.<br><br>⚠️ <em>Asegúrate de haber enviado previamente la lista de nombres de todos los huéspedes al host — sin ella el acceso puede demorar.</em>' },
+        { icon:'📋', title:'Registro en caseta', body:'Al llegar a Quiya dirígete a la <strong>caseta de entrada</strong> donde el personal realizará el registro para su ingreso.<br><br>⚠️ <em>Asegúrate de haber enviado previamente la lista de nombres de todos los huéspedes al host — sin ella el acceso puede demorar.</em>' },
         { icon:'🔑', title:'Acceso al departamento', body: D.keyAccess_es },
         { icon:'🕐', title:'Check-out', body:`A las ${D.checkout}. Si necesitas salida tardía avísanos con 24h de anticipación.` },
         { icon:'🚑', title:'Emergencias', body:`<strong>911</strong> — Policía, ambulancia e incendios.<br>Host 24/7: <a href="tel:+${D.phone}" style="color:var(--gold-light)">+${D.phone}</a>` },
         { icon:'🧹', title:'Limpieza adicional', body:'Disponible con 24h de anticipación vía WhatsApp. Sin costo en estancias de 7+ noches.' },
       ]
     },
-    ...(D.hasKovay ? [{ label:'Dentro del complejo', title:'Restaurante\nKovay', desc:'Come y bebe sin salir del complejo. Aquí el menú completo y horarios.', kovay:true }] : []),
+    ...(D.hasQuiya ? [{ label:'Dentro del complejo', title:'Restaurante\nQuiya', desc:'Come y bebe sin salir del complejo. Aquí el menú completo y horarios.', quiya:true }] : []),
     {
       label: D.location, title:'Clima\nde hoy',
       desc:'Temperatura, viento y lluvia en tiempo real para que planees tu día perfectamente.',
@@ -420,7 +418,7 @@ function openChapter(idx) {
     });
   }
 
-  if (ch.kovay) {
+  if (ch.quiya) {
     html += `
     <div style="margin-bottom:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 20px;">
       <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:4px;">Todos los días</div>
@@ -497,23 +495,12 @@ function openChapter(idx) {
   overlay.scrollTop = 0;
 }
 
-function loadKuula() {
-  const wrap = document.getElementById('kuulaWrap');
-  wrap.innerHTML = '';
-  const iframe = document.createElement('iframe');
-  iframe.src = D.kuula;
-  iframe.style.cssText = 'width:100%;height:100%;border:none;';
-  iframe.allow = 'xr-spatial-tracking; gyroscope; accelerometer; fullscreen';
-  iframe.allowFullscreen = true;
-  wrap.appendChild(iframe);
-}
 
 function showTour() {
   document.getElementById('welcome').classList.add('hiding');
   setTimeout(() => {
     document.getElementById('welcome').style.display = 'none';
     document.getElementById('tour-screen').classList.add('active');
-    loadKuula();
   }, 800);
 }
 
