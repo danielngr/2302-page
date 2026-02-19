@@ -388,6 +388,7 @@ const chapters = [
     label: 'Espacios sociales',
     title: 'Sala &\nComedor',
     desc: 'El corazón del departamento. Espacio ideal para reunirse, con sala, comedor y acceso a la terraza.',
+    image: 'https://i.imgur.com/e8ObYP6.jpeg',
     scenes: [],
     info: [
       { icon:'📺', title:'Televisión', body:'Smart TV con apps de streaming disponibles (Netflix, Prime Video, etc.). Inicia sesión con tus propias cuentas. Los controles están sobre la mesa.' },
@@ -398,6 +399,7 @@ const chapters = [
     label: 'Cocina',
     title: 'Tu cocina\ncompleta',
     desc: 'Equipada con todo lo que necesitas. Cafetera, tostador, licuadora y utensilios básicos incluidos.',
+    image: 'https://i.imgur.com/iHc3Zob.jpeg',
     scenes: [],
     info: [
       { icon:'🍳', title:'Batería de cocina', body:'Sartenes, ollas y utensilios completos en buen estado.' },
@@ -413,10 +415,11 @@ const chapters = [
     label: 'Descanso',
     title: 'Las\nrecámaras',
     desc: '2 recámaras con todo lo que necesitas para descansar cómodamente.',
+    images: ['https://i.imgur.com/HazZpr7.jpeg','https://i.imgur.com/GNBD6A3.jpeg'],
     scenes: [],
     info: [
       { icon:'🛏', title:'Recámara 1', body:'2 camas matrimoniales.' },
-      { icon:'👑', title:'Recámara 2', body:'2 camas king size.' },
+      { icon:'👑', title:'Recámara 2', body:'1 cama king size.' },
       { icon:'👔', title:'Clóset', body:'6 ganchos por clóset.<br><br>🔒 <strong>Caja fuerte:</strong> disponible en la recámara principal. Si está cerrada, busca la llave <strong>encima del refrigerador</strong>. Si no está ahí, contáctanos por WhatsApp.<br><br>⚠️ <em>Por favor déjala abierta antes de hacer checkout.</em>' },
       { icon:'❄️', title:'Aire acondicionado', body:'Recuerda apagarlo al salir del departamento.' },
     ]
@@ -425,6 +428,7 @@ const chapters = [
     label: 'Baños',
     title: 'Los\nbaños',
     desc: 'Toallas limpias en cada baño. Si necesitas más, hay extras en el clóset del pasillo principal.',
+    images: ['https://i.imgur.com/AiRZpLs.jpeg','https://i.imgur.com/aEDbrdt.jpeg'],
     scenes: [],
     info: [
       { icon:'🚿', title:'2 baños completos', body:'Regadera, sanitario y lavabo en cada uno.' },
@@ -439,6 +443,7 @@ const chapters = [
     label: 'Tu paraíso',
     title: 'Terraza\n& Alberca',
     desc: 'Tu espacio al aire libre con alberca privada y acceso a las áreas comunes del complejo.',
+    image: 'https://i.imgur.com/nsaSaYw.jpeg',
     scenes: [],
     info: [
       { icon:'🏊', title:'Alberca privada', body:'La terraza cuenta con alberca privada de uso exclusivo. Sin horario — disponible las 24 horas.' },
@@ -466,7 +471,7 @@ const chapters = [
       { icon:'📋', title:'Registro en caseta', body:'Al llegar a Kovay Gardens dirígete a la <strong>caseta de entrada</strong> donde el personal realizará el registro para su ingreso.<br><br>⚠️ <em>Asegúrate de haber enviado previamente la lista de nombres de todos los huéspedes al host — sin ella el acceso puede demorar.</em>' },
       { icon:'🔑', title:'Acceso al departamento', body:'Caja de llaves en la puerta: código <strong>9854</strong>. Saca la llave digital negra y colócala sobre la chapa para abrir. Insértala adentro para activar la electricidad.' },
       { icon:'🕐', title:'Check-out', body:'A las 11:00am. Si necesitas salida tardía avísanos con 24h de anticipación.' },
-      { icon:'🚑', title:'Emergencias', body:'<strong>911</strong> — Policía, ambulancia e incendios.<br>Propietario 24/7: <a href="tel:+523222440051" style="color:var(--gold-light)">+52 322 244 0051</a>' },
+      { icon:'🚑', title:'Emergencias', body:'<strong>911</strong> — Policía, ambulancia e incendios.<br>Host 24/7: <a href="tel:+523222440051" style="color:var(--gold-light)">+52 322 244 0051</a>' },
       { icon:'🧹', title:'Limpieza adicional', body:'Disponible con 24h de anticipación vía WhatsApp. Sin costo en estancias de 7+ noches.' },
     ]
   }
@@ -536,6 +541,22 @@ function openChapter(idx) {
     <h2>${ch.title.replace('\n','<br>')}</h2>
     <p class="chapter-desc">${ch.desc}</p>
   `;
+
+  // Space image(s)
+  if (ch.image) {
+    html += `<div style="width:100%;height:220px;border-radius:16px;overflow:hidden;margin-bottom:24px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+      <img src="${ch.image}" alt="${ch.label}" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;transition:transform 0.4s ease;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'"/>
+    </div>`;
+  }
+  if (ch.images && ch.images.length) {
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;">`;
+    ch.images.forEach((src, i) => {
+      html += `<div style="height:200px;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);box-shadow:0 6px 24px rgba(0,0,0,0.3);">
+        <img src="${src}" alt="${ch.label} ${i+1}" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;transition:transform 0.4s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"/>
+      </div>`;
+    });
+    html += `</div>`;
+  }
 
   // Scenes grid
   if (ch.scenes && ch.scenes.length) {
