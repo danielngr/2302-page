@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Vallarta Gardens · La Cruz de Huanacaxtle</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --cream: #FAF7F2; --warm: #F0E8D8;
+    --ocean: #1C4E6E; --ocean-deep: #0D2E44;
+    --turquoise: #4AACCF; --gold: #C8A96E; --gold-light: #E8C98E;
+  }
+  html, body { width:100%; height:100%; font-family:'Jost',sans-serif; background:var(--ocean-deep); overflow:hidden; }
+  #welcome { position:fixed; inset:0; z-index:100; display:flex; flex-direction:column; transition:opacity 0.8s ease, transform 0.8s ease; }
+  #welcome.hiding { opacity:0; transform:scale(1.04); pointer-events:none; }
+  .hero-bg { position:absolute; inset:0; filter:brightness(0.52); animation:slowZoom 18s ease-out forwards; background-size:cover; background-position:center 30%; }
+  @keyframes slowZoom { to { transform:scale(1.06); } }
+  .hero-overlay { position:absolute; inset:0; background: linear-gradient(to top, rgba(13,46,68,0.97) 0%, rgba(13,46,68,0.3) 55%, transparent 100%), linear-gradient(to right, rgba(13,46,68,0.45) 0%, transparent 65%); }
+  .hero-content { position:relative; z-index:2; display:flex; flex-direction:column; justify-content:flex-end; height:100%; padding:clamp(32px,6vw,72px); padding-bottom:clamp(48px,8vw,88px); }
+  .property-tag { display:inline-flex; align-items:center; gap:8px; background:rgba(200,169,110,0.15); border:1px solid rgba(200,169,110,0.4); border-radius:40px; padding:7px 18px; font-size:11px; font-weight:400; letter-spacing:3px; text-transform:uppercase; color:var(--gold-light); margin-bottom:24px; width:fit-content; opacity:0; animation:fadeUp 0.7s 0.5s forwards; }
+  .property-tag::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--gold); animation:blink 2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  h1 { font-family:'Cormorant Garamond',serif; font-size:clamp(52px,10vw,112px); font-weight:300; line-height:0.92; color:white; letter-spacing:-1px; margin-bottom:10px; opacity:0; animation:fadeUp 0.8s 0.7s forwards; }
+  h1 em { font-style:italic; color:rgba(255,255,255,0.7); }
+  .location-line { display:flex; align-items:center; gap:12px; margin-bottom:44px; opacity:0; animation:fadeUp 0.7s 0.9s forwards; }
+  .location-line::before { content:''; width:32px; height:1px; background:var(--gold); flex-shrink:0; }
+  .location-line span { font-size:13px; font-weight:200; letter-spacing:4px; text-transform:uppercase; color:rgba(255,255,255,0.5); }
+  .cta-group { display:flex; flex-direction:column; gap:14px; max-width:420px; opacity:0; animation:fadeUp 0.7s 1.1s forwards; }
+  .btn-primary { display:flex; align-items:center; justify-content:space-between; background:var(--gold); color:var(--ocean-deep); border:none; border-radius:12px; padding:20px 28px; font-family:'Jost',sans-serif; font-size:16px; font-weight:500; cursor:pointer; transition:all 0.3s; width:100%; }
+  .btn-primary:hover { background:var(--gold-light); transform:translateY(-2px); box-shadow:0 12px 40px rgba(200,169,110,0.35); }
+  .btn-primary .btn-sub { font-size:12px; font-weight:300; opacity:0.7; margin-top:2px; }
+  .btn-primary .arr { font-size:22px; }
+  .hero-strip { position:absolute; top:clamp(24px,4vw,48px); right:clamp(24px,4vw,48px); display:flex; flex-direction:column; align-items:flex-end; gap:6px; opacity:0; animation:fadeIn 0.8s 1.3s forwards; }
+  .strip-badge { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:8px 14px; font-size:12px; font-weight:300; color:rgba(255,255,255,0.7); letter-spacing:1px; backdrop-filter:blur(8px); }
+  #tour-screen { position:fixed; inset:0; z-index:50; opacity:0; pointer-events:none; transition:opacity 0.8s ease; display:flex; flex-direction:column; background-size:cover; background-position:center; }
+  #tour-screen.active { opacity:1; pointer-events:all; }
+  .tour-bar { display:flex; align-items:center; justify-content:space-between; padding:14px 24px; background:var(--ocean-deep); border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0; }
+  .tour-brand { font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:white; letter-spacing:1px; }
+  .tour-brand em { font-style:italic; color:var(--gold); }
+  .tour-actions { display:flex; align-items:center; gap:10px; }
+  .tour-btn { display:flex; align-items:center; gap:7px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:9px 16px; color:white; font-family:'Jost',sans-serif; font-size:13px; font-weight:300; cursor:pointer; transition:all 0.25s; text-decoration:none; }
+  .tour-btn:hover { background:rgba(255,255,255,0.13); }
+  .tour-btn.gold { background:rgba(200,169,110,0.15); border-color:rgba(200,169,110,0.35); color:var(--gold-light); }
+  .tour-btn.gold:hover { background:rgba(200,169,110,0.25); }
+  .back-btn { background:none; border:none; color:rgba(255,255,255,0.5); font-size:13px; font-family:'Jost',sans-serif; cursor:pointer; display:flex; align-items:center; gap:6px; padding:9px 12px; border-radius:8px; transition:all 0.2s; }
+  .back-btn:hover { color:white; background:rgba(255,255,255,0.07); }
+  .chapter-bar { display:flex; align-items:center; gap:8px; padding:12px 24px; background:rgba(10,38,56,0.98); border-bottom:1px solid rgba(255,255,255,0.06); overflow-x:auto; flex-shrink:0; scrollbar-width:none; }
+  .chapter-bar::-webkit-scrollbar { display:none; }
+  .chapter-pill { display:flex; align-items:center; gap:7px; white-space:nowrap; padding:8px 18px; border-radius:24px; font-size:12px; font-weight:400; letter-spacing:0.5px; color:rgba(255,255,255,0.45); background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); cursor:pointer; transition:all 0.3s ease; user-select:none; }
+  .chapter-pill:hover { color:rgba(255,255,255,0.75); background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); }
+  .chapter-pill.active { background:rgba(200,169,110,0.2); border-color:rgba(200,169,110,0.5); color:var(--gold-light); }
+  .chapter-dot { width:6px; height:6px; border-radius:50%; background:currentColor; opacity:0.7; }
+  .tour-main { flex:1; position:relative; overflow:hidden; }
+  #chapterOverlay { position:absolute; inset:0; background:rgba(10,30,46,0.92); backdrop-filter:blur(6px); z-index:10; display:none; flex-direction:column; overflow-y:auto; }
+  #chapterOverlay.open { display:flex; animation:fadeIn 0.35s ease; }
+  .chapter-card { max-width:680px; width:100%; margin:auto; padding:40px 32px; }
+  .chapter-card-label { font-size:11px; letter-spacing:4px; text-transform:uppercase; color:var(--gold); margin-bottom:12px; font-weight:400; }
+  .chapter-card h2 { font-family:'Cormorant Garamond',serif; font-size:clamp(32px,5vw,52px); font-weight:300; color:white; line-height:1.1; margin-bottom:16px; }
+  .chapter-card .chapter-desc { font-size:15px; color:rgba(255,255,255,0.6); line-height:1.7; margin-bottom:32px; font-weight:300; }
+  .info-row { display:flex; gap:14px; align-items:flex-start; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.09); border-radius:12px; padding:16px 20px; margin-bottom:10px; }
+  .info-row-icon { font-size:22px; flex-shrink:0; margin-top:2px; }
+  .info-row h4 { font-size:14px; font-weight:500; color:white; margin-bottom:3px; }
+  .info-row p { font-size:13px; color:rgba(255,255,255,0.55); line-height:1.6; }
+  .copy-inline { display:inline-flex; align-items:center; gap:5px; margin-top:8px; background:var(--ocean); color:white; border:none; border-radius:6px; padding:6px 12px; font-size:11px; font-family:'Jost',sans-serif; cursor:pointer; transition:all 0.2s; }
+  .copy-inline:hover { background:var(--ocean-deep); }
+  .spot-row { display:flex; gap:14px; align-items:flex-start; padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.07); }
+  .spot-row:last-child { border-bottom:none; }
+  .spot-num-w { width:28px; height:28px; border-radius:50%; background:var(--gold); color:var(--ocean-deep); font-family:'Cormorant Garamond',serif; font-size:16px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; }
+  .spot-row h5 { font-size:14px; font-weight:500; color:white; margin-bottom:3px; }
+  .spot-row p { font-size:13px; color:rgba(255,255,255,0.5); line-height:1.5; }
+  #info-panel { position:fixed; top:0; right:0; bottom:0; width:min(380px,100vw); background:var(--cream); z-index:200; transform:translateX(100%); transition:transform 0.5s cubic-bezier(0.22,1,0.36,1); display:flex; flex-direction:column; box-shadow:-20px 0 60px rgba(0,0,0,0.3); }
+  #info-panel.open { transform:translateX(0); }
+  .panel-header { background:var(--ocean-deep); padding:24px; display:flex; align-items:center; justify-content:space-between; }
+  .panel-title { font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:white; }
+  .panel-close { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.1); border:none; color:white; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
+  .panel-close:hover { background:rgba(255,255,255,0.2); }
+  .panel-body { padding:28px; overflow-y:auto; flex:1; }
+  .icard { background:white; border-radius:14px; padding:20px; margin-bottom:16px; border-left:3px solid var(--gold); box-shadow:0 2px 12px rgba(0,0,0,0.06); }
+  .icard-hd { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+  .icard-icon { width:40px; height:40px; border-radius:10px; background:var(--warm); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+  .icard h4 { font-size:15px; font-weight:500; color:var(--ocean-deep); }
+  .icard p { font-size:14px; color:#555; line-height:1.65; }
+  .copy-btn { display:inline-flex; align-items:center; gap:6px; margin-top:10px; background:var(--ocean); color:white; border:none; border-radius:7px; padding:7px 14px; font-size:12px; font-family:'Jost',sans-serif; cursor:pointer; transition:all 0.2s; }
+  .copy-btn:hover { background:var(--ocean-deep); }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .sos-pill { background:rgba(220,50,50,0.12) !important; border-color:rgba(220,80,80,0.35) !important; color:#FF8A8A !important; }
+  .sos-pill:hover { background:rgba(220,50,50,0.25) !important; border-color:rgba(220,80,80,0.6) !important; }
+  .sos-pill.active { background:rgba(220,50,50,0.3) !important; border-color:rgba(220,80,80,0.7) !important; color:#FFB3B3 !important; }
+  .problem-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-bottom:28px; }
+  .problem-btn { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:14px; padding:20px 18px; cursor:pointer; transition:all 0.25s; text-align:left; color:white; font-family:"Jost",sans-serif; width:100%; text-decoration:none; display:block; }
+  .problem-btn:hover { background:rgba(255,100,100,0.15); border-color:rgba(255,100,100,0.4); transform:translateY(-2px); }
+  .problem-btn .pb-icon { font-size:28px; margin-bottom:10px; }
+  .problem-btn .pb-title { font-size:14px; font-weight:500; margin-bottom:4px; }
+  .problem-btn .pb-sub { font-size:12px; color:rgba(255,255,255,0.45); line-height:1.4; }
+  .wa-direct { display:flex; align-items:center; gap:12px; background:rgba(37,211,102,0.12); border:1px solid rgba(37,211,102,0.35); border-radius:14px; padding:18px 22px; color:white; text-decoration:none; transition:all 0.25s; margin-bottom:10px; }
+  .wa-direct:hover { background:rgba(37,211,102,0.22); border-color:rgba(37,211,102,0.6); }
+  .wa-direct .wa-icon { font-size:26px; flex-shrink:0; }
+  .wa-direct h4 { font-size:14px; font-weight:500; margin-bottom:2px; }
+  .wa-direct p { font-size:12px; color:rgba(255,255,255,0.5); }
+  @media(max-width:600px) { h1{font-size:52px} .hero-strip{display:none} .tour-bar{padding:10px 14px} .chapter-bar{padding:10px 14px} .chapter-card{padding:28px 20px} }
+</style>
+</head>
+<body>
+
+<div id="welcome">
+  <div class="hero-bg" id="heroBg"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-strip">
+    <div class="strip-badge" id="locationBadge"></div>
+  </div>
+  <div class="hero-content">
+    <div class="property-tag">Your home away from home</div>
+    <h1 id="heroTitle"></h1>
+    <div class="location-line"><span>Welcome to your home by the sea</span></div>
+    <div class="cta-group">
+      <button class="btn-primary" onclick="startGuided()">
+        <div><div>Take me through the home</div><div class="btn-sub">Guided tour · perfect for everyone</div></div>
+        <div class="arr">▶</div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="tour-screen">
+  <div class="tour-bar">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <button class="back-btn" onclick="goBack()">← Home</button>
+      <div class="tour-brand" id="tourBrand"></div>
+    </div>
+    <div class="tour-actions">
+      <button class="tour-btn gold" onclick="openPanel()">📋 House Info</button>
+      <a id="waBtn" href="#" target="_blank" class="tour-btn">💬 WhatsApp</a>
+    </div>
+  </div>
+  <div class="chapter-bar" id="chapterBar"></div>
+  <div class="tour-main">
+    <div id="chapterOverlay">
+      <div class="chapter-card" id="chapterContent"></div>
+    </div>
+    <div id="kuulaWrap" style="width:100%;height:100%;"></div>
+  </div>
+</div>
+
+<div id="info-panel">
+  <div class="panel-header">
+    <div class="panel-title">Your Stay Info</div>
+    <button class="panel-close" onclick="closePanel()">✕</button>
+  </div>
+  <div class="panel-body" id="panelBody"></div>
+</div>
+<div id="overlay" onclick="closePanel()" style="position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:190;opacity:0;pointer-events:none;transition:opacity 0.4s;"></div>
+
+<script>
+// ── LOAD DATA FROM JSON ──
+const params = new URLSearchParams(window.location.search);
+const deptId = params.get('dept') || '2302';
+const DATA_URL = `data/${deptId}.json`;
+
+let D = {}; // global data object
+
+fetch(DATA_URL)
+  .then(r => { if (!r.ok) throw new Error('Not found'); return r.json(); })
+  .then(data => { D = data; initPage(); })
+  .catch(() => { document.body.innerHTML = '<div style="color:white;padding:40px;font-family:sans-serif;">No se encontró el departamento: ' + deptId + '</div>'; });
+
+function initPage() {
+  // Welcome screen
+  document.getElementById('heroBg').style.backgroundImage = `url('${D.coverImage}')`;
+  document.getElementById('locationBadge').textContent = D.location;
+  document.getElementById('heroTitle').innerHTML = `${D.name}<br><em>${D.subtitle_es}</em>`;
+  document.title = `${D.name} · ${D.location}`;
+
+  // Tour screen
+  document.getElementById('tour-screen').style.backgroundImage = `url('${D.bgImage}')`;
+  document.getElementById('tourBrand').innerHTML = `${D.name} <em>PV</em>`;
+  document.getElementById('waBtn').href = `https://wa.me/${D.phone}`;
+
+  // Pills
+  buildPills();
+
+  // Panel
+  buildPanel();
+}
+
+function buildPills() {
+  const pills = [
+    { icon:'🚪', label:'Arrival' },
+    { icon:'🛋', label:'Living & Dining' },
+    { icon:'🍳', label:'Kitchen' },
+    { icon:'🛏', label:'Bedrooms' },
+    { icon:'🚿', label:'Bathrooms' },
+    { icon:'🏊', label:'Terrace & Pool' },
+    { icon:'🌮', label:'Local Spots' },
+    { icon:'ℹ️', label:'House Info' },
+    ...(D.hasKovay ? [{ icon:'🍽', label:'Kovay Restaurant' }] : []),
+    { icon:'🌤', label:"Today's Weather" },
+    { icon:'🆘', label:'I have a problem', sos: true },
+  ];
+  const bar = document.getElementById('chapterBar');
+  bar.innerHTML = pills.map((p,i) =>
+    `<div class="chapter-pill${i===0?' active':''}${p.sos?' sos-pill':''}" onclick="openChapter(${i})"><div class="chapter-dot"></div>${p.icon} ${p.label}</div>`
+  ).join('');
+}
+
+function buildPanel() {
+  const p = D.panelInfo_en;
+  document.getElementById('panelBody').innerHTML = `
+    <div class="icard">
+      <div class="icard-hd"><div class="icard-icon">📶</div><h4>WiFi</h4></div>
+      <p>${p.wifi}</p>
+      <button class="copy-btn" onclick="copyText('${D.wifi.password}',this)">📋 Copy password</button>
+    </div>
+    <div class="icard">
+      <div class="icard-hd"><div class="icard-icon">🔑</div><h4>Entry & Check-in</h4></div>
+      <p>${p.entry}</p>
+    </div>
+    <div class="icard">
+      <div class="icard-hd"><div class="icard-icon">❄️</div><h4>Air Conditioning</h4></div>
+      <p>${p.ac}</p>
+    </div>
+    <div class="icard">
+      <div class="icard-hd"><div class="icard-icon">🧹</div><h4>Additional Cleaning</h4></div>
+      <p>${p.cleaning}</p>
+      <a href="https://wa.me/${D.phone}" target="_blank" class="copy-btn" style="text-decoration:none">💬 Request</a>
+    </div>
+  `;
+}
+
+// ── CHAPTERS ──
+let currentChapterIdx = 0;
+
+function getChapters() {
+  const WA = D.phone;
+  const deptName = D.name;
+  return [
+    {
+      label:'How to Arrive', title:`Bienvenido a\n${D.name}`,
+      desc:'Your experience starts here. Follow the arrival instructions and you'll be inside in minutes.',
+      map: D.coordinates,
+      info:[
+        { icon:'📋', title:'Gate Registration', body:'Al llegar a Kovay Gardens dirígete a la <strong>caseta de entrada</strong> donde el personal realizará el registro para su ingreso.<br><br>⚠️ <em>Asegúrate de haber enviado previamente la lista de nombres de todos los huéspedes al host — sin ella el acceso puede demorar.</em>' },
+        { icon:'🔑', title:'Apartment Access', body: D.keyAccess_en },
+        { icon:'🚗', title:'Parking', body: D.parking_en },
+      ]
+    },
+    {
+      label:'Social Spaces', title:'Living &
+Dining Room',
+      desc:'The heart of the apartment. Perfect space to gather, with living area, dining room and access to the terrace.',
+      image: D.images.living,
+      info:[
+        { icon:'📺', title:'Television', body:'Smart TV con apps de streaming disponibles (Netflix, Prime Video, etc.). Inicia sesión con tus propias cuentas. Los controles están sobre la mesa.' },
+        { icon:'❄️', title:'Air Conditioning', body:'Control en la pared lateral. Temperatura recomendada: 22°C.' },
+      ]
+    },
+    {
+      label:'Kitchen', title:'Your full
+kitchen',
+      desc:'Fully equipped with everything you need. Coffee maker, toaster, blender and basic utensils included.',
+      image: D.images.kitchen,
+      info:[
+        { icon:'🍳', title:'Batería de cocina', body:'Sartenes, ollas y utensilios completos en buen estado.' },
+        { icon:'🍽', title:'Vajilla', body:'Platos, vasos, tazas, copas de vino, bowls, cubiertos y jarra de agua.' },
+        { icon:'🔪', title:'Cuchillos y más', body:'Set de cuchillos, tuppers y sacacorchos.' },
+        { icon:'☕', title:'Electrodomésticos', body:'Cafetera, tostador, licuadora, microondas y horno con guantes.' },
+        { icon:'💧', title:'Agua', body:'Todo el complejo Kovay Gardens cuenta con sistema de filtración de agua potable — el agua de la llave es completamente segura para tomar.' },
+        { icon:'🧂', title:'Básicos de despensa', body:'Café, azúcar, té, sal, pimienta y aceite.' },
+        { icon:'🗑', title:'Basura', body:'El personal pasa a recoger a las <strong>10:00 am</strong> y <strong>2:00 pm</strong>.' },
+      ]
+    },
+    {
+      label:'Rest', title:'The
+Bedrooms',
+      desc:`${D.bedrooms.length} bedrooms with everything you need to rest comfortably.`,
+      images: [D.images.bedroom1, D.images.bedroom2].filter(Boolean),
+      info:[
+        ...D.bedrooms.map(b => ({ icon: b.icon, title: b.title_en, body: b.body_en })),
+        { icon:'👔', title:'Closet', body: D.safe_en },
+        { icon:'❄️', title:'Air Conditioning', body:'Recuerda apagarlo al salir del departamento.' },
+      ]
+    },
+    {
+      label:'Bathrooms', title:'The
+Bathrooms',
+      desc:'Clean towels in each bathroom. If you need more, extras are in the hallway closet.',
+      images: [D.images.bathroom1, D.images.bathroom2].filter(Boolean),
+      info:[
+        { icon:'🚿', title:`${D.bathrooms} full bathrooms`, body:'Regadera, sanitario y lavabo en cada uno.' },
+        { icon:'🧴', title:'Amenities', body:'Shampoo, acondicionador, jabón de cuerpo y jabón de manos incluidos.' },
+        { icon:'🪥', title:'Towels', body:'Toallas de baño y toallas de alberca disponibles.' },
+        { icon:'💇', title:'Extras', body:'Hair dryer, iron and ironing board.' },
+        { icon:'👕', title:'Washing Machine', body:'Ciclo normal: 45 min. El detergente está bajo el fregadero de la cocina junto con los demás jabones en botellas pequeñas.' },
+        { icon:'ℹ️', title:'Amenities note', body:'Las amenidades que dejamos (shampoo, jabones, detergente, café, etc.) son cortesía de bienvenida — solo se deja una dotación inicial. Si se terminan durante tu estadía, puedes conseguirlas en cualquier tienda cercana.' },
+      ]
+    },
+    {
+      label:'Your paradise', title:'Terrace
+& Pool',
+      desc:'Your outdoor space with a private pool and access to the complex common areas.',
+      image: D.images.terrace,
+      info:[
+        { icon:'🏊', title:'Private pool', body:'La terraza cuenta con alberca privada de uso exclusivo. Sin horario — disponible las 24 horas.' },
+        { icon:'🌊', title:'Complex pools', body:'Además tienes acceso a las piscinas Selva, Bar y frente a la playa. Toallas en la zona de alberca.' },
+        { icon:'⚠️', title:'Áreas comunes del complejo', body:'En las piscinas del complejo (Selva, Bar, playa) <strong>solo se permite consumir productos comprados en el restaurante Kovay</strong>. Si llevas bebidas propias, deben ir en termo o Yeti cerrado — sin vasos ni botellas a la vista.' },
+      ]
+    },
+    {
+      label:'Recommendations', title:'Your secret
+spots',
+      desc:`Places you won't find on TripAdvisor. I only share these with ${D.name} guests.`,
+      spots: D.localSpots.map((s,i) => ({ num: String(i+1), name: s.name, desc: s.desc_en }))
+    },
+    {
+      label:'Practical Info', title:'Everything you
+need to know',
+      desc:'Key information for your stay. For any questions, message us on WhatsApp.',
+      info:[
+        { icon:'📶', title:`WiFi · ${D.wifi.network}`, body:`Password: <strong>${D.wifi.password}</strong>`, copy: D.wifi.password },
+        { icon:'📋', title:'Gate Registration', body:'Al llegar a Kovay Gardens dirígete a la <strong>caseta de entrada</strong> donde el personal realizará el registro para su ingreso.<br><br>⚠️ <em>Asegúrate de haber enviado previamente la lista de nombres de todos los huéspedes al host — sin ella el acceso puede demorar.</em>' },
+        { icon:'🔑', title:'Apartment Access', body: D.keyAccess_en },
+        { icon:'🕐', title:'Check-out', body:`At ${D.checkout}. If you need a late checkout let us know 24h in advance.` },
+        { icon:'🚑', title:'Emergencies', body:`<strong>911</strong> — Police, ambulance and fire.<br>Host 24/7: <a href="tel:+${D.phone}" style="color:var(--gold-light)">+${D.phone}</a>` },
+        { icon:'🧹', title:'Additional Cleaning', body:'Disponible con 24h de anticipación vía WhatsApp. Sin costo en estancias de 7+ noches.' },
+      ]
+    },
+    ...(D.hasKovay ? [{ label:'Inside the complex', title:'Kovay
+Restaurant', desc:'Eat and drink without leaving the complex. Full menu and hours below.', kovay:true }] : []),
+    {
+      label: D.location, title:'Today's
+Weather',
+      desc:'Real-time temperature, wind and rain so you can plan your day perfectly.',
+      weather: true
+    },
+    {
+      label:'We're here to help', title:'I have a
+problem',
+      desc:'Select what's happening and we'll send a direct WhatsApp message — we respond in minutes.',
+      sos: true
+    }
+  ];
+}
+
+function setActivePill(idx) {
+  document.querySelectorAll('.chapter-pill').forEach((p,i) => p.classList.toggle('active', i===idx));
+  const pill = document.querySelectorAll('.chapter-pill')[idx];
+  if (pill) pill.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+}
+
+function menuSection(title, hours, sections) {
+  let h = `<div style="margin-bottom:24px;">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.1);">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:white;font-weight:400;">${title}</div>
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);">${hours}</div>
+    </div>`;
+  sections.forEach(s => {
+    h += `<div style="margin-bottom:14px;">
+      <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:8px;">${s.cat}</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">`;
+    s.items.forEach(([name, price]) => {
+      h += `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:13px;">
+        <span style="color:rgba(255,255,255,0.75);line-height:1.5;">${name}</span>
+        <span style="color:var(--gold-light);font-weight:500;white-space:nowrap;flex-shrink:0;">${price}</span>
+      </div>`;
+    });
+    h += `</div></div>`;
+  });
+  h += `</div>`;
+  return h;
+}
+
+function openChapter(idx) {
+  currentChapterIdx = idx;
+  setActivePill(idx);
+  const chapters = getChapters();
+  const ch = chapters[idx];
+  const overlay = document.getElementById('chapterOverlay');
+  const content = document.getElementById('chapterContent');
+
+  let html = `
+    <div class="chapter-card-label">${ch.label}</div>
+    <h2>${ch.title.replace('\n','<br>')}</h2>
+    <p class="chapter-desc">${ch.desc}</p>
+  `;
+
+  if (ch.image) {
+    html += `<div style="width:100%;height:220px;border-radius:16px;overflow:hidden;margin-bottom:24px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+      <img src="${ch.image}" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.4s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'"/>
+    </div>`;
+  }
+  if (ch.images && ch.images.length) {
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;">`;
+    ch.images.forEach(src => {
+      html += `<div style="height:200px;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);box-shadow:0 6px 24px rgba(0,0,0,0.3);">
+        <img src="${src}" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.4s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"/>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (ch.map) {
+    html += `<div style="border-radius:16px;overflow:hidden;margin-bottom:24px;border:1px solid rgba(255,255,255,0.1);">
+      <div style="background:rgba(255,255,255,0.06);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:13px;color:rgba(255,255,255,0.7);display:flex;align-items:center;gap:8px;"><span>📍</span> Exact property location</div>
+        <a href="https://maps.google.com/?q=${ch.map.lat},${ch.map.lng}" target="_blank" style="font-size:12px;color:var(--gold-light);text-decoration:none;">Open in Maps ↗</a>
+      </div>
+      <iframe src="https://maps.google.com/maps?q=${ch.map.lat},${ch.map.lng}&z=17&output=embed" width="100%" height="280" style="border:none;display:block;" loading="lazy"></iframe>
+    </div>`;
+  }
+
+  if (ch.info) {
+    ch.info.forEach(r => {
+      html += `<div class="info-row">
+        <div class="info-row-icon">${r.icon}</div>
+        <div><h4>${r.title}</h4><p>${r.body}</p>
+        ${r.copy ? `<button class="copy-inline" onclick="copyText('${r.copy}',this)">📋 Copiar</button>` : ''}
+        </div>
+      </div>`;
+    });
+  }
+
+  if (ch.spots) {
+    ch.spots.forEach(s => {
+      html += `<div class="spot-row">
+        <div class="spot-num-w">${s.num}</div>
+        <div><h5>${s.name}</h5><p>${s.desc}</p></div>
+      </div>`;
+    });
+  }
+
+  if (ch.kovay) {
+    html += `
+    <div style="margin-bottom:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 20px;">
+      <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:4px;">Todos los días</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.6);line-height:1.8;">
+        ☀️ <strong style="color:white;">Pasatiempo · Deli Café</strong> — 7:00 am a 3:00 pm<br>
+        🍳 <strong style="color:white;">La Palma · Desayuno</strong> — 8:00 am a 12:00 pm<br>
+        🌮 <strong style="color:white;">La Palma · Comida</strong> — 12:00 pm a 5:00 pm<br>
+        🍷 <strong style="color:white;">La Palma · Cena</strong> — 5:00 pm a 9:00 pm<br>
+        🏖 <strong style="color:white;">Snack Bar</strong> — Área de alberca
+      </div>
+    </div>
+    ${menuSection('☀️ Pasatiempo · Deli Café','7:00 am – 3:00 pm',[{cat:'Ensaladas',items:[['Cobb','$195'],['César','$160'],['César con Pollo','$180'],['Griega','$210']]},{cat:'Paninis',items:[['Philly Steak Panini — arrachera, pimientos, mayonesa con cúrcuma','$235'],['Panini Vegetariano — queso de cabra, hongo, espinaca, romero','$210']]},{cat:'Emparedados',items:[['Florentino — jamón, espinaca, tocino, huevo, queso blanco','$180'],['Patty Melt — carne molida, queso, cebolla caramelizada','$180'],['Montecristo — pavo, huevo, azúcar glass','$150'],['Bagel de Salmón — salmón, alcaparras, queso crema','$210'],['Croissant de Huevo','$150']]},{cat:'Café',items:[['Americano','$55'],['Cappuccino','$75'],['Latte','$75'],['Espresso','$75'],['Bebidas Frappe','$105']]},{cat:'Jugos',items:[['Vampiro — betabel, piña, jengibre, naranja, limón, miel','$75'],['Menta — menta, pepino, piña, apio, manzana, miel','$75'],['Verde Gardens — kale, jengibre, espinaca, manzana, pepino, perejil, toronja','$75'],['Apio-Zanahoria','$75']]},{cat:'Smoothies',items:[['Blueberries','$105'],['Mango','$85'],['Kiwi','$105'],['Tropical','$85']]}])}
+    ${menuSection('🍳 La Palma · Desayuno','8:00 am – 12:00 pm',[{cat:'Clásicos',items:[['Desayuno Buffet','$390'],['Avena con leche/soya/almendra','$198'],['Plato Fruta de Temporada con granola','$205'],['Pan Francés con azúcar y canela','$270'],['Hot Cake Naturales / Plátano / Manzana','$275'],['Huevos al Gusto 2pzas — revueltos, fritos o divorciados','$300']]},{cat:'Especialidades',items:[['Huevos Motuleños — plátano macho, chicharos, jamón','$312'],['Huevos con Arrachera — frijoles, aguacate, queso panela','$360'],['Huevos Divorciados en Salsa Verde y Roja','$312'],['Huevos Benedictos Gratinados — salsa holandesa, papa hash brown','$324'],['Huevos Efigenia — ahogados en salsa verde o roja, aguacate','$200'],['Omelette al Gusto','$324'],['Omelette Gardens — pimiento, espinaca, champiñón, cebolla morada, requesón','$252'],['Machaca con Huevo y Rajas Poblanas','$312']]},{cat:'Chilaquiles & Burritos',items:[['Chilaquiles — roja, verde, morita o mole','$275'],['Chilaquiles con Pollo 180gr','$300'],['Burrito Vegetariano — mezcla de vegetales, queso, germinado','$312'],['Burrito Gardens — jamón, queso, huevo, tocino','$324']]},{cat:'Extras',items:[['Camarón 100gr','$111'],['Arrachera 50gr','$111'],['Pollo 100gr','$111'],['Aguacate 50gr','$60'],['Tocino o Salchichas 100gr','$111']]}])}
+    ${menuSection('🌮 La Palma · Comida','12:00 pm – 5:00 pm',[{cat:'Entradas',items:[['Ceviche Tatemado de Pesca del Día','$300'],['Camarones a la Gabardina — empanizado, tempura de cerveza','$540'],['Taco de Marlín — jitomate, queso gratinado, tortilla','$220'],['Sopa de Tortilla 370ml','$216'],['Quesadilla con Arrachera y Tortilla de Maíz','$360'],['Tostada de Camarón fresco cocido','$220'],['Taco Placero — pesca del día al ajillo, papa rostizada','$240'],['Nachos — frijoles, proteína, queso, jalapeños, guacamole','$276']]},{cat:'Plato Fuerte',items:[['Camarones al Gusto 200gr','$492'],['Camarones Zarandeados 200gr','$492'],['Pesca del Día a la Diabla 220gr','$745'],['Pesca del Día al Gusto 220gr','$745'],['Rib Eye en Fajas 500gr','$984'],['Alambre de Res 250gr','$546'],['Arrachera 250gr — frijoles, guacamole, chiles toreados','$648'],['Enchiladas de Mariscos — camarón, pulpo, pesca, callo','$598'],['Taquitos de Pollo Estilo Vallarta 180gr','$264'],['Club Sandwich 70gr','$264'],['La Cruz Burger 250gr','$456']]},{cat:'Postres',items:[['Brownie de Chocolate','$210'],['Panacota de Menta','$210'],['Crème Brûlée','$210'],['Pay de Manzana','$210'],['Helados — Vainilla, Chocolate, Fresa, Pistache','$210']]}])}
+    ${menuSection('🍷 La Palma · Cena','5:00 pm – 9:00 pm',[{cat:'Entradas',items:[['Carpacio de Salmón 200gr — alcaparras, arúgula, mostaza Dijon','$378'],['Ensalada Gardens 100gr — lechugas, hierbabuena, albahaca, frutos rojos','$192'],['Ensalada de Pera 100gr — jitomate, queso azul, nuez, miel','$192'],['Aguacate Relleno de Camarón 180gr','$378'],['Tártar de Atún 180gr — aguacate, aceite de oliva, mostaza','$420']]},{cat:'Plato Fuerte',items:[['Pesca en La Cruz 220gr — hierbas mexicanas, limón, hoja de tamal','$745'],['Pesca del Día Zarandeado 220gr — adobo de chiles y limón','$745'],['Medallones de Res al Vino Tinto 220gr — pure de papa rústico, espárrago','$546'],['Rib Eye 500gr — Angus, papa horno, vegetales, cebolla flameada','$984'],['Pollo Relleno 4 Quesos 200gr — pechuga, espinaca, champiñón, mozzarella','$420'],['La Cruz Burger 250gr','$456'],['Arroz con Mariscos — camarón, pulpo, pesca, callo','$420'],['Camarones al Vino Blanco 200gr','$492'],['Camarones al Gusto 200gr','$492'],['Surf & Turf con Camarón — camarón jumbo + filete de res','$1,080'],['Surf & Turf con Langosta — langosta 320gr + filete de res','$1,680']]},{cat:'Postres',items:[['Brownie de Chocolate','$210'],['Panacota de Menta','$210'],['Crème Brûlée','$210'],['Pay de Manzana','$210'],['Helados','$210']]}])}
+    ${menuSection('🏖 Snack Bar','Área de alberca',[{cat:'Botanas',items:[['Guacamole con Atún Fresco 120gr','$420'],['Guacamole con Chicharrón de Pescado 200gr','$420'],['Guacamole con Chicharrón de Pulpo 200gr','$420'],['Papas a la Francesa 250gr','$111'],['Garden Sliders con Queso — 3 pzas','$294']]},{cat:'Ceviche & Tacos',items:[['Ceviche de Camarón Chilpetín 140gr','$312'],['Ceviche de Pescado Vallarta 140gr','$312'],['Taco Baja de Pescado — 2 pzas','$252'],['Tacos de Camarón Capeado — 2 pzas','$300']]},{cat:'Quesadillas & Sandwiches',items:[['Quesadillas de Pollo — 2 pzas tortilla de harina','$264'],['Quesadillas de Arrachera — 2 pzas','$360'],['Sandwich de Pollo en Brioche','$180'],['Club Sandwich — pollo, jamón, queso','$264']]},{cat:'Alitas & Menú Infantil',items:[['Alitas de Pollo 250gr — BBQ, Búfalo o Teriyaki, 8 pzas','$168'],['Deditos de Pescado con salsa de jitomaté','$156'],['Quesadillas Naturales — 2 pzas','$192'],['Tenders de Pollo Empanizado','$136'],['Sandwich de Queso Gratinado','$156']]},{cat:'Postres',items:[['Brownie Relleno con Nieve','$210']]}])}
+    `;
+  }
+
+  if (ch.weather) {
+    const W = D.weather;
+    html += `
+    <div style="border-radius:16px;overflow:hidden;margin-bottom:20px;border:1px solid rgba(255,255,255,0.1);">
+      <iframe src="https://embed.windy.com/embed2.html?lat=${W.lat}&lon=${W.lng}&detailLat=${W.lat}&detailLon=${W.lng}&width=650&height=450&zoom=11&level=surface&overlay=temp&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=true&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1"
+        width="100%" height="420" style="border:none;display:block;" frameborder="0"></iframe>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:8px;">
+      <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">🌡</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:2px;">Typical temperature</div>
+        <div style="font-size:18px;font-weight:500;color:white;">${W.tempRange}</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">🌊</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:2px;">Sea temperature</div>
+        <div style="font-size:18px;font-weight:500;color:white;">${W.seaTemp}</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">🌅</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:2px;">Best sunset</div>
+        <div style="font-size:18px;font-weight:500;color:white;">${W.sunset}</div>
+      </div>
+    </div>`;
+  }
+
+  if (ch.sos) {
+    const problems = [
+      { icon:'💧', title:'No hot water', sub:'Boiler or shower issue', msg:`Hi, I'm staying at ${D.name} and there's no hot water. ¿Me pueden ayudar?` },
+      { icon:'❄️', title:'A/C not working', sub:'Not cooling or not turning on', msg:`Hi, I'm staying at ${D.name} and the air conditioning is not working. ¿Me pueden ayudar?` },
+      { icon:'📶', title:'No WiFi', sub:'No connection or very slow signal', msg:`Hi, I'm staying at ${D.name} and there's no WiFi connection. ¿Me pueden ayudar?` },
+      { icon:'🔑', title:'Can't get in', sub:'Issue with key or code', msg:`Hi, I'm staying at ${D.name} and I have a problem getting into the property. ¿Me pueden ayudar?` },
+      { icon:'🚿', title:'Bathroom issue', sub:'Leak, clog or toilet', msg:`Hi, I'm staying at ${D.name} and there's a bathroom issue. ¿Me pueden ayudar?` },
+      { icon:'💡', title:'No electricity', sub:'Power outage or blown bulb', msg:`Hi, I'm staying at ${D.name} and there's an electrical issue, no power in the property. ¿Me pueden ayudar?` },
+      { icon:'🪳', title:'Cleaning issue', sub:'Something that needs attention', msg:`Hi, I'm staying at ${D.name} and there's a cleaning issue that needs attention. ¿Me pueden ayudar?` },
+      { icon:'💬', title:'Other issue', sub:'Message us directly', msg:`Hi, I'm staying at ${D.name} and I need help with the following: ` },
+    ];
+    html += `<div class="problem-grid">`;
+    problems.forEach(p => {
+      html += `<a href="https://wa.me/${WA}?text=${encodeURIComponent(p.msg)}" target="_blank" class="problem-btn">
+        <div class="pb-icon">${p.icon}</div>
+        <div class="pb-title">${p.title}</div>
+        <div class="pb-sub">${p.sub}</div>
+      </a>`;
+    });
+    html += `</div>
+    <a href="https://wa.me/${WA}" target="_blank" class="wa-direct">
+      <div class="wa-icon">💬</div>
+      <div><h4>Talk directly with us</h4><p>WhatsApp · We respond in minutes</p></div>
+    </a>`;
+  }
+
+  content.innerHTML = html;
+  overlay.classList.add('open');
+  overlay.scrollTop = 0;
+}
+
+function loadKuula() {
+  const wrap = document.getElementById('kuulaWrap');
+  wrap.innerHTML = '';
+  const iframe = document.createElement('iframe');
+  iframe.src = D.kuula;
+  iframe.style.cssText = 'width:100%;height:100%;border:none;';
+  iframe.allow = 'xr-spatial-tracking; gyroscope; accelerometer; fullscreen';
+  iframe.allowFullscreen = true;
+  wrap.appendChild(iframe);
+}
+
+function showTour() {
+  document.getElementById('welcome').classList.add('hiding');
+  setTimeout(() => {
+    document.getElementById('welcome').style.display = 'none';
+    document.getElementById('tour-screen').classList.add('active');
+    loadKuula();
+  }, 800);
+}
+
+function startGuided() { showTour(); setTimeout(() => openChapter(0), 400); }
+
+function goBack() {
+  document.getElementById('tour-screen').classList.remove('active');
+  const w = document.getElementById('welcome');
+  w.style.display = '';
+  setTimeout(() => w.classList.remove('hiding'), 50);
+  document.getElementById('chapterOverlay').classList.remove('open');
+  setActivePill(0);
+}
+
+function openPanel() {
+  document.getElementById('info-panel').classList.add('open');
+  const ov = document.getElementById('overlay');
+  ov.style.opacity='1'; ov.style.pointerEvents='all';
+}
+function closePanel() {
+  document.getElementById('info-panel').classList.remove('open');
+  const ov = document.getElementById('overlay');
+  ov.style.opacity='0'; ov.style.pointerEvents='none';
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+</script>
+</body>
+</html>
