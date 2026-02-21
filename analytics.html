@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VRM · Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Jost:wght@200;300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --ink: #0A0E14; --ink2: #141820; --ink3: #1C2230;
+    --border: rgba(255,255,255,0.07);
+    --gold: #C8A96E; --gold-dim: rgba(200,169,110,0.15); --gold-glow: rgba(200,169,110,0.35);
+    --muted: rgba(255,255,255,0.35); --text: rgba(255,255,255,0.85);
+    --green: #4ACEA8; --blue: #4AACCF; --red: #CF6B6B;
+  }
+  html, body { background: var(--ink); color: var(--text); font-family: 'Jost', sans-serif; min-height: 100vh; }
+  body::before { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events:none; z-index:1000; opacity:0.4; }
+  .header { display:flex; align-items:center; justify-content:space-between; padding:24px 40px; border-bottom:1px solid var(--border); background:rgba(10,14,20,0.95); position:sticky; top:0; z-index:100; backdrop-filter:blur(20px); flex-wrap:wrap; gap:12px; }
+  .logo { font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; letter-spacing:2px; color:white; }
+  .logo em { color:var(--gold); font-style:italic; }
+  .header-right { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .live-badge { display:flex; align-items:center; gap:7px; background:rgba(74,206,168,0.1); border:1px solid rgba(74,206,168,0.3); border-radius:20px; padding:6px 14px; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--green); }
+  .live-dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:blink 2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .period-select { background:var(--ink3); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'Jost',sans-serif; font-size:12px; padding:7px 12px; cursor:pointer; outline:none; }
+  .btn { background:none; border:1px solid var(--border); border-radius:8px; color:var(--muted); font-family:'Jost',sans-serif; font-size:12px; padding:7px 14px; cursor:pointer; transition:all 0.2s; }
+  .btn:hover { border-color:var(--gold-glow); color:var(--gold); }
+  .btn.danger { color:var(--red); border-color:rgba(207,107,107,0.3); }
+  .btn.danger:hover { border-color:var(--red); }
+  .main { padding:40px; max-width:1400px; margin:0 auto; }
+  .section-label { font-size:10px; letter-spacing:4px; text-transform:uppercase; color:var(--gold); margin-bottom:20px; font-weight:400; }
+  .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:40px; }
+  .kpi { background:var(--ink2); border:1px solid var(--border); border-radius:16px; padding:24px 28px; position:relative; overflow:hidden; transition:border-color 0.3s; animation:fadeUp 0.5s ease both; }
+  .kpi:hover { border-color:var(--gold-glow); }
+  .kpi::after { content:''; position:absolute; top:0; right:0; width:60px; height:60px; background:radial-gradient(circle,var(--gold-dim) 0%,transparent 70%); border-radius:50%; transform:translate(20px,-20px); }
+  .kpi-label { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
+  .kpi-value { font-family:'Cormorant Garamond',serif; font-size:48px; font-weight:300; color:white; line-height:1; margin-bottom:8px; }
+  .kpi-sub { font-size:12px; color:var(--muted); }
+  .grid-3 { display:grid; grid-template-columns:2fr 1fr; gap:20px; margin-bottom:20px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; }
+  .card { background:var(--ink2); border:1px solid var(--border); border-radius:16px; padding:28px; animation:fadeUp 0.5s ease both; }
+  .card-title { font-size:13px; font-weight:500; color:white; margin-bottom:4px; letter-spacing:0.5px; }
+  .card-sub { font-size:11px; color:var(--muted); margin-bottom:24px; }
+  .dept-table { width:100%; border-collapse:collapse; }
+  .dept-table th { text-align:left; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); padding:0 0 14px 0; border-bottom:1px solid var(--border); font-weight:400; }
+  .dept-table td { padding:14px 0; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; }
+  .dept-table tr:last-child td { border-bottom:none; }
+  .dept-num { font-family:'JetBrains Mono',monospace; color:var(--gold); font-size:14px; }
+  .dept-badge { display:inline-flex; align-items:center; background:var(--gold-dim); border:1px solid var(--gold-glow); border-radius:6px; padding:3px 10px; font-size:11px; color:var(--gold); }
+  .spark { display:flex; align-items:flex-end; gap:2px; height:24px; }
+  .spark-bar { width:4px; background:var(--gold); border-radius:1px; opacity:0.5; min-height:3px; }
+  .spark-bar.peak { opacity:1; }
+  .bar-list { display:flex; flex-direction:column; gap:12px; }
+  .bar-item { display:flex; flex-direction:column; gap:6px; }
+  .bar-meta { display:flex; justify-content:space-between; align-items:center; }
+  .bar-name { font-size:13px; color:var(--text); font-weight:300; }
+  .bar-count { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); }
+  .bar-track { height:4px; background:var(--ink3); border-radius:2px; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:2px; background:linear-gradient(90deg,var(--gold),var(--gold-glow)); transition:width 1s cubic-bezier(0.4,0,0.2,1); }
+  .bar-fill.blue { background:linear-gradient(90deg,var(--blue),rgba(74,172,207,0.4)); }
+  .country-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); }
+  .country-row:last-child { border-bottom:none; }
+  .country-name { font-size:13px; display:flex; align-items:center; gap:10px; }
+  .country-flag { font-size:18px; }
+  .country-pct { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); }
+  .pill-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px; }
+  .pill-stat { background:var(--ink3); border:1px solid var(--border); border-radius:10px; padding:14px 16px; transition:all 0.2s; }
+  .pill-stat:hover { border-color:var(--gold-glow); background:var(--gold-dim); }
+  .pill-stat-icon { font-size:18px; margin-bottom:8px; }
+  .pill-stat-label { font-size:11px; color:var(--muted); margin-bottom:4px; line-height:1.3; }
+  .pill-stat-count { font-family:'JetBrains Mono',monospace; font-size:16px; color:white; }
+  .pill-heat { height:3px; border-radius:2px; margin-top:8px; background:linear-gradient(90deg,var(--gold),var(--gold-dim)); transition:width 1s ease; }
+  .empty { text-align:center; padding:40px; color:var(--muted); font-size:13px; font-style:italic; }
+  .loading { text-align:center; padding:20px; color:var(--muted); font-size:12px; letter-spacing:2px; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  @media(max-width:900px) { .main{padding:20px} .kpi-row{grid-template-columns:repeat(2,1fr)} .grid-2,.grid-3{grid-template-columns:1fr} .header{padding:20px} }
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="logo">VRM <em>·</em> Analytics</div>
+  <div class="header-right">
+    <div class="live-badge"><div class="live-dot"></div>En vivo</div>
+    <select class="period-select" id="periodSelect" onchange="loadData()">
+      <option value="7">Últimos 7 días</option>
+      <option value="30" selected>Últimos 30 días</option>
+      <option value="90">Últimos 90 días</option>
+      <option value="0">Todo el tiempo</option>
+    </select>
+    <button class="btn" onclick="loadData()">↻ Actualizar</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="section-label">Resumen general</div>
+  <div class="kpi-row">
+    <div class="kpi" style="animation-delay:0.05s">
+      <div class="kpi-label">Visitas totales</div>
+      <div class="kpi-value" id="kpiTotal">—</div>
+      <div class="kpi-sub" id="kpiTotalSub"></div>
+    </div>
+    <div class="kpi" style="animation-delay:0.1s">
+      <div class="kpi-label">Visitas hoy</div>
+      <div class="kpi-value" id="kpiToday">—</div>
+      <div class="kpi-sub" id="kpiTodaySub"></div>
+    </div>
+    <div class="kpi" style="animation-delay:0.15s">
+      <div class="kpi-label">Depto más visto</div>
+      <div class="kpi-value" id="kpiTop" style="font-size:36px">—</div>
+      <div class="kpi-sub" id="kpiTopSub"></div>
+    </div>
+    <div class="kpi" style="animation-delay:0.2s">
+      <div class="kpi-label">Idioma más usado</div>
+      <div class="kpi-value" id="kpiLang" style="font-size:36px">—</div>
+      <div class="kpi-sub" id="kpiLangSub"></div>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="card" style="animation-delay:0.1s">
+      <div class="card-title">Visitas por departamento</div>
+      <div class="card-sub">Aperturas de la guía por depto e idioma</div>
+      <table class="dept-table">
+        <thead><tr><th>Depto</th><th>Idioma</th><th>Visitas</th><th>Últimos 7 días</th></tr></thead>
+        <tbody id="deptTableBody"><tr><td colspan="4" class="loading">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="card" style="animation-delay:0.15s">
+      <div class="card-title">Idiomas</div>
+      <div class="card-sub">Distribución ES vs EN</div>
+      <div class="bar-list" id="langBars"></div>
+      <div style="margin-top:28px">
+        <div class="card-title">País de origen</div>
+        <div class="card-sub" style="margin-bottom:16px">Basado en zona horaria</div>
+        <div id="countryList"><div class="loading">Cargando...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card" style="animation-delay:0.2s">
+      <div class="card-title">Secciones más vistas</div>
+      <div class="card-sub">Qué pills abren más los huéspedes</div>
+      <div class="pill-grid" id="pillGrid"><div class="loading">Cargando...</div></div>
+    </div>
+    <div class="card" style="animation-delay:0.25s">
+      <div class="card-title">Actividad reciente</div>
+      <div class="card-sub">Últimas 10 visitas en tiempo real</div>
+      <div id="recentList"><div class="loading">Cargando...</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SB_URL = 'https://grsykedeppdwenpfxlfh.supabase.co';
+const SB_KEY = 'sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm';
+
+const headers = {
+  'apikey': SB_KEY,
+  'Authorization': 'Bearer ' + SB_KEY,
+  'Content-Type': 'application/json'
+};
+
+async function sbGet(table, params = '') {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function loadData() {
+  const days = parseInt(document.getElementById('periodSelect').value);
+  const cutoff = days === 0 ? null : new Date(Date.now() - days * 86400000).toISOString();
+  const filter = cutoff ? `created_at=gte.${cutoff}` : '';
+
+  try {
+    const [visits, pills] = await Promise.all([
+      sbGet('visits', filter + '&order=created_at.desc&limit=1000'),
+      sbGet('pill_clicks', filter + '&order=created_at.desc&limit=2000')
+    ]);
+    renderAll(visits, pills);
+  } catch(e) {
+    console.error('Error loading data:', e);
+  }
+}
+
+function renderAll(visits, pills) {
+  renderKPIs(visits);
+  renderDeptTable(visits);
+  renderLangBars(visits);
+  renderCountries(visits);
+  renderPillGrid(pills);
+  renderRecent(visits);
+}
+
+function renderKPIs(visits) {
+  const total = visits.length;
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const today = visits.filter(v => new Date(v.created_at) >= todayStart).length;
+
+  const deptCount = {};
+  visits.forEach(v => deptCount[v.dept] = (deptCount[v.dept]||0)+1);
+  const topDept = Object.entries(deptCount).sort((a,b)=>b[1]-a[1])[0];
+
+  const langCount = {};
+  visits.forEach(v => langCount[v.lang] = (langCount[v.lang]||0)+1);
+  const topLang = Object.entries(langCount).sort((a,b)=>b[1]-a[1])[0];
+
+  document.getElementById('kpiTotal').textContent = total;
+  document.getElementById('kpiTotalSub').textContent = total === 0 ? 'Sin visitas aún' : `${total} aperturas registradas`;
+  document.getElementById('kpiToday').textContent = today;
+  document.getElementById('kpiTodaySub').textContent = today === 0 ? 'Ninguna hoy' : `hoy`;
+  document.getElementById('kpiTop').textContent = topDept ? topDept[0] : '—';
+  document.getElementById('kpiTopSub').textContent = topDept ? `${topDept[1]} visitas` : '';
+  document.getElementById('kpiLang').textContent = topLang ? topLang[0].toUpperCase() : '—';
+  document.getElementById('kpiLangSub').textContent = topLang ? `${topLang[1]} de ${total}` : '';
+}
+
+function renderDeptTable(visits) {
+  const tbody = document.getElementById('deptTableBody');
+  if (!visits.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">Sin visitas aún — sube los templates a GitHub para empezar a trackear</td></tr>'; return; }
+
+  const counts = {};
+  visits.forEach(v => {
+    const k = `${v.dept}-${v.lang}`;
+    if (!counts[k]) counts[k] = { dept:v.dept, lang:v.lang, total:0, dates:[] };
+    counts[k].total++;
+    counts[k].dates.push(v.created_at);
+  });
+
+  const rows = Object.values(counts).sort((a,b)=>b.total-a.total);
+  const now = Date.now();
+
+  tbody.innerHTML = rows.map(r => {
+    const days = Array(7).fill(0);
+    r.dates.forEach(d => {
+      const ago = Math.floor((now - new Date(d)) / 86400000);
+      if (ago < 7) days[6-ago]++;
+    });
+    const maxD = Math.max(...days, 1);
+    const spark = days.map(d => `<div class="spark-bar${d===maxD&&d>0?' peak':''}" style="height:${Math.round((d/maxD)*22)+2}px"></div>`).join('');
+    return `<tr>
+      <td><span class="dept-num">${r.dept}</span></td>
+      <td><span class="dept-badge">${r.lang.toUpperCase()}</span></td>
+      <td style="font-family:'JetBrains Mono',monospace">${r.total}</td>
+      <td><div class="spark">${spark}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderLangBars(visits) {
+  const counts = { es:0, en:0 };
+  visits.forEach(v => counts[v.lang] = (counts[v.lang]||0)+1);
+  const total = visits.length || 1;
+  document.getElementById('langBars').innerHTML = [
+    { key:'es', label:'Español 🇲🇽', cls:'' },
+    { key:'en', label:'English 🇺🇸', cls:'blue' }
+  ].map(l => {
+    const c = counts[l.key]||0, pct = Math.round(c/total*100);
+    return `<div class="bar-item">
+      <div class="bar-meta"><span class="bar-name">${l.label}</span><span class="bar-count">${c} · ${pct}%</span></div>
+      <div class="bar-track"><div class="bar-fill ${l.cls}" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderCountries(visits) {
+  const tzMap = {
+    'America/Mexico_City':{name:'México',flag:'🇲🇽'},
+    'America/New_York':{name:'EE.UU.',flag:'🇺🇸'},
+    'America/Chicago':{name:'EE.UU.',flag:'🇺🇸'},
+    'America/Los_Angeles':{name:'EE.UU.',flag:'🇺🇸'},
+    'America/Denver':{name:'EE.UU.',flag:'🇺🇸'},
+    'America/Toronto':{name:'Canadá',flag:'🇨🇦'},
+    'America/Vancouver':{name:'Canadá',flag:'🇨🇦'},
+    'America/Argentina/Buenos_Aires':{name:'Argentina',flag:'🇦🇷'},
+    'Europe/Madrid':{name:'España',flag:'🇪🇸'},
+    'Europe/London':{name:'Reino Unido',flag:'🇬🇧'},
+    'America/Bogota':{name:'Colombia',flag:'🇨🇴'},
+    'America/Lima':{name:'Perú',flag:'🇵🇪'},
+    'America/Santiago':{name:'Chile',flag:'🇨🇱'},
+  };
+  const counts = {};
+  visits.forEach(v => {
+    const c = tzMap[v.timezone] || { name: v.timezone||'Otro', flag:'🌍' };
+    counts[c.name] = counts[c.name] || { ...c, n:0 };
+    counts[c.name].n++;
+  });
+  const total = visits.length || 1;
+  const sorted = Object.values(counts).sort((a,b)=>b.n-a.n).slice(0,6);
+  document.getElementById('countryList').innerHTML = sorted.length ? sorted.map(c =>
+    `<div class="country-row">
+      <span class="country-name"><span class="country-flag">${c.flag}</span>${c.name}</span>
+      <span class="country-pct">${c.n} · ${Math.round(c.n/total*100)}%</span>
+    </div>`).join('') : '<div class="empty">Sin datos</div>';
+}
+
+function renderPillGrid(pills) {
+  const counts = {};
+  pills.forEach(p => counts[p.pill_label] = (counts[p.pill_label]||0)+1);
+  const allPills = [
+    {icon:'🚪',label:'Llegada'},{icon:'🛋',label:'Sala & Comedor'},
+    {icon:'🍳',label:'Cocina'},{icon:'🛏',label:'Recámaras'},
+    {icon:'🚿',label:'Baños'},{icon:'🏊',label:'Terraza & Alberca'},
+    {icon:'🏊',label:'Albercas del complejo'},{icon:'🌮',label:'Spots Locales'},
+    {icon:'ℹ️',label:'Info casa'},{icon:'🍽',label:'Restaurante Quiya'},
+    {icon:'🌤',label:'Clima de hoy'},{icon:'🆘',label:'Tengo un problema'},
+  ];
+  // Merge pool variants
+  const merged = {};
+  allPills.forEach(p => {
+    const c = counts[p.label]||0;
+    if (c > 0 || !['Albercas del complejo'].includes(p.label)) {
+      merged[p.label] = { icon:p.icon, label:p.label, count:c };
+    }
+  });
+  const items = Object.values(merged).filter(p => p.count > 0 || true).sort((a,b)=>b.count-a.count);
+  const max = Math.max(...items.map(p=>p.count), 1);
+
+  document.getElementById('pillGrid').innerHTML = items.map(p => `
+    <div class="pill-stat">
+      <div class="pill-stat-icon">${p.icon}</div>
+      <div class="pill-stat-label">${p.label}</div>
+      <div class="pill-stat-count">${p.count}</div>
+      <div class="pill-heat" style="width:${Math.round(p.count/max*100)}%"></div>
+    </div>`).join('');
+}
+
+function renderRecent(visits) {
+  const recent = visits.slice(0,10);
+  document.getElementById('recentList').innerHTML = recent.length ? recent.map(v => {
+    const d = new Date(v.created_at);
+    const dateStr = d.toLocaleDateString('es-MX',{month:'short',day:'numeric'});
+    const timeStr = d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+    const tz = v.timezone?.split('/')[1]?.replace(/_/g,' ') || '—';
+    return `<div class="country-row">
+      <span class="country-name" style="gap:12px">
+        <span class="dept-num">${v.dept}</span>
+        <span class="dept-badge">${v.lang.toUpperCase()}</span>
+        <span style="font-size:12px;color:var(--muted)">${tz}</span>
+      </span>
+      <span class="country-pct">${dateStr} ${timeStr}</span>
+    </div>`;
+  }).join('') : '<div class="empty">Sin visitas aún</div>';
+}
+
+// Auto-refresh every 60s
+loadData();
+setInterval(loadData, 60000);
+</script>
+</body>
+</html>
