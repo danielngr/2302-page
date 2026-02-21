@@ -169,6 +169,41 @@ async function loadData() {
   }
 }
 
+
+// ── ANALYTICS TRACKING ──
+const ANALYTICS_EVENTS_KEY = 'vrm_events';
+const ANALYTICS_PILLS_KEY = 'vrm_pill_clicks';
+
+async function trackVisit() {
+  if (!window.storage || !window.D) return;
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown';
+    const lang = 'es';
+    const event = { ts: Date.now(), dept: window.D.id, lang, tz };
+    let events = [];
+    try {
+      const res = await window.storage.get(ANALYTICS_EVENTS_KEY, true);
+      if (res) events = JSON.parse(res.value);
+    } catch(e) {}
+    events.unshift(event);
+    if (events.length > 1000) events = events.slice(0, 1000);
+    await window.storage.set(ANALYTICS_EVENTS_KEY, JSON.stringify(events), true);
+  } catch(e) {}
+}
+
+async function trackPillClick(pillLabel) {
+  if (!window.storage) return;
+  try {
+    let clicks = {};
+    try {
+      const res = await window.storage.get(ANALYTICS_PILLS_KEY, true);
+      if (res) clicks = JSON.parse(res.value);
+    } catch(e) {}
+    clicks[pillLabel] = (clicks[pillLabel] || 0) + 1;
+    await window.storage.set(ANALYTICS_PILLS_KEY, JSON.stringify(clicks), true);
+  } catch(e) {}
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   window.D = await loadData();
   if (!window.D) {
@@ -176,6 +211,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
   initPage();
+  trackVisit();
 });
 
 function initPage() {
@@ -214,7 +250,7 @@ function buildPills() {
   ];
   const bar = document.getElementById('chapterBar');
   bar.innerHTML = pills.map((p,i) =>
-    `<div class="chapter-pill${i===0?' active':''}${p.sos?' sos-pill':''}" onclick="openChapter(${i})"><div class="chapter-dot"></div>${p.icon} ${p.label}</div>`
+    `<div class="chapter-pill${i===0?' active':''}${p.sos?' sos-pill':''}" onclick="openChapter(${i});trackPillClick('${p.label}')"><div class="chapter-dot"></div>${p.icon} ${p.label}</div>`
   ).join('');
 }
 
