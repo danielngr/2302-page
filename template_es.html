@@ -174,10 +174,11 @@ async function loadData() {
 // ── SUPABASE ANALYTICS ──
 const SB_URL = "https://grsykedeppdwenpfxlfh.supabase.co";
 const SB_KEY = "sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm";
-const NO_TRACK = new URLSearchParams(window.location.search).has('notrack');
 
 async function trackVisit() {
-  if (!window.D || NO_TRACK) return;
+  if (!window.D) return;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("notrack") === "true") return;
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown';
     await fetch(SB_URL + '/rest/v1/visits', {
@@ -194,7 +195,9 @@ async function trackVisit() {
 }
 
 async function trackPillClick(pillLabel) {
-  if (!window.D || NO_TRACK) return;
+  if (!window.D) return;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("notrack") === "true") return;
   try {
     await fetch(SB_URL + '/rest/v1/pill_clicks', {
       method: 'POST',
