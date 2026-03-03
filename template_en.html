@@ -249,7 +249,7 @@ function buildPills() {
     { icon:'🍳', label:'Kitchen' },
     { icon:'🛏', label: (D.bedrooms && D.bedrooms.length === 1) ? 'Bedroom' : 'Bedrooms' },
     { icon:'🚿', label: (D.bathrooms === 1) ? 'Bathroom' : 'Bathrooms' },
-    { icon:'🏊', label: D.hasTerrace !== false ? 'Terrace & Pool' : 'Complex Pools' },
+    { icon:'🏊', label: D.hasTerrace !== false ? (D.hasPrivatePool !== false ? 'Terrace & Pool' : 'Terrace') : 'Complex Pools' },
     { icon:'🌮', label:'Local Spots' },
     { icon:'ℹ️', label:'House Info' },
     ...(D.hasQuiya ? [{ icon:'🍽', label:'Quiya Restaurant' }] : []),
@@ -356,8 +356,8 @@ function getChapters() {
       desc:'Your outdoor space with a private pool and access to the complex common areas.',
       images: [D.images.terrace, D.images.terrace2].filter(Boolean),
       info:[
-        { icon:'🏊', title:'Private pool', body:'The terrace has a private pool for exclusive use. No schedule — available 24 hours.' },
-        { icon:'🌊', title:'Complex pools', body:'You also have access to the Selva, Bar and beachfront pools. Towels available at the pool area.' },
+        ...(D.hasPrivatePool !== false ? [{ icon:'🏊', title:'Private pool', body:'The terrace has a private pool for exclusive use. No schedule — available 24 hours.' }] : []),
+        ...(D.hasQuiya ? [{ icon:'🌊', title:'Complex pools', body:'You also have access to the Selva, Bar and beachfront pools. Towels available at the pool area.' }] : [{ icon:'🌊', title:'Complex pools', body: D.poolInfo_en || 'Enjoy the complex pools.' }]),
         { icon:'⚠️', title:'Complex common areas', body:'At the complex pools (Selva, Bar, beach) <strong>only products purchased at the Quiya restaurant are allowed</strong>. Own drinks only in a closed thermos or Yeti.' },
       ]
     } : {

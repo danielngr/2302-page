@@ -249,7 +249,7 @@ function buildPills() {
     { icon:'🍳', label:'Cocina' },
     { icon:'🛏', label: (D.bedrooms && D.bedrooms.length === 1) ? 'Recámara' : 'Recámaras' },
     { icon:'🚿', label: (D.bathrooms === 1) ? 'Baño' : 'Baños' },
-    { icon:'🏊', label: D.hasTerrace !== false ? 'Terraza & Alberca' : 'Albercas del complejo' },
+    { icon:'🏊', label: D.hasTerrace !== false ? (D.hasPrivatePool !== false ? 'Terraza & Alberca' : 'Terraza') : 'Albercas del complejo' },
     { icon:'🌮', label:'Spots Locales' },
     { icon:'ℹ️', label:'Info casa' },
     ...(D.hasQuiya ? [{ icon:'🍽', label:'Restaurante Quiya' }] : []),
@@ -356,8 +356,8 @@ function getChapters() {
       desc:'Tu espacio al aire libre con alberca privada y acceso a las áreas comunes del complejo.',
       images: [D.images.terrace, D.images.terrace2].filter(Boolean),
       info:[
-        { icon:'🏊', title:'Alberca privada', body:'La terraza cuenta con alberca privada de uso exclusivo. Sin horario — disponible las 24 horas.' },
-        { icon:'🌊', title:'Piscinas del complejo', body:'Además tienes acceso a las piscinas Selva, Bar y frente a la playa. Toallas en la zona de alberca.' },
+        ...(D.hasPrivatePool !== false ? [{ icon:'🏊', title:'Alberca privada', body:'La terraza cuenta con alberca privada de uso exclusivo. Sin horario — disponible las 24 horas.' }] : []),
+        ...(D.hasQuiya ? [{ icon:'🌊', title:'Piscinas del complejo', body:'Además tienes acceso a las piscinas Selva, Bar y frente a la playa. Toallas en la zona de alberca.' }] : [{ icon:'🌊', title:'Piscinas del complejo', body: D.poolInfo_es || 'Disfruta de las albercas del complejo.' }]),
         ...(D.poolRules_es ? [{ icon:'⚠️', title:'Áreas comunes del complejo', body: D.poolRules_es }] : [{ icon:'⚠️', title:'Áreas comunes del complejo', body:'En las piscinas del complejo (Selva, Bar, playa) <strong>solo se permite consumir productos comprados en el restaurante Quiya</strong>. Si llevas bebidas propias, deben ir en termo o Yeti cerrado — sin vasos ni botellas a la vista.' }]),
       ]
     } : {
