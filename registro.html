@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro de Huéspedes — VRM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f7f6f2;
+    --white: #ffffff;
+    --border: #e0ddd6;
+    --accent: #2c5f8a;
+    --accent-light: #e8f0f8;
+    --text: #1a1a1a;
+    --muted: #888;
+    --error: #c0392b;
+    --success: #27ae60;
+    --sans: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+
+  .page-header {
+    background: var(--accent);
+    color: white;
+    padding: 20px 24px;
+    text-align: center;
+  }
+  .page-header h1 { font-size: 18px; font-weight: 600; }
+  .page-header p { font-size: 13px; opacity: .8; margin-top: 4px; }
+
+  .container { max-width: 600px; margin: 0 auto; padding: 24px 16px 48px; }
+
+  .depto-badge {
+    background: var(--accent); color: white;
+    padding: 8px 16px; border-radius: 20px;
+    font-size: 13px; font-family: var(--mono);
+    display: inline-block; margin-bottom: 20px;
+  }
+
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 12px; font-family: var(--mono);
+    color: var(--accent); letter-spacing: 1.5px;
+    text-transform: uppercase; margin-bottom: 16px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  }
+
+  .field { margin-bottom: 14px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
+  input, select {
+    width: 100%; background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 8px; color: var(--text); font-family: var(--sans);
+    font-size: 15px; padding: 11px 14px; outline: none; transition: border-color .2s;
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus { border-color: var(--accent); background: white; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  .ocupante-row {
+    display: grid; grid-template-columns: 1fr 110px 36px; gap: 8px;
+    align-items: center; margin-bottom: 8px;
+  }
+  .btn-remove {
+    background: none; border: 1.5px solid var(--border); color: var(--muted);
+    border-radius: 8px; cursor: pointer; font-size: 18px; height: 44px;
+    transition: all .2s;
+  }
+  .btn-remove:hover { border-color: var(--error); color: var(--error); }
+  .btn-add {
+    background: none; border: 1.5px dashed var(--border); color: var(--muted);
+    border-radius: 8px; cursor: pointer; font-size: 13px; padding: 10px;
+    width: 100%; margin-top: 4px; transition: all .2s;
+  }
+  .btn-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-submit {
+    width: 100%; padding: 16px; border-radius: 10px; border: none;
+    background: var(--accent); color: white; font-size: 16px;
+    font-family: var(--sans); font-weight: 600; cursor: pointer;
+    transition: all .2s; margin-top: 8px;
+  }
+  .btn-submit:hover { background: #1e4a70; }
+  .btn-submit:disabled { opacity: .5; cursor: default; }
+
+  .success-screen {
+    display: none; text-align: center; padding: 48px 24px;
+  }
+  .success-icon { font-size: 56px; margin-bottom: 16px; }
+  .success-screen h2 { font-size: 22px; color: var(--success); margin-bottom: 8px; }
+  .success-screen p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+  .error-msg { color: var(--error); font-size: 12px; margin-top: 4px; display: none; }
+  .required::after { content: " *"; color: var(--error); }
+
+  #loading { display:none; text-align:center; padding:16px; color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Registro de Huéspedes</h1>
+  <p>Por favor completa tus datos antes de tu llegada</p>
+</div>
+
+<div class="container">
+  <div id="form-section">
+    <div style="margin-bottom:16px;">
+      <span class="depto-badge" id="depto-badge">Cargando...</span>
+    </div>
+
+    <!-- DATOS PRINCIPALES -->
+    <div class="card">
+      <div class="card-title">Datos del responsable</div>
+      <div class="field">
+        <label class="required">Nombre completo</label>
+        <input type="text" id="nombre" placeholder="Tu nombre completo" autocomplete="name">
+      </div>
+      <div class="field">
+        <label>Correo electrónico</label>
+        <input type="email" id="email" placeholder="tu@email.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>Teléfono / WhatsApp</label>
+        <input type="tel" id="telefono" placeholder="+52 33 1234 5678" autocomplete="tel">
+      </div>
+    </div>
+
+    <!-- FECHAS -->
+    <div class="card">
+      <div class="card-title">Fechas de estancia</div>
+      <div class="grid2">
+        <div class="field">
+          <label class="required">Fecha de llegada</label>
+          <input type="date" id="fecha_entrada">
+        </div>
+        <div class="field">
+          <label class="required">Fecha de salida</label>
+          <input type="date" id="fecha_salida">
+        </div>
+      </div>
+      <div class="grid3">
+        <div class="field">
+          <label>Adultos</label>
+          <input type="number" id="num_adultos" min="1" max="20" value="1">
+        </div>
+        <div class="field">
+          <label>Menores</label>
+          <input type="number" id="num_menores" min="0" max="20" value="0">
+        </div>
+        <div class="field">
+          <label>Mascotas</label>
+          <input type="number" id="num_mascotas" min="0" max="10" value="0">
+        </div>
+      </div>
+    </div>
+
+    <!-- VEHÍCULO -->
+    <div class="card">
+      <div class="card-title">Vehículo (opcional)</div>
+      <div class="grid2">
+        <div class="field">
+          <label>Marca / Modelo / Color</label>
+          <input type="text" id="vehiculo_modelo" placeholder="Ej: Toyota Rav4 Blanca">
+        </div>
+        <div class="field">
+          <label>Placas</label>
+          <input type="text" id="vehiculo_placas" placeholder="Ej: ABC-1234">
+        </div>
+      </div>
+    </div>
+
+    <!-- OCUPANTES -->
+    <div class="card">
+      <div class="card-title">Lista de todos los huéspedes</div>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">Incluye a todos los que se hospedarán, incluyéndote a ti.</p>
+      <div id="ocupantes-list"></div>
+      <button class="btn-add" onclick="agregarOcupante()">+ Agregar huésped</button>
+    </div>
+
+    <div id="loading">Enviando registro...</div>
+    <button class="btn-submit" id="btn-submit" onclick="enviar()">ENVIAR REGISTRO</button>
+    <p style="text-align:center; font-size:11px; color:var(--muted); margin-top:12px;">
+      Tus datos se usan únicamente para el registro de acceso al condominio.
+    </p>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="success-screen" id="success-screen">
+    <div class="success-icon">✅</div>
+    <h2>¡Registro enviado!</h2>
+    <p>Hemos recibido tu información.<br>Nos vemos en tu llegada. ¡Bienvenido!</p>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://grsykedeppdwenpfxlfh.supabase.co";
+const SUPABASE_KEY = "sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm";
+
+// Mapa depto → template + tipo
+const DEPTO_MAP = {
+  "QUIYA 2302":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2005":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2403":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2701":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2705":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2801":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2804":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2805":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2905":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 3004":{"template":"quiya","tipo":"pdf"},
+  "ALBATROS 301 A":{"template":"albatros","tipo":"pdf"},
+  "GD 103A":{"template":"gd","tipo":"pdf"},
+  "GD 202B":{"template":"gd","tipo":"pdf"},
+  "GD 303A":{"template":"gd","tipo":"pdf"},
+  "GD 501B":{"template":"gd","tipo":"pdf"},
+  "GD 501E":{"template":"gd","tipo":"pdf"},
+  "ALAMAR 503":{"template":"alamar","tipo":"pdf"},
+  "DELTA 2 101":{"template":"alamar","tipo":"pdf"},
+  "VENETIAN 905 T3":{"template":"venetian","tipo":"pdf"},
+  "VENETIAN 906 T3":{"template":"venetian","tipo":"pdf"},
+  "VENETIAN 1010 T3":{"template":"venetian","tipo":"pdf"},
+  "VENETIAN 1903 T3":{"template":"venetian","tipo":"pdf"},
+  "VENETIAN 2101 T3":{"template":"venetian","tipo":"pdf"},
+  "FLAMINGOS":{"template":"flamingos","tipo":"pdf"},
+  "XIKIRI":{"template":"xikiri","tipo":"pdf"},
+  "PENINSULA 19E":{"template":"peninsula","tipo":"pdf"},
+  "PENINSULA 18B":{"template":"peninsula","tipo":"pdf"},
+  "RINCON 104":{"template":"whatsapp","tipo":"whatsapp"},
+  "RINCON 403":{"template":"whatsapp","tipo":"whatsapp"},
+  "RINCON 502":{"template":"whatsapp","tipo":"whatsapp"},
+  "PLAYA ESMERALDA":{"template":"whatsapp","tipo":"whatsapp"},
+  "ARCANO":{"template":"whatsapp","tipo":"whatsapp"},
+  "NAUTICO 9C":{"template":"whatsapp","tipo":"whatsapp"},
+  "NAUTICO 9E":{"template":"whatsapp","tipo":"whatsapp"},
+  "NAUTICO 1G":{"template":"whatsapp","tipo":"whatsapp"},
+  "NAUTICO 3G":{"template":"whatsapp","tipo":"whatsapp"},
+  "NAUTICO 408":{"template":"whatsapp","tipo":"whatsapp"},
+  "MARSALA":{"template":"whatsapp","tipo":"whatsapp"},
+  "AMOARA":{"template":"whatsapp","tipo":"whatsapp"},
+  "TULES 13-701":{"template":"correo","tipo":"correo"},
+  "TULES 15-143":{"template":"correo","tipo":"correo"},
+  "TULES 19-1301":{"template":"correo","tipo":"correo"},
+  "TULES 20-105":{"template":"correo","tipo":"correo"},
+  "MARINA SOL":{"template":"correo","tipo":"correo"},
+  "ARIA 812":{"template":"frakcio","tipo":"frakcio"},
+  "ARIA 906":{"template":"frakcio","tipo":"frakcio"},
+  "ARIA 1010":{"template":"frakcio","tipo":"frakcio"},
+  "ARIA 1013":{"template":"frakcio","tipo":"frakcio"},
+  "ARIA PH 1001":{"template":"frakcio","tipo":"frakcio"},
+  "MARITIMA GOLF 2L":{"template":"frakcio","tipo":"frakcio"},
+  "MARITIMA GOLF 2M":{"template":"frakcio","tipo":"frakcio"},
+  "MARITIMA GOLF 5R":{"template":"frakcio","tipo":"frakcio"},
+  "MARITIMA GOLF LW1B":{"template":"frakcio","tipo":"frakcio"},
+  "ZANTAMAR":{"template":"frakcio","tipo":"frakcio"},
+  "BVG 505":{"template":"frakcio","tipo":"frakcio"},
+  "BVG 506":{"template":"frakcio","tipo":"frakcio"},
+  "ISLA IGUANA":{"template":"frakcio","tipo":"frakcio"},
+  "BOLONGO 0N":{"template":"comunidad","tipo":"comunidad"},
+  "BOLONGO 3N":{"template":"comunidad","tipo":"comunidad"},
+  "BOLONGO 211":{"template":"comunidad","tipo":"comunidad"},
+  "BOLONGO G13":{"template":"comunidad","tipo":"comunidad"},
+  "BOLONGO L05":{"template":"comunidad","tipo":"comunidad"},
+  "MARITIMA PHN":{"template":"gforms","tipo":"gforms"},
+  "MARITIMA 9S":{"template":"gforms","tipo":"gforms"},
+  "MARITIMA 10I":{"template":"gforms","tipo":"gforms"},
+  "MARITIMA 6S":{"template":"gforms","tipo":"gforms"},
+};
+
+let ocupantes = [{nombre:"", tipo:"Adulto"}];
+let deptoKey = "";
+let deptoInfo = {};
+
+// Get depto from URL
+function init() {
+  const params = new URLSearchParams(window.location.search);
+  deptoKey = (params.get("dept") || "").toUpperCase().replace(/-/g," ");
+  deptoInfo = DEPTO_MAP[deptoKey] || {};
+  const badge = document.getElementById("depto-badge");
+  badge.textContent = deptoKey || "Departamento no especificado";
+
+  // Set today dates
+  const hoy = new Date();
+  const fmt = d => d.toISOString().split("T")[0];
+  document.getElementById("fecha_entrada").value = fmt(hoy);
+  const manana = new Date(hoy); manana.setDate(manana.getDate()+1);
+  document.getElementById("fecha_salida").value = fmt(manana);
+
+  renderOcupantes();
+}
+
+function renderOcupantes() {
+  const list = document.getElementById("ocupantes-list");
+  list.innerHTML = "";
+  ocupantes.forEach((o, i) => {
+    const row = document.createElement("div");
+    row.className = "ocupante-row";
+    row.innerHTML = `
+      <input type="text" placeholder="Nombre completo" value="${o.nombre}"
+        oninput="ocupantes[${i}].nombre=this.value" style="font-size:15px;">
+      <select onchange="ocupantes[${i}].tipo=this.value">
+        <option ${o.tipo==="Adulto"?"selected":""}>Adulto</option>
+        <option ${o.tipo==="Adolescente"?"selected":""}>Adolescente</option>
+        <option ${o.tipo==="Menor"?"selected":""}>Menor</option>
+      </select>
+      <button class="btn-remove" onclick="quitarOcupante(${i})">×</button>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function agregarOcupante() {
+  ocupantes.push({nombre:"", tipo:"Adulto"});
+  renderOcupantes();
+}
+function quitarOcupante(i) {
+  if(ocupantes.length > 1){ ocupantes.splice(i,1); renderOcupantes(); }
+}
+
+async function enviar() {
+  const nombre = document.getElementById("nombre").value.trim();
+  const fecha_entrada = document.getElementById("fecha_entrada").value;
+  const fecha_salida = document.getElementById("fecha_salida").value;
+
+  if(!nombre){ alert("Por favor ingresa tu nombre completo."); return; }
+  if(!fecha_entrada || !fecha_salida){ alert("Por favor ingresa las fechas de tu estancia."); return; }
+  if(!deptoKey){ alert("Departamento no especificado en el link."); return; }
+
+  const btn = document.getElementById("btn-submit");
+  const loading = document.getElementById("loading");
+  btn.disabled = true; loading.style.display = "block";
+
+  const payload = {
+    depto: deptoKey,
+    template: deptoInfo.template || "general",
+    tipo_formato: deptoInfo.tipo || "general",
+    nombre,
+    email: document.getElementById("email").value.trim() || null,
+    telefono: document.getElementById("telefono").value.trim() || null,
+    fecha_entrada,
+    fecha_salida,
+    num_adultos: parseInt(document.getElementById("num_adultos").value)||1,
+    num_menores: parseInt(document.getElementById("num_menores").value)||0,
+    num_mascotas: parseInt(document.getElementById("num_mascotas").value)||0,
+    vehiculo_modelo: document.getElementById("vehiculo_modelo").value.trim() || null,
+    vehiculo_placas: document.getElementById("vehiculo_placas").value.trim() || null,
+    ocupantes: ocupantes.filter(o=>o.nombre.trim()),
+  };
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if(res.ok || res.status === 201) {
+      document.getElementById("form-section").style.display = "none";
+      document.getElementById("success-screen").style.display = "block";
+    } else {
+      const err = await res.text();
+      throw new Error(err);
+    }
+  } catch(e) {
+    alert("Error al enviar. Por favor intenta de nuevo.\n" + e.message);
+    btn.disabled = false; loading.style.display = "none";
+  }
+}
+
+init();
+</script>
+</body>
+</html>
