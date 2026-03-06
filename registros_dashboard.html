@@ -1219,13 +1219,100 @@ function mostrarTexto(r, datos, ocupantes) {
 
   if(tipo === "whatsapp") {
     const numeros = {
-      "RINCON 104":"+52 322 327 3955","RINCON 403":"+52 322 327 3955","RINCON 502":"+52 322 327 3955",
-      "PLAYA ESMERALDA":"+52 55 1800 8292","ARCANO":"+52 322 349 0930",
-      "NAUTICO 9C":"+52 322 141 9001","NAUTICO 9E":"+52 322 141 9001",
-      "NAUTICO 1G":"+52 322 141 9001","NAUTICO 3G":"+52 322 141 9001","NAUTICO 408":"+52 322 141 9001",
+      "RINCON 104":"+52 322 327 3955", "RINCON 403":"+52 322 327 3955", "RINCON 502":"+52 322 327 3955",
+      "PLAYA ESMERALDA":"+52 55 1800 8292",
+      "ARCANO":"+52 322 349 0930",
+      "NAUTICO 9C":"+52 322 141 9001", "NAUTICO 9E":"+52 322 141 9001",
+      "NAUTICO 1G":"+52 322 141 9001", "NAUTICO 3G":"+52 322 141 9001", "NAUTICO 408":"+52 322 141 9001",
+      "MARSALA":"NÚMERO PENDIENTE",
+      "AMOARA":"NÚMERO PENDIENTE",
+      "MARINA SOL":"+52 322 688 5086",
     };
     const num = numeros[r.depto] || "NÚMERO PENDIENTE";
-    texto = `📱 Enviar a: ${num}\n\n📋 Registro — ${r.depto}\n\nTitular: ${datos.nombre}\nTel: ${datos.telefono||"—"}\nLlegada: ${fmtSlash(datos.entrada)}\nSalida: ${fmtSlash(datos.salida)}\nPersonas: ${datos.personas} (${datos.adultos}A ${datos.menores}N)\n\nOcupantes:\n${lista}`;
+
+    // Calculate nights
+    function calcNoches(e, s) {
+      if(!e || !s) return "?";
+      const d1 = new Date(e), d2 = new Date(s);
+      return Math.round((d2-d1)/(1000*60*60*24));
+    }
+    function fmtNatural(val) {
+      if(!val) return "?";
+      const meses=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+      const [y,m,d] = val.split("-");
+      return `${parseInt(d)} de ${meses[parseInt(m)-1]}`;
+    }
+    const noches = calcNoches(datos.entrada, datos.salida);
+    const fechaE = fmtNatural(datos.entrada);
+    const fechaS = fmtNatural(datos.salida);
+    const totalPersonas = (parseInt(datos.adultos)||0) + (parseInt(datos.menores)||0);
+    const nombres = ocupantes.map(o => o.nombre).filter(Boolean);
+
+    const isNautico = r.depto.startsWith("NAUTICO");
+    const isEsmeralda = r.depto === "PLAYA ESMERALDA";
+
+    if(isNautico) {
+      function fmtSlashNau(val) {
+        if(!val) return "?";
+        const [y,m,d] = val.split("-");
+        return `${d}/${m}/${y.slice(2)}`;
+      }
+      texto = `📱 Enviar a: ${num}
+
+`;
+      texto += `* Entrada: ${fmtSlashNau(datos.entrada)}
+`;
+      texto += `* Salida: ${fmtSlashNau(datos.salida)}
+`;
+      texto += `* Hora de acceso: 3 P.M.
+`;
+      texto += `* Hora de salida: 11 A.M.
+`;
+      texto += `* Responsable: ${datos.nombre}
+`;
+      texto += `* Personas en total: ${totalPersonas}A
+`;
+      nombres.forEach(n => { texto += `${n}
+`; });
+    } else {
+      // Estilo saludo — Rincón, Arcano, Esmeralda, Marina Sol, Marsala, Amoara
+      const depto = r.depto.replace("PLAYA ESMERALDA","Esmeralda")
+                            .replace("ARCANO","Arcano")
+                            .replace("MARINA SOL","Marina Sol")
+                            .replace("MARSALA","Marsala")
+                            .replace("AMOARA","Amoara");
+      // Extract unit number if present (e.g. RINCON 403 → 403)
+      const numDepto = r.depto.split(" ").pop();
+      const tieneNumero = /^\d+[A-Z]?$/.test(numDepto) && numDepto !== r.depto;
+
+      texto = `📱 Enviar a: ${num}
+
+`;
+      texto += `Hola buen día les paso los nombres de nuestros próximos huéspedes
+`;
+      nombres.forEach(n => { texto += `${n}
+`; });
+      texto += `${totalPersonas} huéspedes
+`;
+      if(tieneNumero) texto += `Departamento ${numDepto}
+`;
+      texto += `${fechaE} – ${fechaS} (${noches} noches)
+`;
+      if(isEsmeralda) {
+        if(datos.vehiculo) {
+          texto += `${datos.vehiculo}`;
+          if(datos.placas) texto += ` / ${datos.placas}`;
+          texto += `
+`;
+        } else {
+          texto += `taxi
+`;
+        }
+      }
+      texto += `gracias y quedo a sus órdenes
+`;
+      texto += `bonito día`;
+    }
   } else if(tipo === "frakcio") {
     const adultosList = ocupantes.filter(o=>o.tipo!=="Menor");
     const menoresList = ocupantes.filter(o=>o.tipo==="Menor");
