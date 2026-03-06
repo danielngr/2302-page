@@ -191,6 +191,27 @@ async function cargarRegistros() {
       headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
     });
     todosRegistros = await res.json();
+    // Infer template/tipo_formato for records saved before depto was mapped
+    const DEPTO_TEMPLATE = {
+      "QUIYA":   {template:"quiya",   tipo:"pdf"},
+      "VENETIAN":{template:"venetian",tipo:"pdf"},
+      "GD":      {template:"gd",      tipo:"pdf"},
+      "FLAMINGOS":{template:"flamingos",tipo:"pdf"},
+      "ALBATROS":{template:"albatros",tipo:"pdf"},
+      "ALAMAR":  {template:"alamar",  tipo:"pdf"},
+      "XIKIRI":  {template:"xikiri",  tipo:"pdf"},
+    };
+    todosRegistros = todosRegistros.map(r => {
+      if(!r.template || !r.tipo_formato || r.tipo_formato === "general") {
+        const prefix = (r.depto || "").split(" ")[0].toUpperCase();
+        const mapped = DEPTO_TEMPLATE[prefix];
+        if(mapped) {
+          r.template = r.template || mapped.template;
+          r.tipo_formato = (r.tipo_formato === "general" || !r.tipo_formato) ? mapped.tipo : r.tipo_formato;
+        }
+      }
+      return r;
+    });
     document.getElementById("last-update").textContent = "Actualizado " + new Date().toLocaleTimeString("es-MX", {hour:"2-digit",minute:"2-digit"});
     actualizarStats();
     renderRegistros();
