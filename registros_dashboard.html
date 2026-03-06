@@ -770,300 +770,168 @@ function pdfAlamar(datos, ocupantes) {
 }
 
 function pdfVenetian(datos, ocupantes) {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({unit:"pt", format:"letter"});
-  const W = 612, H = 792;
-  const MARGIN = 57, RIGHT = W - 57, TW = RIGHT - MARGIN;
-  const LOGO_W = 55, LOGO_H = 58;
-  const LOGO_X = W - 57 - LOGO_W;
-  const LOGO_TOP = 28;
-  const HEADER_BOTTOM = LOGO_TOP + LOGO_H + 10; // ~96
-  const CONTENT_START = HEADER_BOTTOM + 10;      // ~106
-  const unidad = datos.depto.replace("VENETIAN ","").replace(" T3","");
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF({unit:"pt", format:"letter"});
+  var W = 612, H = 792;
+  var MARGIN = 57, RIGHT = W - 57, TW = RIGHT - MARGIN;
+  var LOGO_W = 55, LOGO_H = 58;
+  var LOGO_X = W - 57 - LOGO_W;
+  var LOGO_TOP = 28;
+  var CONTENT_START = LOGO_TOP + LOGO_H + 18;
+  var unidad = datos.depto.replace("VENETIAN ","").replace(" T3","");
 
-  const propMap = {
-    "905 T3":"Claudia Chico",
-    "906 T3":"Claudia Chico",
-    "1010 T3":"Jorge Chico",
-    "1903 T3":"Claudia Chico",
-  };
-  const rawDepto = datos.depto.replace("VENETIAN ","");
-  const propietario = propMap[rawDepto] || "Claudia Chico";
+  var propMap = {"905 T3":"Claudia Chico","906 T3":"Claudia Chico","1010 T3":"Jorge Chico","1903 T3":"Claudia Chico"};
+  var rawDepto = datos.depto.replace("VENETIAN ","");
+  var propietario = propMap[rawDepto] || "Claudia Chico";
 
-  function drawChrome(doc, pageNum) {
-    doc.setDrawColor(204,165,26); doc.setLineWidth(1.5);
-    doc.rect(28, 28, W-56, 56);
-    doc.addImage(LOGOS.venetian,"JPEG", LOGO_X, LOGO_TOP, LOGO_W, LOGO_H);
-    doc.setFont("helvetica","normal"); doc.setFontSize(8);
-    doc.setTextColor(100,100,100);
-    doc.text(`pág. ${pageNum}`, 40, 40);
-    doc.setTextColor(0,0,0);
+  function drawChrome(d, pageNum) {
+    d.setDrawColor(204,165,26); d.setLineWidth(1.5);
+    d.rect(28, 28, W-56, 56);
+    d.addImage(LOGOS.venetian,"JPEG", LOGO_X, LOGO_TOP, LOGO_W, LOGO_H);
+    d.setFont("helvetica","normal"); d.setFontSize(8);
+    d.setTextColor(100,100,100);
+    d.text("pag. " + pageNum, 40, 40);
+    d.setTextColor(0,0,0);
   }
 
-  function jp(doc, text, y, font="normal", size=10, leading=14, gap=6) {
-    doc.setFont("helvetica", font); doc.setFontSize(size);
-    const lines = doc.splitTextToSize(text, TW);
-    lines.forEach(line => { doc.text(line, MARGIN, y); y += leading; });
+  function jp(d, text, y, font, size, leading, gap) {
+    font = font||"normal"; size = size||10; leading = leading||14; gap = (gap===undefined)?6:gap;
+    d.setFont("helvetica", font); d.setFontSize(size);
+    var ls = d.splitTextToSize(text, TW);
+    ls.forEach(function(l){ d.text(l, MARGIN, y); y += leading; });
     return y + gap;
   }
 
-  function addPage(doc, num) {
-    doc.addPage("letter");
-    drawChrome(doc, num);
-  }
+  function addPage(d, num) { d.addPage("letter"); drawChrome(d, num); }
 
-  // ── PAGE 1 ──
   drawChrome(doc, 1);
-
-  // Title block — centered in header box
   doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(38,38,38);
-  doc.text("Grand Venetian \u2013 Carta de Bienvenida", W/2, 52, {align:"center"});
+  doc.text("Grand Venetian - Carta de Bienvenida", W/2, 52, {align:"center"});
   doc.setFontSize(10);
   doc.text("para Usuarios y/o Invitados", W/2, 66, {align:"center"});
   doc.setTextColor(0,0,0);
 
-  let y = CONTENT_START + 10;
+  var y = CONTENT_START;
+  [["normal","Estimados invitados,"],
+   ["normal","Bienvenidos al Grand Venetian. Le deseamos una estancia maravillosa y esperamos sinceramente que disfruten de nuestro hermoso complejo y sus instalaciones."],
+   ["normal","De conformidad con lo acordado en conjunto con la administracion, les informamos que al llegar a la puerta de entrada deberan tener una copia firmada de esta carta de bienvenida, asi como la lista de todas las personas que ocuparan la unidad y las fechas de ocupacion. Le recomendamos que traiga una copia de la carta de bienvenida, autorizada por el propietario (y enviar la informacion previamente al Coordinador de Accesos a caseta@grandvenetian.mx) para su registro."],
+   ["normal","Ademas, queremos informarle de los estatutos y el reglamento con el que hay que cumplir durante su estancia. Si no lo hacen, pueden dar lugar a que la Administracion le pida que desocupe la unidad o las acciones legales que ameriten a discrecion del Personal de la Administracion."],
+   ["normal","Algunas de las reglas mas importantes se enumeran a continuacion. Tambien puede obtener una lista completa de la Administracion de Grand Venetian del reglamento interior."],
+   ["normal","1. Todas las personas adultas (mayores de 18 anos) deben leer y aceptar por escrito las normas con el fin de poder darles el ingreso al desarrollo."],
+   ["normal","2.  La ocupacion se limita a un maximo de personas como se muestra en la siguiente tabla. Todos los ninos sin importar la edad son considerados ocupantes. No se permite subarrendar. El propietario de su unidad ha limitado la ocupacion para ____  " + (datos.personas||datos.adultos||"") + "  ____ personas."],
+  ].forEach(function(item){ y = jp(doc, item[1], y, item[0]); });
 
-  const p1 = [
-    ["normal","Estimados invitados,"],
-    ["normal","Bienvenidos al Grand Venetian. Le deseamos una estancia maravillosa y esperamos sinceramente que disfruten de nuestro hermoso complejo y sus instalaciones. Muchos de sus vecinos son residentes de tiempo completo en las torres y estamos seguros de que respetarán su privacidad y tranquilidad, así como la belleza de esta propiedad."],
-    ["normal","De conformidad con lo acordado en conjunto con la administración, les informamos que al llegar a la puerta de entrada deberán tener una copia firmada de esta carta de bienvenida, así como la lista de todas las personas que ocuparán la unidad y las fechas de ocupación. Le recomendamos que traiga una copia de la carta de bienvenida, autorizada por el propietario (y enviar la información previamente al Coordinador de Accesos a caseta@grandvenetian.mx) para su registro. Si los nombres no están en la lista de la puerta o si su identificación oficial (INE o licencia de manejo) no coincide con el nombre de la caseta, no serán admitidos."],
-    ["normal","Además, queremos informarle de los estatutos y el reglamento con el que hay que cumplir durante su estancia. Si no lo hacen, pueden dar lugar a que la Administración le pida que desocupe la unidad o las acciones legales que ameriten a discreción del Personal de la Administración o del personal de seguridad de Grand Venetian."],
-    ["normal","Algunas de las reglas más importantes se enumeran a continuación. También puede obtener una lista completa de la Administración de Grand Venetian del reglamento interior."],
-    ["normal","1. Todas las personas adultas (mayores de 18 años) deben leer y aceptar por escrito las normas con el fin de poder darles el ingreso al desarrollo."],
-    ["normal",`2.  La ocupación se limita a un máximo de personas como se muestra en la siguiente tabla. Todos los niños sin importar la edad son considerados ocupantes. No se permite subarrendar. El propietario de su unidad ha limitado la ocupación para ____  ${datos.personas||datos.adultos||""}  ____ personas.`],
-  ];
-  p1.forEach(([f,t]) => { y = jp(doc, t, y, f); });
-
-  // Table
-  const tx = W/2-60, th=18;
-  // Header row
-  doc.setFillColor(217,217,217);
-  doc.rect(tx, y, 120, th, "F");
-  doc.rect(tx, y, 120, th);
-  doc.line(tx+60, y, tx+60, y+th);
+  var tx = W/2-60, th=18;
+  doc.setFillColor(217,217,217); doc.rect(tx,y,120,th,"F"); doc.rect(tx,y,120,th); doc.line(tx+60,y,tx+60,y+th);
   doc.setFont("helvetica","bold"); doc.setFontSize(8);
-  doc.text("Número de", tx+30, y+7, {align:"center"});
-  doc.text("recámaras",  tx+30, y+14,{align:"center"});
-  doc.text("Ocupación",  tx+90, y+7, {align:"center"});
-  doc.text("máxima",     tx+90, y+14,{align:"center"});
+  doc.text("Numero de",tx+30,y+7,{align:"center"}); doc.text("recamaras",tx+30,y+14,{align:"center"});
+  doc.text("Ocupacion",tx+90,y+7,{align:"center"}); doc.text("maxima",tx+90,y+14,{align:"center"});
   y += th;
-  [["1","4"],["2","6"],["3","8"],["4","10"]].forEach(([r,o]) => {
-    doc.rect(tx, y, 120, th);
-    doc.line(tx+60, y, tx+60, y+th);
+  [["1","4"],["2","6"],["3","8"],["4","10"]].forEach(function(row){
+    doc.rect(tx,y,120,th); doc.line(tx+60,y,tx+60,y+th);
     doc.setFont("helvetica","normal"); doc.setFontSize(9);
-    doc.text(r, tx+30, y+12, {align:"center"});
-    doc.text(o, tx+90, y+12, {align:"center"});
-    y += th;
-  });
-  y += 8;
+    doc.text(row[0],tx+30,y+12,{align:"center"}); doc.text(row[1],tx+90,y+12,{align:"center"}); y+=th;
+  }); y+=8;
 
-  // ── PAGE 2 ──
   addPage(doc,2); y = CONTENT_START;
-  [["normal","3. Los usuarios y/o invitados que no se encuentren en la lista que envía el propietario no tendrán acceso a la propiedad."],
-   ["normal","4. Los usuarios / invitados no deben tener huéspedes a menos que el propietario haya dado permiso a los invitados y notificado a la oficina de Administración de GV con anticipación."],
-   ["normal","5. No se permite en ningún momento música excesivamente ruidosa. Los aparatos deberán estar a pagados a las 23:00 horas."],
-   ["normal","6. Está prohibido tender la ropa, tapetes y otros objetos de los barandales del balcón; así mismo no tirar y/o aventar cosas por los balcones ya que pudieran ocasionar algún daño al condominio y/o personas de abajo."],
-   ["normal","7. La basura deberá ser colocadas en los ductos de basura situados en las escaleras de servicio. Favor de llevar al sótano, a los cuartos de basura, los objetos de vidrio o cajas grandes."],
-   ["normal","8. Los usuarios y/o visitantes no pueden tener mascotas de ningún tipo. Si un usuario / invitado llega con una mascota, a él / ella no se le permitirá entrar a la propiedad."],
-   ["bold",'Está estrictamente prohibido comercializar las unidades residenciales bajo el sistema conocido como "tiempo compartido", "Condo-Hotel".'],
-  ].forEach(([f,t]) => { y = jp(doc,t,y,f); });
+  [["normal","3. Los usuarios y/o invitados que no se encuentren en la lista que envia el propietario no tendran acceso a la propiedad."],
+   ["normal","4. Los usuarios / invitados no deben tener huespedes a menos que el propietario haya dado permiso y notificado a la oficina de Administracion de GV."],
+   ["normal","5. No se permite en ningun momento musica excesivamente ruidosa. Los aparatos deberan estar apagados a las 23:00 horas."],
+   ["normal","6. Esta prohibido tender la ropa, tapetes y otros objetos de los barandales del balcon."],
+   ["normal","7. La basura debera ser colocada en los ductos de basura situados en las escaleras de servicio."],
+   ["normal","8. Los usuarios y/o visitantes no pueden tener mascotas de ningun tipo."],
+   ["bold","Esta estrictamente prohibido comercializar las unidades residenciales bajo el sistema conocido como tiempo compartido o Condo-Hotel."],
+  ].forEach(function(item){ y = jp(doc, item[1], y, item[0]); });
 
-  // ── PAGE 3 — REGISTRO ──
   addPage(doc,3); y = CONTENT_START;
   doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(26,26,26);
-  doc.text("REGISTRO DE USUARIOS Y/O INVITADOS", W/2, y, {align:"center"}); y += 22;
+  doc.text("REGISTRO DE USUARIOS Y/O INVITADOS", W/2, y, {align:"center"}); y+=24;
   doc.setTextColor(0,0,0);
-  y = jp(doc,"Al firmar este documento estoy de acuerdo que he leído y comprendido la información anterior y estoy de acuerdo en cumplir.",y,"bold"); y += 4;
+  y = jp(doc,"Al firmar este documento estoy de acuerdo que he leido y comprendido la informacion anterior.",y,"bold"); y+=4;
 
-  // Responsible name line
   doc.setFont("helvetica","bold"); doc.setFontSize(11);
-  doc.text("X  " + (datos.nombre||""), MARGIN, y);
-  const nw = doc.getTextWidth("X  " + (datos.nombre||""));
-  doc.setLineWidth(0.5); doc.line(MARGIN+nw+4, y+2, RIGHT-80, y+2);
+  var nombreResp = datos.nombre||"";
+  doc.text("X  " + nombreResp, MARGIN, y);
+  var nw = doc.getTextWidth("X  " + nombreResp);
+  doc.setLineWidth(0.5); doc.line(MARGIN+nw+4,y+2,RIGHT-80,y+2);
   doc.setFont("helvetica","normal"); doc.setFontSize(9);
-  doc.text("(huésped o usuario responsable)", RIGHT-78, y);
-  y += 20;
+  doc.text("(huesped o usuario responsable)", RIGHT-78, y); y+=22;
 
-  // Tipo de relación
   doc.setFont("helvetica","normal"); doc.setFontSize(10);
   doc.text("Familiar/Amigo", MARGIN, y);
-  doc.setFont("helvetica","bold"); doc.setFontSize(11);
-  doc.text("X", MARGIN+95, y);
-  doc.line(MARGIN+105, y+2, MARGIN+155, y+2);
+  doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.text("X", MARGIN+95, y);
+  doc.line(MARGIN+105,y+2,MARGIN+155,y+2);
   doc.setFont("helvetica","normal"); doc.setFontSize(10);
-  doc.text("Invitado u otro", MARGIN+160, y);
-  doc.line(MARGIN+240, y+2, MARGIN+310, y+2);
-  doc.text("(marque uno)", MARGIN+315, y);
-  y += 20;
+  doc.text("Invitado u otro", MARGIN+160, y); doc.line(MARGIN+240,y+2,MARGIN+310,y+2);
+  doc.text("marque uno", MARGIN+315, y); y+=22;
 
-  // Torre / unidad
-  doc.text("Torre:", MARGIN, y);
-  doc.line(MARGIN+35, y+2, MARGIN+90, y+2);
-  doc.text("número de unidad:", MARGIN+95, y);
-  doc.text(unidad, MARGIN+200, y);
-  doc.line(MARGIN+195, y+2, RIGHT, y+2);
-  y += 20;
+  doc.text("Torre:", MARGIN, y); doc.line(MARGIN+35,y+2,MARGIN+90,y+2);
+  doc.text("numero de unidad:", MARGIN+95, y); doc.text(unidad, MARGIN+200, y);
+  doc.line(MARGIN+195,y+2,RIGHT,y+2); y+=22;
 
-  // Propietario
-  doc.text("Nombre y aprobación del propietario: " + propietario, MARGIN, y);
-  doc.line(MARGIN+310, y+2, RIGHT, y+2);
-  y += 20;
+  doc.text("Nombre y aprobacion del propietario: " + propietario, MARGIN, y);
+  doc.line(MARGIN+310,y+2,RIGHT,y+2); y+=22;
 
-  // Administrador
-  doc.text("Nombre del Administrador: Daniela Rodríguez", MARGIN, y);
-  doc.text("Teléfono: 3221170032", MARGIN+310, y);
-  y += 24;
+  doc.text("Nombre del Administrador: Daniela Rodriguez", MARGIN, y);
+  doc.text("Telefono: 3221170032", MARGIN+310, y); y+=26;
 
-  y = jp(doc,"Indique a continuación todos los ocupantes que hayan sido autorizados por el propietario y cuyos nombres hayan sido enviados a la Administración del GV.",y); y += 6;
+  y = jp(doc,"Indique a continuacion todos los ocupantes autorizados por el propietario cuyos nombres hayan sido enviados a la Administracion del GV.",y); y+=6;
 
-  for(let i=0;i<10;i++){
-    const o = ocupantes[i];
+  for(var i=0;i<10;i++){
+    var o = ocupantes[i];
     doc.setFont("helvetica","normal"); doc.setFontSize(10);
-    doc.text(`Invitado # ${i+1}`, MARGIN, y);
+    doc.text("Invitado # " + (i+1), MARGIN, y);
     if(o && o.nombre){
-      doc.setFont("helvetica","bold");
-      doc.text(o.nombre, MARGIN+72, y);
-      const nw2 = doc.getTextWidth(o.nombre);
-      doc.line(MARGIN+70+nw2+2, y+2, MARGIN+230, y+2);
+      doc.setFont("helvetica","bold"); doc.text(o.nombre, MARGIN+72, y);
+      var nw2 = doc.getTextWidth(o.nombre);
+      doc.line(MARGIN+70+nw2+2,y+2,MARGIN+230,y+2);
       doc.setFont("helvetica","normal");
-      doc.text("Llegada", MARGIN+235, y);
-      doc.text(fmtSlash(datos.entrada||datos.fecha_entrada), MARGIN+275, y);
-      doc.line(MARGIN+271, y+2, MARGIN+330, y+2);
-      doc.text("Salida", MARGIN+335, y);
-      doc.text(fmtSlash(datos.salida||datos.fecha_salida), MARGIN+368, y);
-      doc.line(MARGIN+364, y+2, RIGHT, y+2);
+      doc.text("Llegada", MARGIN+235, y); doc.text(fmtSlash(datos.entrada||datos.fecha_entrada), MARGIN+275, y);
+      doc.line(MARGIN+271,y+2,MARGIN+330,y+2);
+      doc.text("Salida", MARGIN+335, y); doc.text(fmtSlash(datos.salida||datos.fecha_salida), MARGIN+368, y);
+      doc.line(MARGIN+364,y+2,RIGHT,y+2);
     } else {
-      doc.line(MARGIN+70, y+2, MARGIN+230, y+2);
-      doc.text("Llegada", MARGIN+235, y); doc.line(MARGIN+271, y+2, MARGIN+330, y+2);
-      doc.text("Salida", MARGIN+335, y); doc.line(MARGIN+368, y+2, RIGHT, y+2);
+      doc.line(MARGIN+70,y+2,MARGIN+230,y+2);
+      doc.text("Llegada", MARGIN+235, y); doc.line(MARGIN+271,y+2,MARGIN+330,y+2);
+      doc.text("Salida", MARGIN+335, y); doc.line(MARGIN+368,y+2,RIGHT,y+2);
     }
-    y += 18;
+    y+=18;
   }
-  y += 8;
-
-  doc.setDrawColor(204,26,26); doc.setLineWidth(1);
-  doc.rect(MARGIN, y, TW, 38);
+  y+=8;
+  doc.setDrawColor(204,26,26); doc.setLineWidth(1); doc.rect(MARGIN,y,TW,38);
   doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(204,26,26);
   doc.text("IMPORTANTE: POR FAVOR TRAER esta hoja impresa a su llegada.", MARGIN+6, y+14);
   doc.setTextColor(0,0,0);
-  doc.text("La información que proporcione se mantendrá privada dentro de la Administración.", MARGIN+6, y+28);
-  doc.setDrawColor(0); y += 50;
-  jp(doc,"*Al firmar este documento estoy de acuerdo que he leído y comprendido la información de todo reglamento establecido en Grand Venetian por lo que estoy de acuerdo en cumplir.",y,"bold");
+  doc.text("La informacion que proporcione se mantendra privada dentro de la Administracion.", MARGIN+6, y+28);
+  doc.setDrawColor(0); y+=50;
+  jp(doc,"Al firmar este documento estoy de acuerdo que he leido y comprendido el reglamento establecido en Grand Venetian.",y,"bold");
 
-  // ── PAGES 4-9 fixed content ──
-  const pages49 = [
-    [[\"H18\",\"REGLAS Y CORTESÍAS DE ALBERCA DEL GRAND VENETIAN\"],
-     [\"red\",\"1. POR FAVOR TENGA EN CUENTA QUE EL GRAN VENETIAN NO SE HACE RESPONSABLE POR CUALQUIER ACCIDENTE, LESIONES O ARTÍCULOS PERDIDOS.\"],
-     [\"bold\",\"2. LAS ALBERCAS Y ZONAS DE PLAYA SON PARA EL USO Y DISFRUTE DE TODOS. FUERA DEL CERCADO ES UNA PLAYA PUBLICA.\"],
-     [\"bold\",\"3. POR FAVOR, RESPETE A SUS VECINOS.\"],
-     [\"H16\",\"REGLAS\"],
-     [\"p\",\"1. Las albercas y jacuzzis estarán abiertas entre las 8:00 am y las 10:00 pm. Las dos albercas Infinity permanecerán abiertas hasta las 11:00 pm.\"],
-     [\"p\",\"2. No se permite fumar en las albercas o jacuzzis. Sólo se permite fumar en las áreas designadas, donde han sido proporcionados ceniceros.\"],
-     [\"bold\",\"3. No se permite el uso de vidrio en las albercas, jacuzzis o en la zona de las albercas. Los vidrios rotos son un gran peligro y podrían requerir drenar y limpiar la piscina, esto correría a su cargo.\"],
-     [\"p\",\"4. No permite comida ni bebida en las albercas o jacuzzis.\"],
-     [\"p\",\"5. Los niños menores de 8 años deben estar acompañados por un adulto en todo momento en las áreas comunes y de albercas.\"],
-     [\"p\",\"6. No se permite flotadores o tablas flotantes en las albercas o Jacuzzis – Flotadores de niños y flotadores individuales de adultos están permitidos.\"],
-     [\"p\",\"7. No se permiten patinar, andar en bicicleta, etc. en los alrededores del área de la alberca. Igualmente está prohibido arrojar objetos tales como pelotas, bates o juguetes.\"],
-     [\"bold\",\"8. Por razones de seguridad, no se permite correr, saltar o realizar clavados en las albercas.\"],
-     [\"bold\",\"9. Por razones de seguridad, cuando estén cayendo rayos en la zona, la alberca debe de ser desalojadas.\"],
-     [\"p\",\"10. El uso de traje de baño es obligatorio en la alberca; niños que usan pañales también tienen que usar pañales para nadar.\"]],
-    [[\"p\",\"11. En las áreas comunes las mascotas deberán usar correa en todo momento. No se admiten mascotas en la zona de las albercas, excepto para acceder a la playa.\"],
-     [\"p\",\"12. Como cortesía a los demás no se permite reservar las sillas, sombrillas, mesas y camastros. Si sus toallas u otros artículos se dejan sin vigilancia durante un período prolongado de tiempo, el personal de seguridad tiene instrucciones para removerlos.\"],
-     [\"p\",\"13. Los niños pueden usar los jacuzzis siempre y cuando sean acompañados por un adulto.\"],
-     [\"p\",\"14. No se permite que personas que tengan una herida abierta, enfermedades de la piel o una enfermedad contagiosa usen las albercas o jacuzzis.\"],
-     [\"p\",\"15. Los asadores en las áreas comunes quedan prohibidos y en terrazas solo serán permitidas parrillas de gas.\"],
-     [\"p\",\"16. No se permite hacer fogatas o lunadas en el área de playa.\"],
-     [\"p\",\"17. El béisbol, fútbol o cualquier otro juego de pelota, será restringido a el área de playa pública. No se permite aventar la pelota contra paredes.\"],
-     [\"H16\",\"CORTESÍAS\"],
-     [\"p\",\"18. Por favor, mantenga el área de las albercas limpia. De un buen ejemplo y limpie, no deje alimentos o desechos en las mesas o sillas.\"],
-     [\"p\",\"19. Por favor mantener la música a un nivel bajo a fin de no molestar a los demás.\"],
-     [\"p\",\"20. Al entrar en la propiedad de la playa, por favor utilice las duchas para enjuagarse la arena. Favor de secarse por completo y no entrar en las torres residenciales con los pies mojados.\"],
-     [\"bold\",\"21. Lenguaje ofensivo, profano, abusivo e irrespetuoso están prohibidos. El Grand Venetian se reserva el derecho de pedir que se retiren las personas del área.\"],
-     [\"blue\",\"Consejo Administrativo.\"]],
-    [[\"H18\",\"SANCIONES APROBADAS EN ASAMBLEA\"],
-     [\"gold\",\"RUIDO\"],
-     [\"bold\",\"EL REGLAMENTO INTERNO DE GRAND VENETIAN MENCIONA QUE:\\nART. 19 SECCIÓN 9.\"],
-     [\"p\",\"9.- Deberán tener cuidado razonable para evitar perturbar, disturbar o emitir ruidos fuertes. Por lo que deberá abstenerse de operar aparatos de audio y/o video a niveles de sonido mayores a los SESENTA DECIBELES, durante el día. Entre las 22 horas pasado meridiano y las 8 horas antes del meridiano, el nivel máximo permitido será de CUARENTA DECIBELES.\"],
-     [\"bold\",\"VISITAS, HUÉSPEDES O INVITADOS ESCANDALOSOS, SE APLICARÁ LO SIGUIENTE:\"],
-     [\"p\",\"1. Al primer reporte de escándalo, el personal de seguridad acudirá a la unidad y se le hará una invitación verbal para que bajen el volumen.\"],
-     [\"p\",\"2. Al reincidir, se le hará una segunda llamada de atención con una advertencia.\"],
-     [\"p\",\"3. Al tercer reporte, el personal de seguridad solicitará la suspensión del suministro de luz, y se aplicará multa de $2,000 pesos por continuar con escándalo.\"],
-     [\"p\",\"De manera enunciativa pero no limitativa, los casos no previstos serán evaluados por el Consejo y la Administración.\"],
-     [\"gold\",\"AREAS COMUNES\"],
-     [\"•\",\"La administración no se hace responsable, por daños, robos o extravíos dentro de la propiedad.\"],
-     [\"•\",\"En temporada vacacional, se implementará la política de cero tolerancia en el área de piscinas y playa. No podrán apartar pérgolas, camastros, sombrillas, mesas y sillas en el horario de 7 am a 10 am.\"],
-     [\"•\",\"No comer dentro de la alberca. Usar vasos de plástico para su bebida y recoger su basura.\"],
-     [\"•\",\"Persona sorprendida tomando en vaso de vidrio y no respete las indicaciones de seguridad, será sancionado con $2,000 pesos.\"]],
-    [[\"p\",\"5. No brincarse de la alberca hacia la playa o viceversa, usar debidamente las puertas de acceso.\"],
-     [\"p\",\"6. Área de piscinas y playa, música moderada, sea respetuoso de su vecino.\"],
-     [\"p\",\"7. Fumar únicamente en las areas permitidas, no fumar en la playa.\"],
-     [\"p\",\"8. No mascotas en el área de piscinas.\"],
-     [\"p\",\"9. Usar un solo cajón de estacionamiento por unidad, a excepción de los pent houses y ground houses que se les asignó dos cajones.\"],
-     [\"p\",\"10. No apartar cajones de estacionamiento por ningún motivo. Sanción de $2,000 pesos.\"],
-     [\"p\",\"11. Estacionarse correctamente dentro del perímetro del cajón y evitar ocupar doble cajón. Sanción de $2,000 pesos.\"],
-     [\"p\",\"12. Respetar los espacios asignados para personas con discapacidad. Sanción de $2,000 pesos por uso indebido.\"],
-     [\"p\",\"13. Los administradores y proveedores de servicios deberán estacionarse en la sección de proveedores al final del estacionamiento subterráneo de Torre 3000.\"],
-     [\"p\",\"14. Los vehículos de propietarios que no se vayan a mover en un lapso de 30 días, deberá informar a la administración para que se les asigne un espacio adecuado.\"],
-     [\"p\",\"15. Propietarios que tienen estacionado (DURANTE VARIOS AÑOS) su jet ski, vehículo comercial, bote o cualquier otro vehículo no permitido. Una vez saliendo de la propiedad NO podrá reingresar.\"]],
-    [[\"p\",\"16. Mover todos los vehículos como jet ski y botes que NO HAN SIDO MOVIDOS durante varios años, al área asignada al fondo del estacionamiento de torre 3000.\"],
-     [\"p\",\"17. Los vehículos que se encuentren mal estacionados y obstruyendo accesos, serán reubicados.\"],
-     [\"p\",\"18. Prohibido lavar su auto sin previa notificación a la administración o hacer uso del estacionamiento para trabajos de carpintería, pintura, o instalaciones mayores.\"],
-     [\"p\",\"19. El propietario, proveedor, y/o invitado deberá limpiar el piso en caso de que su vehículo haya tirado aceite u otra sustancia. Cuota de recuperación de $3,000 pesos.\"],
-     [\"p\",\"20. Está prohibido hacer uso de las conexiones eléctricas que se encuentran en el estacionamiento.\"],
-     [\"p\",\"21. Prohibido dejar objetos personales o hacer uso del estacionamiento como bodega.\"],
-     [\"p\",\"22. Prohibido dejar basura en los pasillos o escaleras (vidrios, botellas, bolsas, cartones, etc.), multa de $2,000 pesos.\"],
-     [\"p\",\"23. Prohibido dejar escombro, materiales de obra y todo lo derivado a trabajos de remodelaciones. Cuota de recuperación de $4,500 pesos.\"],
-     [\"p\",\"24. Persona que sea sorprendida haciendo mal uso de los lavaderos del estacionamiento, sanción de $2,000 pesos.\"],
-     [\"p\",\"25. Propietario, huésped, visita o invitado que no haya pagado su cuota de recuperación en un lapso de 15 días, la cuota será cargada en sus cuotas de mantenimiento.\"],
-     [\"p\",\"26. Carros maleteros y/o carros de supermercado, deberán de ser regresados a su lugar. Prohibido dejarlos en estacionamiento, elevadores o pasillos por más de 1 hora.\"],
-     [\"p\",\"27. Hacer mal uso de elevadores (saltar, rayarlos, vandalizar botones, etc). Cuota de recuperación de $4,500 pesos.\"],
-     [\"p\",\"28. Derrame de agua de albercas, jacuzzis o por riego de plantas, cuota de recuperación de $2,000 pesos.\"],
-     [\"p\",\"29. Persona sorprendida tirando basura o escombros a la terraza de abajo, será acreedor de una cuota de recuperación.\"],
-     [\"p\",\"30. No arrojar bolsas grandes de basura, botellas de vidrio, cartón o hielo seco por el ducto.\"],
-     [\"p\",\"31. Las bolsas pequeñas deberán de ir en doble bolsa y perfectamente cerradas.\"],
-     [\"p\",\"De manera enunciativa pero no limitativa, los casos no previstos en esta política serán evaluados por el Consejo y la Administración, para determinar las sanciones correspondientes.\"],
-     [\"bold\",\"Así como de ser necesario, el consejo podrá evaluar cualquier controversia, para determinar su responsabilidad.\"]],
+  var pages48 = [
+    [["H18","REGLAS Y CORTECIAS DE ALBERCA"],["red","1. EL GRAN VENETIAN NO SE HACE RESPONSABLE POR CUALQUIER ACCIDENTE, LESIONES O ARTICULOS PERDIDOS."],["bold","2. LAS ALBERCAS Y ZONAS DE PLAYA SON PARA EL USO Y DISFRUTE DE TODOS."],["bold","3. POR FAVOR, RESPETE A SUS VECINOS."],["H16","REGLAS"],["p","1. Las albercas y jacuzzis estaran abiertas entre las 8:00 am y las 10:00 pm."],["p","2. No se permite fumar en las albercas o jacuzzis."],["bold","3. No se permite el uso de vidrio en las albercas o jacuzzis."],["p","4. No permite comida ni bebida en las albercas o jacuzzis."],["p","5. Los ninos menores de 8 anos deben estar acompanados por un adulto en todo momento."],["p","6. No se permite flotadores o tablas flotantes en las albercas o Jacuzzis."],["p","7. No se permiten patinar, andar en bicicleta, etc. en los alrededores del area de la alberca."],["bold","8. Por razones de seguridad, no se permite correr, saltar o realizar clavados en las albercas."],["bold","9. Por razones de seguridad, cuando esten cayendo rayos en la zona, la alberca debe de ser desalojada."],["p","10. El uso de traje de bano es obligatorio en la alberca."]],
+    [["p","11. En las areas comunes las mascotas deberan usar correa en todo momento."],["p","12. No se permite reservar las sillas, sombrillas, mesas y camastros."],["p","13. Los ninos pueden usar los jacuzzis siempre y cuando sean acompanados por un adulto."],["p","14. No se permite que personas que tengan una herida abierta o enfermedad contagiosa usen las albercas."],["p","15. Los asadores en las areas comunes quedan prohibidos."],["p","16. No se permite hacer fogatas en el area de playa."],["p","17. El beisbol, futbol o cualquier otro juego de pelota, sera restringido a el area de playa publica."],["H16","CORTECIAS"],["p","18. Por favor, mantenga el area de las albercas limpia."],["p","19. Por favor mantener la musica a un nivel bajo."],["p","20. Al entrar en la propiedad de la playa, por favor utilice las duchas para enjuagarse la arena."],["bold","21. Lenguaje ofensivo, profano, abusivo e irrespetuoso estan prohibidos."],["blue","Consejo Administrativo."]],
+    [["H18","SANCIONES APROBADAS EN ASAMBLEA"],["gold","RUIDO"],["bold","EL REGLAMENTO INTERNO DE GRAND VENETIAN MENCIONA QUE:\nART. 19 SECCION 9."],["p","9.- Deberan tener cuidado razonable para evitar perturbar o emitir ruidos fuertes. Debera abstenerse de operar aparatos de audio y/o video a niveles de sonido mayores a los SESENTA DECIBELES, durante el dia. Entre las 22 horas y las 8 horas, el nivel maximo permitido sera de CUARENTA DECIBELES."],["bold","VISITAS ESCANDALOSAS:"],["p","1. Al primer reporte de escandalo, el personal de seguridad acudira a la unidad."],["p","2. Al reincidir, se le hara una segunda llamada de atencion con una advertencia."],["p","3. Al tercer reporte, se solicitara la suspension del suministro de luz, y se aplicara multa de $2,000 pesos."],["gold","AREAS COMUNES"],["bul","La administracion no se hace responsable, por danos, robos o extravios dentro de la propiedad."],["bul","En temporada vacacional, politica de cero tolerancia en piscinas y playa de 7 am a 10 am."],["bul","No comer dentro de la alberca. Usar vasos de plastico."],["bul","Persona tomando en vaso de vidrio sera sancionada con $2,000 pesos."]],
+    [["p","5. No brincarse de la alberca hacia la playa o viceversa."],["p","6. Musica moderada en area de piscinas y playa."],["p","7. Fumar unicamente en las areas permitidas, no fumar en la playa."],["p","8. No mascotas en el area de piscinas."],["p","9. Usar un solo cajon de estacionamiento por unidad."],["p","10. No apartar cajones de estacionamiento. Sancion de $2,000 pesos."],["p","11. Estacionarse correctamente dentro del perimetro del cajon. Sancion de $2,000 pesos."],["p","12. Respetar los espacios asignados para personas con discapacidad. Sancion de $2,000 pesos."],["p","13. Los administradores y proveedores deberan estacionarse en la seccion de proveedores."],["p","14. Vehiculos que no se muevan en 30 dias, deben informar a la administracion."],["p","15. Propietarios con jet ski, vehiculo comercial o bote estacionado por VARIOS ANOS: una vez saliendo NO podra reingresar."],["p","16. Mover vehiculos que NO HAN SIDO MOVIDOS durante varios anos al area asignada."],["p","17. Los vehiculos mal estacionados obstruyendo accesos seran reubicados."],["p","18. Prohibido lavar auto sin previa notificacion a la administracion."],["p","19. Limpiar el piso si su vehiculo derrama aceite. Cuota de recuperacion de $3,000 pesos."],["p","20. Esta prohibido hacer uso de las conexiones electricas del estacionamiento."],["p","21. Prohibido dejar objetos personales o usar el estacionamiento como bodega."],["p","22. Prohibido dejar basura en pasillos o escaleras, multa de $2,000 pesos."],["p","23. Prohibido dejar escombro o materiales de obra. Cuota de recuperacion de $4,500 pesos."],["bold","Asi como de ser necesario, el consejo podra evaluar cualquier controversia para determinar su responsabilidad."]],
   ];
 
-  pages49.forEach((items, idx) => {
-    addPage(doc, idx+4);
-    let y = CONTENT_START;
-    items.forEach(([kind, text]) => {
-      if(kind === "H18"){
-        doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.setTextColor(26,26,26);
-        const ls = doc.splitTextToSize(text, TW);
-        ls.forEach(l => { doc.text(l, W/2, y, {align:"center"}); y += 24; }); y += 4;
-      } else if(kind === "H16"){
-        doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(26,26,26);
-        doc.text(text, W/2, y, {align:"center"}); y += 22;
-      } else if(kind === "red"){
-        doc.setTextColor(204,26,26);
-        y = jp(doc,text,y,"bold"); doc.setTextColor(0,0,0);
-      } else if(kind === "bold"){
-        text.split("\n").forEach(p => { y = jp(doc,p,y,"bold"); });
-      } else if(kind === "p"){
-        y = jp(doc,text,y,"normal");
-      } else if(kind === "•"){
-        doc.setFont("helvetica","normal"); doc.setFontSize(10);
-        const ls = doc.splitTextToSize(text, TW-16);
-        ls.forEach((l,i) => { doc.text((i===0?"•  ":"")+l, MARGIN+(i===0?0:12), y); y += 14; }); y += 4;
-      } else if(kind === "gold"){
-        doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(0,0,0);
-        doc.text(text, MARGIN, y);
-        const tw2 = doc.getTextWidth(text);
-        doc.setDrawColor(204,165,26); doc.setLineWidth(1.5);
-        doc.line(MARGIN, y+4, MARGIN+tw2, y+4);
-        doc.setDrawColor(0); doc.setLineWidth(0.4); y += 18;
-      } else if(kind === "blue"){
-        doc.setFont("helvetica","bolditalic"); doc.setTextColor(26,77,178);
-        doc.text(text, MARGIN, y); doc.setTextColor(0,0,0); y += 16;
-      }
+  pages48.forEach(function(items, pageIdx){
+    addPage(doc, pageIdx+4); var y = CONTENT_START;
+    items.forEach(function(item){
+      var kind=item[0], text=item[1];
+      if(kind==="H18"){ doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.setTextColor(26,26,26); var ls=doc.splitTextToSize(text,TW); ls.forEach(function(l){ doc.text(l,W/2,y,{align:"center"}); y+=24; }); y+=4; }
+      else if(kind==="H16"){ doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(26,26,26); doc.text(text,W/2,y,{align:"center"}); y+=22; }
+      else if(kind==="red"){ doc.setTextColor(204,26,26); y=jp(doc,text,y,"bold"); doc.setTextColor(0,0,0); }
+      else if(kind==="bold"){ text.split("\n").forEach(function(p){ y=jp(doc,p,y,"bold"); }); }
+      else if(kind==="p"){ y=jp(doc,text,y,"normal"); }
+      else if(kind==="bul"){ doc.setFont("helvetica","normal"); doc.setFontSize(10); var ls=doc.splitTextToSize(text,TW-16); ls.forEach(function(l,i){ doc.text((i===0?"- ":"")+l,MARGIN+(i===0?0:10),y); y+=14; }); y+=4; }
+      else if(kind==="gold"){ doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(0,0,0); doc.text(text,MARGIN,y); var tw2=doc.getTextWidth(text); doc.setDrawColor(204,165,26); doc.setLineWidth(1.5); doc.line(MARGIN,y+4,MARGIN+tw2,y+4); doc.setDrawColor(0); doc.setLineWidth(0.4); y+=18; }
+      else if(kind==="blue"){ doc.setFont("helvetica","bolditalic"); doc.setTextColor(26,77,178); doc.text(text,MARGIN,y); doc.setTextColor(0,0,0); y+=16; }
     });
   });
 
-  doc.save(`GrandVenetian_${unidad}_${(datos.nombre||"huesped").split(" ")[0]}.pdf`);
+  doc.save("GrandVenetian_" + unidad + "_" + (datos.nombre||"huesped").split(" ")[0] + ".pdf");
 }
+
+
 
 
 function pdfQuiya(datos, ocupantes) {
