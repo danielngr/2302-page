@@ -1077,7 +1077,7 @@ function pdfQuiya(datos, ocupantes) {
 
   function uline(x, y, w) {
     doc.setDrawColor(0,0,0); doc.setLineWidth(0.5);
-    doc.line(x, y-3, x+w, y-3);
+    doc.line(x, y+3, x+w, y+3);
   }
 
   function field(label, value, y, gap=36) {
@@ -1085,20 +1085,23 @@ function pdfQuiya(datos, ocupantes) {
     doc.text(label, MARGIN, y);
     const lw = doc.getTextWidth(label);
     doc.setFont("helvetica","bold");
-    doc.text(value, MARGIN+lw+8, y);
+    doc.text(String(value||""), MARGIN+lw+8, y);
     uline(MARGIN+lw+6, y, RIGHT-MARGIN-lw-6);
-    return y - gap;
+    return y + gap;
   }
+
+  // jsPDF y=0 is TOP, increases downward
+  let y = 60;
 
   // Logo centered
   const logoSize = 100;
-  doc.addImage(LOGOS.quiya, "JPEG", W/2-logoSize/2, H-80-logoSize, logoSize, logoSize);
+  doc.addImage(LOGOS.quiya, "JPEG", W/2-logoSize/2, y, logoSize, logoSize);
+  y += logoSize + 20;
 
   // Title
-  let y = H - 80 - logoSize - 30;
   doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(0,0,0);
   doc.text("ADMINISTRADORA DE CONDOMINIOS", W/2, y, {align:"center"});
-  y -= 50;
+  y += 50;
 
   y = field("No. De villa:", villa, y, 38);
   y = field("Nombre completo de propietario:", propietario, y, 38);
@@ -1111,41 +1114,41 @@ function pdfQuiya(datos, ocupantes) {
   doc.setFont("helvetica","bold");
   doc.text("CLAUDIA DANIELA", MARGIN+alw+8, y);
   uline(MARGIN+alw+6, y, RIGHT-MARGIN-alw-6);
-  y -= 26;
+  y += 26;
   doc.text("RODRIGUEZ MELENDEZ", MARGIN, y);
   uline(MARGIN, y, TW);
-  y -= 38;
+  y += 38;
 
   y = field("Teléfono de contacto:", "322-117-0032", y, 38);
-  y = field("No. De personas:", String(datos.personas || datos.adultos?.length || ""), y, 38);
+  y = field("No. De personas:", String(datos.personas || ""), y, 38);
 
   // Adultos
   doc.setFont("helvetica","normal"); doc.setFontSize(12); doc.setTextColor(0,0,0);
   doc.text("Adultos:", MARGIN, y);
   uline(MARGIN + doc.getTextWidth("Adultos:") + 6, y, 35);
-  y -= 26;
+  y += 26;
   const adultList = ocupantes.filter(o => o && o.nombre);
   adultList.forEach(o => {
     doc.setFont("helvetica","bold"); doc.setFontSize(12);
-    doc.text(o.nombre, MARGIN+16, y); y -= 22;
+    doc.text(o.nombre, MARGIN+16, y); y += 22;
   });
-  y -= 16;
+  y += 16;
 
   // Menores
-  doc.setFont("helvetica","normal"); doc.setFontSize(12);
+  doc.setFont("helvetica","normal"); doc.setFontSize(12); doc.setTextColor(0,0,0);
   doc.text("Menores:", MARGIN, y);
   uline(MARGIN + doc.getTextWidth("Menores:") + 6, y, 35);
-  y -= 22;
+  y += 22;
   doc.setFont("helvetica","italic"); doc.setFontSize(10); doc.setTextColor(64,64,64);
   doc.text("(Se considera menores a todos aquellos de 1 a 10 años de edad)", MARGIN+8, y);
   doc.setTextColor(0,0,0);
-  y -= 40;
+  y += 40;
 
   // Gold separator
   doc.setDrawColor(204,165,26); doc.setLineWidth(2);
   doc.line(W/2-25, y, W/2+25, y);
   doc.setDrawColor(0,0,0); doc.setLineWidth(0.5);
-  y -= 36;
+  y += 36;
 
   y = field("Fecha de ingreso:", fmtLong(datos.fecha_entrada), y, 36);
   y = field("Fecha de salida:", fmtLong(datos.fecha_salida), y, 36);
@@ -1153,7 +1156,6 @@ function pdfQuiya(datos, ocupantes) {
   const villa2 = villa.replace("VILLA ","");
   doc.save(`Quiya_${villa2}_${(datos.nombre||"huesped").split(" ")[0]}.pdf`);
 }
-
 
 function pdfArenablanca(datos, ocupantes) {
   const { jsPDF } = window.jspdf;
