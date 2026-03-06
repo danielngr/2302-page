@@ -604,24 +604,28 @@ function pdfGD(datos, ocupantes) {
 
   // Green curved shape: covers top-left, curves to bottom-right
   // Points: top-left(0,0) → bottom-left(0,bar_h) → curve to top-right area
-  // Green shape: top-left corner → right along top → curve DOWN to bottom-right → left along bottom → close
-  // White space = top-right corner (behind logo box)
-  // In jsPDF: y=0 top, y=bar_h bottom of header
+  // Green shape (jsPDF top-down):
+  // Starts at top-left (0,0), goes down left side to bottom-left (0,bar_h),
+  // curves RIGHT along bottom to bottom-right (W-logo_box_w, bar_h),
+  // then curve UP-LEFT back to top-left (0,0).
+  // White space = top-right corner behind logo box.
   const pts = [];
-  pts.push([0, 0]);                    // top-left
-  pts.push([W-logo_box_w, 0]);         // top-right of green area
-  // curve from top-right DOWN to bottom-right
+  pts.push([0, 0]);                          // top-left
+  pts.push([0, bar_h]);                      // bottom-left
+  // bezier from bottom-left (0,bar_h) curving to bottom-right (W-logo_box_w, bar_h)
+  // then UP to top-left (0,0) — creates diagonal sweep top-left→bottom-right
   const steps = 30;
   for(let t=0; t<=steps; t++) {
     const s = t/steps;
-    const x0=W-logo_box_w, y0=0;
-    const x1=W*0.55,       y1=0;
-    const x2=W*0.45,       y2=bar_h;
-    const x3=0,            y3=bar_h;
+    const x0=0,              y0=bar_h;   // start: bottom-left
+    const x1=W*0.45,         y1=bar_h;   // cp1: right along bottom
+    const x2=W*0.55,         y2=0;       // cp2: rises to top
+    const x3=W-logo_box_w,   y3=0;       // end: top-right of green area
     const bx = Math.pow(1-s,3)*x0 + 3*Math.pow(1-s,2)*s*x1 + 3*(1-s)*s*s*x2 + s*s*s*x3;
     const by = Math.pow(1-s,3)*y0 + 3*Math.pow(1-s,2)*s*y1 + 3*(1-s)*s*s*y2 + s*s*s*y3;
     pts.push([bx, by]);
   }
+  // ends at (W-logo_box_w, 0) top-right, close back to (0,0)
   pts.push([0, bar_h]);  // bottom-left
   doc.setFillColor(...GREEN);
   doc.setDrawColor(...GREEN);
