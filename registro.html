@@ -306,18 +306,19 @@ function init() {
   const manana = new Date(hoy); manana.setDate(manana.getDate()+1);
   document.getElementById("fecha_salida").value = fmt(manana);
 
-  syncOcupantes();
+  setTimeout(syncOcupantes, 50);
 }
 
 function syncOcupantes() {
-  // Sync ocupantes array size to adultos+menores total
-  const adultos = parseInt(document.getElementById("num_adultos").value)||1;
-  const menores = parseInt(document.getElementById("num_menores").value)||0;
+  const adultos = parseInt(document.getElementById("num_adultos").value) || 1;
+  const menores = parseInt(document.getElementById("num_menores").value) || 0;
   const total = adultos + menores;
-  while(ocupantes.length < total) ocupantes.push({nombre:"", tipo: ocupantes.length < adultos ? "Adulto" : "Menor"});
+  while(ocupantes.length < total) ocupantes.push({nombre:"", tipo:""});
   while(ocupantes.length > total) ocupantes.pop();
-  syncOcupantes();
+  ocupantes.forEach((o, i) => { o.tipo = i < adultos ? "Adulto" : "Menor"; });
+  renderOcupantes();
 }
+
 
 function renderOcupantes() {
   const adultos = parseInt(document.getElementById("num_adultos").value)||1;
