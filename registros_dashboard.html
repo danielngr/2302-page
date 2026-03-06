@@ -1075,45 +1075,47 @@ function pdfQuiya(datos, ocupantes) {
     return `${parseInt(d)} ${meses[parseInt(m)-1]} ${y}`;
   }
 
+  // y = text baseline; underline goes 4pt below baseline
   function uline(x, y, w) {
     doc.setDrawColor(0,0,0); doc.setLineWidth(0.5);
-    doc.line(x, y+3, x+w, y+3);
+    doc.line(x, y+4, x+w, y+4);
   }
 
+  // draws label+value, underline spanning from after label to RIGHT, returns y + gap
   function field(label, value, y, gap=36) {
     doc.setFont("helvetica","normal"); doc.setFontSize(12); doc.setTextColor(0,0,0);
     doc.text(label, MARGIN, y);
     const lw = doc.getTextWidth(label);
     doc.setFont("helvetica","bold");
     doc.text(String(value||""), MARGIN+lw+8, y);
-    uline(MARGIN+lw+6, y, RIGHT-MARGIN-lw-6);
+    uline(MARGIN+lw+6, y, TW-lw-6);
     return y + gap;
   }
 
-  // jsPDF y=0 is TOP, increases downward
+  // ── LAYOUT: y starts at top, increases downward ──
   let y = 60;
 
   // Logo centered
-  const logoSize = 100;
-  doc.addImage(LOGOS.quiya, "JPEG", W/2-logoSize/2, y, logoSize, logoSize);
-  y += logoSize + 20;
+  doc.addImage(LOGOS.quiya, "JPEG", W/2-50, y, 100, 100);
+  y += 120;
 
   // Title
   doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(0,0,0);
   doc.text("ADMINISTRADORA DE CONDOMINIOS", W/2, y, {align:"center"});
   y += 50;
 
+  // Fields
   y = field("No. De villa:", villa, y, 38);
   y = field("Nombre completo de propietario:", propietario, y, 38);
 
-  // Administrador 2 lines
+  // Administrador — 2 lines
   doc.setFont("helvetica","normal"); doc.setFontSize(12); doc.setTextColor(0,0,0);
   const adminLabel = "Nombre completo de administrador:";
   doc.text(adminLabel, MARGIN, y);
   const alw = doc.getTextWidth(adminLabel);
   doc.setFont("helvetica","bold");
   doc.text("CLAUDIA DANIELA", MARGIN+alw+8, y);
-  uline(MARGIN+alw+6, y, RIGHT-MARGIN-alw-6);
+  uline(MARGIN+alw+6, y, TW-alw-6);
   y += 26;
   doc.text("RODRIGUEZ MELENDEZ", MARGIN, y);
   uline(MARGIN, y, TW);
@@ -1127,10 +1129,10 @@ function pdfQuiya(datos, ocupantes) {
   doc.text("Adultos:", MARGIN, y);
   uline(MARGIN + doc.getTextWidth("Adultos:") + 6, y, 35);
   y += 26;
-  const adultList = ocupantes.filter(o => o && o.nombre);
-  adultList.forEach(o => {
-    doc.setFont("helvetica","bold"); doc.setFontSize(12);
-    doc.text(o.nombre, MARGIN+16, y); y += 22;
+  ocupantes.filter(o => o && o.nombre).forEach(o => {
+    doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(0,0,0);
+    doc.text(o.nombre, MARGIN+16, y);
+    y += 22;
   });
   y += 16;
 
@@ -1147,14 +1149,13 @@ function pdfQuiya(datos, ocupantes) {
   // Gold separator
   doc.setDrawColor(204,165,26); doc.setLineWidth(2);
   doc.line(W/2-25, y, W/2+25, y);
-  doc.setDrawColor(0,0,0); doc.setLineWidth(0.5);
+  doc.setDrawColor(0); doc.setLineWidth(0.5);
   y += 36;
 
   y = field("Fecha de ingreso:", fmtLong(datos.fecha_entrada), y, 36);
   y = field("Fecha de salida:", fmtLong(datos.fecha_salida), y, 36);
 
-  const villa2 = villa.replace("VILLA ","");
-  doc.save(`Quiya_${villa2}_${(datos.nombre||"huesped").split(" ")[0]}.pdf`);
+  doc.save(`Quiya_${villa.replace("VILLA ","")}_${(datos.nombre||"huesped").split(" ")[0]}.pdf`);
 }
 
 function pdfArenablanca(datos, ocupantes) {
