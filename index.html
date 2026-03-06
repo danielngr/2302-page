@@ -3,442 +3,300 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Generador de Formatos — VRN</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<title>Registro de Huéspedes — VRM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0f0f10;
-    --surface: #18181b;
-    --surface2: #1f1f24;
-    --border: #2a2a30;
-    --accent: #e8c56a;
-    --accent2: #6ab4e8;
-    --green: #5ae8a0;
-    --red: #e86a6a;
-    --text: #f0f0f0;
+    --bg: #f7f6f2;
+    --white: #ffffff;
+    --border: #e0ddd6;
+    --accent: #2c5f8a;
+    --accent-light: #e8f0f8;
+    --text: #1a1a1a;
     --muted: #888;
-    --mono: 'DM Mono', monospace;
+    --error: #c0392b;
+    --success: #27ae60;
     --sans: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
 
-  header {
-    border-bottom: 1px solid var(--border);
-    padding: 18px 32px;
-    display: flex; align-items: center; gap: 16px;
-    background: var(--surface);
+  .page-header {
+    background: var(--accent);
+    color: white;
+    padding: 20px 24px;
+    text-align: center;
   }
-  .logo { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: 2px; }
-  .logo span { color: var(--muted); }
-  header h1 { font-size: 15px; font-weight: 500; color: var(--text); }
+  .page-header h1 { font-size: 18px; font-weight: 600; }
+  .page-header p { font-size: 13px; opacity: .8; margin-top: 4px; }
 
-  .container { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+  .container { max-width: 600px; margin: 0 auto; padding: 24px 16px 48px; }
+
+  .depto-badge {
+    background: var(--accent); color: white;
+    padding: 8px 16px; border-radius: 20px;
+    font-size: 13px; font-family: var(--mono);
+    display: inline-block; margin-bottom: 20px;
+  }
 
   .card {
-    background: var(--surface);
+    background: var(--white);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 24px;
-    margin-bottom: 20px;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
   }
   .card-title {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--accent);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 18px;
+    font-size: 12px; font-family: var(--mono);
+    color: var(--accent); letter-spacing: 1.5px;
+    text-transform: uppercase; margin-bottom: 16px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--border);
   }
 
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-
-  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-family: var(--mono); }
-  input, select, textarea {
-    width: 100%; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 6px; color: var(--text); font-family: var(--sans); font-size: 14px;
-    padding: 9px 12px; outline: none; transition: border-color .2s;
+  .field { margin-bottom: 14px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
+  input, select {
+    width: 100%; background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 8px; color: var(--text); font-family: var(--sans);
+    font-size: 15px; padding: 11px 14px; outline: none; transition: border-color .2s;
+    -webkit-appearance: none;
   }
-  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
-  textarea { resize: vertical; min-height: 70px; }
-  select option { background: var(--surface2); }
+  input:focus, select:focus { border-color: var(--accent); background: white; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 
-  .ocupantes-grid { display: grid; gap: 8px; margin-top: 8px; }
-  .ocupante-row { display: grid; grid-template-columns: 1fr 140px 32px; gap: 8px; align-items: center; }
+  .ocupante-row {
+    display: grid; grid-template-columns: 1fr 110px 36px; gap: 8px;
+    align-items: center; margin-bottom: 8px;
+  }
   .btn-remove {
-    background: none; border: 1px solid var(--border); color: var(--muted);
-    border-radius: 5px; cursor: pointer; font-size: 16px; padding: 4px 8px;
+    background: none; border: 1.5px solid var(--border); color: var(--muted);
+    border-radius: 8px; cursor: pointer; font-size: 18px; height: 44px;
     transition: all .2s;
   }
-  .btn-remove:hover { border-color: var(--red); color: var(--red); }
+  .btn-remove:hover { border-color: var(--error); color: var(--error); }
   .btn-add {
-    background: none; border: 1px dashed var(--border); color: var(--muted);
-    border-radius: 6px; cursor: pointer; font-size: 12px; padding: 8px;
-    width: 100%; margin-top: 8px; transition: all .2s; font-family: var(--mono);
+    background: none; border: 1.5px dashed var(--border); color: var(--muted);
+    border-radius: 8px; cursor: pointer; font-size: 13px; padding: 10px;
+    width: 100%; margin-top: 4px; transition: all .2s;
   }
   .btn-add:hover { border-color: var(--accent); color: var(--accent); }
 
-  /* DEPTO SELECTOR */
-  .depto-selector { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
-  .depto-btn {
-    padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border);
-    background: var(--surface2); color: var(--muted); cursor: pointer; font-size: 12px;
-    font-family: var(--mono); transition: all .2s; text-align: center;
+  .btn-submit {
+    width: 100%; padding: 16px; border-radius: 10px; border: none;
+    background: var(--accent); color: white; font-size: 16px;
+    font-family: var(--sans); font-weight: 600; cursor: pointer;
+    transition: all .2s; margin-top: 8px;
   }
-  .depto-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .depto-btn.active { border-color: var(--accent); background: rgba(232,197,106,.12); color: var(--accent); }
-  .depto-btn .tipo-badge {
-    display: block; font-size: 9px; color: var(--muted); margin-top: 2px; letter-spacing: 1px;
-  }
-  .depto-btn.active .tipo-badge { color: var(--accent); opacity: .7; }
+  .btn-submit:hover { background: #1e4a70; }
+  .btn-submit:disabled { opacity: .5; cursor: default; }
 
-  .tipo-pdf .tipo-badge { color: #e8a06a !important; }
-  .tipo-whatsapp .tipo-badge { color: var(--green) !important; }
-  .tipo-correo .tipo-badge { color: var(--accent2) !important; }
-  .tipo-frakcio .tipo-badge { color: #c06ae8 !important; }
-  .tipo-comunidad .tipo-badge { color: #e86a9e !important; }
-  .tipo-gforms .tipo-badge { color: var(--accent) !important; }
-  .tipo-condovive .tipo-badge { color: #6ae8d4 !important; }
+  .success-screen {
+    display: none; text-align: center; padding: 48px 24px;
+  }
+  .success-icon { font-size: 56px; margin-bottom: 16px; }
+  .success-screen h2 { font-size: 22px; color: var(--success); margin-bottom: 8px; }
+  .success-screen p { color: var(--muted); font-size: 14px; line-height: 1.6; }
 
-  .tipo-indicator {
-    display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px;
-    border-radius: 20px; font-size: 12px; font-family: var(--mono); margin-bottom: 16px;
-  }
-  .tipo-indicator .dot { width: 8px; height: 8px; border-radius: 50%; }
-  .ind-pdf { background: rgba(232,160,106,.12); color: #e8a06a; }
-  .ind-pdf .dot { background: #e8a06a; }
-  .ind-whatsapp { background: rgba(90,232,160,.12); color: var(--green); }
-  .ind-whatsapp .dot { background: var(--green); }
-  .ind-correo { background: rgba(106,180,232,.12); color: var(--accent2); }
-  .ind-correo .dot { background: var(--accent2); }
-  .ind-frakcio { background: rgba(192,106,232,.12); color: #c06ae8; }
-  .ind-frakcio .dot { background: #c06ae8; }
-  .ind-comunidad { background: rgba(232,106,158,.12); color: #e86a9e; }
-  .ind-comunidad .dot { background: #e86a9e; }
-  .ind-gforms { background: rgba(232,197,106,.12); color: var(--accent); }
-  .ind-gforms .dot { background: var(--accent); }
-  .ind-condovive { background: rgba(106,232,212,.12); color: #6ae8d4; }
-  .ind-condovive .dot { background: #6ae8d4; }
+  .error-msg { color: var(--error); font-size: 12px; margin-top: 4px; display: none; }
+  .required::after { content: " *"; color: var(--error); }
 
-  .btn-generate {
-    width: 100%; padding: 14px; border-radius: 8px; border: none; cursor: pointer;
-    font-size: 15px; font-family: var(--mono); font-weight: 500; letter-spacing: 1px;
-    background: var(--accent); color: #0f0f10; transition: all .2s; margin-top: 8px;
-  }
-  .btn-generate:hover { background: #f0d070; }
-  .btn-generate:disabled { opacity: .4; cursor: default; }
-
-  /* OUTPUT */
-  #output-section { display: none; }
-  .output-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-  .output-header {
-    padding: 14px 20px; border-bottom: 1px solid var(--border);
-    display: flex; justify-content: space-between; align-items: center;
-    background: var(--surface2);
-  }
-  .output-title { font-family: var(--mono); font-size: 12px; color: var(--accent); letter-spacing: 1px; }
-  .btn-copy {
-    padding: 6px 14px; border-radius: 5px; border: 1px solid var(--border);
-    background: none; color: var(--muted); cursor: pointer; font-size: 12px;
-    font-family: var(--mono); transition: all .2s;
-  }
-  .btn-copy:hover { border-color: var(--green); color: var(--green); }
-  .btn-copy.copied { border-color: var(--green); color: var(--green); }
-  #output-text {
-    padding: 20px; font-family: var(--mono); font-size: 13px; line-height: 1.7;
-    color: #ddd; white-space: pre-wrap; max-height: 500px; overflow-y: auto;
-  }
-  .whatsapp-number {
-    background: rgba(90,232,160,.08); border: 1px solid rgba(90,232,160,.25);
-    border-radius: 8px; padding: 12px 16px; margin-top: 12px;
-    font-family: var(--mono); font-size: 13px; color: var(--green);
-    display: flex; align-items: center; gap: 10px;
-  }
-
-  .pdf-note {
-    background: rgba(232,160,106,.08); border: 1px solid rgba(232,160,106,.25);
-    border-radius: 8px; padding: 14px 16px; margin-top: 12px; font-size: 13px;
-    color: #e8a06a;
-  }
-  .pdf-btn {
-    display: inline-block; margin-top: 10px; padding: 8px 18px; border-radius: 6px;
-    background: #e8a06a; color: #0f0f10; font-family: var(--mono); font-size: 12px;
-    cursor: pointer; border: none; font-weight: 500; transition: all .2s;
-  }
-  .pdf-btn:hover { background: #f0b070; }
-
-  .search-box { margin-bottom: 12px; }
-
-  .section-header { font-size: 11px; font-family: var(--mono); color: var(--muted); letter-spacing: 1px; padding: 4px 0 8px; border-top: 1px solid var(--border); margin-top: 10px; }
-  .section-header:first-child { border-top: none; margin-top: 0; }
-
-  .no-depto { color: var(--muted); font-size: 13px; font-style: italic; padding: 8px 0; }
+  #loading { display:none; text-align:center; padding:16px; color:var(--muted); font-size:14px; }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="logo">VRN<span>/</span>GEN</div>
-  <h1>Generador de Formatos de Check-in</h1>
-</header>
+<div class="page-header">
+  <h1>Registro de Huéspedes</h1>
+  <p>Por favor completa tus datos antes de tu llegada</p>
+</div>
 
 <div class="container">
-
-  <!-- PASO 1: DEPTO -->
-  <div class="card">
-    <div class="card-title">01 — Selecciona el Departamento</div>
-    <div class="search-box">
-      <input type="text" id="search-depto" placeholder="Buscar depto…" oninput="filtrarDeptos(this.value)">
+  <div id="form-section">
+    <div style="margin-bottom:16px;">
+      <span class="depto-badge" id="depto-badge">Cargando...</span>
     </div>
-    <div id="depto-container" class="depto-selector"></div>
-  </div>
 
-  <!-- TIPO DETECTADO -->
-  <div id="tipo-section" style="display:none; margin-bottom:20px;">
-    <div id="tipo-indicator" class="tipo-indicator"></div>
-  </div>
-
-  <!-- PASO 2: DATOS HUÉSPED -->
-  <div class="card">
-    <div class="card-title">02 — Datos del Huésped</div>
-    <div class="grid2" style="margin-bottom:14px;">
-      <div>
-        <label>Nombre completo (responsable del grupo)</label>
-        <input type="text" id="nombre" placeholder="Ej: María González López">
+    <!-- DATOS PRINCIPALES -->
+    <div class="card">
+      <div class="card-title">Datos del responsable</div>
+      <div class="field">
+        <label class="required">Nombre completo</label>
+        <input type="text" id="nombre" placeholder="Tu nombre completo" autocomplete="name">
       </div>
-      <div>
+      <div class="field">
+        <label>Correo electrónico</label>
+        <input type="email" id="email" placeholder="tu@email.com" autocomplete="email">
+      </div>
+      <div class="field">
         <label>Teléfono / WhatsApp</label>
-        <input type="text" id="telefono" placeholder="+52 33 1234 5678">
+        <input type="tel" id="telefono" placeholder="+52 33 1234 5678" autocomplete="tel">
       </div>
     </div>
-    <div id="correo-row" style="margin-bottom:14px; display:none;">
-      <label>Correo electrónico <span style="color:var(--muted);font-size:11px;">(opcional — Frakcio)</span></label>
-      <input type="email" id="correo_huesped" placeholder="huesped@email.com">
-    </div>
-    <div class="grid3" style="margin-bottom:14px;">
-      <div>
-        <label>Fecha de llegada</label>
-        <input type="date" id="fecha_entrada">
+
+    <!-- FECHAS -->
+    <div class="card">
+      <div class="card-title">Fechas de estancia</div>
+      <div class="grid2">
+        <div class="field">
+          <label class="required">Fecha de llegada</label>
+          <input type="date" id="fecha_entrada">
+        </div>
+        <div class="field">
+          <label class="required">Fecha de salida</label>
+          <input type="date" id="fecha_salida">
+        </div>
       </div>
-      <div>
-        <label>Fecha de salida</label>
-        <input type="date" id="fecha_salida">
-      </div>
-      <div>
-        <label>No. de personas total</label>
-        <input type="number" id="num_personas" min="1" max="20" value="2">
-      </div>
-    </div>
-    <div class="grid3" style="margin-bottom:14px;">
-      <div>
-        <label>Adultos</label>
-        <input type="number" id="adultos" min="0" value="2">
-      </div>
-      <div>
-        <label>Menores</label>
-        <input type="number" id="menores" min="0" value="0">
-      </div>
-      <div>
-        <label>Mascotas</label>
-        <input type="number" id="mascotas" min="0" value="0">
+      <div class="grid3">
+        <div class="field">
+          <label>Adultos</label>
+          <input type="number" id="num_adultos" min="1" max="20" value="1">
+        </div>
+        <div class="field">
+          <label>Menores</label>
+          <input type="number" id="num_menores" min="0" max="20" value="0">
+        </div>
+        <div class="field">
+          <label>Mascotas</label>
+          <input type="number" id="num_mascotas" min="0" max="10" value="0">
+        </div>
       </div>
     </div>
-    <div class="grid2">
-      <div>
-        <label>Vehículo — Modelo / Color</label>
-        <input type="text" id="vehiculo_modelo" placeholder="Ej: Tiguan / Blanca">
-      </div>
-      <div>
-        <label>Placas</label>
-        <input type="text" id="vehiculo_placas" placeholder="Ej: ABC-1234">
+
+    <!-- VEHÍCULO -->
+    <div class="card">
+      <div class="card-title">Vehículo (opcional)</div>
+      <div class="grid2">
+        <div class="field">
+          <label>Marca / Modelo / Color</label>
+          <input type="text" id="vehiculo_modelo" placeholder="Ej: Toyota Rav4 Blanca">
+        </div>
+        <div class="field">
+          <label>Placas</label>
+          <input type="text" id="vehiculo_placas" placeholder="Ej: ABC-1234">
+        </div>
       </div>
     </div>
+
+    <!-- OCUPANTES -->
+    <div class="card">
+      <div class="card-title">Lista de todos los huéspedes</div>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">Incluye a todos los que se hospedarán, incluyéndote a ti.</p>
+      <div id="ocupantes-list"></div>
+      <button class="btn-add" onclick="agregarOcupante()">+ Agregar huésped</button>
+    </div>
+
+    <div id="loading">Enviando registro...</div>
+    <button class="btn-submit" id="btn-submit" onclick="enviar()">ENVIAR REGISTRO</button>
+    <p style="text-align:center; font-size:11px; color:var(--muted); margin-top:12px;">
+      Tus datos se usan únicamente para el registro de acceso al condominio.
+    </p>
   </div>
 
-  <!-- PASO 3: OCUPANTES -->
-  <div class="card">
-    <div class="card-title">03 — Lista de Ocupantes</div>
-    <div id="ocupantes-list" class="ocupantes-grid"></div>
-    <button class="btn-add" onclick="agregarOcupante()">+ Agregar ocupante</button>
+  <!-- SUCCESS -->
+  <div class="success-screen" id="success-screen">
+    <div class="success-icon">✅</div>
+    <h2>¡Registro enviado!</h2>
+    <p>Hemos recibido tu información.<br>Nos vemos en tu llegada. ¡Bienvenido!</p>
   </div>
-
-  <!-- GENERAR -->
-  <button class="btn-generate" id="btn-gen" onclick="generar()" disabled>GENERAR FORMATO</button>
-
-  <!-- OUTPUT -->
-  <div id="output-section" style="margin-top:24px;">
-    <div class="output-card">
-      <div class="output-header">
-        <span class="output-title" id="output-label">OUTPUT</span>
-        <button class="btn-copy" id="btn-copy" onclick="copiar()">Copiar</button>
-      </div>
-      <div id="output-text"></div>
-    </div>
-    <div id="whatsapp-number" class="whatsapp-number" style="display:none;"></div>
-    <div id="pdf-note" class="pdf-note" style="display:none;"></div>
-  </div>
-
 </div>
 
 <script>
-// ============================================================
-// MAPA COMPLETO DE DEPTOS → TIPO + DATOS EXTRA
-// ============================================================
-const DEPTOS = {
-  // ── PDF ──────────────────────────────────────────────────
-  "QUIYA 2302":     { tipo:"pdf",       template:"quiya",    label:"Quiya 2302" },
-  "QUIYA 2005":     { tipo:"pdf",       template:"quiya",    label:"Quiya 2005" },
-  "QUIYA 2403":     { tipo:"pdf",       template:"quiya",    label:"Quiya 2403" },
-  "QUIYA 2701":     { tipo:"pdf",       template:"quiya",    label:"Quiya 2701" },
-  "QUIYA 2705":     { tipo:"pdf",       template:"quiya",    label:"Quiya 2705" },
-  "QUIYA 2801":     { tipo:"pdf",       template:"quiya",    label:"Quiya 2801" },
-  "QUIYA 2804":     { tipo:"pdf",       template:"quiya",    label:"Quiya 2804" },
-  "QUIYA 2805":     { tipo:"pdf",       template:"quiya",    label:"Quiya 2805" },
-  "QUIYA 2905":     { tipo:"pdf",       template:"quiya",    label:"Quiya 2905" },
-  "QUIYA 3004":     { tipo:"pdf",       template:"quiya",    label:"Quiya 3004" },
-  "ALBATROS 301 A": { tipo:"pdf",       template:"albatros", label:"Albatros 301-A" },
-  "GD 103A":        { tipo:"pdf",       template:"gd",       label:"GD 103-A" },
-  "GD 202B":        { tipo:"pdf",       template:"gd",       label:"GD 202-B" },
-  "GD 303A":        { tipo:"pdf",       template:"gd",       label:"GD 303-A" },
-  "GD 501B":        { tipo:"pdf",       template:"gd",       label:"GD 501-B" },
-  "GD 501E":        { tipo:"pdf",       template:"gd",       label:"GD 501-E" },
-  "ALAMAR 503":     { tipo:"pdf",       template:"alamar",   label:"Alamar 503" },
-  "DELTA 2 101":    { tipo:"pdf",       template:"alamar",   label:"Delta 2 101" },
-  "VENETIAN 905 T3":  { tipo:"pdf",     template:"venetian", label:"Venetian 905 T3" },
-  "VENETIAN 906 T3":  { tipo:"pdf",     template:"venetian", label:"Venetian 906 T3" },
-  "VENETIAN 1010 T3": { tipo:"pdf",     template:"venetian", label:"Venetian 1010 T3" },
-  "VENETIAN 1903 T3": { tipo:"pdf",     template:"venetian", label:"Venetian 1903 T3" },
-  "VENETIAN 2101 T3": { tipo:"pdf",     template:"venetian", label:"Venetian 2101 T3" },
-  "FLAMINGOS":      { tipo:"pdf",       template:"flamingos",label:"Flamingos 27" },
-  "XIKIRI":         { tipo:"pdf",       template:"xikiri",   label:"Xikiri" },
-  "PENINSULA 19E":  { tipo:"pdf",       template:"peninsula",label:"Península 19-E" },
-  "PENINSULA 18B":  { tipo:"pdf",       template:"peninsula",label:"Península 18-B" },
+const SUPABASE_URL = "https://grsykedeppdwenpfxlfh.supabase.co";
+const SUPABASE_KEY = "sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm";
 
-  // ── WHATSAPP ──────────────────────────────────────────────
-  "RINCON 104":     { tipo:"whatsapp",  numero:"+52 322 327 3955", label:"Rincón 104" },
-  "RINCON 403":     { tipo:"whatsapp",  numero:"+52 322 327 3955", label:"Rincón 403" },
-  "RINCON 502":     { tipo:"whatsapp",  numero:"+52 322 327 3955", label:"Rincón 502" },
-  "PLAYA ESMERALDA":{ tipo:"whatsapp",  numero:"+52 55 1800 8292",  label:"Playa Esmeralda" },
-  "ARCANO":         { tipo:"whatsapp",  numero:"+52 322 349 0930",  label:"Arcano" },
-  "NAUTICO 9C":     { tipo:"whatsapp",  numero:"+52 322 141 9001",  label:"Náutico 9-C" },
-  "NAUTICO 9E":     { tipo:"whatsapp",  numero:"+52 322 141 9001",  label:"Náutico 9-E" },
-  "NAUTICO 1G":     { tipo:"whatsapp",  numero:"+52 322 141 9001",  label:"Náutico 1-G" },
-  "NAUTICO 3G":     { tipo:"whatsapp",  numero:"+52 322 141 9001",  label:"Náutico 3-G" },
-  "NAUTICO 408":    { tipo:"whatsapp",  numero:"+52 322 141 9001",  label:"Náutico 408" },
-  "MARSALA":        { tipo:"whatsapp",  numero:"PENDIENTE",          label:"Marsala" },
-  "AMOARA":         { tipo:"whatsapp",  numero:"PENDIENTE",          label:"Amoara" },
-
-  // ── CORREO ────────────────────────────────────────────────
-  "TULES 13-701":   { tipo:"correo", label:"Tules 13-701" },
-  "TULES 15-143":   { tipo:"correo", label:"Tules 15-143" },
-  "TULES 19-1301":  { tipo:"correo", label:"Tules 19-1301" },
-  "TULES 20-105":   { tipo:"correo", label:"Tules 20-105" },
-  "MARINA SOL":     { tipo:"correo", label:"Marina Sol" },
-
-  // ── FRAKCIO ───────────────────────────────────────────────
-  "ARIA 812":       { tipo:"frakcio", label:"Aria 812" },
-  "ARIA 906":       { tipo:"frakcio", label:"Aria 906" },
-  "ARIA 1010":      { tipo:"frakcio", label:"Aria 1010" },
-  "ARIA 1013":      { tipo:"frakcio", label:"Aria 1013" },
-  "ARIA PH 1001":   { tipo:"frakcio", label:"Aria PH 1001" },
-  "MARITIMA GOLF 2L":   { tipo:"frakcio", label:"Marítima Golf 2L" },
-  "MARITIMA GOLF 2M":   { tipo:"frakcio", label:"Marítima Golf 2M" },
-  "MARITIMA GOLF 5R":   { tipo:"frakcio", label:"Marítima Golf 5R" },
-  "MARITIMA GOLF LW1B": { tipo:"frakcio", label:"Marítima Golf LW1B" },
-  "ZANTAMAR":       { tipo:"frakcio", label:"Zantamar" },
-  "BVG 505":        { tipo:"frakcio", label:"Bay View Grand 505", bvg:true },
-  "BVG 506":        { tipo:"frakcio", label:"Bay View Grand 506", bvg:true },
-
-  // ── COMUNIDAD FELIZ ───────────────────────────────────────
-  "BOLONGO 0N":     { tipo:"comunidad", label:"Bolongo 0-N" },
-  "BOLONGO 3N":     { tipo:"comunidad", label:"Bolongo 3-N" },
-  "BOLONGO 211":    { tipo:"comunidad", label:"Bolongo 211" },
-  "BOLONGO G13":    { tipo:"comunidad", label:"Bolongo G13" },
-  "BOLONGO L05":    { tipo:"comunidad", label:"Bolongo L05" },
-
-  // ── GOOGLE FORMS ──────────────────────────────────────────
-  "MARITIMA PHN":   { tipo:"gforms", label:"Marítima PHN" },
-  "MARITIMA 9S":    { tipo:"gforms", label:"Marítima 9-S" },
-  "MARITIMA 10I":   { tipo:"gforms", label:"Marítima 10-I" },
-  "MARITIMA 6S":    { tipo:"gforms", label:"Marítima 6-S" },
-
-  // ── ISLA IGUANA ───────────────────────────────────────────
-  "ISLA IGUANA":    { tipo:"frakcio", label:"Isla Iguana" },
+// Mapa depto → template + tipo
+const DEPTO_MAP = {
+  "QUIYA 2302":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2005":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2403":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2701":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2705":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2801":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2804":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2805":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2905":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 3004":{"template":"quiya","tipo":"pdf"},
+  "ALBATROS 301 A":{"template":"albatros","tipo":"pdf"},
+  "GD 103A":{"template":"gd","tipo":"pdf"},
+  "GD 202B":{"template":"gd","tipo":"pdf"},
+  "GD 303A":{"template":"gd","tipo":"pdf"},
+  "GD 501B":{"template":"gd","tipo":"pdf"},
+  "GD 501E":{"template":"gd","tipo":"pdf"},
+  "ALAMAR 503":{"template":"alamar","tipo":"pdf"},
+  "DELTA 2 101":{"template":"alamar","tipo":"pdf"},
+  "VENETIAN 905 T3":{"template":"venetian","tipo":"pdf"},
+  "VENETIAN 906 T3":{"template":"venetian","tipo":"pdf"},
+  "VENETIAN 1010 T3":{"template":"venetian","tipo":"pdf"},
+  "VENETIAN 1903 T3":{"template":"venetian","tipo":"pdf"},
+  "VENETIAN 2101 T3":{"template":"venetian","tipo":"pdf"},
+  "FLAMINGOS":{"template":"flamingos","tipo":"pdf"},
+  "XIKIRI":{"template":"xikiri","tipo":"pdf"},
+  "PENINSULA 19E":{"template":"peninsula","tipo":"pdf"},
+  "PENINSULA 18B":{"template":"peninsula","tipo":"pdf"},
+  "RINCON 104":{"template":"whatsapp","tipo":"whatsapp"},
+  "RINCON 403":{"template":"whatsapp","tipo":"whatsapp"},
+  "RINCON 502":{"template":"whatsapp","tipo":"whatsapp"},
+  "PLAYA ESMERALDA":{"template":"whatsapp","tipo":"whatsapp"},
+  "ARCANO":{"template":"whatsapp","tipo":"whatsapp"},
+  "NAUTICO 9C":{"template":"whatsapp","tipo":"whatsapp"},
+  "NAUTICO 9E":{"template":"whatsapp","tipo":"whatsapp"},
+  "NAUTICO 1G":{"template":"whatsapp","tipo":"whatsapp"},
+  "NAUTICO 3G":{"template":"whatsapp","tipo":"whatsapp"},
+  "NAUTICO 408":{"template":"whatsapp","tipo":"whatsapp"},
+  "MARSALA":{"template":"whatsapp","tipo":"whatsapp"},
+  "AMOARA":{"template":"whatsapp","tipo":"whatsapp"},
+  "TULES 13-701":{"template":"correo","tipo":"correo"},
+  "TULES 15-143":{"template":"correo","tipo":"correo"},
+  "TULES 19-1301":{"template":"correo","tipo":"correo"},
+  "TULES 20-105":{"template":"correo","tipo":"correo"},
+  "MARINA SOL":{"template":"correo","tipo":"correo"},
+  "ARIA 812":{"template":"frakcio","tipo":"frakcio"},
+  "ARIA 906":{"template":"frakcio","tipo":"frakcio"},
+  "ARIA 1010":{"template":"frakcio","tipo":"frakcio"},
+  "ARIA 1013":{"template":"frakcio","tipo":"frakcio"},
+  "ARIA PH 1001":{"template":"frakcio","tipo":"frakcio"},
+  "MARITIMA GOLF 2L":{"template":"frakcio","tipo":"frakcio"},
+  "MARITIMA GOLF 2M":{"template":"frakcio","tipo":"frakcio"},
+  "MARITIMA GOLF 5R":{"template":"frakcio","tipo":"frakcio"},
+  "MARITIMA GOLF LW1B":{"template":"frakcio","tipo":"frakcio"},
+  "ZANTAMAR":{"template":"frakcio","tipo":"frakcio"},
+  "BVG 505":{"template":"frakcio","tipo":"frakcio"},
+  "BVG 506":{"template":"frakcio","tipo":"frakcio"},
+  "ISLA IGUANA":{"template":"frakcio","tipo":"frakcio"},
+  "BOLONGO 0N":{"template":"comunidad","tipo":"comunidad"},
+  "BOLONGO 3N":{"template":"comunidad","tipo":"comunidad"},
+  "BOLONGO 211":{"template":"comunidad","tipo":"comunidad"},
+  "BOLONGO G13":{"template":"comunidad","tipo":"comunidad"},
+  "BOLONGO L05":{"template":"comunidad","tipo":"comunidad"},
+  "MARITIMA PHN":{"template":"gforms","tipo":"gforms"},
+  "MARITIMA 9S":{"template":"gforms","tipo":"gforms"},
+  "MARITIMA 10I":{"template":"gforms","tipo":"gforms"},
+  "MARITIMA 6S":{"template":"gforms","tipo":"gforms"},
 };
 
-const TIPO_INFO = {
-  pdf:       { label:"PDF / Documento", color:"#e8a06a", cls:"ind-pdf" },
-  whatsapp:  { label:"WhatsApp",        color:"#5ae8a0", cls:"ind-whatsapp" },
-  correo:    { label:"Correo",          color:"#6ab4e8", cls:"ind-correo" },
-  frakcio:   { label:"Frakcio",         color:"#c06ae8", cls:"ind-frakcio" },
-  comunidad: { label:"ComunidadFeliz",  color:"#e86a9e", cls:"ind-comunidad" },
-  gforms:    { label:"Google Forms",    color:"#e8c56a", cls:"ind-gforms" },
-};
+let ocupantes = [{nombre:"", tipo:"Adulto"}];
+let deptoKey = "";
+let deptoInfo = {};
 
-let deptoActual = null;
+// Get depto from URL
+function init() {
+  const params = new URLSearchParams(window.location.search);
+  deptoKey = (params.get("dept") || "").toUpperCase().replace(/-/g," ");
+  deptoInfo = DEPTO_MAP[deptoKey] || {};
+  const badge = document.getElementById("depto-badge");
+  badge.textContent = deptoKey || "Departamento no especificado";
 
-// ─── Render deptos ───────────────────────────────────────────
-function renderDeptos(filtro = "") {
-  const container = document.getElementById("depto-container");
-  container.innerHTML = "";
-  const grupos = {
-    pdf: { titulo:"PDF / Documento", items:[] },
-    whatsapp: { titulo:"WhatsApp", items:[] },
-    correo: { titulo:"Correo", items:[] },
-    frakcio: { titulo:"Frakcio", items:[] },
-    comunidad: { titulo:"ComunidadFeliz", items:[] },
-    gforms: { titulo:"Google Forms", items:[] },
-  };
-  for (const [key, d] of Object.entries(DEPTOS)) {
-    if (!filtro || d.label.toLowerCase().includes(filtro.toLowerCase()) || key.toLowerCase().includes(filtro.toLowerCase())) {
-      grupos[d.tipo].items.push({ key, ...d });
-    }
-  }
-  let total = 0;
-  for (const [tipo, g] of Object.entries(grupos)) {
-    if (!g.items.length) continue;
-    total += g.items.length;
-    const header = document.createElement("div");
-    header.className = "section-header";
-    header.style.gridColumn = "1/-1";
-    header.textContent = g.titulo;
-    container.appendChild(header);
-    for (const d of g.items) {
-      const btn = document.createElement("button");
-      btn.className = `depto-btn tipo-${tipo}${deptoActual === d.key ? " active" : ""}`;
-      btn.onclick = () => seleccionarDepto(d.key);
-      btn.innerHTML = `${d.label}<span class="tipo-badge">${g.titulo.toUpperCase()}</span>`;
-      container.appendChild(btn);
-    }
-  }
-  if (total === 0) container.innerHTML = '<div class="no-depto" style="grid-column:1/-1">Sin resultados</div>';
+  // Set today dates
+  const hoy = new Date();
+  const fmt = d => d.toISOString().split("T")[0];
+  document.getElementById("fecha_entrada").value = fmt(hoy);
+  const manana = new Date(hoy); manana.setDate(manana.getDate()+1);
+  document.getElementById("fecha_salida").value = fmt(manana);
+
+  renderOcupantes();
 }
-
-function filtrarDeptos(val) { renderDeptos(val); }
-
-function seleccionarDepto(key) {
-  deptoActual = key;
-  renderDeptos(document.getElementById("search-depto").value);
-  const d = DEPTOS[key];
-  const ti = TIPO_INFO[d.tipo];
-  const tipoSec = document.getElementById("tipo-section");
-  const tipoInd = document.getElementById("tipo-indicator");
-  tipoSec.style.display = "block";
-  tipoInd.className = `tipo-indicator ${ti.cls}`;
-  tipoInd.innerHTML = `<span class="dot"></span>${key} → ${ti.label}`;
-  document.getElementById("correo-row").style.display = (d.tipo === "frakcio" || d.template === "xikiri") ? "block" : "none";
-  document.getElementById("btn-gen").disabled = false;
-  document.getElementById("output-section").style.display = "none";
-}
-
-// ─── Ocupantes ──────────────────────────────────────────────
-let ocupantes = [{ nombre:"", tipo:"Adulto" }];
 
 function renderOcupantes() {
   const list = document.getElementById("ocupantes-list");
@@ -448,7 +306,7 @@ function renderOcupantes() {
     row.className = "ocupante-row";
     row.innerHTML = `
       <input type="text" placeholder="Nombre completo" value="${o.nombre}"
-        oninput="ocupantes[${i}].nombre=this.value">
+        oninput="ocupantes[${i}].nombre=this.value" style="font-size:15px;">
       <select onchange="ocupantes[${i}].tipo=this.value">
         <option ${o.tipo==="Adulto"?"selected":""}>Adulto</option>
         <option ${o.tipo==="Adolescente"?"selected":""}>Adolescente</option>
@@ -461,447 +319,69 @@ function renderOcupantes() {
 }
 
 function agregarOcupante() {
-  ocupantes.push({ nombre:"", tipo:"Adulto" });
+  ocupantes.push({nombre:"", tipo:"Adulto"});
   renderOcupantes();
 }
 function quitarOcupante(i) {
-  if (ocupantes.length > 1) { ocupantes.splice(i, 1); renderOcupantes(); }
+  if(ocupantes.length > 1){ ocupantes.splice(i,1); renderOcupantes(); }
 }
 
-// ─── Helpers ────────────────────────────────────────────────
-function fmtFecha(val) {
-  if (!val) return "___";
-  const [y,m,d] = val.split("-");
-  const meses = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
-  return `${parseInt(d)} ${meses[parseInt(m)-1]} ${y}`;
-}
-function g(id) { return document.getElementById(id).value.trim(); }
+async function enviar() {
+  const nombre = document.getElementById("nombre").value.trim();
+  const fecha_entrada = document.getElementById("fecha_entrada").value;
+  const fecha_salida = document.getElementById("fecha_salida").value;
 
-// ─── GENERADORES ────────────────────────────────────────────
+  if(!nombre){ alert("Por favor ingresa tu nombre completo."); return; }
+  if(!fecha_entrada || !fecha_salida){ alert("Por favor ingresa las fechas de tu estancia."); return; }
+  if(!deptoKey){ alert("Departamento no especificado en el link."); return; }
 
-function genWhatsApp(d, datos) {
-  const num = d.numero === "PENDIENTE"
-    ? "⚠️  NÚMERO PENDIENTE — agregar antes de enviar"
-    : d.numero;
-  const lista = ocupantes.filter(o=>o.nombre).map((o,i)=>`${i+1}. ${o.nombre} (${o.tipo})`).join("\n");
-  const txt = `📋 *Registro de Acceso — ${d.label}*
+  const btn = document.getElementById("btn-submit");
+  const loading = document.getElementById("loading");
+  btn.disabled = true; loading.style.display = "block";
 
-*Titular:* ${datos.nombre || "—"}
-*Tel:* ${datos.telefono || "—"}
-*Llegada:* ${fmtFecha(datos.entrada)}
-*Salida:* ${fmtFecha(datos.salida)}
-*Personas:* ${datos.personas} total (${datos.adultos} adultos, ${datos.menores} menores)
-${datos.mascotas > 0 ? `*Mascotas:* ${datos.mascotas}\n` : ""}${datos.vehiculo ? `*Vehículo:* ${datos.vehiculo}  |  Placas: ${datos.placas}\n` : ""}
-*Ocupantes:*
-${lista}`;
-  return { texto: txt, numero: num };
-}
-
-function genCorreo(d, datos) {
-  const lista = ocupantes.filter(o=>o.nombre).map((o,i)=>`  ${i+1}. ${o.nombre} (${o.tipo})`).join("\n");
-  return `Asunto: Registro de huéspedes — ${d.label} | ${fmtFecha(datos.entrada)} – ${fmtFecha(datos.salida)}
-
-Estimado administrador,
-
-Por medio del presente correo notificamos el ingreso de huéspedes para el período indicado.
-
-Unidad: ${d.label}
-Administrador: Daniela Rodríguez  |  Tel: 322 117 0032
-
-Responsable del grupo: ${datos.nombre || "—"}
-Contacto: ${datos.telefono || "—"}
-Check-in: ${fmtFecha(datos.entrada)}
-Check-out: ${fmtFecha(datos.salida)}
-No. de personas: ${datos.personas} (${datos.adultos} adultos, ${datos.menores} menores)${datos.mascotas > 0 ? `, ${datos.mascotas} mascota(s)` : ""}
-${datos.vehiculo ? `Vehículo: ${datos.vehiculo}  |  Placas: ${datos.placas}` : ""}
-
-Ocupantes autorizados:
-${lista}
-
-Sin más por el momento, quedo en espera de confirmación de acceso.
-
-Atentamente,
-Adm. Daniela Rodríguez
-VRN Rental  |  322 117 0032`;
-}
-
-function genFrakcio(d, datos) {
-  const adultos = ocupantes.filter(o=>o.tipo!=="Menor" && o.nombre);
-  const menores = ocupantes.filter(o=>o.tipo==="Menor" && o.nombre);
-  const isBVG = d.bvg;
-  const totalPersonas = parseInt(datos.personas)||0;
-
-  let bvgWarning = "";
-  if (isBVG && totalPersonas > 6) {
-    const otro = d.key === "BVG 505" ? "506" : "505";
-    bvgWarning = `\n⚠️  MÁS DE 6 PERSONAS — dividir registro:\n   → Este depto (${d.label}): máx 6 personas\n   → Registrar resto en Bay View Grand ${otro}\n`;
-  }
-
-  let lines = [];
-  lines.push(`📋 FRAKCIO — ${d.label}`);
-  lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  if (bvgWarning) lines.push(bvgWarning);
-  lines.push(`[ Condominio ] → ${d.label}`);
-  lines.push(`[ Llegada    ] → ${fmtFecha(datos.entrada)}`);
-  lines.push(`[ Salida     ] → ${fmtFecha(datos.salida)}`);
-  lines.push(`[ Adultos    ] → ${datos.adultos}`);
-  lines.push(`[ Menores    ] → ${datos.menores}`);
-  lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  lines.push(`[ Huésped principal ] → ${datos.nombre || "—"}`);
-  lines.push(`[ Correo            ] → ${datos.correo || "(solicitar al huésped)"}`);
-  lines.push(`[ Teléfono          ] → ${datos.telefono || "—"}`);
-  lines.push(`[ Placas            ] → ${datos.placas || "—"}`);
-  lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  lines.push(`ADULTOS:`);
-  adultos.forEach((o,i) => lines.push(`  Nombre ${i+1}: ${o.nombre}`));
-  if (menores.length) {
-    lines.push(`MENORES:`);
-    menores.forEach((o,i) => lines.push(`  Nombre ${i+1}: ${o.nombre}`));
-  }
-  lines.push(`[ Observaciones ] → `);
-  return lines.join("\n");
-}
-
-function genComunidad(d, datos) {
-  const lista = ocupantes.filter(o=>o.nombre).map((o,i)=>`${i+1}. ${o.nombre} — ${o.tipo}`).join("\n");
-  return `📋 COMUNIDADFELIZ — ${d.label}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Unidad: ${d.label}
-Administrador: Daniela Rodríguez  |  Tel: 322 117 0032
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Responsable: ${datos.nombre || "—"}
-Contacto: ${datos.telefono || "—"}
-Check-in: ${fmtFecha(datos.entrada)}
-Check-out: ${fmtFecha(datos.salida)}
-Adultos: ${datos.adultos} | Menores: ${datos.menores}${datos.mascotas > 0 ? ` | Mascotas: ${datos.mascotas}` : ""}
-${datos.vehiculo ? `Vehículo: ${datos.vehiculo} | Placas: ${datos.placas}` : ""}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-OCUPANTES:
-${lista}`;
-}
-
-function genGForms(d, datos) {
-  const lista = ocupantes.filter(o=>o.nombre).map((o,i)=>`${i+1}. ${o.nombre} — ${o.tipo}`).join("\n");
-  return `📋 GOOGLE FORMS — ${d.label}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Unidad: ${d.label}
-Administrador: Daniela Rodríguez  |  Tel: 322 117 0032
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Responsable: ${datos.nombre || "—"}
-Contacto: ${datos.telefono || "—"}
-Check-in: ${fmtFecha(datos.entrada)}
-Check-out: ${fmtFecha(datos.salida)}
-Adultos: ${datos.adultos} | Menores: ${datos.menores}${datos.mascotas > 0 ? ` | Mascotas: ${datos.mascotas}` : ""}
-${datos.vehiculo ? `Vehículo: ${datos.vehiculo} | Placas: ${datos.placas}` : ""}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-OCUPANTES:
-${lista}`;
-}
-
-function genQuiya(datos) {
-  const lista = ocupantes.filter(o=>o.nombre);
-  const adultosList = lista.filter(o=>o.tipo!=="Menor").map(o=>o.nombre).join(", ");
-  const menoresList = lista.filter(o=>o.tipo==="Menor").map(o=>o.nombre).join(", ");
-  return `MACHOTE QUIYA — ${datos.depto}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-No. de Villa: ${datos.depto}
-Propietario: Rodrigo Contreras
-Administrador: Claudia Daniela Rodríguez Meléndez
-Teléfono: 322-117-0032
-
-No. de personas: ${datos.personas}
-
-Adultos: ${adultosList || "—"}
-Menores: ${menoresList || "—"}
-
-Fecha de ingreso: ${fmtFecha(datos.entrada)}
-Fecha de salida: ${fmtFecha(datos.salida)}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-→ Llenar el MACHOTE_QUIYA.docx con estos datos y enviar a administración.`;
-}
-
-function genFlamingos(datos) {
-  const lista = ocupantes.filter(o=>o.nombre).map((o,i)=>`${i+1}. ${o.nombre}`).join("\n");
-  return `FLAMINGOS — SOLICITUD DE AUTORIZACIÓN DE INGRESO
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Condominio: 27
-Nombre del propietario: Gabriela Lozano García
-Administrador/Solicitante: Daniela Rodríguez
-Teléfono: +52 3221170032
-
-Adultos: ${datos.adultos}
-Niños <12: ${datos.menores}
-Mascotas: ${datos.mascotas}
-Vehículo: ${datos.vehiculo || "—"} | Placas: ${datos.placas || "—"}
-
-Inicio del arrendamiento: ${fmtFecha(datos.entrada)}
-Fecha final: ${fmtFecha(datos.salida)}
-Tipo: Vacacional
-
-Ocupantes:
-${lista}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-→ Usar MACHOTE_FLAMINGOS_MARZO.pdf con estos datos.
-→ Firma: Adm. Daniela Rodríguez`;
-}
-
-function genAlbatros(datos) {
-  const lista = ocupantes.filter(o=>o.nombre).map((o,i)=>`${i+1}. ${o.nombre} — ${o.tipo}`).join("\n");
-  return `ALBATROS 301-A — FORMATO DE REGISTRO DE VISITAS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Departamento: 301 A
-Fechas de ocupación:
-  Del: ${fmtFecha(datos.entrada)}
-  Al:  ${fmtFecha(datos.salida)}
-
-No. de personas: ${datos.personas}
-
-Nombre de ocupantes:
-${lista}
-
-Persona responsable del grupo: ${datos.nombre}
-Vehículo modelo: ${datos.vehiculo || "—"}
-Placas: ${datos.placas || "—"}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-→ Entregar copia del formato firmado.
-→ Firma de propietario: ADM. DANIELA RODRIGUEZ`;
-}
-
-function genGD(datos) {
-  const lista = ocupantes.filter(o=>o.nombre).map((o,i)=>
-    `Rentista #${i+1}: ${o.nombre}  Check in: ${fmtFecha(datos.entrada)}  Check out: ${fmtFecha(datos.salida)}`
-  ).join("\n");
-  const unidad = datos.depto.replace("GD ","");
-  return `GREEN DISTRICT — REGISTRO DE RENTISTAS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Administrador de la unidad privativa: DANIELA RODRIGUEZ
-Teléfono: 3221170032
-Torre: 100  |  Número de unidad: ${unidad}
-Propietario que aprueba: Saul de la Vega
-
-${lista}
-
-*El responsable del grupo debe ser mayor de 25 años.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-→ Copiar en GREEN_DISTRICT_501_B.docx (adaptar unidad).`;
-}
-
-function genAlamar(datos) {
-  const lista = ocupantes.filter(o=>o.nombre).map((o,i)=>`${i+1}. ${o.nombre}`).join("\n");
-  return `ALAMAR — REGISTRO DE HUÉSPEDES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Condominio: ${datos.depto}
-Administrador: Daniela Rodríguez  |  Tel: 322 117 0032
-
-Responsable: ${datos.nombre}
-Tel: ${datos.telefono || "—"}
-Check-in: ${fmtFecha(datos.entrada)}
-Check-out: ${fmtFecha(datos.salida)}
-
-Ocupantes autorizados:
-${lista}
-
-Vehículo: ${datos.vehiculo || "—"} | Placas: ${datos.placas || "—"}
-Mascotas: ${datos.mascotas > 0 ? datos.mascotas : "No"}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-→ Firmar formato ALAMAR_DELTA_2_101.docx y entregar en administración.`;
-}
-
-function genVenetian(datos) {
-  const lista = ocupantes.filter(o=>o.nombre).map((o,i)=>
-    `Invitado #${i+1}: ${o.nombre}   llegada: ${fmtFecha(datos.entrada)}   salida: ${fmtFecha(datos.salida)}`
-  ).join("\n");
-  const unidad = datos.depto.replace("VENETIAN ","");
-  return `GRAND VENETIAN — CARTA DE BIENVENIDA / REGISTRO
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Torre 3000  |  Unidad: ${unidad}
-Nombre del administrador: Daniela Rodriguez   Tel: 3221170032
-
-Huésped responsable: ${datos.nombre}
-Familiar/Amigo: ✓
-
-${lista}
-
-*Enviar copia a: caseta@grandvenetian.mx
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-→ Firmar GV_T3_1903_Formato.docx (adaptar unidad) y enviar a caseta.`;
-}
-
-function genPeninsula(datos) {
-  const lista = ocupantes.filter(o=>o.nombre).map((o,i)=>`${i+1}. ${o.nombre} — ${o.tipo}`).join("\n");
-  return `PENÍNSULA — REGISTRO DE HUÉSPED
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Unidad: ${datos.depto}
-Propietario: Juan Pablo Peña Ortiz
-Administrador: Daniela Rodríguez  |  Tel: 322 117 0032
-
-Responsable: ${datos.nombre}
-Tel: ${datos.telefono || "—"}
-Check-in: ${fmtFecha(datos.entrada)}
-Check-out: ${fmtFecha(datos.salida)}
-Personas: ${datos.personas} | Adultos: ${datos.adultos} | Menores: ${datos.menores}
-Mascotas: ${datos.mascotas > 0 ? datos.mascotas : "No"}
-Vehículo: ${datos.vehiculo || "—"} | Placas: ${datos.placas || "—"}
-
-Ocupantes:
-${lista}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-→ Generar PDF con template Península (3 págs + contrato).`;
-}
-
-function genXikiri(datos) {
-  const hoy = new Date();
-  const fechaHoy = `${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
-  const fmtSlash = val => {
-    if (!val) return "___";
-    const [y,m,d] = val.split("-");
-    return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
-  };
-  const lista = ocupantes.filter(o=>o.nombre);
-  const listaStr = lista.map((o,i)=>`${i+1}-  ${o.nombre}`).join("\n");
-  const vacios = Math.max(0, 11 - lista.length);
-  const vaciosStr = Array.from({length:vacios},(_,i)=>`${lista.length+i+1}-`).join("\n");
-
-  return `════════════════════════════════════════
-       AURA ARENA BLANCA
-    CHECK IN DE HUESPEDES
-════════════════════════════════════════
-FECHA: ${fechaHoy}
-HORA: ___________
-NOMBRE DEL GUARDIA: ___________
-DEPARTAMENTO: XIKIRI
-
-────────── DATOS DEL HUESPED ──────────
-NOMBRE:   ${datos.nombre || "—"}
-E-MAIL:   ${datos.correo || "___________"}
-TELÉFONO: ${datos.telefono || "___________"}
-
-FECHA LLEGADA: ${fmtSlash(datos.entrada)}   FECHA SALIDA: ${fmtSlash(datos.salida)}
-
-USO DEL DEPARTAMENTO:  RENTA [X]   FAMILIA [ ]   AMIGOS [ ]
-
-─────────── LISTA DE HUESPEDES ────────
-${listaStr}
-${vaciosStr}
-
-──────────── VEHÍCULO(S) ──────────────
-     MARCA    MODELO    COLOR    #PLACA
-1-
-2-   ${datos.vehiculo ? datos.vehiculo + "  " + datos.placas : ""}
-3-
-4-
-
-════════════════════════════════════════
-* ACUSO DE RECIBIDO DEL RESUMEN DEL
-  REGLAMENTO INTERNO DEL CONDOMINIO
-  ARENA BLANCA Y ESTOY ENTERADO DE
-  LOS ALCANCES DEL MISMO.
-
-        NOMBRE Y FIRMA DEL HUESPED
-════════════════════════════════════════
-→ Imprimir o llenar CHECK_IN_ARENA_BLANCA.pdf con estos datos.`;
-}
-
-// ─── MAIN GENERAR ───────────────────────────────────────────
-function generar() {
-  if (!deptoActual) return;
-  const d = DEPTOS[deptoActual];
-  const datos = {
-    depto: deptoActual,
-    nombre: g("nombre"),
-    telefono: g("telefono"),
-    correo: g("correo_huesped"),
-    entrada: g("fecha_entrada"),
-    salida: g("fecha_salida"),
-    personas: g("num_personas"),
-    adultos: g("adultos"),
-    menores: g("menores"),
-    mascotas: parseInt(g("mascotas")||"0"),
-    vehiculo: g("vehiculo_modelo"),
-    placas: g("vehiculo_placas"),
+  const payload = {
+    depto: deptoKey,
+    template: deptoInfo.template || "general",
+    tipo_formato: deptoInfo.tipo || "general",
+    nombre,
+    email: document.getElementById("email").value.trim() || null,
+    telefono: document.getElementById("telefono").value.trim() || null,
+    fecha_entrada,
+    fecha_salida,
+    num_adultos: parseInt(document.getElementById("num_adultos").value)||1,
+    num_menores: parseInt(document.getElementById("num_menores").value)||0,
+    num_mascotas: parseInt(document.getElementById("num_mascotas").value)||0,
+    vehiculo_modelo: document.getElementById("vehiculo_modelo").value.trim() || null,
+    vehiculo_placas: document.getElementById("vehiculo_placas").value.trim() || null,
+    ocupantes: ocupantes.filter(o=>o.nombre.trim()),
   };
 
-  let outputText = "";
-  let whatsappNum = null;
-  let pdfNote = null;
-  let outputLabel = "";
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify(payload)
+    });
 
-  if (d.tipo === "whatsapp") {
-    const res = genWhatsApp(d, datos);
-    outputText = res.texto;
-    whatsappNum = res.numero;
-    outputLabel = "MENSAJE WHATSAPP";
-  } else if (d.tipo === "correo") {
-    outputText = genCorreo(d, datos);
-    outputLabel = "CORREO";
-  } else if (d.tipo === "frakcio") {
-    outputText = genFrakcio(d, datos);
-    outputLabel = "FRAKCIO — CAMPOS";
-  } else if (d.tipo === "comunidad") {
-    outputText = genComunidad(d, datos);
-    outputLabel = "COMUNIDADFELIZ — COPIAR/PEGAR";
-  } else if (d.tipo === "gforms") {
-    outputText = genGForms(d, datos);
-    outputLabel = "GOOGLE FORMS — COPIAR/PEGAR";
-  } else if (d.tipo === "pdf") {
-    if (d.template === "quiya") outputText = genQuiya(datos);
-    else if (d.template === "flamingos") outputText = genFlamingos(datos);
-    else if (d.template === "albatros") outputText = genAlbatros(datos);
-    else if (d.template === "gd") outputText = genGD(datos);
-    else if (d.template === "alamar") outputText = genAlamar(datos);
-    else if (d.template === "venetian") outputText = genVenetian(datos);
-    else if (d.template === "peninsula") outputText = genPeninsula(datos);
-    else if (d.template === "xikiri") outputText = genXikiri(datos);
-    else outputText = genGForms(d, datos);
-    outputLabel = "DATOS PARA PDF — " + d.label.toUpperCase();
-    pdfNote = `📄 Template: <strong>${d.template ? d.template.toUpperCase() : d.label}</strong> — Abre el .docx o .pdf correspondiente, copia estos datos y completa los campos.`;
+    if(res.ok || res.status === 201) {
+      document.getElementById("form-section").style.display = "none";
+      document.getElementById("success-screen").style.display = "block";
+    } else {
+      const err = await res.text();
+      throw new Error(err);
+    }
+  } catch(e) {
+    alert("Error al enviar. Por favor intenta de nuevo.\n" + e.message);
+    btn.disabled = false; loading.style.display = "none";
   }
-
-  document.getElementById("output-label").textContent = outputLabel;
-  document.getElementById("output-text").textContent = outputText;
-  document.getElementById("output-section").style.display = "block";
-
-  const waDiv = document.getElementById("whatsapp-number");
-  if (whatsappNum) {
-    waDiv.style.display = "flex";
-    waDiv.innerHTML = `<span>📱 Enviar a:</span> <strong>${whatsappNum}</strong>`;
-  } else {
-    waDiv.style.display = "none";
-  }
-
-  const pdfDiv = document.getElementById("pdf-note");
-  if (pdfNote) {
-    pdfDiv.style.display = "block";
-    pdfDiv.innerHTML = pdfNote;
-  } else {
-    pdfDiv.style.display = "none";
-  }
-
-  document.getElementById("btn-copy").textContent = "Copiar";
-  document.getElementById("btn-copy").classList.remove("copied");
-  document.getElementById("output-section").scrollIntoView({ behavior:"smooth", block:"nearest" });
 }
 
-function copiar() {
-  const txt = document.getElementById("output-text").textContent;
-  navigator.clipboard.writeText(txt).then(()=>{
-    const btn = document.getElementById("btn-copy");
-    btn.textContent = "✓ Copiado";
-    btn.classList.add("copied");
-    setTimeout(()=>{ btn.textContent = "Copiar"; btn.classList.remove("copied"); }, 2000);
-  });
-}
-
-// ─── INIT ────────────────────────────────────────────────────
-renderDeptos();
-renderOcupantes();
-
-// Set today as default dates
-const hoy = new Date();
-const fmt = d => d.toISOString().split("T")[0];
-document.getElementById("fecha_entrada").value = fmt(hoy);
-const manana = new Date(hoy); manana.setDate(manana.getDate()+3);
-document.getElementById("fecha_salida").value = fmt(manana);
+init();
 </script>
 </body>
 </html>
