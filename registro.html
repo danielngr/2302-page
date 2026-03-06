@@ -118,20 +118,21 @@
       <span class="depto-badge" id="depto-badge">Cargando...</span>
     </div>
 
-    <!-- DATOS PRINCIPALES -->
-    <div class="card">
+    <!-- DATOS PRINCIPALES: hidden nombre field, derived from ocupantes[0] -->
+    <input type="hidden" id="nombre">
+    <input type="hidden" id="email">
+    <input type="hidden" id="telefono">
+
+    <!-- PENINSULA ONLY: email + tel shown via JS -->
+    <div class="card" id="card-peninsula" style="display:none;">
       <div class="card-title">Datos del responsable</div>
       <div class="field">
-        <label class="required">Nombre completo</label>
-        <input type="text" id="nombre" placeholder="Tu nombre completo" autocomplete="name">
-      </div>
-      <div class="field">
         <label>Correo electrónico</label>
-        <input type="email" id="email" placeholder="tu@email.com" autocomplete="email">
+        <input type="email" id="email_vis" placeholder="tu@email.com" autocomplete="email">
       </div>
       <div class="field">
         <label>Teléfono / WhatsApp</label>
-        <input type="tel" id="telefono" placeholder="+52 33 1234 5678" autocomplete="tel">
+        <input type="tel" id="telefono_vis" placeholder="+52 33 1234 5678" autocomplete="tel">
       </div>
     </div>
 
@@ -151,16 +152,13 @@
       <div class="grid3">
         <div class="field">
           <label>Adultos</label>
-          <input type="number" id="num_adultos" min="1" max="20" value="1">
+          <input type="number" id="num_adultos" min="1" max="20" value="1" onchange="syncOcupantes()">
         </div>
         <div class="field">
           <label>Menores</label>
-          <input type="number" id="num_menores" min="0" max="20" value="0">
+          <input type="number" id="num_menores" min="0" max="20" value="0" onchange="syncOcupantes()">
         </div>
-        <div class="field">
-          <label>Mascotas</label>
-          <input type="number" id="num_mascotas" min="0" max="10" value="0">
-        </div>
+
       </div>
     </div>
 
@@ -184,7 +182,7 @@
       <div class="card-title">Lista de todos los huéspedes</div>
       <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">Incluye a todos los que se hospedarán, incluyéndote a ti.</p>
       <div id="ocupantes-list"></div>
-      <button class="btn-add" onclick="agregarOcupante()">+ Agregar huésped</button>
+
     </div>
 
     <div id="loading">Enviando registro...</div>
@@ -296,6 +294,10 @@ function init() {
   deptoInfo = DEPTO_MAP[deptoKey] || {};
   const badge = document.getElementById("depto-badge");
   badge.textContent = deptoKey || "Departamento no especificado";
+  // Show email/tel for Peninsula only
+  if(deptoInfo.template === "peninsula") {
+    document.getElementById("card-peninsula").style.display = "block";
+  }
 
   // Set today dates
   const hoy = new Date();
@@ -304,43 +306,50 @@ function init() {
   const manana = new Date(hoy); manana.setDate(manana.getDate()+1);
   document.getElementById("fecha_salida").value = fmt(manana);
 
-  renderOcupantes();
+  syncOcupantes();
+}
+
+function syncOcupantes() {
+  // Sync ocupantes array size to adultos+menores total
+  const adultos = parseInt(document.getElementById("num_adultos").value)||1;
+  const menores = parseInt(document.getElementById("num_menores").value)||0;
+  const total = adultos + menores;
+  while(ocupantes.length < total) ocupantes.push({nombre:"", tipo: ocupantes.length < adultos ? "Adulto" : "Menor"});
+  while(ocupantes.length > total) ocupantes.pop();
+  syncOcupantes();
 }
 
 function renderOcupantes() {
+  const adultos = parseInt(document.getElementById("num_adultos").value)||1;
   const list = document.getElementById("ocupantes-list");
   list.innerHTML = "";
   ocupantes.forEach((o, i) => {
+    const isResponsable = i === 0;
+    const label = isResponsable ? "Nombre completo (Responsable)" : "Nombre completo";
     const row = document.createElement("div");
     row.className = "ocupante-row";
     row.innerHTML = `
-      <input type="text" placeholder="Nombre completo" value="${o.nombre}"
+      <input type="text" placeholder="${label}" value="${o.nombre}"
         oninput="ocupantes[${i}].nombre=this.value" style="font-size:15px;">
       <select onchange="ocupantes[${i}].tipo=this.value">
         <option ${o.tipo==="Adulto"?"selected":""}>Adulto</option>
         <option ${o.tipo==="Adolescente"?"selected":""}>Adolescente</option>
         <option ${o.tipo==="Menor"?"selected":""}>Menor</option>
       </select>
-      <button class="btn-remove" onclick="quitarOcupante(${i})">×</button>
     `;
     list.appendChild(row);
   });
 }
 
-function agregarOcupante() {
-  ocupantes.push({nombre:"", tipo:"Adulto"});
-  renderOcupantes();
-}
-function quitarOcupante(i) {
-  if(ocupantes.length > 1){ ocupantes.splice(i,1); renderOcupantes(); }
-}
+
 
 async function enviar() {
-  const nombre = document.getElementById("nombre").value.trim();
+  // Derive nombre from first ocupante
+  const nombre = (ocupantes[0]?.nombre || "").trim();
   const fecha_entrada = document.getElementById("fecha_entrada").value;
   const fecha_salida = document.getElementById("fecha_salida").value;
 
-  if(!nombre){ alert("Por favor ingresa tu nombre completo."); return; }
+  if(!nombre){ alert("Por favor ingresa el nombre del responsable (primera línea de huéspedes)."); return; }
   if(!fecha_entrada || !fecha_salida){ alert("Por favor ingresa las fechas de tu estancia."); return; }
   if(!deptoKey){ alert("Departamento no especificado en el link."); return; }
 
@@ -353,13 +362,13 @@ async function enviar() {
     template: deptoInfo.template || "general",
     tipo_formato: deptoInfo.tipo || "general",
     nombre,
-    email: document.getElementById("email").value.trim() || null,
-    telefono: document.getElementById("telefono").value.trim() || null,
+    email: (document.getElementById("email_vis")?.value || "").trim() || null,
+    telefono: (document.getElementById("telefono_vis")?.value || "").trim() || null,
     fecha_entrada,
     fecha_salida,
     num_adultos: parseInt(document.getElementById("num_adultos").value)||1,
     num_menores: parseInt(document.getElementById("num_menores").value)||0,
-    num_mascotas: parseInt(document.getElementById("num_mascotas").value)||0,
+    num_mascotas: 0,
     vehiculo_modelo: document.getElementById("vehiculo_modelo").value.trim() || null,
     vehiculo_placas: document.getElementById("vehiculo_placas").value.trim() || null,
     ocupantes: ocupantes.filter(o=>o.nombre.trim()),
