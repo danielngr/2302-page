@@ -193,18 +193,27 @@ async function cargarRegistros() {
     todosRegistros = await res.json();
     // Infer template/tipo_formato for records saved before depto was mapped
     const DEPTO_TEMPLATE = {
-      "QUIYA":   {template:"quiya",   tipo:"pdf"},
-      "VENETIAN":{template:"venetian",tipo:"pdf"},
-      "GD":      {template:"gd",      tipo:"pdf"},
+      "QUIYA":    {template:"quiya",    tipo:"pdf"},
+      "VENETIAN": {template:"venetian", tipo:"pdf"},
+      "GD":       {template:"gd",       tipo:"pdf"},
       "FLAMINGOS":{template:"flamingos",tipo:"pdf"},
-      "ALBATROS":{template:"albatros",tipo:"pdf"},
-      "ALAMAR":  {template:"alamar",  tipo:"pdf"},
-      "XIKIRI":  {template:"xikiri",  tipo:"pdf"},
+      "ALBATROS": {template:"albatros", tipo:"pdf"},
+      "ALAMAR":   {template:"alamar",   tipo:"pdf"},
+      "XIKIRI":   {template:"xikiri",   tipo:"pdf"},
+      "NAUTICO":  {template:"whatsapp", tipo:"whatsapp"},
+      "RINCON":   {template:"whatsapp", tipo:"whatsapp"},
+      "MARSALA":  {template:"whatsapp", tipo:"whatsapp"},
+      "AMOARA":   {template:"whatsapp", tipo:"whatsapp"},
+    };
+    const DEPTO_EXACT = {
+      "PLAYA ESMERALDA": {template:"whatsapp", tipo:"whatsapp"},
+      "ARCANO":          {template:"whatsapp", tipo:"whatsapp"},
+      "MARINA SOL":      {template:"whatsapp", tipo:"whatsapp"},
     };
     todosRegistros = todosRegistros.map(r => {
       if(!r.template || !r.tipo_formato || r.tipo_formato === "general") {
         const prefix = (r.depto || "").split(" ")[0].toUpperCase();
-        const mapped = DEPTO_TEMPLATE[prefix];
+        const mapped = DEPTO_EXACT[r.depto] || DEPTO_TEMPLATE[prefix];
         if(mapped) {
           r.template = r.template || mapped.template;
           r.tipo_formato = (r.tipo_formato === "general" || !r.tipo_formato) ? mapped.tipo : r.tipo_formato;
@@ -1282,19 +1291,18 @@ function mostrarTexto(r, datos, ocupantes) {
                             .replace("MARSALA","Marsala")
                             .replace("AMOARA","Amoara");
       // Extract unit number if present (e.g. RINCON 403 → 403)
-      const numDepto = r.depto.split(" ").pop();
-      const tieneNumero = /^\d+[A-Z]?$/.test(numDepto) && numDepto !== r.depto;
+      const DEPTO_FIJO = {
+        "ARCANO":"203", "PLAYA ESMERALDA":"303",
+        "MARINA SOL":"405", "MARSALA":"101", "AMOARA":"301",
+      };
+      const numDepto = DEPTO_FIJO[r.depto] || r.depto.split(" ").pop();
+      const tieneNumero = !!(DEPTO_FIJO[r.depto] || (/^\d+[A-Z]?$/.test(numDepto) && numDepto !== r.depto));
 
-      texto = `📱 Enviar a: ${num}
-
-`;
-      texto += `Hola buen día les paso los nombres de nuestros próximos huéspedes
-`;
-      nombres.forEach(n => { texto += `${n}
-`; });
-      texto += `${totalPersonas} huéspedes
-`;
-      if(tieneNumero) texto += `Departamento ${numDepto}
+      texto = `📱 Enviar a: ${num}\n\n`;
+      texto += `Hola buen día les paso los nombres de nuestros próximos huéspedes\n`;
+      nombres.forEach(n => { texto += `${n}\n`; });
+      texto += `${totalPersonas} huéspedes\n`;
+      if(tieneNumero) texto += `Departamento ${numDepto}o += `Departamento ${numDepto}
 `;
       texto += `${fechaE} – ${fechaS} (${noches} noches)
 `;
