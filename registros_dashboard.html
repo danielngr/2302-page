@@ -604,22 +604,25 @@ function pdfGD(datos, ocupantes) {
 
   // Green curved shape: covers top-left, curves to bottom-right
   // Points: top-left(0,0) → bottom-left(0,bar_h) → curve to top-right area
+  // Green shape: top-left corner → right along top → curve DOWN to bottom-right → left along bottom → close
+  // White space = top-right corner (behind logo box)
+  // In jsPDF: y=0 top, y=bar_h bottom of header
   const pts = [];
-  pts.push([0, 0]);              // top-left
-  pts.push([0, bar_h]);          // bottom-left
-  // bezier from bottom-left sweeping right and up to top-right (W-logo_box_w, 0)
+  pts.push([0, 0]);                    // top-left
+  pts.push([W-logo_box_w, 0]);         // top-right of green area
+  // curve from top-right DOWN to bottom-right
   const steps = 30;
   for(let t=0; t<=steps; t++) {
     const s = t/steps;
-    const x0=0,              y0=bar_h;
-    const x1=W*0.45,         y1=bar_h;
-    const x2=W*0.55,         y2=0;
-    const x3=W-logo_box_w,   y3=0;
+    const x0=W-logo_box_w, y0=0;
+    const x1=W*0.55,       y1=0;
+    const x2=W*0.45,       y2=bar_h;
+    const x3=0,            y3=bar_h;
     const bx = Math.pow(1-s,3)*x0 + 3*Math.pow(1-s,2)*s*x1 + 3*(1-s)*s*s*x2 + s*s*s*x3;
     const by = Math.pow(1-s,3)*y0 + 3*Math.pow(1-s,2)*s*y1 + 3*(1-s)*s*s*y2 + s*s*s*y3;
     pts.push([bx, by]);
   }
-  pts.push([W-logo_box_w, 0]); // close to top-right of green area
+  pts.push([0, bar_h]);  // bottom-left
   doc.setFillColor(...GREEN);
   doc.setDrawColor(...GREEN);
   doc.lines(
@@ -668,7 +671,7 @@ function pdfGD(datos, ocupantes) {
   y+=12; hline(y); y+=16;
 
   doc.setFont("helvetica","normal"); doc.setFontSize(11);
-  const inst = `Nombre de todos los ocupantes autorizados por el propietario y quienes confirma en esta notificación han leído el reglamento de Torre ${torre[0]}_00 previo a su llegada a Ki Green, mismo que fue enviado en formato electrónico con antelación al responsable del grupo:`;
+  const inst = `Nombre de todos los ocupantes autorizados por el propietario y quienes confirma en esta notificación han leído el reglamento de Torre ${torre} previo a su llegada a Ki Green, mismo que fue enviado en formato electrónico con antelación al responsable del grupo:`;
   doc.splitTextToSize(inst, TW).forEach(line => { doc.text(line, MARGIN, y); y+=15; });
   y+=4; uline(MARGIN, y-6, TW/2); y+=18;
 
