@@ -1411,42 +1411,56 @@ function pdfArenablanca(datos, ocupantes) {
 function pdfPeninsula(datos, ocupantes) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:"pt", format:"letter"});
-  const W=612, H=792, ML=54, MR=54, TW=504, FS=10.5, LH=13.5;
+  // jsPDF: y=0 top, y=792 bottom. All coords are TOP-DOWN.
+  const W=612, H=792, ML=54, MR=54, TW=504;
+  const FS=10.5, LH=13.5;
   const TEAL=[0,150,150], RED=[200,0,0], BLACK=[0,0,0], GRAY=[115,115,115];
+  var pn=1;
+  const PAGE_TOP=54, PAGE_BOT=762; // content area top/bottom y
 
-  function rl(y){ return H-y; }
   function fc(s){
     if(!s) return "";
-    return String(s).replace(/[\u00C1]/g,"A").replace(/[\u00E1]/g,"a")
-      .replace(/[\u00C9]/g,"E").replace(/[\u00E9]/g,"e")
-      .replace(/[\u00CD]/g,"I").replace(/[\u00ED]/g,"i")
-      .replace(/[\u00D3]/g,"O").replace(/[\u00F3]/g,"o")
-      .replace(/[\u00DA\u00DC]/g,"U").replace(/[\u00FA\u00FC]/g,"u")
-      .replace(/[\u00D1]/g,"N").replace(/[\u00F1]/g,"n")
-      .replace(/[\u2019\u00B4]/g,"'").replace(/[\u00BF]/g,"?").replace(/[\u00A1]/g,"!");
+    return String(s).replace(/\u00C1/g,"A").replace(/\u00E1/g,"a")
+      .replace(/\u00C9/g,"E").replace(/\u00E9/g,"e")
+      .replace(/\u00CD/g,"I").replace(/\u00ED/g,"i")
+      .replace(/\u00D3/g,"O").replace(/\u00F3/g,"o")
+      .replace(/\u00DA/g,"U").replace(/\u00DC/g,"U")
+      .replace(/\u00FA/g,"u").replace(/\u00FC/g,"u")
+      .replace(/\u00D1/g,"N").replace(/\u00F1/g,"n")
+      .replace(/\u2019/g,"'").replace(/\u00B4/g,"'")
+      .replace(/\u00BF/g,"?").replace(/\u00A1/g,"!");
   }
   function setC(rgb){ doc.setTextColor(rgb[0],rgb[1],rgb[2]); }
-  function uline(x1,y,x2,lw){
-    doc.setLineWidth(lw||0.5); doc.setDrawColor(0,0,0); doc.line(x1,y,x2,y);
-  }
+  function uline(x1,y,x2){ doc.setLineWidth(0.5); doc.setDrawColor(0,0,0); doc.line(x1,y,x2,y); }
+
   function footer(n){
     doc.setFont("times","normal"); doc.setFontSize(9); setC(GRAY);
-    doc.text(n+"/3",W/2,rl(765),{align:"center"}); setC(BLACK);
+    doc.text(n+"/3", W/2, 770, {align:"center"});
+    setC(BLACK);
   }
 
-  // Mixed inline paragraph renderer
-  function mixedPara(x,y,width,segs){
-    let tokens=[];
+  // Check if need new page; if so save footer, add page, reset y to PAGE_TOP
+  function chk(y, need){
+    if(y + need > PAGE_BOT){
+      footer(pn); doc.addPage(); pn++; return PAGE_TOP;
+    }
+    return y;
+  }
+
+  // Mixed inline paragraph — jsPDF top-down coords
+  // segs = [[text, bold, underline], ...]
+  // returns y AFTER last line
+  function mixedPara(x, y, width, segs){
+    var tokens=[];
     segs.forEach(function(s){
-      var txt=s[0],bold=s[1],ul=s[2];
-      var words=txt.split(' ');
+      var words=s[0].split(' ');
       words.forEach(function(w,i){
-        if(w) tokens.push([w+(i<words.length-1?' ':''),bold,ul]);
+        if(w) tokens.push([w+(i<words.length-1?' ':''), s[1], s[2]]);
       });
     });
-    var lines=[],cur=[],cw=0;
+    var lines=[], cur=[], cw=0;
     tokens.forEach(function(tok){
-      doc.setFont("times",tok[1]?"bold":"normal"); doc.setFontSize(FS);
+      doc.setFont("times", tok[1]?"bold":"normal"); doc.setFontSize(FS);
       var tw=doc.getTextWidth(tok[0]);
       if(cw+tw>width+0.5 && cur.length){ lines.push(cur); cur=[tok]; cw=tw; }
       else { cur.push(tok); cw+=tw; }
@@ -1455,10 +1469,10 @@ function pdfPeninsula(datos, ocupantes) {
     lines.forEach(function(line){
       var lx=x;
       line.forEach(function(tok){
-        doc.setFont("times",tok[1]?"bold":"normal"); doc.setFontSize(FS); setC(BLACK);
-        doc.text(fc(tok[0]),lx,y);
+        doc.setFont("times", tok[1]?"bold":"normal"); doc.setFontSize(FS); setC(BLACK);
+        doc.text(fc(tok[0]), lx, y);
         var tw=doc.getTextWidth(fc(tok[0]));
-        if(tok[2]){ doc.setLineWidth(0.5); doc.setDrawColor(0,0,0); doc.line(lx,y+1.5,lx+tw,y+1.5); }
+        if(tok[2]){ doc.setLineWidth(0.5); doc.setDrawColor(0,0,0); doc.line(lx, y+1.5, lx+tw, y+1.5); }
         lx+=tw;
       });
       y+=LH;
@@ -1466,32 +1480,26 @@ function pdfPeninsula(datos, ocupantes) {
     return y;
   }
 
-  function drawNum(x,y,num){
-    doc.setFont("times","bold"); doc.setFontSize(FS); setC(TEAL);
-    doc.text(num,x,y); setC(BLACK);
-  }
+  var INDENT=26, BX=ML+INDENT, BW=TW-INDENT, GAP=9;
 
-  var INDENT=26, BODY_X=ML+INDENT, BODY_W=TW-INDENT, RULE_GAP=9;
-  var PAGE_BTM=rl(765)-20, pn=1;
-
-  function checkPage(need){
-    if(y+need>PAGE_BTM){ footer(pn); doc.addPage(); pn++; y=rl(49); }
-  }
-
-  // PAGE 1 ---------------------------------------------------------------
+  // ── PAGE 1 ────────────────────────────────────────────────────
   var LOGO="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";
-  doc.addImage("data:image/jpeg;base64,"+LOGO,"JPEG",54,rl(105),145,50);
+  // Logo: top-left. jsPDF addImage(data, fmt, x, y, w, h) — y is top of image
+  doc.addImage("data:image/jpeg;base64,"+LOGO, "JPEG", 54, 55, 145, 50);
 
+  // "No. de Departamento" top-right
   doc.setFont("times","bold"); doc.setFontSize(10); setC(BLACK);
-  doc.text("No. de Departamento",W-MR,rl(50),{align:"right"});
+  doc.text("No. de Departamento", W-MR, 50, {align:"right"});
+  // Dept box
   doc.setLineWidth(1.8); doc.setDrawColor(0,0,0);
-  doc.rect(W-MR-76,rl(108),76,50,"S");
-  doc.setFont("times","bold"); doc.setFontSize(28); setC(BLACK);
-  doc.text("19-E",W-MR-38,rl(76),{align:"center"});
-  doc.setFont("times","bold"); doc.setFontSize(16); setC(BLACK);
-  doc.text("Documento de Registro (Check In)",W/2,rl(127),{align:"center"});
+  doc.rect(W-MR-76, 55, 76, 50, "S");
+  doc.setFont("times","bold"); doc.setFontSize(28);
+  doc.text("19-E", W-MR-38, 88, {align:"center"});
+  // Title
+  doc.setFont("times","bold"); doc.setFontSize(16);
+  doc.text("Documento de Registro (Check In)", W/2, 127, {align:"center"});
 
-  var y=rl(145);
+  var y=145;
 
   var rules=[
     ["1.-",[[" Condominium Specific Residencial Peninsula Tower I",true,false],[" is a Residential Condominium and not a Temporary Accommodation Resort. By entering the property, every person accepts the responsibility to behave as a guest of a private house, in accordance to the Condominium Bylaws regulations.",false,false]]],
@@ -1517,155 +1525,169 @@ function pdfPeninsula(datos, ocupantes) {
 
   rules.forEach(function(rule){
     if(rule[0]==="9.-"){
-      checkPage(LH*6+RULE_GAP);
-      drawNum(ML,y,"8.-");
-      doc.setFont("times","bold"); doc.setFontSize(FS); setC(BLACK);
-      doc.text("Maximum Occupancies by Unit Type:",BODY_X,y); y+=LH;
+      // Rule 8 block: ~6 lines
+      y=chk(y, LH*6+GAP);
+      doc.setFont("times","bold"); doc.setFontSize(FS); setC(TEAL);
+      doc.text("8.-", ML, y); setC(BLACK);
+      doc.text("Maximum Occupancies by Unit Type:", BX, y); y+=LH;
       [["  \u2022 Units A:","10 people"],["  \u2022 Units B and C:","8 people"],["  \u2022 Units D and E:","6 people"]].forEach(function(b){
-        doc.setFont("times","bold"); doc.text(b[0],BODY_X+10,y);
+        doc.setFont("times","bold"); doc.text(b[0], BX+10, y);
         var lw=doc.getTextWidth(b[0]);
-        doc.setFont("times","normal"); doc.text(b[1],BODY_X+10+lw+4,y); y+=LH;
+        doc.setFont("times","normal"); doc.text(b[1], BX+10+lw+4, y); y+=LH;
       });
       doc.setFont("times","bold");
-      var bl=doc.splitTextToSize("The maximum occupancies presented here are valid, including infants and staff.",BODY_W);
-      bl.forEach(function(ln){ doc.text(ln,BODY_X,y); y+=LH; });
-      y+=RULE_GAP;
+      doc.splitTextToSize("The maximum occupancies presented here are valid, including infants and staff.", BW)
+        .forEach(function(ln){ doc.text(ln, BX, y); y+=LH; });
+      y+=GAP;
     }
+    // Estimate lines needed
     var fullTxt=rule[1].map(function(s){return s[0];}).join("");
-    checkPage(Math.max(1,Math.ceil(fullTxt.length/58))*LH+RULE_GAP);
-    drawNum(ML,y,rule[0]);
-    y=mixedPara(BODY_X,y,BODY_W,rule[1]);
-    y+=RULE_GAP;
+    var estLines=Math.max(1, Math.ceil(fullTxt.length/60));
+    y=chk(y, estLines*LH+GAP);
+    doc.setFont("times","bold"); doc.setFontSize(FS); setC(TEAL);
+    doc.text(rule[0], ML, y); setC(BLACK);
+    y=mixedPara(BX, y, BW, rule[1]);
+    y+=GAP;
   });
 
-  // Undersigned
-  checkPage(LH*5+200);
+  // ── Undersigned + data fields (page 2) ───────────────────────
+  y=chk(y, LH*4+14);
   y+=14;
   doc.setFont("times","italic"); doc.setFontSize(FS); setC(BLACK);
-  var usLines=doc.splitTextToSize("The Undersigned accepts full responsible for their stay in the Condominium, the Unit and all of its Occupants. Additionally, the undersigned acknowledges their understanding, acceptance, and receipt of this document.",TW-30);
-  usLines.forEach(function(ln){ doc.text(ln,ML+30,y); y+=LH; });
+  doc.splitTextToSize("The Undersigned accepts full responsible for their stay in the Condominium, the Unit and all of its Occupants. Additionally, the undersigned acknowledges their understanding, acceptance, and receipt of this document.", TW-30)
+    .forEach(function(ln){ doc.text(ln, ML+30, y); y+=LH; });
   y+=10;
 
-  // Data fields
-  function dataField(label,value,x,lineEnd){
+  function dataField(label, value, x, lineEnd){
     doc.setFont("times","bold"); doc.setFontSize(FS); setC(BLACK);
-    doc.text(label,x,y);
+    doc.text(label, x, y);
     var lw=doc.getTextWidth(label);
-    doc.setFont("times","normal"); doc.text(fc(value||""),x+lw,y);
-    uline(x+lw,y+2,lineEnd);
+    doc.setFont("times","normal"); doc.text(fc(value||""), x+lw, y);
+    uline(x+lw, y+2, lineEnd);
   }
 
+  // 1. Name + Age
   doc.setFont("times","bold"); doc.setFontSize(FS); setC(BLACK);
-  doc.text("1.  Name (According to Official ID): ",ML,y);
+  doc.text("1.  Name (According to Official ID): ", ML, y);
   var nLW=doc.getTextWidth("1.  Name (According to Official ID): ");
-  doc.setFont("times","normal"); doc.text(fc(datos.nombre||""),ML+nLW,y);
-  uline(ML+nLW,y+2,ML+350);
-  doc.setFont("times","bold"); doc.text("Age:",ML+358,y);
+  doc.setFont("times","normal"); doc.text(fc(datos.nombre||""), ML+nLW, y);
+  uline(ML+nLW, y+2, ML+350);
+  doc.setFont("times","bold"); doc.text("Age:", ML+358, y);
   var aLW=doc.getTextWidth("Age:");
-  doc.setFont("times","normal"); doc.text(String(datos.edad||""),ML+358+aLW+4,y);
-  uline(ML+358+aLW+4,y+2,W-MR); y+=20;
+  doc.setFont("times","normal"); doc.text(String(datos.edad||""), ML+358+aLW+4, y);
+  uline(ML+358+aLW+4, y+2, W-MR); y+=20;
 
-  dataField("Address: ",datos.direccion,ML,W-MR); y+=20;
-  dataField("E-mail: ",datos.correo,ML,W-MR); y+=20;
-  dataField("Phone Number (10 digits): ",datos.telefono,ML,W-MR); y+=20;
+  dataField("Address: ", datos.direccion, ML, W-MR); y+=20;
+  dataField("E-mail: ", datos.correo, ML, W-MR); y+=20;
+  dataField("Phone Number (10 digits): ", datos.telefono, ML, W-MR); y+=20;
 
+  // Check in / out
   doc.setFont("times","bold"); doc.setFontSize(FS);
-  doc.text("Date of Check in: ",ML,y);
+  doc.text("Date of Check in: ", ML, y);
   var ci=doc.getTextWidth("Date of Check in: ");
-  doc.setFont("times","normal"); doc.text(" "+(datos.entrada||""),ML+ci,y);
-  uline(ML+ci,y+2,ML+230);
-  doc.setFont("times","bold");
-  doc.text("Date of Check out: ",ML+248,y);
+  doc.setFont("times","normal"); doc.text(" "+(datos.entrada||""), ML+ci, y);
+  uline(ML+ci, y+2, ML+230);
+  doc.setFont("times","bold"); doc.text("Date of Check out: ", ML+248, y);
   var co=doc.getTextWidth("Date of Check out: ");
-  doc.setFont("times","normal"); doc.text(" "+(datos.salida||""),ML+248+co,y);
-  uline(ML+248+co,y+2,W-MR); y+=18;
+  doc.setFont("times","normal"); doc.text(" "+(datos.salida||""), ML+248+co, y);
+  uline(ML+248+co, y+2, W-MR); y+=18;
 
-  doc.setFont("times","normal"); doc.setFontSize(FS); setC(BLACK);
-  var rL=doc.splitTextToSize("This person will be responsible for the Apartment and for the other people who will stay in said private unit",TW);
-  rL.forEach(function(ln){ doc.text(ln,ML,y); y+=LH; });
+  doc.setFont("times","normal"); doc.setFontSize(FS);
+  doc.splitTextToSize("This person will be responsible for the Apartment and for the other people who will stay in said private unit", TW)
+    .forEach(function(ln){ doc.text(ln, ML, y); y+=LH; });
   y+=10;
-  doc.text("Signature",W-MR-100,y+80-82);
-  uline(W-MR-140,y+80-80,W-MR);
+
+  // Signature line
+  doc.text("Signature", W-MR-100, y+80);
+  uline(W-MR-140, y+82, W-MR);
 
   footer(pn);
 
-  // PAGE 3 ---------------------------------------------------------------
+  // ── PAGE 3 ───────────────────────────────────────────────────
   doc.addPage(); pn++;
 
+  // Vehicle information
   doc.setFont("times","bold"); doc.setFontSize(13); setC(BLACK);
   var vt="Vehicle information:";
   var vtw=doc.getTextWidth(vt);
-  doc.text(vt,W/2,rl(47),{align:"center"});
+  doc.text(vt, W/2, 47, {align:"center"});
   doc.setLineWidth(0.8); doc.setDrawColor(0,0,0);
-  doc.line(W/2-vtw/2,rl(47)+2,W/2+vtw/2,rl(47)+2);
+  doc.line(W/2-vtw/2, 49, W/2+vtw/2, 49);
 
-  var ty=rl(76);
-  [[fc("Type:"),fc(datos.vehiculo_tipo||""),ML+30,ML+230],
+  // Type / Color / Plates
+  var ty=76;
+  [[fc("Type:"),fc(datos.vehiculo_tipo||datos.vehiculo||""),ML+30,ML+230],
    [fc("Color:"),fc(datos.vehiculo_color||""),ML+190,ML+330],
    [fc("Plates:"),fc(datos.placas||""),ML+352,W-MR]].forEach(function(f){
-    doc.setFont("times","bold"); doc.setFontSize(FS); doc.text(f[0],f[2],ty);
+    doc.setFont("times","bold"); doc.setFontSize(FS); doc.text(f[0], f[2], ty);
     var lw=doc.getTextWidth(f[0]);
-    doc.setFont("times","normal"); doc.text(f[1],f[2]+lw+4,ty);
-    uline(f[2]+lw+4,ty+2,f[3]);
+    doc.setFont("times","normal"); doc.text(f[1], f[2]+lw+4, ty);
+    uline(f[2]+lw+4, ty+2, f[3]);
   });
 
+  // Other Occupants title
   doc.setFont("times","bold"); doc.setFontSize(13); setC(BLACK);
-  doc.text("Information of Other Occupants",W/2,rl(105),{align:"center"});
+  doc.text("Information of Other Occupants", W/2, 105, {align:"center"});
 
-  var oyStart=rl(128), oSpacing=38;
-  for(var i=2;i<=10;i++){
+  // Occupants 2-10 — original spacing: start y=128, each row 38pt apart
+  var oyStart=128, oSpacing=38;
+  for(var i=2; i<=10; i++){
     var occ=ocupantes[i-2]||null;
-    var nameVal=occ?fc(occ.nombre||occ.name||""):"";
-    var ageVal=occ?String(occ.edad||occ.age||""):"";
-    var oy=oyStart-(i-2)*oSpacing;
+    var nameVal=occ ? fc(occ.nombre||occ.name||"") : "";
+    var ageVal=occ ? String(occ.edad||occ.age||"") : "";
+    var oy=oyStart+(i-2)*oSpacing;
     doc.setFont("times","bold"); doc.setFontSize(FS); setC(BLACK);
-    doc.text(String(i)+".",ML,oy);
-    doc.text("Name:",ML+22,oy);
+    doc.text(String(i)+".", ML, oy);
+    doc.text("Name:", ML+22, oy);
     var nw=doc.getTextWidth("Name:");
-    doc.setFont("times","normal"); doc.text(nameVal,ML+22+nw+6,oy);
-    uline(ML+22+nw+6,oy+2,W-MR-70);
-    doc.setFont("times","bold"); doc.text("Age:",W-MR-62,oy);
+    doc.setFont("times","normal"); doc.text(nameVal, ML+22+nw+6, oy);
+    uline(ML+22+nw+6, oy+2, W-MR-70);
+    doc.setFont("times","bold"); doc.text("Age:", W-MR-62, oy);
     var aw=doc.getTextWidth("Age:");
-    doc.setFont("times","normal"); doc.text(ageVal,W-MR-62+aw+4,oy);
-    uline(W-MR-62+aw+4,oy+2,W-MR);
+    doc.setFont("times","normal"); doc.text(ageVal, W-MR-62+aw+4, oy);
+    uline(W-MR-62+aw+4, oy+2, W-MR);
   }
 
-  var by=rl(470);
+  // Bullet notes — y after last occupant row: 128 + 8*38 = 432, + gap
+  var by=460;
   [["Only those whose full name is included in this list will be granted access to the Condominium. Only the Owner of the Private Unit is entitled to provide, change or remove names."],
    ["Renters can't have Visitors. Even if Visitors are listed in this Document, they won't be granted access to Tower III. This List is only for occupants of the Unit."]
   ].forEach(function(note){
     doc.setFont("times","bold"); doc.setFontSize(FS); setC(BLACK);
-    doc.text("\u2022",ML,by);
-    var nl=doc.splitTextToSize(fc(note[0]),TW-18);
-    nl.forEach(function(ln){ doc.text(ln,ML+18,by); by+=LH; });
+    doc.text("\u2022", ML, by);
+    doc.splitTextToSize(fc(note[0]), TW-18).forEach(function(ln){ doc.text(ln, ML+18, by); by+=LH; });
     by+=6;
   });
 
+  // Attach copy text
   doc.setFont("times","bold"); doc.setFontSize(FS);
-  var att=doc.splitTextToSize("Attach a copy of the official ID of the person in charge with the visible signature.",TW);
-  att.forEach(function(ln){ doc.text(ln,W/2,rl(563),{align:"center"}); });
+  doc.splitTextToSize("Attach a copy of the official ID of the person in charge with the visible signature.", TW)
+    .forEach(function(ln){ doc.text(ln, W/2, 554, {align:"center"}); });
   doc.setFont("times","normal"); doc.setFontSize(10);
-  doc.text(".",W/2,rl(574),{align:"center"});
+  doc.text(".", W/2, 566, {align:"center"});
   doc.setFont("times","bold"); doc.setFontSize(FS); setC(TEAL);
-  doc.text("Document Valid to 2025 - 2026.",W/2,rl(591),{align:"center"});
+  doc.text("Document Valid to 2025 - 2026.", W/2, 582, {align:"center"});
   setC(BLACK);
 
-  var PX=64, PY=rl(767), PW=119, PH=159;
+  // ID Photo box — original: x=64, y=608, w=119, h=159
+  var PX=64, PY=608, PW=119, PH=159;
   if(datos.foto_id){
     try{
       var fmt=datos.foto_id.indexOf("image/png")>-1?"PNG":"JPEG";
-      doc.addImage(datos.foto_id,fmt,PX,PY,PW,PH);
+      doc.addImage(datos.foto_id, fmt, PX, PY, PW, PH);
     }catch(e){
       doc.setDrawColor(150,150,150); doc.setLineWidth(0.5); doc.rect(PX,PY,PW,PH,"S");
     }
   } else {
     doc.setDrawColor(150,150,150); doc.setLineWidth(0.5); doc.rect(PX,PY,PW,PH,"S");
     doc.setFont("times","italic"); doc.setFontSize(8); setC([150,150,150]);
-    doc.text("[ID Photo]",PX+PW/2,PY+PH/2,{align:"center"}); setC(BLACK);
+    doc.text("[ID Photo]", PX+PW/2, PY+PH/2, {align:"center"}); setC(BLACK);
   }
 
+  // COPIA ID — original: x=213, y=685 (in pdf coords = top-down)
   doc.setFont("times","bold"); doc.setFontSize(52); setC(RED);
-  doc.text("COPIA ID",213,rl(685)); setC(BLACK);
+  doc.text("COPIA ID", 213, 685);
+  setC(BLACK);
 
   footer(pn);
 
