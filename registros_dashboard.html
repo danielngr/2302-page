@@ -771,7 +771,17 @@ function pdfAlamar(datos, ocupantes) {
 
 function pdfVenetian(datos, ocupantes) {
   var jsPDF = window.jspdf.jsPDF;
-  var doc = new jsPDF({unit:"pt", format:"letter"});
+  var doc = new jsPDF({unit:"pt", format:"letter", putOnlyUsedFonts:true, floatPrecision:16});
+  // Helper to fix special chars for jsPDF standard fonts
+  function fc(s) {
+    return s.replace(/á/g,'á').replace(/é/g,'é').replace(/í/g,'í')
+            .replace(/ó/g,'ó').replace(/ú/g,'ú').replace(/ñ/g,'ñ')
+            .replace(/Á/g,'Á').replace(/É/g,'É').replace(/Í/g,'Í')
+            .replace(/Ó/g,'Ó').replace(/Ú/g,'Ú').replace(/Ñ/g,'Ñ')
+            .replace(/ü/g,'ü').replace(/–/g,'-').replace(/—/g,'-')
+            .replace(/’/g,"'").replace(/“/g,'"').replace(/”/g,'"')
+            .replace(/¿/g,'¿').replace(/¡/g,'¡');
+  }
   var W = 612, H = 792;
   var MARGIN = 57, RIGHT = W - 57, TW = RIGHT - MARGIN;
   var LOGO_W = 60, LOGO_H = 64;
@@ -810,7 +820,7 @@ function pdfVenetian(datos, ocupantes) {
     var color = opts.color || [0,0,0];
     d.setFont("helvetica", font); d.setFontSize(size);
     d.setTextColor(color[0], color[1], color[2]);
-    var ls = d.splitTextToSize(text, TW);
+    var ls = d.splitTextToSize(fc(text), TW);
     ls.forEach(function(l){ d.text(l, MARGIN, y, {align: align === "justify" ? "left" : align, maxWidth: TW}); y += leading; });
     d.setTextColor(0,0,0);
     return y + gap;
@@ -825,8 +835,8 @@ function pdfVenetian(datos, ocupantes) {
     var indent = 18;
     d.setFont("helvetica", font); d.setFontSize(size);
     d.text(num + ".", MARGIN, y);
-    var ls = d.splitTextToSize(text, TW - indent);
-    ls.forEach(function(l, i) { d.text(l, MARGIN + indent, y); y += leading; });
+    var ls = d.splitTextToSize(fc(text), TW - indent);
+    ls.forEach(function(l) { d.text(l, MARGIN + indent, y); y += leading; });
     return y + gap;
   }
 
@@ -839,7 +849,7 @@ function pdfVenetian(datos, ocupantes) {
     var indent = 22;
     d.setFont("helvetica", font); d.setFontSize(size);
     d.text(num + ".", MARGIN + 8, y);
-    var ls = d.splitTextToSize(text, TW - indent);
+    var ls = d.splitTextToSize(fc(text), TW - indent);
     ls.forEach(function(l) { d.text(l, MARGIN + indent, y); y += leading; });
     return y + gap;
   }
@@ -851,7 +861,7 @@ function pdfVenetian(datos, ocupantes) {
 
   // Title - large, centered, navy-ish, below logo
   doc.setFont("helvetica","normal"); doc.setFontSize(28); doc.setTextColor(50,50,60);
-  doc.text("Grand Venetian – Carta de Bienvenida", W/2, 115, {align:"center"});
+  doc.text(fc("Grand Venetian – Carta de Bienvenida"), W/2, 115, {align:"center"});
   doc.text("para Usuarios y/o Invitados", W/2, 148, {align:"center"});
   doc.setDrawColor(180,160,30); doc.setLineWidth(0.8);
   doc.line(MARGIN, 158, RIGHT, 158);
@@ -859,7 +869,7 @@ function pdfVenetian(datos, ocupantes) {
 
   var y = 176;
   y = jp(doc, "Estimados invitados,", y, {gap:10});
-  y = jp(doc, "Bienvenidos al Grand Venetian. Le deseamos una estancia maravillosa y esperamos sinceramente que disfruten de nuestro hermoso complejo y sus instalaciones. Muchos de sus vecinos son residentes de tiempo completo en las torres y estamos seguros de que respetáran su privacidad y tranquilidad, así como la belleza de esta propiedad.", y, {gap:10});
+  y = jp(doc, "Bienvenidos al Grand Venetian. Le deseamos una estancia maravillosa y esperamos sinceramente que disfruten de nuestro hermoso complejo y sus instalaciones. Muchos de sus vecinos son residentes de tiempo completo en las torres y estamos seguros de que respetáran su privacidad y tranquilidad, así como la belleza de esta propiedad.", y, {gap:10});
   y = jp(doc, "De conformidad con lo acordado en conjunto con la administración, les informamos que al llegar a la puerta de entrada deberán tener una copia firmada de esta carta de bienvenida, así como la lista de todas las personas que ocuparán la unidad y las fechas de ocupación. Le recomendamos que traiga una copia de la carta de bienvenida, autorizada por el propietario (y enviar la información previamente al Coordinador de Accesos a caseta@grandvenetian.mx) para su registro. Si los nombres no están en la lista de la puerta o si su identificación oficial (INE o licencia de manejo) no coincide con el nombre de la caseta, no serán admitidos. Ustedes recibirán un brazalete de seguridad. Que debe ser usado por todos los usuarios con el fin de ser admitidos en la alberca, área de palapas, el gimnasio y el spa.", y, {gap:10});
   y = jp(doc, "Además, queremos informarle de los estatutos y el reglamento con el que hay que cumplir durante su estancia. Si no lo hacen, pueden dar lugar a que la Administración le pida que desocupe la unidad o, en su caso, las acciones legales que ameriten a discreción del Personal de la Administración o del personal de seguridad de Grand Venetian, sin ningún recurso en contra de la administración del complejo.", y, {gap:10});
   y = jp(doc, "Algunas de las reglas más importantes se enumeran a continuación. También puede obtener una lista completa de la Administración de Grand Venetian del reglamento interior.", y, {gap:14});
@@ -867,19 +877,23 @@ function pdfVenetian(datos, ocupantes) {
   y = numbered(doc, "2", "La ocupación se limita a un máximo de personas como se muestra en la siguiente tabla. Entiendo que el cuarto de servicio no se considera como dormitorio. Todos los niños sin importar la edad son considerados ocupantes. No se permite subarrendar de parte de los invitados o usuarios. El propietario de su unidad ha limitado la ocupación para  " + numPersonas + "  personas.", y, {gap:12});
 
   // Table
-  var tx = W/2 - 60, th = 20;
-  doc.setFillColor(230,230,230); doc.rect(tx,y,130,th,"FD");
-  doc.setDrawColor(0); doc.rect(tx,y,130,th);
-  doc.line(tx+65,y,tx+65,y+th);
-  doc.setFont("helvetica","bold"); doc.setFontSize(9);
-  doc.text("Número de recámaras", tx+32, y+8, {align:"center"});
-  doc.text("Ocupación máxima", tx+97, y+8, {align:"center"});
-  y += th;
+  var tx = W/2 - 70, th = 20, tw = 140, col = 70;
+  // Header row (2 lines tall)
+  doc.setFillColor(217,217,217);
+  doc.rect(tx, y, tw, th*2, "FD");
+  doc.rect(tx, y, tw, th*2);
+  doc.line(tx+col, y, tx+col, y+th*2);
+  doc.setFont("helvetica","bold"); doc.setFontSize(8);
+  doc.text(fc("Número de"),  tx+col/2, y+8,    {align:"center"});
+  doc.text(fc("recámaras"),  tx+col/2, y+16,   {align:"center"});
+  doc.text(fc("Ocupación"),  tx+col+col/2, y+8, {align:"center"});
+  doc.text(fc("máxima"),     tx+col+col/2, y+16,{align:"center"});
+  y += th*2;
   [["1","4"],["2","6"],["3","8"],["4","10"]].forEach(function(r){
-    doc.rect(tx,y,130,th); doc.line(tx+65,y,tx+65,y+th);
+    doc.rect(tx,y,tw,th); doc.line(tx+col,y,tx+col,y+th);
     doc.setFont("helvetica","normal"); doc.setFontSize(10);
-    doc.text(r[0], tx+32, y+13, {align:"center"});
-    doc.text(r[1], tx+97, y+13, {align:"center"});
+    doc.text(r[0], tx+col/2,     y+13, {align:"center"});
+    doc.text(r[1], tx+col+col/2, y+13, {align:"center"});
     y += th;
   });
 
@@ -909,7 +923,7 @@ function pdfVenetian(datos, ocupantes) {
   doc.setLineWidth(0.5);
   doc.line(MARGIN+8+doc.getTextWidth("  "+nombreResp)+2, y+2, RIGHT-100, y+2);
   doc.setFont("helvetica","normal"); doc.setFontSize(10);
-  doc.text("(huésped o usuario", RIGHT-98, y); y += 14;
+  doc.text(fc("(huésped o usuario"), RIGHT-98, y); y += 14;
   doc.text("responsable)", MARGIN, y); y += 20;
 
   // Tipo relacion
@@ -924,17 +938,17 @@ function pdfVenetian(datos, ocupantes) {
   // Torre / unidad
   doc.text("Torre  3000", MARGIN, y);
   doc.line(MARGIN+62, y+2, MARGIN+115, y+2);
-  doc.text("  número de unidad:  " + unidad, MARGIN+117, y);
+  doc.text(fc("  número de unidad:  ") + unidad, MARGIN+117, y);
   doc.line(MARGIN+230, y+2, RIGHT, y+2); y += 20;
 
   // Propietario
-  doc.text("Nombre y aprobación del propietario  " + propietario, MARGIN, y);
+  doc.text(fc("Nombre y aprobación del propietario  ") + propietario, MARGIN, y);
   doc.line(MARGIN+270, y+2, RIGHT, y+2); y += 20;
 
   // Admin
   doc.text("Nombre del Administrador  Daniela Rodriguez", MARGIN, y);
   doc.line(MARGIN+258, y+2, MARGIN+310, y+2);
-  doc.text("  Teléfono  3221170032", MARGIN+312, y);
+  doc.text(fc("  Teléfono  3221170032"), MARGIN+312, y);
   doc.line(MARGIN+390, y+2, RIGHT, y+2); y += 18;
 
   y = jp(doc, "Indique a continuación todos los ocupantes que hayan sido autorizados por el propietario y cuyos nombres hayan sido enviados a la Administración del GV.", y, {size:10, gap:10});
@@ -974,7 +988,7 @@ function pdfVenetian(datos, ocupantes) {
   doc.setFont("helvetica","bold"); doc.setFontSize(10);
   doc.text("POR FAVOR TRAER esta hoja impresa a su llegada.", MARGIN+74, y+14);
   doc.setTextColor(0,0,0);
-  doc.text("La información que proporcione se mantendrá privada dentro de la Administración.", MARGIN+5, y+28);
+  doc.text(fc("La información que proporcione se mantendrá privada dentro de la Administración."), MARGIN+5, y+28);
   doc.setDrawColor(0); y += 52;
 
   jp(doc, "*Al firmar este documento estoy de acuerdo que he leído y comprendido la información de todo reglamento establecido en Grand Venetian por lo que estoy de acuerdo en cumplir.", y, {font:"bold", gap:0});
@@ -982,7 +996,7 @@ function pdfVenetian(datos, ocupantes) {
   // ── PAGE 4 ──
   addPage(doc,4); y = CONTENT_START - 10;
   doc.setFont("helvetica","bold"); doc.setFontSize(20); doc.setTextColor(20,20,20);
-  doc.text("REGLAS Y CORTESÍAS DE ALBERCA DEL", W/2, y, {align:"center"}); y += 26;
+  doc.text(fc("REGLAS Y CORTESÍAS DE ALBERCA DEL"), W/2, y, {align:"center"}); y += 26;
   doc.text("GRAND VENETIAN", W/2, y, {align:"center"}); y += 30;
   doc.setTextColor(0,0,0);
 
@@ -1030,7 +1044,7 @@ function pdfVenetian(datos, ocupantes) {
   y = numbered(doc,"17","El béisbol, fútbol o cualquier otro juego de pelota, será restringido a el área de playa pública. No se permite aventar la pelota contra paredes. El daño causado por las actividades mencionadas será responsabilidad del propietario.", y, {gap:18});
 
   doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.setTextColor(20,20,20);
-  doc.text("CORTESÍAS", W/2, y, {align:"center"}); y += 24;
+  doc.text(fc("CORTESÍAS"), W/2, y, {align:"center"}); y += 24;
 
   y = numbered(doc,"18","Por favor, mantenga el área de las albercas limpia. De un buen ejemplo y limpie, no deje alimentos o desechos en las mesas o sillas.", y, {gap:8});
   y = numbered(doc,"19","Por favor mantener la música a un nivel bajo a fin de no molestar a los demás.", y, {gap:8});
@@ -1227,7 +1241,7 @@ function pdfQuiya(datos, ocupantes) {
   uline(MARGIN + doc.getTextWidth("Menores:") + 6, y, 35);
   y += 22;
   doc.setFont("helvetica","italic"); doc.setFontSize(10); doc.setTextColor(64,64,64);
-  doc.text("(Se considera menores a todos aquellos de 1 a 10 años de edad)", MARGIN+8, y);
+  doc.text(fc("(Se considera menores a todos aquellos de 1 a 10 años de edad)"), MARGIN+8, y);
   doc.setTextColor(0,0,0);
   y += 40;
 
@@ -1259,7 +1273,7 @@ function pdfArenablanca(datos, ocupantes) {
   y=pdfSectionBar(doc,y,"DATOS DEL HUESPED"); y+=5;
   doc.setFont("helvetica","bold"); doc.text("NOMBRE:",14,y); doc.setFont("helvetica","normal"); doc.text(datos.nombre||"",40,y); y+=8;
   doc.setFont("helvetica","bold"); doc.text("E-MAIL:",14,y); doc.setFont("helvetica","normal"); doc.text(datos.correo||"",40,y); y+=8;
-  doc.setFont("helvetica","bold"); doc.text("TELÉFONO:",14,y); doc.setFont("helvetica","normal"); doc.text(datos.telefono||"",40,y); y+=10;
+  doc.setFont("helvetica","bold"); doc.text(fc("TELÉFONO:"),14,y); doc.setFont("helvetica","normal"); doc.text(datos.telefono||"",40,y); y+=10;
   doc.rect(14,y-4,182,10);
   doc.setFont("helvetica","bold"); doc.text("FECHA LLEGADA:",16,y+3); doc.setFont("helvetica","normal"); doc.text(fmtSlash(datos.entrada),60,y+3);
   doc.setFont("helvetica","bold"); doc.text("FECHA SALIDA:",110,y+3); doc.setFont("helvetica","normal"); doc.text(fmtSlash(datos.salida),150,y+3); y+=14;
@@ -1292,7 +1306,7 @@ function pdfArenablanca(datos, ocupantes) {
   doc.setFillColor(50,50,50); doc.rect(14,y,182,8,"F");
   doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(9);
   doc.text("NOMBRE Y FIRMA DEL HUESPED",105,y+5.5,{align:"center"}); doc.setTextColor(0);
-  doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.text("Página 1 de 1",105,y+18,{align:"center"});
+  doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.text(fc("Página 1 de 1"),105,y+18,{align:"center"});
   doc.save(`ArenablancaXikiri_${datos.nombre?.split(" ")[0]||"huesped"}.pdf`);
 }
 
