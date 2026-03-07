@@ -69,6 +69,11 @@
   .card-fechas { font-family: var(--mono); font-size: 11px; color: var(--muted); flex-shrink: 0; }
 
   .card-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .sel-idioma {
+    padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface2); color: var(--text); font-size: 12px;
+    cursor: pointer; font-family: var(--mono); outline: none;
+  }
   .btn-gen {
     padding: 7px 14px; border-radius: 6px; border: none; cursor: pointer;
     font-size: 12px; font-family: var(--mono); font-weight: 500;
@@ -307,6 +312,11 @@ function cardHTML(r) {
       <div class="card-fechas">${fmtFecha(r.fecha_entrada)} → ${fmtFecha(r.fecha_salida)}</div>
       <div class="card-actions">
         <button class="btn-detail" onclick="toggleDetail('${r.id}')">▾</button>
+        ${r.template === "peninsula" ? `
+        <select class="sel-idioma" id="idioma-${r.id}" title="Idioma del formato">
+          <option value="es">🇲🇽 ES</option>
+          <option value="en">🇺🇸 EN</option>
+        </select>` : ""}
         <button class="btn-gen ${r.pdf_generado?"done":""}" onclick="generarFormato('${r.id}')">
           ${r.pdf_generado ? "✓ Generado" : "Generar"}
         </button>
@@ -429,6 +439,10 @@ function generarFormato(id) {
   };
   const ocupantesArr = Array.isArray(r.ocupantes) ? r.ocupantes : [];
 
+  // Leer idioma seleccionado (solo Peninsula)
+  const idiomaEl = document.getElementById("idioma-"+id);
+  r._idioma = idiomaEl ? idiomaEl.value : "es";
+
   if(r.tipo_formato === "pdf") {
     generarPDF(r, datos, ocupantesArr);
   } else {
@@ -465,7 +479,12 @@ function generarPDF(r, datos, ocupantes) {
   else if(r.template === "venetian") doc = pdfVenetian(datos, ocupantes);
   else if(r.template === "xikiri") doc = pdfArenablanca(datos, ocupantes);
   else if(r.template === "quiya") { pdfQuiya(datos, ocupantes); return; }
-  else if(r.template === "peninsula") { pdfPeninsula(datos, ocupantes); setTimeout(function(){ leasePeninsula(datos); }, 800); return; }
+  else if(r.template === "peninsula") {
+    var idioma = r._idioma || "es";
+    if(idioma === "es"){ pdfPeninsulaES(datos, ocupantes); setTimeout(function(){ leasePeninsulaES(datos); }, 800); }
+    else { pdfPeninsula(datos, ocupantes); setTimeout(function(){ leasePeninsula(datos); }, 800); }
+    return;
+  }
   else { mostrarTexto(r, datos, ocupantes); return; }
 }
 
@@ -1923,6 +1942,416 @@ function leasePeninsula(datos) {
   var fname="LeaseAgreement_Peninsula19E_"+fc(datos.nombre||"tenant").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
   doc.save(fname);
 }
+
+function pdfPeninsulaES(datos, ocupantes) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"pt", format:"letter"});
+  const W=612, H=792, ML=64, MR=64, TW=W-ML-MR;
+  const FS=10.5, LH=14;
+  const TEAL=[0,150,150], BLACK=[0,0,0], GRAY=[115,115,115];
+  var pn=1, PAGE_BOT=730;
+
+  const LOGO="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";
+  const COPIA_IMG="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";
+
+  function fc(s){ return s ? String(s) : ""; }
+  function setC(rgb){ doc.setTextColor(rgb[0],rgb[1],rgb[2]); }
+  function uline(x1,y,x2){ doc.setLineWidth(0.5); doc.setDrawColor(0,0,0); doc.line(x1,y,x2,y); }
+  function footer(n){
+    doc.setFont("times","normal"); doc.setFontSize(9); setC(GRAY);
+    doc.text(n+"/3", W/2, 752, {align:"center"}); setC(BLACK);
+  }
+  function chk(y,need){ if(y+need>PAGE_BOT){ footer(pn); doc.addPage(); pn++; return 59; } return y; }
+
+  // Mixed inline paragraph — segs=[[text,bold,underline]]
+  function mixedPara(x,y,width,segs){
+    var tokens=[];
+    segs.forEach(function(s){
+      s[0].split(' ').forEach(function(w,i,arr){
+        if(w) tokens.push([w+(i<arr.length-1?' ':''), s[1]||false, s[2]||false]);
+      });
+    });
+    var lines=[],cur=[],cw=0;
+    tokens.forEach(function(tok){
+      doc.setFont("times",tok[1]?"bold":"normal"); doc.setFontSize(FS);
+      var tw=doc.getTextWidth(tok[0]);
+      if(cw+tw>width+0.5&&cur.length){lines.push(cur);cur=[tok];cw=tw;}
+      else{cur.push(tok);cw+=tw;}
+    });
+    if(cur.length) lines.push(cur);
+    lines.forEach(function(line){
+      var lx=x;
+      line.forEach(function(tok){
+        doc.setFont("times",tok[1]?"bold":"normal"); doc.setFontSize(FS); setC(BLACK);
+        doc.text(tok[0],lx,y);
+        var tw=doc.getTextWidth(tok[0]);
+        if(tok[2]){doc.setLineWidth(0.5);doc.setDrawColor(0,0,0);doc.line(lx,y+1.5,lx+tw,y+1.5);}
+        lx+=tw;
+      });
+      y+=LH;
+    });
+    return y;
+  }
+  function drawNum(x,y,num){ doc.setFont("times","bold"); doc.setFontSize(FS); setC(TEAL); doc.text(num,x,y); setC(BLACK); }
+
+  var INDENT=28, BX=ML+INDENT, BW=TW-INDENT, GAP=10;
+
+  // ── PAGE 1 ──────────────────────────────────────────────────
+  // Logo: Rect(65,41,232,99) → x=65, y=41, w=167, h=57
+  doc.addImage("data:image/jpeg;base64,"+LOGO,"JPEG",65,41,167,57);
+
+  // "No. de Departamento" + box
+  doc.setFont("times","bold"); doc.setFontSize(10); setC(BLACK);
+  doc.text("No. de Departamento", W-MR, 59, {align:"right"});
+  doc.setLineWidth(1.5); doc.setDrawColor(0,0,0);
+  doc.rect(W-MR-76, 68, 76, 40, "S");
+  doc.setFont("times","bold"); doc.setFontSize(20);
+  doc.text("19E", W-MR-38, 94, {align:"center"});
+
+  // Title
+  doc.setFont("times","bold"); doc.setFontSize(14); setC(BLACK);
+  doc.text("Documento de Registro (Check In)", W/2, 119, {align:"center"});
+
+  var y=130;
+  var rules=[
+    ["1.-",[[" Condominio Especifico Residencial Peninsula Torre I (Torre I)",true,false],[" es una Unidad Condominal Residencial. Al ingresar a este edificio, toda persona acepta implicitamente comportarse como el huesped de una casa, no de un hotel, acatando el Reglamento y disposiciones del Condominio.",false,false]]],
+    ["2.-",[[" Torre I",true,false],[" es completamente independiente, en cuanto a politicas, seguridad y administracion de Torre II y de Torre III, los otros edificios que componen Torres Peninsula, aunque puedan compartir y coincidir en algunas.",false,false]]],
+    ["3.-",[[" La Administracion se reserva el derecho conferido por el Codigo Civil del Estado de Jalisco, de negar el acceso o de retirar de las instalaciones a toda aquella persona que muestre un comportamiento agresivo, irresponsable o irrespetuoso hacia las reglas y usuarios del Condominio, de manera de se proteja la comodidad, seguridad y el orden en torre I.",false,false]]],
+    ["4.-",[[" Las promesas, o reglas no explicadas, durante el proceso de renta de una unidad Privativa no tendran influencia sobre la aplicacion de reglas en el Condominio. Es responsabilidad de cada persona leer y firmar las reglas antes de ingresar a Torre I. Estas reglas estan por encima de cualquier aseveracion u omision realizada por quien haya rentado una unidad privativa en el Condominio.",false,false]]],
+    ["5.-",[[" Solamente:",true,true],[" los Condominos (propietarios); pueden tener invitados en el Condominio y aquellos ",false,false],["rentistas con estancias de tres meses o mas",true,false],[", sin embargo, en estos casos, el numero de rentistas registrados mas el de sus visitantes jamas podra exceder el limite de usuarios por unidad privativa indicados en el ",false,false],["punto 8",true,false],[".",false,false]]],
+    ["6.-",[[" Toda persona que no sea propietario tendra que usar un brazalete en todo momento,",true,false],[" se le colocara un brazalete en el momento de su registro en la recepcion, el cual debe usar durante toda su estadia en el condominio; al finalizar su estadia debera de entregar su brazalete en la recepcion, de lo contrario debe pagar una multa; cada brazalete extraviado o no entregado en la recepcion tiene un costo de $1,000.00 MXN. (un mil pesos); este pago debe ser realizado en la Administracion.",false,false]]],
+    ["7.-",[[" Se tomara accion legal inmediata en contra de todo aquel que intente usar un brazalete o identificacion falsa; todas las personas relacionadas con el uso de brazaletes o identificaciones apocrifas seran retiradas del Condominio.",false,false]]],
+    ["9.-",[[" Los Arrendatarios, familiares no directos y Visitantes no tendran acceso al Condominio si el Propietario o Administrador de la Unidad rentada, no esta presente en el Condominio para recibirlos.",true,false]]],
+    ["10.-",[[" Para que los Rentistas, Familiares no directos o visitantes sean registrados en la Torre I, sus nombres completos deben figurar en el ",false,false],["documento Check in firmado con el responsable de la renta",true,false],["; que debera ser enviado por correo electronico a la Administracion, por el propietario o administrador de la Unidad que se alquila o utiliza, ",false,false],["al menos 2 dias antes de la llegada del Arrendatario, familiar no directo o visitante,",true,false],[" antes de registrarse en el Condominio, todos los inquilinos, familiares no directos e invitados deben confirmar su identidad con una identificacion oficial con foto.",false,false]]],
+    ["11.-",[[" Las Unidades Privativas del Condominio no se pueden rentar por menos de 3 (tres) noches; se impondran multas a aquellos que no respeten esta regla.",false,false]]],
+    ["12.-",[[" El uso del gimnasio y del jacuzzi interior es de uso exclusivo de Condominos (propietarios) y residentes (estancias de largo plazo) de Torre I.",false,false]]],
+    ["13.-",[[" Las recargas Electricas se haran entre semana, de lunes a viernes a las 16:00 horas. No se haran recargas electricas a unidades privativas que presenten adeudos en sus cuotas de mantenimiento u otras responsabilidades condominales.",false,false]]],
+    ["14.-",[[" El Condominio tiene camaras grabando las 24 horas, almacenando sonidos, imagenes y videos en un servidor en linea.",false,false]]],
+    ["15.-",[[" El unico criterio usado en Torre I es aquel expresado ano tras ano por los Condominos en su Asamblea Anual. Las decisiones y acciones de la Administracion y del Departamento de Seguridad de este Condominio, se basaran exclusivamente en las Reglas del mismo. Aquellos cuyos intereses o cuyo criterio no comulguen con este reglamento, deberan de abstenerse de pedir o exigir excepciones.",false,false]]],
+    ["16.-",[[" Los rentistas tendran que dejar las instalaciones una vez que hayan entregado la llave de la unidad privativa al Condomino o Administrador de la unidad que se les haya prestado o rentado.",false,false]]],
+    ["17.-",[[" Limpieza, Administracion, Seguridad y Mantenimiento de las Unidades Privativas no dependen de la Administracion de Torre I, sino del dueno o usuario de cada unidad privativa.",false,false]]],
+    ["18.-",[[" En el area de albercas solo se permite el uso de auriculares personales; ",false,false],["NO",true,false],[" se permiten instrumentos y/o aparatos reproductores de musica. (bocinas, telefono celular, tableta, computadora o IPad, etc.)",false,false]]],
+    ["19.-",[[" Por medidas de seguridad no se permiten objetos de vidrio en el area de alberca y playa. (Botellas, vasos, platos, tazas, etc.)",false,false]]],
+    ["20.-",[[" Para el uso de albercas los Bebes deben portar panales especiales para alberca. No se permiten los panales regulares o que el bebe se encuentre desnudo en el area.",false,false]]]
+  ];
+
+  rules.forEach(function(rule){
+    if(rule[0]==="9.-"){
+      var need=LH*6+GAP;
+      y=chk(y,need);
+      drawNum(ML,y,"8.-");
+      doc.setFont("times","bold"); doc.setFontSize(FS); setC(BLACK);
+      doc.text("Ocupaciones Maximas por Tipo de Unidad:",BX,y); y+=LH;
+      [["  \u2022 Unidades A:","10 personas"],["  \u2022 Unidades B y C:","8 personas"],["  \u2022 Unidades D y E:","6 personas."]].forEach(function(b){
+        doc.setFont("times","bold"); doc.text(b[0],BX+10,y);
+        var lw=doc.getTextWidth(b[0]);
+        doc.setFont("times","normal"); doc.text(b[1],BX+10+lw+4,y); y+=LH;
+      });
+      doc.setFont("times","bold");
+      doc.splitTextToSize("Las ocupaciones maximas aqui presentadas, toda persona cuenta, incluyendo bebes y empleados.",BW)
+        .forEach(function(ln){ doc.text(ln,BX,y); y+=LH; });
+      y+=GAP;
+    }
+    var fullTxt=rule[1].map(function(s){return s[0];}).join("");
+    y=chk(y,Math.max(1,Math.ceil(fullTxt.length/62))*LH+GAP);
+    drawNum(ML,y,rule[0]);
+    y=mixedPara(BX,y,BW,rule[1]);
+    y+=GAP;
+  });
+
+  // ── Undersigned + fields ────────────────────────────────────
+  y=chk(y,LH*4+14);
+  y+=14;
+  doc.setFont("times","italic"); doc.setFontSize(FS); setC(BLACK);
+  doc.splitTextToSize("El abajo firmante acepta la plena responsabilidad de su estancia en el Condominio, la Unidad y todos sus ocupantes. Ademas, el abajo firmante reconoce su comprension, aceptacion y recepcion de este documento.",TW-20)
+    .forEach(function(ln){ doc.text(ln,ML+10,y); y+=LH; });
+  y+=8;
+
+  function dataField(label,value,x,lineEnd){
+    doc.setFont("times","bold"); doc.setFontSize(FS); setC(BLACK);
+    doc.text(label,x,y);
+    var lw=doc.getTextWidth(label);
+    doc.setFont("times","normal"); doc.text(fc(value||""),x+lw,y);
+    uline(x+lw,y+2,lineEnd);
+  }
+
+  // 1. Nombre + Edad
+  doc.setFont("times","bold"); doc.setFontSize(FS); setC(BLACK);
+  doc.text("1. Nombre (Segun ID Oficial): ",ML,y);
+  var nLW=doc.getTextWidth("1. Nombre (Segun ID Oficial): ");
+  doc.setFont("times","normal"); doc.text(fc(datos.nombre||""),ML+nLW,y);
+  uline(ML+nLW,y+2,ML+320);
+  doc.setFont("times","bold"); doc.text("Edad:",ML+328,y);
+  var aLW=doc.getTextWidth("Edad:");
+  doc.setFont("times","normal"); doc.text(String(datos.edad||""),ML+328+aLW+4,y);
+  uline(ML+328+aLW+4,y+2,W-MR); y+=18;
+
+  dataField("Direccion: ",datos.direccion,ML,W-MR); y+=18;
+  dataField("E-mail: ",datos.correo,ML,W-MR); y+=18;
+  dataField("Telefono (10 digitos): ",datos.telefono,ML,W-MR); y+=18;
+
+  doc.setFont("times","bold"); doc.setFontSize(FS);
+  doc.text("Fecha de Ingreso: ",ML,y);
+  var ci=doc.getTextWidth("Fecha de Ingreso: ");
+  doc.setFont("times","normal"); doc.text(" "+(datos.entrada||""),ML+ci,y);
+  uline(ML+ci,y+2,ML+230);
+  doc.setFont("times","bold"); doc.text("Fecha de Salida: ",ML+248,y);
+  var co=doc.getTextWidth("Fecha de Salida: ");
+  doc.setFont("times","normal"); doc.text(" "+(datos.salida||""),ML+248+co,y);
+  uline(ML+248+co,y+2,W-MR); y+=16;
+
+  // bullet + responsible line
+  doc.setFont("times","bold"); doc.setFontSize(FS); setC(BLACK);
+  doc.text("\u2022",ML,y);
+  doc.splitTextToSize("Esta persona sera responsable por el Departamento y por las demas personas que se hospedaran en dicha unidad privativa",TW-18)
+    .forEach(function(ln){ doc.text(ln,ML+18,y); y+=LH; });
+  y+=6;
+
+  // Firma line
+  doc.setFont("times","normal"); doc.text("Firma",W-MR-30,y); y+=4;
+  uline(W-MR-80,y,W-MR);
+
+  footer(pn);
+
+  // ── PAGE 3 ──────────────────────────────────────────────────
+  doc.addPage(); pn++;
+
+  // "Datos del Vehiculo:" — bold underlined centered
+  doc.setFont("times","bold"); doc.setFontSize(13); setC(BLACK);
+  var vt="Datos del Vehiculo:";
+  var vtw=doc.getTextWidth(vt);
+  doc.text(vt,W/2,60,{align:"center"});
+  doc.setLineWidth(0.8); doc.setDrawColor(0,0,0);
+  doc.line(W/2-vtw/2,62,W/2+vtw/2,62);
+
+  // Marca / Color / Placas
+  var ty=114;
+  [["Marca:",fc(datos.vehiculo_tipo||datos.vehiculo||""),ML+35,ML+210],
+   ["Color:",fc(datos.vehiculo_color||""),ML+200,ML+340],
+   ["Placas:",fc(datos.placas||""),ML+352,W-MR]].forEach(function(f){
+    doc.setFont("times","bold"); doc.setFontSize(FS); doc.text(f[0],f[2],ty);
+    var lw=doc.getTextWidth(f[0]);
+    doc.setFont("times","normal"); doc.text(f[1],f[2]+lw+4,ty);
+    uline(f[2]+lw+4,ty+2,f[3]);
+  });
+
+  // Otros huespedes title
+  doc.setFont("times","bold"); doc.setFontSize(13); setC(BLACK);
+  doc.text("Informacion de los Otros Huespedes",W/2,139,{align:"center"});
+
+  // Occupants 2-10 — spacing 37pt each from y=168
+  var oyStart=168, oSpacing=37;
+  for(var i=2;i<=10;i++){
+    var occ=ocupantes[i-2]||null;
+    var nameVal=occ?fc(occ.nombre||occ.name||""):"";
+    var ageVal=occ?String(occ.edad||occ.age||""):"";
+    var oy=oyStart+(i-2)*oSpacing;
+    doc.setFont("times","bold"); doc.setFontSize(FS); setC(BLACK);
+    doc.text(String(i)+".",ML,oy);
+    doc.text("Nombre:",ML+22,oy);
+    var nw=doc.getTextWidth("Nombre:");
+    doc.setFont("times","normal"); doc.text(nameVal,ML+22+nw+6,oy);
+    uline(ML+22+nw+6,oy+2,W-MR-70);
+    doc.setFont("times","bold"); doc.text("Edad:",W-MR-62,oy);
+    var aw=doc.getTextWidth("Edad:");
+    doc.setFont("times","normal"); doc.text(ageVal,W-MR-62+aw+4,oy);
+    uline(W-MR-62+aw+4,oy+2,W-MR);
+  }
+
+  // Bullets — y after last occ: 168 + 8*37 = 464
+  var by=505;
+  [["Solamente aquellas personas cuyo nombre este incluido en esta lista podran ingresar al Condominio y solo el propietario puede hacerle cambios a la lista."],
+   ["Los inquilinos no pueden tener visitantes. Incluso si los Visitantes aparecen en este documento, no se les otorgara acceso a la Torre I. Esta lista es solo para los ocupantes de la Unidad."]
+  ].forEach(function(note){
+    doc.setFont("times","bold"); doc.setFontSize(FS); setC(BLACK);
+    doc.text("\u2022",ML,by);
+    doc.splitTextToSize(note[0],TW-18).forEach(function(ln){ doc.text(ln,ML+18,by); by+=LH; });
+    by+=4;
+  });
+
+  // "Anexar copia..." + "Documento Vigente"
+  doc.setFont("times","bold"); doc.setFontSize(FS);
+  doc.splitTextToSize("Anexar copia de Identificacion Oficial del responsable con la firma visible.",TW)
+    .forEach(function(ln){ doc.text(ln,W/2,579,{align:"center"}); });
+
+  // "Documento Vigente 2025 - 2026." — teal
+  doc.setFont("times","bold"); doc.setFontSize(FS); setC(TEAL);
+  doc.text("Documento Vigente 2025 - 2026.",W/2,594,{align:"center"});
+  setC(BLACK);
+
+  // ID Photo — original: Rect(36,613,287,761) → x=36,y=613,w=251,h=148
+  var PX=36, PY=613, PW=195, PH=148;
+  if(datos.foto_id){
+    try{
+      var fmt=datos.foto_id.indexOf("image/png")>-1?"PNG":"JPEG";
+      doc.addImage(datos.foto_id,fmt,PX,PY,PW,PH);
+    }catch(e){
+      doc.setDrawColor(150,150,150); doc.setLineWidth(0.5); doc.rect(PX,PY,PW,PH,"S");
+    }
+  } else {
+    doc.setDrawColor(150,150,150); doc.setLineWidth(0.5); doc.rect(PX,PY,PW,PH,"S");
+    doc.setFont("times","italic"); doc.setFontSize(8); setC([150,150,150]);
+    doc.text("[Foto ID]",PX+PW/2,PY+PH/2,{align:"center"}); setC(BLACK);
+  }
+
+  // COPIA ID image — original at x=377,y=625,w=133,h=26 (appears twice mirrored)
+  doc.addImage("data:image/png;base64,"+COPIA_IMG,"PNG",252,625,200,38);
+
+  footer(pn);
+
+  var fname="CheckIn_Peninsula19E_ES_"+fc(datos.nombre||"huesped").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
+  doc.save(fname);
+}
+
+
+function leasePeninsulaES(datos) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"pt", format:"letter"});
+  const W=612, H=792, ML=72, MR=72, TW=W-ML-MR;
+  const FS=11, LH=15;
+  const BLACK=[0,0,0];
+  var pn=1, PAGE_BOT=740;
+  var SIG="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";
+
+  function fc(s){ return s ? String(s) : ""; }
+  function setC(rgb){ doc.setTextColor(rgb[0],rgb[1],rgb[2]); }
+
+  function chk(y,need){ if(y+need>PAGE_BOT){ doc.addPage(); pn++; return 72; } return y; }
+
+  function para(x,y,width,text,opts){
+    opts=opts||{};
+    doc.setFont("helvetica",opts.bold?"bold":"normal"); doc.setFontSize(opts.size||FS); setC(BLACK);
+    var lines=doc.splitTextToSize(fc(text),width);
+    lines.forEach(function(ln){ doc.text(ln,x,y); y+=(opts.lh||LH); });
+    return y+(opts.gap||0);
+  }
+
+  function nightsBetween(d1,d2){
+    function pd(s){ s=String(s||"").trim();
+      if(/^\d{4}-\d{2}-\d{2}$/.test(s)){var p=s.split("-");return new Date(p[0],p[1]-1,p[2]);}
+      if(/^\d{2}\/\d{2}\/\d{4}$/.test(s)){var p=s.split("/");return new Date(p[2],p[1]-1,p[0]);}
+      return new Date(s);
+    }
+    var a=pd(d1),b=pd(d2);
+    if(!a||!b||isNaN(a)||isNaN(b)) return null;
+    return Math.round((b-a)/(1000*60*60*24));
+  }
+  function nightsTextES(n){
+    if(!n||n<=0) return "";
+    var w=["una","dos","tres","cuatro","cinco","seis","siete","ocho","nueve","diez",
+           "once","doce","trece","catorce","quince","dieciseis","diecisiete","dieciocho","diecinueve","veinte"];
+    var word=n<=20?w[n-1]:String(n);
+    return word+" ("+n+") "+(n===1?"noche":"noches");
+  }
+  function fmtDateES(s){
+    if(!s) return "";
+    s=String(s).trim();
+    var months=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)){var p=s.split("-");return parseInt(p[2])+" de "+months[parseInt(p[1])-1]+" de "+p[0];}
+    if(/^\d{2}\/\d{2}\/\d{4}$/.test(s)){var p=s.split("/");return parseInt(p[0])+" de "+months[parseInt(p[1])-1]+" de "+p[2];}
+    return s;
+  }
+
+  var tenant=datos.nombre||"";
+  var entradaFmt=fmtDateES(datos.entrada);
+  var salidaFmt=fmtDateES(datos.salida);
+  var nights=nightsBetween(datos.entrada,datos.salida);
+  var nightsTxt=nightsTextES(nights);
+
+  // PAGE 1
+  var y=76;
+  doc.setFont("helvetica","bold"); doc.setFontSize(14); setC(BLACK);
+  doc.text("CONTRATO DE ARRENDAMIENTO TEMPORAL", W/2, y, {align:"center"}); y+=28;
+
+  y=para(ML,y,TW,"EL PRESENTE CONTRATO DE ARRENDAMIENTO es celebrado entre JUAN PABLO PENA ORTIZ, en adelante denominado "EL ARRENDADOR", y "+fc(tenant)+", en adelante denominado "EL ARRENDATARIO", de conformidad con las siguientes declaraciones y clausulas:",{gap:18});
+
+  doc.setFont("helvetica","bold"); doc.setFontSize(FS);
+  doc.text("DECLARACIONES", ML, y); y+=LH+4;
+  doc.text("I. EL ARRENDADOR declara que:", ML, y); y+=LH+4;
+  y=para(ML+36,y,TW-36,"1. Es el legitimo propietario del inmueble ubicado en Blv. Francisco Medina Ascencio 2485, Torre 1, Unidad 19 E, Zona Hotelera, Zona Hotelera Norte, C.P. 48333, Puerto Vallarta, Jalisco, el cual se encuentra en condiciones habitables.",{gap:6});
+  y=para(ML+36,y,TW-36,"2. Cuenta con plena facultad legal para disponer del inmueble y desea arrendarlo al ARRENDATARIO bajo los terminos del presente contrato.",{gap:14});
+  doc.setFont("helvetica","bold"); doc.text("II. EL ARRENDATARIO declara que:", ML, y); y+=LH+4;
+  y=para(ML+36,y,TW-36,"1. Tiene capacidad legal e interes en arrendar el inmueble descrito con anterioridad para uso exclusivo como hospedaje, renta vacacional y/o alojamiento.",{gap:6});
+  y=para(ML+36,y,TW-36,"2. Acepta cumplir con todas las disposiciones del presente contrato, asi como con las leyes y reglamentos aplicables, y con los terminos establecidos en el documento denominado "Documento de Registro (Check In)", el cual formara parte integral del presente acuerdo.",{gap:18});
+
+  doc.setFont("helvetica","bold"); doc.text("CLAUSULAS", ML, y); y+=LH+4;
+  doc.text("PRIMERA. OBJETO.", ML, y); y+=LH+4;
+  y=para(ML,y,TW,"EL ARRENDADOR arrienda al ARRENDATARIO el inmueble ubicado en Blv. Francisco Medina Ascencio 2485, Torre 1, Unidad 19 E, Zona Hotelera, Zona Hotelera Norte, C.P. 48333, Puerto Vallarta, Jalisco, el cual sera utilizado exclusivamente para hospedaje, renta vacacional y/o alojamiento, durante el periodo especificado en la Clausula Segunda (Vigencia).",{gap:14});
+  doc.setFont("helvetica","bold"); doc.text("SEGUNDA. VIGENCIA.", ML, y); y+=LH+4;
+
+  // PAGE 2
+  y=chk(y,30);
+  y=para(ML,y,TW,"El presente contrato tendra una duracion de "+nightsTxt+", con inicio el "+entradaFmt+" a las 3:00 p.m., y termino el "+salidaFmt+" a las 11:00 a.m.",{gap:6});
+  y=para(ML,y,TW,"Solo podra ser renovado mediante acuerdo previo y por escrito entre las partes.",{gap:18});
+
+  doc.setFont("helvetica","bold"); doc.text("TERCERA. RENTA.", ML, y); y+=LH+4;
+  y=para(ML,y,TW,"EL ARRENDADOR y EL ARRENDATARIO acuerdan que el monto de la renta sera el pactado previamente a traves de plataformas electronicas y/o de manera verbal, prevaleciendo en todo caso la declaracion de EL ARRENDADOR.",{gap:18});
+
+  doc.setFont("helvetica","bold"); doc.text("CUARTA. OBLIGACIONES DEL ARRENDATARIO.", ML, y); y+=LH+4;
+  doc.setFont("helvetica","normal"); doc.text("EL ARRENDATARIO se obliga a:", ML, y); y+=LH+4;
+  ["a) Mantener el inmueble en buenas condiciones y presentacion adecuada.",
+   "b) Notificar de inmediato a EL ARRENDADOR sobre cualquier dano o desperfecto que requiera reparacion.",
+   "c) Abstenerse de realizar modificaciones o alteraciones sin autorizacion previa y por escrito de EL ARRENDADOR.",
+   "d) Mantener una conducta respetuosa y adecuada con los vecinos y cumplir con el reglamento del condominio, evitando cualquier acto que perturbe la tranquilidad del inmueble o del condominio.",
+   "e) No subarrendar, ceder ni transferir derecho alguno derivado del presente contrato sin consentimiento expreso y previo por escrito de EL ARRENDADOR.",
+   "f) Eximir a EL ARRENDADOR de toda responsabilidad por accidentes, danos, robos, responsabilidad civil, desastres meteorologicos o fenomenos naturales extremos, incluyendo pero sin limitarse a efectos del cambio climatico, ciclones tropicales, huracanes, tornados, inundaciones, olas de calor o frio, sequias, tormentas severas, incendios, eventos DANA, perdida de vidas humanas por uso del oceano, riesgos o cualquier otro inconveniente que ocurra durante la estancia del ARRENDATARIO en el inmueble."
+  ].forEach(function(ob){ y=chk(y,LH*3); y=para(ML,y,TW,ob,{gap:4}); });
+  y+=10;
+
+  y=chk(y,30);
+  doc.setFont("helvetica","bold"); doc.text("SEXTA. PROHIBICIONES.", ML, y); y+=LH+4;
+  doc.setFont("helvetica","normal"); doc.text("Queda estrictamente prohibido al ARRENDATARIO:", ML, y); y+=LH+4;
+  ["Usar el inmueble para fines distintos al hospedaje, renta vacacional y/o alojamiento.",
+   "Permitir la estancia temporal o permanente de terceras personas sin el consentimiento de EL ARRENDADOR o sin su registro en el "Documento de Registro (Check In)".",
+   "Subarrendar, transferir o prestar el inmueble, total o parcialmente."
+  ].forEach(function(p){
+    y=chk(y,LH*3);
+    doc.setFont("helvetica","normal"); doc.setFontSize(FS); setC(BLACK);
+    doc.text("•",ML,y);
+    doc.splitTextToSize(p,TW-18).forEach(function(ln){ doc.text(ln,ML+18,y); y+=LH; });
+    y+=4;
+  });
+  y+=10;
+
+  y=chk(y,30);
+  doc.setFont("helvetica","bold"); doc.text("SEPTIMA. RESCISION ANTICIPADA.", ML, y); y+=LH+4;
+  y=para(ML,y,TW,"Cualquiera de las partes podra dar por terminado el presente contrato antes de su vencimiento, mediante aviso previo al administrador de EL ARRENDADOR, sin perjuicio de las obligaciones pendientes de EL ARRENDADOR o de la devolucion de algun pago al ARRENDATARIO, segun corresponda.",{gap:18});
+
+  y=chk(y,30);
+  doc.setFont("helvetica","bold"); doc.text("OCTAVA. DEVOLUCION DEL INMUEBLE.", ML, y); y+=LH+4;
+  y=para(ML,y,TW,"Al termino del presente contrato, EL ARRENDATARIO debera restituir el inmueble en las mismas condiciones en que lo recibio y pagara de inmediato los danos causados al inmueble o su mobiliario durante el periodo de ocupacion.",{gap:6});
+  y=para(ML,y,TW,"Los danos deberan ser reportados por el propietario dentro de los dos (2) dias siguientes a la fecha de salida y deberan documentarse por escrito y con fotografias.",{gap:18});
+
+  y=chk(y,30);
+  doc.setFont("helvetica","bold"); doc.text("NOVENA. JURISDICCION Y COSTOS LEGALES.", ML, y); y+=LH+4;
+  y=para(ML,y,TW,"Para la interpretacion y cumplimiento del presente contrato, las partes se someten expresamente a las leyes y tribunales competentes del Estado de Jalisco, renunciando a cualquier otro fuero que pudiera corresponderles.",{gap:6});
+  y=para(ML,y,TW,"En caso de incumplimiento por parte del ARRENDATARIO, todos los gastos judiciales o extrajudiciales que se generen seran a cargo del ARRENDATARIO.",{gap:18});
+
+  y=chk(y,LH*5);
+  y=para(ML,y,TW,"Habiendo leido el presente contrato y estando plenamente conscientes de su alcance y contenido legal, las partes reconocen que este documento constituye el acuerdo integro y exclusivo entre EL ARRENDADOR y EL ARRENDATARIO.",{gap:6});
+  y=para(ML,y,TW,"Se firma en Puerto Vallarta, Jalisco, Mexico, en la fecha indicada en la Clausula Segunda (Vigencia).",{gap:0});
+
+  // PAGE 4 signatures
+  doc.addPage(); pn++;
+  y=59;
+  doc.setFont("helvetica","bold"); doc.setFontSize(FS); setC(BLACK);
+  doc.text("EL ARRENDATARIO", ML, y); y+=LH+4;
+  doc.text("Nombre: ", ML, y);
+  var nlw=doc.getTextWidth("Nombre: ");
+  doc.setFont("helvetica","bold"); doc.text(fc(tenant),ML+nlw,y); y+=LH;
+  doc.setFont("helvetica","normal"); doc.text("Firma:",ML,y); y+=70;
+  doc.setLineWidth(0.5); doc.setDrawColor(180,180,180);
+  doc.line(ML,y,W-MR,y); y+=20;
+  doc.setFont("helvetica","bold"); doc.text("EL ARRENDADOR",ML,y); y+=LH+4;
+  doc.text("Nombre: ",ML,y);
+  doc.text("JUAN PABLO PENA ORTIZ",ML+nlw,y); y+=LH;
+  doc.setFont("helvetica","normal"); doc.text("Firma:",ML,y); y+=8;
+  doc.addImage("data:image/png;base64,"+SIG,"PNG",ML,y,70,73);
+
+  var fname="ContratoArrendamiento_Peninsula19E_"+fc(datos.nombre||"arrendatario").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
+  doc.save(fname);
+}
+
 
 
 // ─────────────────────────────────────────────────────────────────────────────
