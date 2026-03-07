@@ -103,6 +103,42 @@
   .required::after { content: " *"; color: var(--error); }
 
   #loading { display:none; text-align:center; padding:16px; color:var(--muted); font-size:14px; }
+
+  /* INE photo upload */
+  .foto-upload-area {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+  }
+  .foto-upload-area:hover, .foto-upload-area.active {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .foto-upload-area input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .foto-icon { font-size: 32px; margin-bottom: 8px; }
+  .foto-label { font-size: 13px; color: var(--muted); }
+  .foto-label strong { color: var(--accent); display: block; font-size: 14px; margin-bottom: 4px; }
+  .foto-preview {
+    display: none; margin-top: 14px; position: relative;
+  }
+  .foto-preview img {
+    width: 100%; max-height: 200px; object-fit: cover;
+    border-radius: 8px; border: 2px solid var(--accent);
+  }
+  .foto-preview .btn-remove-foto {
+    position: absolute; top: 6px; right: 6px;
+    background: rgba(0,0,0,.6); color: white; border: none;
+    border-radius: 50%; width: 28px; height: 28px; cursor: pointer;
+    font-size: 16px; display: flex; align-items: center; justify-content: center;
+  }
+  .foto-ok { color: var(--success); font-size: 12px; margin-top: 6px; font-weight: 500; }
+
 </style>
 </head>
 <body>
@@ -123,16 +159,53 @@
     <input type="hidden" id="email">
     <input type="hidden" id="telefono">
 
-    <!-- PENINSULA ONLY: email + tel shown via JS -->
+    <!-- PENINSULA ONLY: datos completos del responsable -->
     <div class="card" id="card-peninsula" style="display:none;">
       <div class="card-title">Datos del responsable</div>
+      <div class="field">
+        <label>Nombre completo (según ID oficial) <span style="color:var(--accent)">*</span></label>
+        <input type="text" id="nombre_vis" placeholder="Nombre como aparece en tu ID" autocomplete="name">
+      </div>
+      <div class="field-row" style="display:flex; gap:12px;">
+        <div class="field" style="flex:1;">
+          <label>Edad <span style="color:var(--accent)">*</span></label>
+          <input type="number" id="edad_vis" placeholder="35" min="18" max="99">
+        </div>
+        <div class="field" style="flex:3;">
+          <label>Dirección (ciudad, estado, país)</label>
+          <input type="text" id="direccion_vis" placeholder="Ej. Guadalajara, Jalisco, México" autocomplete="address-level2">
+        </div>
+      </div>
       <div class="field">
         <label>Correo electrónico</label>
         <input type="email" id="email_vis" placeholder="tu@email.com" autocomplete="email">
       </div>
       <div class="field">
-        <label>Teléfono / WhatsApp</label>
+        <label>Teléfono / WhatsApp <span style="color:var(--accent)">*</span></label>
         <input type="tel" id="telefono_vis" placeholder="+52 33 1234 5678" autocomplete="tel">
+      </div>
+    </div>
+
+    <!-- PENINSULA ONLY: foto INE -->
+    <div class="card" id="card-foto" style="display:none;">
+      <div class="card-title">Identificación oficial</div>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">
+        Sube una foto clara de tu INE, pasaporte u otra identificación oficial.
+      </p>
+      <div class="foto-upload-area" id="foto-drop-area">
+        <input type="file" id="foto_id_input" accept="image/*" capture="environment" onchange="onFotoChange(this)">
+        <div id="foto-placeholder">
+          <div class="foto-icon">📷</div>
+          <div class="foto-label">
+            <strong>Tomar foto o subir archivo</strong>
+            Toca aquí para usar la cámara o seleccionar imagen
+          </div>
+        </div>
+      </div>
+      <div class="foto-preview" id="foto-preview">
+        <img id="foto-img" src="" alt="ID">
+        <button class="btn-remove-foto" onclick="quitarFoto()">×</button>
+        <div class="foto-ok">✓ Identificación cargada</div>
       </div>
     </div>
 
@@ -297,6 +370,7 @@ function init() {
   // Show email/tel for Peninsula only
   if(deptoInfo.template === "peninsula") {
     document.getElementById("card-peninsula").style.display = "block";
+    document.getElementById("card-foto").style.display = "block";
   }
 
   // Set today dates
@@ -344,13 +418,54 @@ function renderOcupantes() {
 
 
 
+
+// Foto INE
+let fotoBase64 = null;
+
+function onFotoChange(input) {
+  if(!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  // Resize & compress before storing
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement("canvas");
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if(w > MAX) { h = h * MAX / w; w = MAX; }
+      if(h > MAX) { w = w * MAX / h; h = MAX; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      fotoBase64 = canvas.toDataURL("image/jpeg", 0.75);
+      document.getElementById("foto-img").src = fotoBase64;
+      document.getElementById("foto-placeholder").style.display = "none";
+      document.getElementById("foto-preview").style.display = "block";
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function quitarFoto() {
+  fotoBase64 = null;
+  document.getElementById("foto-img").src = "";
+  document.getElementById("foto-preview").style.display = "none";
+  document.getElementById("foto-placeholder").style.display = "block";
+  document.getElementById("foto_id_input").value = "";
+}
+
 async function enviar() {
-  // Derive nombre from first ocupante
-  const nombre = (ocupantes[0]?.nombre || "").trim();
+  const isPeninsula = deptoInfo.template === "peninsula";
+  // Peninsula: nombre from its own field; others: from first ocupante
+  const nombre = isPeninsula
+    ? (document.getElementById("nombre_vis")?.value || "").trim()
+    : (ocupantes[0]?.nombre || "").trim();
   const fecha_entrada = document.getElementById("fecha_entrada").value;
   const fecha_salida = document.getElementById("fecha_salida").value;
 
-  if(!nombre){ alert("Por favor ingresa el nombre del responsable (primera línea de huéspedes)."); return; }
+  if(!nombre){ alert("Por favor ingresa el nombre del responsable."); return; }
+  if(isPeninsula && !(document.getElementById("telefono_vis")?.value||"").trim()){ alert("Por favor ingresa tu telefono."); return; }
   if(!fecha_entrada || !fecha_salida){ alert("Por favor ingresa las fechas de tu estancia."); return; }
   if(!deptoKey){ alert("Departamento no especificado en el link."); return; }
 
@@ -363,6 +478,8 @@ async function enviar() {
     template: deptoInfo.template || "general",
     tipo_formato: deptoInfo.tipo || "general",
     nombre,
+    edad: isPeninsula ? (document.getElementById("edad_vis")?.value || null) : null,
+    direccion: isPeninsula ? ((document.getElementById("direccion_vis")?.value || "").trim() || null) : null,
     email: (document.getElementById("email_vis")?.value || "").trim() || null,
     telefono: (document.getElementById("telefono_vis")?.value || "").trim() || null,
     fecha_entrada,
@@ -372,6 +489,7 @@ async function enviar() {
     num_mascotas: 0,
     vehiculo_modelo: document.getElementById("vehiculo_modelo").value.trim() || null,
     vehiculo_placas: document.getElementById("vehiculo_placas").value.trim() || null,
+    foto_id: fotoBase64 || null,
     ocupantes: ocupantes.filter(o=>o.nombre.trim()),
   };
 
