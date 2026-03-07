@@ -465,7 +465,7 @@ function generarPDF(r, datos, ocupantes) {
   else if(r.template === "venetian") doc = pdfVenetian(datos, ocupantes);
   else if(r.template === "xikiri") doc = pdfArenablanca(datos, ocupantes);
   else if(r.template === "quiya") { pdfQuiya(datos, ocupantes); return; }
-  else if(r.template === "peninsula") { pdfPeninsula(datos, ocupantes); return; }
+  else if(r.template === "peninsula") { pdfPeninsula(datos, ocupantesArr); setTimeout(function(){ leasePeninsula(datos); }, 800); return; }
   else { mostrarTexto(r, datos, ocupantes); return; }
 }
 
@@ -1694,6 +1694,236 @@ function pdfPeninsula(datos, ocupantes) {
   var fname="Peninsula19E_"+fc(datos.nombre||"huesped").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
   doc.save(fname);
 }
+
+function leasePeninsula(datos) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"pt", format:"letter"});
+  const W=612, H=792, ML=72, MR=72, TW=W-ML-MR;
+  const FS=11, LH=15, SMALL=10;
+  const BLACK=[0,0,0], GRAY=[100,100,100];
+
+  function fc(s){
+    if(!s) return "";
+    return String(s).replace(/\u00C1/g,"A").replace(/\u00E1/g,"a")
+      .replace(/\u00C9/g,"E").replace(/\u00E9/g,"e")
+      .replace(/\u00CD/g,"I").replace(/\u00ED/g,"i")
+      .replace(/\u00D3/g,"O").replace(/\u00F3/g,"o")
+      .replace(/\u00DA/g,"U").replace(/\u00DC/g,"U")
+      .replace(/\u00FA/g,"u").replace(/\u00FC/g,"u")
+      .replace(/\u00D1/g,"N").replace(/\u00F1/g,"n")
+      .replace(/\u2019/g,"'").replace(/\u00B4/g,"'")
+      .replace(/\u00C3\u0091/g,"N").replace(/\u00C3\u00B1/g,"n")
+      .replace(/\u00EF\u00BF\u00BD/g,"");
+  }
+  function setC(rgb){ doc.setTextColor(rgb[0],rgb[1],rgb[2]); }
+
+  var pn=1, PAGE_BOT=740;
+  function footer(){}  // no footer on lease
+
+  function chk(y, need){
+    if(y+need > PAGE_BOT){ doc.addPage(); pn++; return 72; }
+    return y;
+  }
+
+  // Wrap and draw a paragraph, returns new y
+  function para(x, y, width, text, opts){
+    opts = opts||{};
+    var font = opts.bold ? "bold" : "normal";
+    var fsize = opts.size || FS;
+    doc.setFont("helvetica", font); doc.setFontSize(fsize); setC(BLACK);
+    var lines = doc.splitTextToSize(fc(text), width);
+    lines.forEach(function(ln){ doc.text(ln, x, y); y+=opts.lh||LH; });
+    return y + (opts.gap||0);
+  }
+
+  // Mixed inline: [[text,bold]]
+  function inline(x, y, segs){
+    segs.forEach(function(s){
+      doc.setFont("helvetica", s[1]?"bold":"normal"); doc.setFontSize(FS); setC(BLACK);
+      doc.text(fc(s[0]), x, y);
+      x += doc.getTextWidth(fc(s[0]));
+    });
+    return y+LH;
+  }
+
+  // ── Calculate duration ──────────────────────────────────────
+  function nightsBetween(d1, d2){
+    // d1, d2 = "DD/MM/YYYY" or "YYYY-MM-DD" or "DD MONTH YYYY"
+    function parseDate(s){
+      if(!s) return null;
+      s = String(s).trim();
+      // YYYY-MM-DD
+      if(/^\d{4}-\d{2}-\d{2}$/.test(s)){
+        var p=s.split("-"); return new Date(p[0],p[1]-1,p[2]);
+      }
+      // DD/MM/YYYY
+      if(/^\d{2}\/\d{2}\/\d{4}$/.test(s)){
+        var p=s.split("/"); return new Date(p[2],p[1]-1,p[0]);
+      }
+      // Try native
+      return new Date(s);
+    }
+    var a=parseDate(d1), b=parseDate(d2);
+    if(!a||!b||isNaN(a)||isNaN(b)) return null;
+    return Math.round((b-a)/(1000*60*60*24));
+  }
+  function nightsText(n){
+    if(!n||n<=0) return "";
+    var words=["one","two","three","four","five","six","seven","eight","nine","ten",
+               "eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen","twenty"];
+    var w = n<=20 ? words[n-1] : String(n);
+    return w+" ("+n+") "+(n===1?"night":"nights");
+  }
+  function fmtDate(s){
+    if(!s) return "";
+    s=String(s).trim();
+    var months=["January","February","March","April","May","June","July","August","September","October","November","December"];
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)){
+      var p=s.split("-");
+      return months[parseInt(p[1])-1]+" "+parseInt(p[2])+", "+p[0];
+    }
+    if(/^\d{2}\/\d{2}\/\d{4}$/.test(s)){
+      var p=s.split("/");
+      return months[parseInt(p[1])-1]+" "+parseInt(p[2])+", "+p[2];
+    }
+    return s;
+  }
+
+  var tenant = datos.nombre || "";
+  var entradaFmt = fmtDate(datos.entrada);
+  var salidaFmt  = fmtDate(datos.salida);
+  var nights = nightsBetween(datos.entrada, datos.salida);
+  var nightsTxt = nightsText(nights);
+
+  var SIG = "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";
+
+  // ══ PAGE 1 ═══════════════════════════════════════════════════
+  var y=76;
+
+  // Title
+  doc.setFont("helvetica","bold"); doc.setFontSize(14); setC(BLACK);
+  doc.text("RESIDENTIAL LEASE AGREEMENT", W/2, y, {align:"center"});
+  y+=28;
+
+  // Opening paragraph
+  y=para(ML,y,TW,[
+    "THIS LEASE AGREEMENT is entered into by and between JUAN PABLO ",
+    "PENA ORTIZ, hereinafter referred to as \"THE LANDLORD,\" and ",
+    fc(tenant)+", hereinafter referred to as \"THE TENANT,\" pursuant to ",
+    "the following statements and clauses:"
+  ].join(""), {gap:18});
+
+  // DECLARATIONS
+  doc.setFont("helvetica","bold"); doc.setFontSize(FS); setC(BLACK);
+  doc.text("DECLARATIONS", ML, y); y+=LH+4;
+
+  doc.setFont("helvetica","bold"); doc.text("I. THE LANDLORD declares that:", ML, y); y+=LH+4;
+
+  y=para(ML+36,y,TW-36,"1. He is the lawful owner of the property located at Blv. Francisco Medina Ascencio 2485, Tower 1, Unit 19 E, Hotel Zone, Zona Hotelera Norte, C.P. 48333, Puerto Vallarta, Jalisco, which is in suitable condition for habitation.",{gap:6});
+  y=para(ML+36,y,TW-36,"2. He has full legal authority to dispose of the property and wishes to lease it to THE TENANT under the terms of this agreement.",{gap:14});
+
+  doc.setFont("helvetica","bold"); doc.text("II. THE TENANT declares that:", ML, y); y+=LH+4;
+  y=para(ML+36,y,TW-36,"1. He/she has the legal capacity and interest to lease the above-described property for exclusive use as accommodation, vacation rental, and/or lodging.",{gap:6});
+  y=para(ML+36,y,TW-36,"2. He/she agrees to comply with all provisions of this agreement, as well as all applicable laws and regulations, and with the terms set forth in the document titled \"Check-in Registration Document,\" which shall be signed as part of this agreement.",{gap:18});
+
+  doc.setFont("helvetica","bold"); doc.text("CLAUSES", ML, y); y+=LH+4;
+  doc.text("FIRST. PURPOSE.", ML, y); y+=LH+4;
+  y=para(ML,y,TW,"THE LANDLORD leases to THE TENANT the property located at Blv. Francisco Medina Ascencio 2485, Tower 1, Unit 19 E, Hotel Zone, Zona Hotelera Norte, C.P. 48333, Puerto Vallarta, Jalisco, which shall be used exclusively for accommodation, vacation rental, and/or lodging, during the term specified in Clause Two (Duration).",{gap:14});
+
+  doc.setFont("helvetica","bold"); doc.text("SECOND. TERM.", ML, y); y+=LH+4;
+
+  // ══ PAGE 2 ═══════════════════════════════════════════════════
+  y=chk(y,30);
+  y=para(ML,y,TW,"This agreement shall have a duration of "+nightsTxt+", beginning on "+entradaFmt+" at 3:00 p.m., and ending on "+salidaFmt+" at 11:00 a.m.",{gap:6});
+  y=para(ML,y,TW,"It may be renewed only by prior written agreement between the parties.",{gap:18});
+
+  doc.setFont("helvetica","bold"); doc.text("THIRD. RENT.", ML, y); y+=LH+4;
+  y=para(ML,y,TW,"THE LANDLORD and THE TENANT agree that the monetary rental amount shall be considered as previously agreed through electronic platforms and/or verbally, with THE LANDLORD's statement prevailing.",{gap:18});
+
+  doc.setFont("helvetica","bold"); doc.text("FOURTH. OBLIGATIONS OF THE TENANT.", ML, y); y+=LH+4;
+  doc.setFont("helvetica","normal"); doc.text("THE TENANT agrees to:", ML, y); y+=LH+4;
+
+  var obligations=[
+    "a) Maintain the property in good condition and proper appearance.",
+    "b) Immediately notify THE LANDLORD of any damage or defect requiring repair.",
+    "c) Refrain from making modifications or alterations without prior written authorization from THE LANDLORD.",
+    "d) Maintain respectful and appropriate conduct with neighbors and comply with condominium regulations, avoiding any act that disturbs the peace of the property or the condominium.",
+    "e) Not sublease, assign, or transfer any rights under this agreement without the express prior written consent of THE LANDLORD.",
+    "f) Release THE LANDLORD from all liability for accidents, damages, theft, civil liability, meteorological disasters or extreme natural phenomena, including but not limited to climate change effects, tropical cyclones, hurricanes, tornadoes, floods, heat or cold waves, droughts, severe storms, fires, DANA events, loss of human life due to ocean use, risks, or any other inconvenience occurring during THE TENANT's stay at the property."
+  ];
+  obligations.forEach(function(ob){
+    y=chk(y,LH*3);
+    y=para(ML,y,TW,ob,{gap:4});
+  });
+  y+=10;
+
+  y=chk(y,30);
+  doc.setFont("helvetica","bold"); doc.text("SIXTH. PROHIBITIONS.", ML, y); y+=LH+4;
+  doc.setFont("helvetica","normal"); doc.text("THE TENANT is strictly prohibited from:", ML, y); y+=LH+4;
+  var prohibitions=[
+    "Using the property for purposes other than accommodation, vacation rental, and/or lodging.",
+    "Allowing third parties to stay temporarily or permanently without THE LANDLORD's consent or without registration in the \"Check-in Registration Document.\"",
+    "Subleasing, transferring, or lending the property, in whole or in part."
+  ];
+  prohibitions.forEach(function(p){
+    y=chk(y,LH*3);
+    doc.setFont("helvetica","normal"); doc.setFontSize(FS); setC(BLACK);
+    doc.text("\u2022", ML, y);
+    var lines=doc.splitTextToSize(p, TW-18);
+    lines.forEach(function(ln){ doc.text(ln, ML+18, y); y+=LH; });
+    y+=4;
+  });
+  y+=10;
+
+  // ══ PAGE 3 ═══════════════════════════════════════════════════
+  y=chk(y,30);
+  doc.setFont("helvetica","bold"); doc.text("SEVENTH. EARLY TERMINATION.", ML, y); y+=LH+4;
+  y=para(ML,y,TW,"Either party may terminate this agreement prior to its expiration by providing prior notice to THE LANDLORD's administrator, without prejudice to any outstanding obligations of THE LANDLORD or the refund of any payment to THE TENANT, as applicable.",{gap:18});
+
+  y=chk(y,30);
+  doc.setFont("helvetica","bold"); doc.text("EIGHTH. RETURN OF THE PROPERTY.", ML, y); y+=LH+4;
+  y=para(ML,y,TW,"Upon termination of this agreement, THE TENANT shall return the property in the same condition in which it was received and shall immediately pay for any damages caused to the property or its furnishings during the occupancy period.",{gap:6});
+  y=para(ML,y,TW,"Any damages shall be reported by the owner within two (2) days following the checkout date and shall be documented in writing and with photographs.",{gap:18});
+
+  y=chk(y,30);
+  doc.setFont("helvetica","bold"); doc.text("NINTH. JURISDICTION AND LEGAL COSTS.", ML, y); y+=LH+4;
+  y=para(ML,y,TW,"For the interpretation and enforcement of this agreement, the parties expressly submit to the laws and competent courts of the State of Jalisco, waiving any other jurisdiction that may apply.",{gap:6});
+  y=para(ML,y,TW,"In the event of breach by THE TENANT, all judicial or extrajudicial expenses arising therefrom shall be borne by THE TENANT.",{gap:18});
+
+  y=chk(y,LH*5);
+  y=para(ML,y,TW,"Having read this agreement and being fully aware of its legal scope and content, the parties acknowledge that this document constitutes the entire and exclusive agreement between THE LANDLORD and THE TENANT.",{gap:6});
+  y=para(ML,y,TW,"It is executed in Puerto Vallarta, Jalisco, Mexico, on the date indicated in Clause Two (Duration).",{gap:0});
+
+  // ══ PAGE 4 — Signatures ═══════════════════════════════════════
+  doc.addPage(); pn++;
+  y=59;
+
+  // THE TENANT
+  doc.setFont("helvetica","bold"); doc.setFontSize(FS); setC(BLACK);
+  doc.text("THE TENANT", ML, y); y+=LH+4;
+  doc.text("Name: ", ML, y);
+  var nlw=doc.getTextWidth("Name: ");
+  doc.setFont("helvetica","bold"); doc.text(fc(tenant), ML+nlw, y); y+=LH;
+  doc.setFont("helvetica","normal"); doc.text("Signature:", ML, y); y+=70;
+
+  // Separator line
+  doc.setLineWidth(0.5); doc.setDrawColor(180,180,180);
+  doc.line(ML, y, W-MR, y); y+=20;
+
+  // THE LANDLORD
+  doc.setFont("helvetica","bold"); doc.setFontSize(FS); setC(BLACK);
+  doc.text("THE LANDLORD", ML, y); y+=LH+4;
+  doc.text("Name: ", ML, y);
+  doc.text("JUAN PABLO PENA ORTIZ", ML+nlw, y); y+=LH;
+  doc.setFont("helvetica","normal"); doc.text("Signature:", ML, y); y+=8;
+
+  // Landlord signature image
+  doc.addImage("data:image/png;base64,"+SIG, "PNG", ML, y, 70, 73);
+
+  var fname="LeaseAgreement_Peninsula19E_"+fc(datos.nombre||"tenant").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
+  doc.save(fname);
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 
