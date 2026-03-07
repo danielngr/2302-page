@@ -490,7 +490,10 @@ async function enviar() {
     vehiculo_modelo: document.getElementById("vehiculo_modelo").value.trim() || null,
     vehiculo_placas: document.getElementById("vehiculo_placas").value.trim() || null,
     foto_id: fotoBase64 || null,
-    ocupantes: ocupantes.filter(o=>o.nombre.trim()),
+    // For Peninsula, ocupante[0] = titular (already in nombre field) — skip to avoid duplicate
+    ocupantes: isPeninsula
+      ? ocupantes.slice(1).filter(o=>o.nombre.trim())
+      : ocupantes.filter(o=>o.nombre.trim()),
   };
 
   try {
