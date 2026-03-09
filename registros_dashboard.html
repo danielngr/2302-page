@@ -442,12 +442,32 @@ function generarFormato(id) {
   const idiomaEl = document.getElementById("idioma-"+id);
   r._idioma = idiomaEl ? idiomaEl.value : "es";
 
-  if(r.tipo_formato === "pdf") {
-    generarPDF(r, datos, ocupantesArr);
-  } else {
-    mostrarTexto(r, datos, ocupantesArr);
+  try {
+    if(r.tipo_formato === "pdf") {
+      generarPDF(r, datos, ocupantesArr);
+    } else {
+      mostrarTexto(r, datos, ocupantesArr);
+    }
+  } catch(e) {
+    console.error("[generarFormato] Error generando PDF para", r.depto, e);
+    alert("Error generando PDF: " + e.message);
+    return; // no marcar como generado si hubo error
   }
   marcarGenerado(id);
+}
+
+// ── Helpers globales compartidos por todos los generadores ───
+function fc(s) {
+  if(!s) return "";
+  return String(s)
+    .replace(/\u00C1/g,"A").replace(/\u00E1/g,"a")
+    .replace(/\u00C9/g,"E").replace(/\u00E9/g,"e")
+    .replace(/\u00CD/g,"I").replace(/\u00ED/g,"i")
+    .replace(/\u00D3/g,"O").replace(/\u00F3/g,"o")
+    .replace(/\u00DA/g,"U").replace(/\u00DC/g,"U")
+    .replace(/\u00FA/g,"u").replace(/\u00FC/g,"u")
+    .replace(/\u00D1/g,"N").replace(/\u00F1/g,"n")
+    .replace(/\u2019/g,"'").replace(/\u00B4/g,"'");
 }
 
 // ── PDF generators (same as generador_formatos) ─────────────
