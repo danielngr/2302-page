@@ -161,6 +161,20 @@
       </div>
     </div>
 
+    <!-- FLAMINGOS ONLY -->
+    <div class="card" id="card-flamingos" style="display:none;">
+      <div class="card-title" id="txt-card-id">Identificación oficial</div>
+      <div class="field">
+        <label id="txt-label-id">Foto de tu INE o pasaporte</label>
+        <p id="txt-hint-id" style="font-size:12px;color:var(--muted);margin:4px 0 10px;line-height:1.5;">Toma una foto clara del frente de tu identificación. Solo la usamos para el control de acceso.</p>
+        <input type="file" id="foto_id_file" accept="image/*" capture="environment"
+          style="font-size:14px;padding:8px 0;width:100%;" onchange="previewFotoId(this)">
+        <div id="foto-id-preview" style="display:none;margin-top:10px;">
+          <img id="foto-id-img" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border);object-fit:cover;">
+        </div>
+      </div>
+    </div>
+
     <!-- FECHAS -->
     <div class="card">
       <div class="card-title" id="txt-card-fechas">Fechas de estancia</div>
@@ -225,6 +239,9 @@ const TXT = {
     labelSalida: "Fecha de salida",
     labelAdultos: "Adultos",
     labelMenores: "Menores",
+    cardId: "Identificación oficial",
+    labelId: "Foto de tu INE o pasaporte",
+    hintId: "Toma una foto clara del frente de tu identificación. Solo la usamos para el control de acceso.",
     cardOcupantes: "Lista de todos los huéspedes",
     ocuHint: "Incluye a todos los que se hospedarán, incluyéndote a ti.",
     ocuResponsable: "Nombre completo (Responsable)",
@@ -253,6 +270,9 @@ const TXT = {
     labelSalida: "Check-out date",
     labelAdultos: "Adults",
     labelMenores: "Minors",
+    cardId: "Official ID",
+    labelId: "Photo of your ID or passport",
+    hintId: "Take a clear photo of the front of your ID. Used only for access control.",
     cardOcupantes: "List of all guests",
     ocuHint: "Include everyone staying, including yourself.",
     ocuResponsable: "Full name (Lead guest)",
@@ -291,6 +311,9 @@ function setLang(l) {
   document.getElementById("txt-label-menores").textContent= T.labelMenores;
   document.getElementById("txt-card-ocupantes").textContent= T.cardOcupantes;
   document.getElementById("txt-ocu-hint").textContent     = T.ocuHint;
+  document.getElementById("txt-card-id").textContent      = T.cardId;
+  document.getElementById("txt-label-id").textContent     = T.labelId;
+  document.getElementById("txt-hint-id").textContent      = T.hintId;
   document.getElementById("btn-submit").textContent       = T.btnSubmit;
   document.getElementById("loading").textContent          = T.loading;
   document.getElementById("txt-privacy").textContent      = T.privacy;
@@ -378,6 +401,12 @@ function init() {
   const params = new URLSearchParams(window.location.search);
   deptoKey = (params.get("dept") || "").toUpperCase().replace(/-/g," ");
   deptoInfo = DEPTO_MAP[deptoKey] || {};
+
+  // Si no hay match exacto, buscar por prefijo (ej. "FLAMINGOS 27" → usa entry "FLAMINGOS")
+  if(!deptoInfo.template && deptoKey) {
+    const prefix = Object.keys(DEPTO_MAP).find(k => deptoKey.startsWith(k + " ") || deptoKey === k);
+    if(prefix) deptoInfo = DEPTO_MAP[prefix];
+  }
   document.getElementById("depto-badge").textContent = deptoKey || "—";
 
   // Auto-detect browser language
@@ -389,6 +418,9 @@ function init() {
 
   if(deptoInfo.template === "peninsula") {
     document.getElementById("card-peninsula").style.display = "block";
+  }
+  if(deptoInfo.template === "flamingos") {
+    document.getElementById("card-flamingos").style.display = "block";
   }
 
   const hoy = new Date();
@@ -460,6 +492,10 @@ async function enviar() {
   const loading = document.getElementById("loading");
   btn.disabled = true; loading.style.display = "block";
 
+  // foto_id base64 para flamingos
+  let fotoIdB64 = null;
+  const fotoIdPayload = deptoInfo.template === "flamingos" ? fotoIdB64 : null;
+
   const payload = {
     depto: deptoKey,
     template: deptoInfo.template || "general",
@@ -473,6 +509,7 @@ async function enviar() {
     num_menores: parseInt(document.getElementById("num_menores").value)||0,
     num_mascotas: 0,
     vehiculo_modelo: null,
+    foto_id: window._fotoIdB64 || null,
     ocupantes: ocupantes.filter(o=>o.nombre.trim()),
   };
 
@@ -499,6 +536,31 @@ async function enviar() {
     alert(T.errEnvio + e.message);
     btn.disabled = false; loading.style.display = "none";
   }
+}
+
+function previewFotoId(input) {
+  if(!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement("canvas");
+      const MAX = 1200;
+      let w = img.width, h = img.height;
+      if(w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      window._fotoIdB64 = canvas.toDataURL("image/jpeg", 0.82);
+      const previewDiv = document.getElementById("foto-id-preview");
+      const previewImg = document.getElementById("foto-id-img");
+      if(previewDiv && previewImg) {
+        previewImg.src = window._fotoIdB64;
+        previewDiv.style.display = "block";
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(input.files[0]);
 }
 
 init();
