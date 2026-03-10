@@ -511,7 +511,7 @@ function generarPDF(r, datos, ocupantes) {
   else if(r.template === "gd") doc = pdfGD(datos, ocupantes);
   else if(r.template === "alamar") doc = pdfAlamar(datos, ocupantes);
   else if(r.template === "venetian") doc = pdfVenetian(datos, ocupantes);
-  else if(r.template === "xikiri") doc = pdfArenablanca(datos, ocupantes);
+  else if(r.template === "xikiri") doc = pdfXikiri(datos, ocupantes);
   else if(r.template === "quiya") { pdfQuiya(datos, ocupantes); return; }
   else if(r.template === "peninsula") {
     var idioma = r._idioma || "es";
@@ -2023,6 +2023,72 @@ function pdfQuiya(datos, ocupantes) {
   y = field("Fecha de salida:", fmtLong(datos.salida || datos.fecha_salida), y, 36);
 
   doc.save(`Quiya_${villa.replace("VILLA ","")}_${(datos.nombre||"huesped").split(" ")[0]}.pdf`);
+}
+
+function pdfXikiri(datos, ocupantes) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"mm",format:"letter"});
+  const hoy = new Date();
+  const fechaHoy = `${String(hoy.getDate()).padStart(2,"0")}/${String(hoy.getMonth()+1).padStart(2,"0")}/${hoy.getFullYear()}`;
+  doc.addImage(LOGOS.arenablanca,"JPEG",72,4,60,18);
+  let y=28;
+  doc.setFont("helvetica","bold"); doc.setFontSize(12);
+  doc.text("CHECK IN DE HUESPEDES",105,y,{align:"center"}); y+=5;
+  doc.setLineWidth(0.4); doc.line(14,y,196,y); y+=6;
+  // Cada campo en su propia línea con línea al final
+  function fld(label,val,xL,xV,lineEnd){
+    doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.text(label,xL,y);
+    doc.setFont("helvetica","normal"); if(val) doc.text(fc(val),xV,y);
+    doc.line(xV,y+1,lineEnd,y+1); y+=6;
+  }
+  fld("FECHA:",fechaHoy,14,30,196);
+  fld("HORA:","",14,30,196);
+  fld("NOMBRE DEL GUARDIA:","",14,65,196);
+  fld("DEPARTAMENTO:","504",14,52,196);
+  y+=1;
+  // Barras grises — helper
+  function bar(label){ doc.setFillColor(191,191,191); doc.rect(14,y-1.5,182,7,"F"); doc.setFillColor(0,0,0); doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.text(label,105,y+3.5,{align:"center"}); y+=9; }
+  bar("DATOS DEL HUESPED");
+  fld("NOMBRE:",datos.nombre||"",14,35,196);
+  fld("E-MAIL:",datos.email||datos.correo||"",14,35,196);
+  fld("TELEFONO:",datos.telefono||"",14,35,196);
+  // Rect fechas con divisor vertical
+  doc.setLineWidth(0.5); doc.rect(14,y-3,182,8);
+  doc.line(98,y-3,98,y+5);
+  doc.setFont("helvetica","bold"); doc.text("FECHA LLEGADA:",16,y+2);
+  doc.setFont("helvetica","normal"); doc.text(fmtSlash(datos.entrada),52,y+2);
+  doc.setFont("helvetica","bold"); doc.text("FECHA SALIDA:",100,y+2);
+  doc.setFont("helvetica","normal"); doc.text(fmtSlash(datos.salida),134,y+2); y+=12;
+  // USO DEL DEPARTAMENTO
+  doc.setFont("helvetica","bold"); doc.setFontSize(9);
+  doc.text("USO DEL DEPARTAMENTO:",14,y);
+  doc.text("RENTA",72,y); doc.rect(84,y-3.5,5,5); doc.setFont("helvetica","normal"); doc.text("X",85.8,y-1.5);
+  doc.setFont("helvetica","bold"); doc.text("FAMILIA",97,y); doc.rect(112,y-3.5,5,5);
+  doc.text("AMIGOS",125,y); doc.rect(138,y-3.5,5,5); y+=10;
+  bar("LISTA DE HUESPEDES");
+  for(let i=0;i<11;i++){
+    const name=fc(ocupantes[i]?.nombre||"");
+    doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.text(`${i+1}-`,14,y);
+    doc.setFont("helvetica","normal"); doc.line(22,y+1,186,y+1);
+    if(name) doc.text(name,24,y); y+=6.5;
+  }
+  y+=5; bar("VEHICULO(S)");
+  doc.setFont("helvetica","bold"); doc.setFontSize(8);
+  doc.text("MARCA",22,y); doc.text("MODELO",68,y); doc.text("COLOR",118,y); doc.text("#PLACA",163,y); y+=7;
+  for(let i=0;i<4;i++){
+    doc.setFont("helvetica","bold"); doc.text(`${i+1}-`,14,y);
+    doc.line(22,y+1,62,y+1); doc.line(65,y+1,110,y+1); doc.line(113,y+1,153,y+1); doc.line(156,y+1,196,y+1); y+=7;
+  }
+  y+=3; doc.setLineWidth(0.5); doc.rect(14,y-9,182,14);
+  doc.setFont("helvetica","bold"); doc.setFontSize(8);
+  doc.text("* ACUSO DE RECIBIDO DEL RESUMEN DEL REGLAMENTO INTERNO DEL CONDOMINIO ARENA BLANCA",17,y-0.5);
+  doc.text("Y ESTOY ENTERADO DE LOS ALCANCES DEL MISMO.",17,y+6); y+=9;
+  doc.setFillColor(50,50,50); doc.rect(14,y,182,8,"F");
+  doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(9);
+  doc.text("NOMBRE Y FIRMA DEL HUESPED",105,y+5.5,{align:"center"}); doc.setTextColor(0);
+  doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.text(fc("Pagina 1 de 1"),105,y+18,{align:"center"});
+  const apellido=fc(datos.nombre||"huesped").split(" ").slice(-1)[0];
+  doc.save(`Xikiri_${apellido}.pdf`);
 }
 
 function pdfArenablanca(datos, ocupantes) {
