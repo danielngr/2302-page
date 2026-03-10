@@ -144,6 +144,12 @@
   .ine-status { font-size: 11px; font-family: var(--mono); }
   .ine-ok { color: var(--green); }
   .ine-missing { color: var(--muted); }
+  .btn-ine-action {
+    padding: 4px 10px; border-radius: 5px; border: 1px solid var(--border);
+    background: none; color: var(--muted); cursor: pointer; font-size: 11px;
+    font-family: var(--mono); transition: all .15s;
+  }
+  .btn-ine-action:hover { border-color: var(--accent); color: var(--accent); }
 
 </style>
 </head>
@@ -338,8 +344,10 @@ function cardHTML(r) {
       <div class="ine-section">
         <div class="ine-label">${r.template === "flamingos" ? "Identificación oficial (ID)" : "Identificación oficial (INE)"}</div>
         <div class="ine-row">
-          ${r.foto_id ? `<img class="ine-thumb" src="${r.foto_id}" alt="INE">
-            <span class="ine-status ine-ok">✓ Cargada por huésped</span>` :
+          ${r.foto_id ? `<img class="ine-thumb" src="${r.foto_id}" alt="INE" style="cursor:pointer;" onclick="verFoto('${r.id}')">
+            <span class="ine-status ine-ok">✓ Cargada por huésped</span>
+            <button class="btn-ine-action" onclick="verFoto('${r.id}')">🔍 Ver</button>
+            <button class="btn-ine-action" onclick="descargarFoto('${r.id}', '${r.nombre||'ID'}')">⬇ Descargar</button>` :
             `<span class="ine-status ine-missing">Sin foto</span>`}
           <label class="btn-ine-upload ${r.foto_id ? 'loaded' : ''}" id="btn-ine-${r.id}">
             <input type="file" accept="image/*" onchange="subirINE('${r.id}', this)">
@@ -361,6 +369,24 @@ function toggleDetail(id) {
 }
 
 // INE upload from dashboard
+function verFoto(id) {
+  const r = todosRegistros.find(x => x.id === id);
+  if(!r?.foto_id) return;
+  const w = window.open();
+  w.document.write(`<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;">
+    <img src="${r.foto_id}" style="max-width:100%;max-height:100vh;object-fit:contain;">
+  </body></html>`);
+}
+
+function descargarFoto(id, nombre) {
+  const r = todosRegistros.find(x => x.id === id);
+  if(!r?.foto_id) return;
+  const a = document.createElement("a");
+  a.href = r.foto_id;
+  a.download = `ID_${nombre.replace(/\s+/g,"_")}_${id}.jpg`;
+  a.click();
+}
+
 function subirINE(id, input) {
   if(!input.files || !input.files[0]) return;
   const reader = new FileReader();
