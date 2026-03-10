@@ -234,13 +234,11 @@ async function cargarRegistros() {
       "MARINA SOL":      {template:"whatsapp", tipo:"whatsapp"},
     };
     todosRegistros = todosRegistros.map(r => {
-      if(!r.template || !r.tipo_formato || r.tipo_formato === "general") {
-        const prefix = (r.depto || "").split(" ")[0].toUpperCase();
-        const mapped = DEPTO_EXACT[r.depto] || DEPTO_TEMPLATE[prefix];
-        if(mapped) {
-          r.template = r.template || mapped.template;
-          r.tipo_formato = (r.tipo_formato === "general" || !r.tipo_formato) ? mapped.tipo : r.tipo_formato;
-        }
+      const prefix = (r.depto || "").split(" ")[0].toUpperCase();
+      const mapped = DEPTO_EXACT[r.depto] || DEPTO_TEMPLATE[prefix];
+      if(mapped) {
+        if(!r.template) r.template = mapped.template;
+        if(!r.tipo_formato || r.tipo_formato === "general") r.tipo_formato = mapped.tipo;
       }
       return r;
     });
