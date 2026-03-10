@@ -253,6 +253,7 @@ function buildPills() {
     { icon:'🌮', label:'Spots Locales' },
     { icon:'ℹ️', label:'Info casa' },
     ...(D.hasQuiya ? [{ icon:'🍽', label:'Restaurante Quiya' }] : []),
+    ...(D.hasBolongo ? [{ icon:'🍽', label:'Restaurantes Bolongo' }] : []),
     { icon:'🌤', label:'Clima de hoy' },
     { icon:'🆘', label:'Tengo un problema', sos: true },
   ];
@@ -390,6 +391,7 @@ function getChapters() {
       ]
     },
     ...(D.hasQuiya ? [{ label:'Dentro del complejo', title:'Restaurante\nQuiya', desc:'Come y bebe sin salir del complejo. Aquí el menú completo y horarios.', quiya:true }] : []),
+    ...(D.hasBolongo ? [{ label:'Dentro del complejo', title:'Restaurantes\nBolongo', desc:'Tres opciones sin salir del complejo — mariscos, sushi y snacks. Menús completos aquí.', bolongo:true }] : []),
     {
       label: D.location, title:'Clima\nde hoy',
       desc:'Temperatura, viento y lluvia en tiempo real para que planees tu día perfectamente.',
@@ -515,7 +517,21 @@ function openChapter(idx) {
     `;
   }
 
-  if (ch.weather) {
+  if (ch.bolongo) {
+    html += `
+    <div style="margin-bottom:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 20px;">
+      <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:4px;">Dentro del complejo</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.6);line-height:1.8;">
+        🦞 <strong style="color:white;">Miche Mar</strong> — Mariscos, ceviches y cócteles<br>
+        🍣 <strong style="color:white;">Kaisen Sushi</strong> — Sushi, gyozas y especialidades · Room Service: <a href="https://wa.me/523223017250" style="color:var(--gold-light)">322 301 7250</a><br>
+        🍔 <strong style="color:white;">Snack Bar</strong> — Hamburguesas, alitas y snacks
+      </div>
+    </div>
+    ${menuSection('🦞 Miche Mar · Tostadas','',[{cat:'Tostadas',items:[['Tostada de Pescado Molido','$85'],['Tostada de Estofado Marlín','$89'],['Tostada de Camarón','$97'],['Tostada de Atún','$97'],['Tostada de Pescado Dorado','$97'],['Tostada de Pulpo','$119'],['Tostada de Pulpo Frito','$119']]},{cat:'Ceviches',items:[['Ceviche de Pescado Molido','$195'],['Ceviche de Pescado Dorado','$225'],['Ceviche Bolongo — camarón, pulpo, surimi, soya-sriracha','$235'],['Ceviche de Camarón','$235']]},{cat:'Cócteles',items:[['Cóctel de Camarón — ch $185 / gde $220',''],['Cóctel de Pulpo — ch $245 / gde $295',''],['Cóctel Mixto — ch $225 / gde $265',''],['Vasito Marisquero 355ml','$190'],['Balazo — clamato, salsas negras, camarón','$75']]},{cat:'Bebidas sin alcohol',items:[['Limonada / Naranjada','$70'],['Agua Natural','$47'],['Rusa Mineral','$65'],['Canica / Pantera / Piñada','$75'],['Refrescos','$57']]},{cat:'Cervezas',items:[['Corona Light / Pacífico / Corona / Victoria','$65–70'],['Negra Modelo / Modelo Especial / Ultra','$70–75'],['Michelada Cielo Rojo Barril','$85'],['Michelada Cielo Rojo Lata','$135']]},{cat:'Cócteles con alcohol',items:[['Paloma / Tequila Sunrise','$165–175'],['Margaritas / Mezcalitas de sabores','$185'],['Blue Hawaii / Daiquiri / Piña Colada','$165–175'],['Long Island / Miami Vice','$180–185'],['Tonic / Sonic / Martinis / Ricky / Gin Tonic','$185']]}])}
+    ${menuSection('🍣 Kaisen Sushi · Entradas','',[{cat:'Entradas',items:[['Tostadas Tampiko 4pzas — tortillas fritas, ensalada tampiko','$155'],['Gyozas de Camarón 6pzas — salsa soya y chile serrano','$185'],['Gyozas de Cerdo 6pzas — salsa soya y chile serrano','$185'],['Edamames 150gr — preparados con shishimi','$175']]},{cat:'Especiales',items:[['Bola de Fuego — arroz, philadelphia, plátano, pepino, tampiko, camarón','$265'],['Sashimi Salmón — láminas, pepino, ponzu, sriracha, cebollín','$245'],['Sashimi Atún — láminas, pepino, ponzu, sriracha, cebollín','$245'],['Tostadas Spicy Tuna 4pzas — mango, atún spicy, aguacate, ajonjolí','$255']]},{cat:'Room Service',items:[['Pedidos vía WhatsApp al 322 301 7250','']]}])}
+    ${menuSection('🍔 Snack Bar','',[{cat:'Snacks',items:[['Papas Fritas','$97'],['Papas Gajo','$145'],['Nuggets con Papas','$145'],['Aros de Cebolla','$145'],['Dedos de Queso','$175'],['Papas con Queso y Tocino','$195']]},{cat:'Hamburguesas',items:[['Hamburguesa Clásica — res, queso, lechuga, jitomate, cebolla','$235'],['Hamburguesa Camarón — camarones, pimientos, cebolla morada, costra queso','$255'],['Bacon Cheese Burger — res, queso, tocino, lechuga, jitomate, cebolla','$245'],['Western Burger — res, tocino, bbq, queso, lechuga, jitomate, aros cebolla','$265']]},{cat:'Alitas & Boneless',items:[['Alitas 200gr — salsas: Buffalo, Mango Habanero, Cajun, BBQ, Lemon Pepper, Parmesano','$245'],['Boneless 200gr','$255']]},{cat:'Más opciones',items:[['Chicharrón de Rib Eye o Atún — guacamole, tortillas','$290'],['Palomitas de Camarón — aderezo spicy, ajonjolí, anguila','$245'],['Nachos con Carne — queso, chili, jalapeños','$200'],['Nachos Sencillos — queso, jalapeños','$160'],['Hot Dogs — salchicha, tocino, jitomate, cebolla','$150'],['Tacos de Arrachera 3pzas — guacamole, salsa de la casa','$185'],['Ensalada César con Pollo / Camarón / Salmón','$220–280']]}])}
+    `;
+  }
     const W = D.weather;
     html += `
     <div style="border-radius:16px;overflow:hidden;margin-bottom:20px;border:1px solid rgba(255,255,255,0.1);">
