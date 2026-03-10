@@ -3032,21 +3032,22 @@ function mostrarTexto(r, datos, ocupantes) {
       <pre style="padding:18px;font-family:var(--mono);font-size:12px;line-height:1.7;overflow-y:auto;white-space:pre-wrap;">${texto}</pre>
       <div style="padding:12px 18px;border-top:1px solid #2a2a30;display:flex;gap:10px;align-items:center;">
         <button onclick="navigator.clipboard.writeText(this.closest('div').previousElementSibling.previousElementSibling.textContent);this.textContent='✓ Copiado'" style="background:var(--accent);color:#0f0f10;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px;">Copiar</button>
-        <button onclick="(function(btn){
-          const raw = btn.closest('div').previousElementSibling.previousElementSibling.textContent;
-          // Extraer número: busca línea '📱 Enviar a: +52 322...'
-          const match = raw.match(/Enviar a:\\s*([\\+\\d\\s]+)/);
-          if(!match){ alert('Número no encontrado'); return; }
-          const num = match[1].replace(/\\s/g,'');
-          // Quitar la primera línea '📱 Enviar a: ...' del mensaje
-          const msg = raw.replace(/.*Enviar a:[^\\n]*\\n?/,'').trim();
-          window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
-        })(this)" style="background:#25D366;color:#fff;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px;">📲 Enviar por WhatsApp</button>
+        <button onclick="enviarWA(this)" style="background:#25D366;color:#fff;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px;">📲 Enviar por WhatsApp</button>
       </div>
     </div>`;
   overlay.classList.add("overlay-modal");
   overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
   document.body.appendChild(overlay);
+}
+
+function enviarWA(btn) {
+  const pre = btn.closest('div').previousElementSibling.previousElementSibling;
+  const raw = pre.textContent;
+  const match = raw.match(/Enviar a:\s*([\+\d][\d\s]+)/);
+  if (!match) { alert('Número no encontrado'); return; }
+  const num = match[1].replace(/\s/g, '');
+  const msg = raw.replace(/.*Enviar a:[^\n]*\n?/, '').trim();
+  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
 }
 
 // Auto-refresh every 60 seconds
