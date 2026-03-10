@@ -3029,9 +3029,9 @@ function mostrarTexto(r, datos, ocupantes) {
         <span style="font-family:var(--mono);font-size:12px;color:var(--accent);">${tipo.toUpperCase()} — ${r.depto}</span>
         <button onclick="this.closest('.overlay-modal').remove()" style="background:none;border:none;color:#888;cursor:pointer;font-size:18px;">×</button>
       </div>
-      <pre style="padding:18px;font-family:var(--mono);font-size:12px;line-height:1.7;overflow-y:auto;white-space:pre-wrap;">${texto}</pre>
+      <pre id="modal-texto" style="padding:18px;font-family:var(--mono);font-size:12px;line-height:1.7;overflow-y:auto;white-space:pre-wrap;">${texto}</pre>
       <div style="padding:12px 18px;border-top:1px solid #2a2a30;display:flex;gap:10px;align-items:center;">
-        <button onclick="navigator.clipboard.writeText(this.closest('div').previousElementSibling.previousElementSibling.textContent);this.textContent='✓ Copiado'" style="background:var(--accent);color:#0f0f10;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px;">Copiar</button>
+        <button onclick="navigator.clipboard.writeText(document.getElementById('modal-texto').textContent);this.textContent='✓ Copiado'" style="background:var(--accent);color:#0f0f10;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px;">Copiar</button>
         <button onclick="enviarWA(this)" style="background:#25D366;color:#fff;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px;">📲 Enviar por WhatsApp</button>
       </div>
     </div>`;
@@ -3041,8 +3041,8 @@ function mostrarTexto(r, datos, ocupantes) {
 }
 
 function enviarWA(btn) {
-  const pre = btn.closest('div').previousElementSibling.previousElementSibling;
-  const raw = pre.textContent;
+  const pre = document.getElementById('modal-texto');
+  const raw = pre ? pre.textContent : '';
   const match = raw.match(/Enviar a:\s*([\+\d][\d\s]+)/);
   if (!match) { alert('Número no encontrado'); return; }
   const num = match[1].replace(/\s/g, '');
