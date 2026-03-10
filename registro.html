@@ -123,6 +123,17 @@
   .required::after { content: " *"; color: var(--error); }
 
   #loading { display:none; text-align:center; padding:16px; color:var(--muted); font-size:14px; }
+
+  .upload-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 20px; border-radius: 10px;
+    border: 2px dashed var(--border); background: var(--surface2);
+    color: var(--muted); cursor: pointer; font-size: 15px;
+    font-family: inherit; transition: all .2s; width: 100%;
+    box-sizing: border-box; justify-content: center;
+  }
+  .upload-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,.07); }
+  .upload-btn.done { border-color: var(--green); color: var(--green); border-style: solid; background: rgba(74,222,128,.07); }
 </style>
 </head>
 <body>
@@ -159,6 +170,18 @@
         <label id="txt-label-tel">Teléfono / WhatsApp</label>
         <input type="tel" id="telefono_vis" placeholder="+52 33 1234 5678" autocomplete="tel">
       </div>
+      <div class="field" style="margin-top:4px;">
+        <label id="txt-label-id-pen">Foto de identificación (INE)</label>
+        <p id="txt-hint-id-pen" style="font-size:12px;color:var(--muted);margin:4px 0 10px;line-height:1.5;">Toma una foto clara del frente de tu INE. Solo se usa para el control de acceso.</p>
+        <label class="upload-btn" id="upload-btn-pen" onclick="document.getElementById('foto_id_file_pen').click()">
+          📷 <span id="upload-btn-pen-txt">Tomar / subir foto</span>
+        </label>
+        <input type="file" id="foto_id_file_pen" accept="image/*" capture="environment" style="display:none;" onchange="previewFotoId(this,'pen')">
+        <div id="foto-id-preview-pen" style="display:none;margin-top:12px;text-align:center;">
+          <img id="foto-id-img-pen" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border);object-fit:cover;">
+          <p style="font-size:11px;color:var(--muted);margin-top:6px;">✓ Foto cargada</p>
+        </div>
+      </div>
     </div>
 
     <!-- FLAMINGOS ONLY -->
@@ -167,10 +190,13 @@
       <div class="field">
         <label id="txt-label-id">Foto de tu INE o pasaporte</label>
         <p id="txt-hint-id" style="font-size:12px;color:var(--muted);margin:4px 0 10px;line-height:1.5;">Toma una foto clara del frente de tu identificación. Solo la usamos para el control de acceso.</p>
-        <input type="file" id="foto_id_file" accept="image/*" capture="environment"
-          style="font-size:14px;padding:8px 0;width:100%;" onchange="previewFotoId(this)">
-        <div id="foto-id-preview" style="display:none;margin-top:10px;">
-          <img id="foto-id-img" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border);object-fit:cover;">
+        <label class="upload-btn" id="upload-btn-flam" onclick="document.getElementById('foto_id_file').click()">
+          📷 <span id="upload-btn-flam-txt">Tomar / subir foto</span>
+        </label>
+        <input type="file" id="foto_id_file" accept="image/*" capture="environment" style="display:none;" onchange="previewFotoId(this,'flam')">
+        <div id="foto-id-preview-flam" style="display:none;margin-top:12px;text-align:center;">
+          <img id="foto-id-img-flam" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border);object-fit:cover;">
+          <p style="font-size:11px;color:var(--muted);margin-top:6px;">✓ Foto cargada</p>
         </div>
       </div>
     </div>
@@ -538,7 +564,7 @@ async function enviar() {
   }
 }
 
-function previewFotoId(input) {
+function previewFotoId(input, which) {
   if(!input.files || !input.files[0]) return;
   const reader = new FileReader();
   reader.onload = function(e) {
@@ -551,12 +577,14 @@ function previewFotoId(input) {
       canvas.width = w; canvas.height = h;
       canvas.getContext("2d").drawImage(img, 0, 0, w, h);
       window._fotoIdB64 = canvas.toDataURL("image/jpeg", 0.82);
-      const previewDiv = document.getElementById("foto-id-preview");
-      const previewImg = document.getElementById("foto-id-img");
-      if(previewDiv && previewImg) {
-        previewImg.src = window._fotoIdB64;
-        previewDiv.style.display = "block";
-      }
+      const suffix = which || 'flam';
+      const previewDiv = document.getElementById(`foto-id-preview-${suffix}`);
+      const previewImg = document.getElementById(`foto-id-img-${suffix}`);
+      const btn       = document.getElementById(`upload-btn-${suffix}`);
+      const btnTxt    = document.getElementById(`upload-btn-${suffix}-txt`);
+      if(previewDiv && previewImg) { previewImg.src = window._fotoIdB64; previewDiv.style.display = "block"; }
+      if(btn) btn.classList.add("done");
+      if(btnTxt) btnTxt.textContent = "✓ Foto cargada — cambiar";
     };
     img.src = e.target.result;
   };
