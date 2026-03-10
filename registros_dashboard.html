@@ -657,6 +657,10 @@ function pdfAlbatros(datos, ocupantes) {
 
   const ocuList = Array.isArray(ocupantes) && ocupantes.length
     ? ocupantes : [{ nombre: datos.nombre || "" }];
+  if (ocuList.length > 10) {
+    alert(`Albatros permite máximo 10 ocupantes.\nEste registro tiene ${ocuList.length}. Por favor corrígelo antes de generar el PDF.`);
+    return;
+  }
   ocuList.forEach(o => {
     doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(20,20,20);
     doc.text(fc(o.nombre || ""), ML + 8, y);
@@ -683,22 +687,22 @@ function pdfAlbatros(datos, ocupantes) {
   const adm_mid  = ML + CW * 0.25;
   const user_mid = ML + CW * 0.75;
 
-  doc.setFont("helvetica","bold"); doc.setFontSize(11);
-  doc.text("ADM. DANIELA RODRIGUEZ", adm_mid, y, { align:"center" });
-  y += 4;
-
-  // Firma sobre línea izquierda
-  try { doc.addImage(LOGOS.firma_albatros, "PNG", adm_mid - 50, y - 34, 100, 38); } catch(e) {}
-  y += 36;
+  // Firma encima de la línea
+  try { doc.addImage(LOGOS.firma_albatros, "PNG", adm_mid - 50, y - 10, 100, 38); } catch(e) {}
+  y += 32;
 
   hlineShort(ML,           ML + CW*0.45, y);
   hlineShort(ML + CW*0.55, RIGHT,        y);
 
+  // Nombre debajo de la línea
+  doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(20,20,20);
+  doc.text("ADM. DANIELA RODRIGUEZ", adm_mid, y + 14, { align:"center" });
+
   doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(100,100,100);
-  doc.text("Nombre y firma de Propietario",         adm_mid,  y + 11, { align:"center" });
-  doc.text("Nombre y firma de aceptacion (usuario)", user_mid, y + 11, { align:"center" });
+  doc.text("Nombre y firma de Propietario",         adm_mid,  y + 24, { align:"center" });
+  doc.text("Nombre y firma de aceptacion (usuario)", user_mid, y + 14, { align:"center" });
   doc.setTextColor(20,20,20);
-  y += 28;
+  y += 36;
 
   // ── Se hace entrega + Comentarios ─────────────────
   doc.setFont("helvetica","bold"); doc.setFontSize(10);
@@ -3033,7 +3037,7 @@ ${numDepto}
       </div>
       <pre id="modal-texto" style="padding:18px;font-family:var(--mono);font-size:12px;line-height:1.7;overflow-y:auto;white-space:pre-wrap;">${texto}</pre>
       <div style="padding:12px 18px;border-top:1px solid #2a2a30;display:flex;gap:10px;align-items:center;">
-        <button onclick="navigator.clipboard.writeText(document.getElementById('modal-texto').textContent);this.textContent='✓ Copiado'" style="background:var(--accent);color:#0f0f10;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px;">Copiar</button>
+        <button onclick="navigator.clipboard.writeText(document.getElementById('modal-texto').textContent.replace(/.*Enviar a:[^\n]*\n?/,'').trim());this.textContent='✓ Copiado'" style="background:var(--accent);color:#0f0f10;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px;">Copiar</button>
         <button onclick="enviarWA(this)" style="background:#25D366;color:#fff;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px;">📲 Enviar por WhatsApp</button>
       </div>
     </div>`;

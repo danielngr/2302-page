@@ -401,9 +401,22 @@ function init() {
 }
 
 function syncOcupantes() {
-  const adultos = parseInt(document.getElementById("num_adultos").value) || 1;
-  const menores = parseInt(document.getElementById("num_menores").value) || 0;
-  const total = adultos + menores;
+  let adultos = parseInt(document.getElementById("num_adultos").value) || 1;
+  let menores = parseInt(document.getElementById("num_menores").value) || 0;
+  let total = adultos + menores;
+  const isAlbatros = (deptoKey || "").toUpperCase().startsWith("ALBATROS");
+  if (isAlbatros && total > 10) {
+    alert("Albatros permite máximo 10 personas.");
+    // Recortar el último input que se subió
+    if (menores > 0 && adultos + menores > 10) {
+      menores = Math.max(0, 10 - adultos);
+      document.getElementById("num_menores").value = menores;
+    } else {
+      adultos = Math.max(1, 10 - menores);
+      document.getElementById("num_adultos").value = adultos;
+    }
+    total = adultos + menores;
+  }
   while(ocupantes.length < total) ocupantes.push({nombre:"", tipo:""});
   while(ocupantes.length > total) ocupantes.pop();
   ocupantes.forEach((o, i) => { o.tipo = i < adultos ? "Adulto" : "Menor"; });
