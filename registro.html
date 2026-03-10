@@ -31,6 +31,26 @@
   .page-header h1 { font-size: 18px; font-weight: 600; }
   .page-header p { font-size: 13px; opacity: .8; margin-top: 4px; }
 
+  /* Language selector */
+  .lang-bar {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+  }
+  .lang-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 18px; border-radius: 20px; border: 1.5px solid var(--border);
+    background: var(--bg); color: var(--muted); font-family: var(--sans);
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all .2s;
+  }
+  .lang-btn.active {
+    border-color: var(--accent); background: var(--accent-light);
+    color: var(--accent);
+  }
+
   .container { max-width: 600px; margin: 0 auto; padding: 24px 16px 48px; }
 
   .depto-badge {
@@ -66,16 +86,6 @@
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 
-  .ocupantes-aviso {
-    background: #fff8e1;
-    border: 1px solid #f59e0b;
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 13px;
-    color: #7c4a00;
-    margin-bottom: 12px;
-    line-height: 1.5;
-  }
   .ocupante-row {
     display: grid; grid-template-columns: 1fr 110px 36px; gap: 8px;
     align-items: center; margin-bottom: 8px;
@@ -113,49 +123,19 @@
   .required::after { content: " *"; color: var(--error); }
 
   #loading { display:none; text-align:center; padding:16px; color:var(--muted); font-size:14px; }
-
-  /* INE photo upload */
-  .foto-upload-area {
-    border: 2px dashed var(--border);
-    border-radius: 10px;
-    padding: 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: all .2s;
-    position: relative;
-  }
-  .foto-upload-area:hover, .foto-upload-area.active {
-    border-color: var(--accent);
-    background: var(--accent-light);
-  }
-  .foto-upload-area input[type=file] {
-    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
-  }
-  .foto-icon { font-size: 32px; margin-bottom: 8px; }
-  .foto-label { font-size: 13px; color: var(--muted); }
-  .foto-label strong { color: var(--accent); display: block; font-size: 14px; margin-bottom: 4px; }
-  .foto-preview {
-    display: none; margin-top: 14px; position: relative;
-  }
-  .foto-preview img {
-    width: 100%; max-height: 200px; object-fit: cover;
-    border-radius: 8px; border: 2px solid var(--accent);
-  }
-  .foto-preview .btn-remove-foto {
-    position: absolute; top: 6px; right: 6px;
-    background: rgba(0,0,0,.6); color: white; border: none;
-    border-radius: 50%; width: 28px; height: 28px; cursor: pointer;
-    font-size: 16px; display: flex; align-items: center; justify-content: center;
-  }
-  .foto-ok { color: var(--success); font-size: 12px; margin-top: 6px; font-weight: 500; }
-
 </style>
 </head>
 <body>
 
 <div class="page-header">
-  <h1>Registro de Huéspedes</h1>
-  <p>Por favor completa tus datos antes de tu llegada</p>
+  <h1 id="txt-title">Registro de Huéspedes</h1>
+  <p id="txt-subtitle">Por favor completa tus datos antes de tu llegada</p>
+</div>
+
+<!-- LANGUAGE SELECTOR -->
+<div class="lang-bar">
+  <button class="lang-btn active" id="btn-es" onclick="setLang('es')">🇲🇽 Español</button>
+  <button class="lang-btn" id="btn-en" onclick="setLang('en')">🇺🇸 English</button>
 </div>
 
 <div class="container">
@@ -164,116 +144,58 @@
       <span class="depto-badge" id="depto-badge">Cargando...</span>
     </div>
 
-    <!-- DATOS PRINCIPALES: hidden nombre field, derived from ocupantes[0] -->
     <input type="hidden" id="nombre">
     <input type="hidden" id="email">
     <input type="hidden" id="telefono">
 
-    <!-- PENINSULA ONLY: datos completos del responsable -->
+    <!-- PENINSULA ONLY -->
     <div class="card" id="card-peninsula" style="display:none;">
-      <div class="card-title">Datos del responsable</div>
+      <div class="card-title" id="txt-card-resp">Datos del responsable</div>
       <div class="field">
-        <label>Nombre completo (según ID oficial) <span style="color:var(--accent)">*</span></label>
-        <input type="text" id="nombre_vis" placeholder="Nombre como aparece en tu ID" autocomplete="name">
-      </div>
-      <div class="field-row" style="display:flex; gap:12px;">
-        <div class="field" style="flex:1;">
-          <label>Edad <span style="color:var(--accent)">*</span></label>
-          <input type="number" id="edad_vis" placeholder="35" min="18" max="99">
-        </div>
-        <div class="field" style="flex:3;">
-          <label>Dirección (ciudad, estado, país)</label>
-          <input type="text" id="direccion_vis" placeholder="Ej. Guadalajara, Jalisco, México" autocomplete="address-level2">
-        </div>
-      </div>
-      <div class="field">
-        <label>Correo electrónico</label>
+        <label id="txt-label-email">Correo electrónico</label>
         <input type="email" id="email_vis" placeholder="tu@email.com" autocomplete="email">
       </div>
       <div class="field">
-        <label>Teléfono / WhatsApp <span style="color:var(--accent)">*</span></label>
+        <label id="txt-label-tel">Teléfono / WhatsApp</label>
         <input type="tel" id="telefono_vis" placeholder="+52 33 1234 5678" autocomplete="tel">
-      </div>
-    </div>
-
-    <!-- PENINSULA ONLY: foto INE -->
-    <div class="card" id="card-foto" style="display:none;">
-      <div class="card-title">Identificación oficial</div>
-      <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">
-        Sube una foto clara de tu INE, pasaporte u otra identificación oficial.
-      </p>
-      <div class="foto-upload-area" id="foto-drop-area">
-        <input type="file" id="foto_id_input" accept="image/*" capture="environment" onchange="onFotoChange(this)">
-        <div id="foto-placeholder">
-          <div class="foto-icon">📷</div>
-          <div class="foto-label">
-            <strong>Tomar foto o subir archivo</strong>
-            Toca aquí para usar la cámara o seleccionar imagen
-          </div>
-        </div>
-      </div>
-      <div class="foto-preview" id="foto-preview">
-        <img id="foto-img" src="" alt="ID">
-        <button class="btn-remove-foto" onclick="quitarFoto()">×</button>
-        <div class="foto-ok">✓ Identificación cargada</div>
       </div>
     </div>
 
     <!-- FECHAS -->
     <div class="card">
-      <div class="card-title">Fechas de estancia</div>
+      <div class="card-title" id="txt-card-fechas">Fechas de estancia</div>
       <div class="grid2">
         <div class="field">
-          <label class="required">Fecha de llegada</label>
+          <label class="required" id="txt-label-entrada">Fecha de llegada</label>
           <input type="date" id="fecha_entrada">
         </div>
         <div class="field">
-          <label class="required">Fecha de salida</label>
+          <label class="required" id="txt-label-salida">Fecha de salida</label>
           <input type="date" id="fecha_salida">
         </div>
       </div>
       <div class="grid3">
         <div class="field">
-          <label>Adultos</label>
+          <label id="txt-label-adultos">Adultos</label>
           <input type="number" id="num_adultos" min="1" max="20" value="1" onchange="syncOcupantes()">
         </div>
         <div class="field">
-          <label>Menores</label>
+          <label id="txt-label-menores">Minors / Menores</label>
           <input type="number" id="num_menores" min="0" max="20" value="0" onchange="syncOcupantes()">
-        </div>
-
-      </div>
-    </div>
-
-    <!-- VEHÍCULO -->
-    <div class="card">
-      <div class="card-title">Vehículo (opcional)</div>
-      <div class="grid2">
-        <div class="field">
-          <label>Marca / Modelo / Color</label>
-          <input type="text" id="vehiculo_modelo" placeholder="Ej: Toyota Rav4 Blanca">
-        </div>
-        <div class="field">
-          <label>Placas</label>
-          <input type="text" id="vehiculo_placas" placeholder="Ej: ABC-1234">
         </div>
       </div>
     </div>
 
     <!-- OCUPANTES -->
     <div class="card">
-      <div class="card-title">Lista de todos los huéspedes</div>
-      <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">Incluye a todos los que se hospedarán, incluyéndote a ti.</p>
-      <div class="ocupantes-aviso">
-        <span>⚠️ Incluye a <strong>todos los ocupantes sin excepción</strong>, incluyendo bebés y menores. Quienes no aparezcan en esta lista <strong>no podrán ingresar</strong> al condominio.</span>
-      </div>
+      <div class="card-title" id="txt-card-ocupantes">Lista de todos los huéspedes</div>
+      <p id="txt-ocu-hint" style="font-size:13px; color:var(--muted); margin-bottom:14px;">Incluye a todos los que se hospedarán, incluyéndote a ti.</p>
       <div id="ocupantes-list"></div>
-
     </div>
 
     <div id="loading">Enviando registro...</div>
     <button class="btn-submit" id="btn-submit" onclick="enviar()">ENVIAR REGISTRO</button>
-    <p style="text-align:center; font-size:11px; color:var(--muted); margin-top:12px;">
+    <p id="txt-privacy" style="text-align:center; font-size:11px; color:var(--muted); margin-top:12px;">
       Tus datos se usan únicamente para el registro de acceso al condominio.
     </p>
   </div>
@@ -281,8 +203,8 @@
   <!-- SUCCESS -->
   <div class="success-screen" id="success-screen">
     <div class="success-icon">✅</div>
-    <h2>¡Registro enviado!</h2>
-    <p>Hemos recibido tu información.<br>Nos vemos en tu llegada. ¡Bienvenido!</p>
+    <h2 id="txt-success-title">¡Registro enviado!</h2>
+    <p id="txt-success-body">Hemos recibido tu información.<br>Nos vemos en tu llegada. ¡Bienvenido!</p>
   </div>
 </div>
 
@@ -290,7 +212,95 @@
 const SUPABASE_URL = "https://grsykedeppdwenpfxlfh.supabase.co";
 const SUPABASE_KEY = "sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm";
 
-// Mapa depto → template + tipo
+// ── Translations ─────────────────────────────────────────
+const TXT = {
+  es: {
+    title: "Registro de Huéspedes",
+    subtitle: "Por favor completa tus datos antes de tu llegada",
+    cardResp: "Datos del responsable",
+    labelEmail: "Correo electrónico",
+    labelTel: "Teléfono / WhatsApp",
+    cardFechas: "Fechas de estancia",
+    labelEntrada: "Fecha de llegada",
+    labelSalida: "Fecha de salida",
+    labelAdultos: "Adultos",
+    labelMenores: "Menores",
+    cardOcupantes: "Lista de todos los huéspedes",
+    ocuHint: "Incluye a todos los que se hospedarán, incluyéndote a ti.",
+    ocuResponsable: "Nombre completo (Responsable)",
+    ocuNombre: "Nombre completo",
+    tipoAdulto: "Adulto",
+    tipoAdolescente: "Adolescente",
+    tipoMenor: "Menor",
+    btnSubmit: "ENVIAR REGISTRO",
+    loading: "Enviando registro...",
+    privacy: "Tus datos se usan únicamente para el registro de acceso al condominio.",
+    successTitle: "¡Registro enviado!",
+    successBody: "Hemos recibido tu información.<br>Nos vemos en tu llegada. ¡Bienvenido!",
+    errNombre: "Por favor ingresa el nombre del responsable (primera línea de huéspedes).",
+    errFechas: "Por favor ingresa las fechas de tu estancia.",
+    errDepto: "Departamento no especificado en el link.",
+    errEnvio: "Error al enviar. Por favor intenta de nuevo.\n",
+  },
+  en: {
+    title: "Guest Registration",
+    subtitle: "Please fill in your details before arrival",
+    cardResp: "Responsible guest details",
+    labelEmail: "Email address",
+    labelTel: "Phone / WhatsApp",
+    cardFechas: "Stay dates",
+    labelEntrada: "Check-in date",
+    labelSalida: "Check-out date",
+    labelAdultos: "Adults",
+    labelMenores: "Minors",
+    cardOcupantes: "List of all guests",
+    ocuHint: "Include everyone staying, including yourself.",
+    ocuResponsable: "Full name (Lead guest)",
+    ocuNombre: "Full name",
+    tipoAdulto: "Adult",
+    tipoAdolescente: "Teen",
+    tipoMenor: "Minor",
+    btnSubmit: "SUBMIT REGISTRATION",
+    loading: "Sending registration...",
+    privacy: "Your data is used solely for condominium access registration.",
+    successTitle: "Registration submitted!",
+    successBody: "We have received your information.<br>See you at check-in. Welcome!",
+    errNombre: "Please enter the lead guest's full name (first row).",
+    errFechas: "Please enter your stay dates.",
+    errDepto: "Property not specified in the link.",
+    errEnvio: "Error sending. Please try again.\n",
+  }
+};
+
+let lang = "es";
+
+function setLang(l) {
+  lang = l;
+  document.getElementById("btn-es").classList.toggle("active", l === "es");
+  document.getElementById("btn-en").classList.toggle("active", l === "en");
+  const T = TXT[l];
+  document.getElementById("txt-title").textContent        = T.title;
+  document.getElementById("txt-subtitle").textContent     = T.subtitle;
+  document.getElementById("txt-card-resp").textContent    = T.cardResp;
+  document.getElementById("txt-label-email").textContent  = T.labelEmail;
+  document.getElementById("txt-label-tel").textContent    = T.labelTel;
+  document.getElementById("txt-card-fechas").textContent  = T.cardFechas;
+  document.getElementById("txt-label-entrada").textContent= T.labelEntrada;
+  document.getElementById("txt-label-salida").textContent = T.labelSalida;
+  document.getElementById("txt-label-adultos").textContent= T.labelAdultos;
+  document.getElementById("txt-label-menores").textContent= T.labelMenores;
+  document.getElementById("txt-card-ocupantes").textContent= T.cardOcupantes;
+  document.getElementById("txt-ocu-hint").textContent     = T.ocuHint;
+  document.getElementById("btn-submit").textContent       = T.btnSubmit;
+  document.getElementById("loading").textContent          = T.loading;
+  document.getElementById("txt-privacy").textContent      = T.privacy;
+  document.getElementById("txt-success-title").textContent= T.successTitle;
+  document.getElementById("txt-success-body").innerHTML   = T.successBody;
+  // Re-render ocupantes para traducir labels y opciones
+  renderOcupantes();
+}
+
+// ── Depto map ────────────────────────────────────────────
 const DEPTO_MAP = {
   "QUIYA 2302":{"template":"quiya","tipo":"pdf"},
   "QUIYA 2005":{"template":"quiya","tipo":"pdf"},
@@ -302,6 +312,7 @@ const DEPTO_MAP = {
   "QUIYA 2805":{"template":"quiya","tipo":"pdf"},
   "QUIYA 2905":{"template":"quiya","tipo":"pdf"},
   "QUIYA 3004":{"template":"quiya","tipo":"pdf"},
+  "QUIYA 2103":{"template":"quiya","tipo":"pdf"},
   "ALBATROS 301 A":{"template":"albatros","tipo":"pdf"},
   "GD 103A":{"template":"gd","tipo":"pdf"},
   "GD 202B":{"template":"gd","tipo":"pdf"},
@@ -310,21 +321,11 @@ const DEPTO_MAP = {
   "GD 501E":{"template":"gd","tipo":"pdf"},
   "ALAMAR 503":{"template":"alamar","tipo":"pdf"},
   "DELTA 2 101":{"template":"alamar","tipo":"pdf"},
-  "QUIYA 2005":{"template":"quiya","tipo":"pdf"},
-        "QUIYA 2103":{"template":"quiya","tipo":"pdf"},
-        "QUIYA 2302":{"template":"quiya","tipo":"pdf"},
-        "QUIYA 2403":{"template":"quiya","tipo":"pdf"},
-        "QUIYA 2701":{"template":"quiya","tipo":"pdf"},
-        "QUIYA 2705":{"template":"quiya","tipo":"pdf"},
-        "QUIYA 2801":{"template":"quiya","tipo":"pdf"},
-        "QUIYA 2805":{"template":"quiya","tipo":"pdf"},
-        "QUIYA 2905":{"template":"quiya","tipo":"pdf"},
-        "QUIYA 3004":{"template":"quiya","tipo":"pdf"},
-        "VENETIAN 905 T3":{"template":"venetian","tipo":"pdf"},
+  "VENETIAN 905 T3":{"template":"venetian","tipo":"pdf"},
   "VENETIAN 906 T3":{"template":"venetian","tipo":"pdf"},
   "VENETIAN 1010 T3":{"template":"venetian","tipo":"pdf"},
   "VENETIAN 1903 T3":{"template":"venetian","tipo":"pdf"},
-    "FLAMINGOS":{"template":"flamingos","tipo":"pdf"},
+  "FLAMINGOS":{"template":"flamingos","tipo":"pdf"},
   "XIKIRI":{"template":"xikiri","tipo":"pdf"},
   "PENINSULA 19E":{"template":"peninsula","tipo":"pdf"},
   "PENINSULA 18B":{"template":"peninsula","tipo":"pdf"},
@@ -373,20 +374,23 @@ let ocupantes = [{nombre:"", tipo:"Adulto"}];
 let deptoKey = "";
 let deptoInfo = {};
 
-// Get depto from URL
 function init() {
   const params = new URLSearchParams(window.location.search);
   deptoKey = (params.get("dept") || "").toUpperCase().replace(/-/g," ");
   deptoInfo = DEPTO_MAP[deptoKey] || {};
-  const badge = document.getElementById("depto-badge");
-  badge.textContent = deptoKey || "Departamento no especificado";
-  // Show email/tel for Peninsula only
+  document.getElementById("depto-badge").textContent = deptoKey || "—";
+
+  // Auto-detect browser language
+  const browserLang = (navigator.language || "es").startsWith("en") ? "en" : "es";
+  // URL override: ?lang=en
+  const urlLang = params.get("lang");
+  const initLang = urlLang === "en" ? "en" : urlLang === "es" ? "es" : browserLang;
+  setLang(initLang);
+
   if(deptoInfo.template === "peninsula") {
     document.getElementById("card-peninsula").style.display = "block";
-    document.getElementById("card-foto").style.display = "block";
   }
 
-  // Set today dates
   const hoy = new Date();
   const fmt = d => d.toISOString().split("T")[0];
   document.getElementById("fecha_entrada").value = fmt(hoy);
@@ -406,81 +410,38 @@ function syncOcupantes() {
   renderOcupantes();
 }
 
-
 function renderOcupantes() {
+  const T = TXT[lang];
   const adultos = parseInt(document.getElementById("num_adultos").value)||1;
   const list = document.getElementById("ocupantes-list");
   list.innerHTML = "";
   ocupantes.forEach((o, i) => {
     const isResponsable = i === 0;
-    const label = isResponsable ? "Nombre completo (Responsable)" : "Nombre completo";
+    const label = isResponsable ? T.ocuResponsable : T.ocuNombre;
     const row = document.createElement("div");
     row.className = "ocupante-row";
     row.innerHTML = `
       <input type="text" placeholder="${label}" value="${o.nombre}"
         oninput="ocupantes[${i}].nombre=this.value" style="font-size:15px;">
       <select onchange="ocupantes[${i}].tipo=this.value">
-        <option ${o.tipo==="Adulto"?"selected":""}>Adulto</option>
-        <option ${o.tipo==="Adolescente"?"selected":""}>Adolescente</option>
-        <option ${o.tipo==="Menor"?"selected":""}>Menor</option>
+        <option ${o.tipo==="Adulto"?"selected":""}>${T.tipoAdulto}</option>
+        <option ${o.tipo==="Adolescente"?"selected":""}>${T.tipoAdolescente}</option>
+        <option ${o.tipo==="Menor"?"selected":""}>${T.tipoMenor}</option>
       </select>
     `;
     list.appendChild(row);
   });
 }
 
-
-
-
-// Foto INE
-let fotoBase64 = null;
-
-function onFotoChange(input) {
-  if(!input.files || !input.files[0]) return;
-  const file = input.files[0];
-  // Resize & compress before storing
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const img = new Image();
-    img.onload = function() {
-      const canvas = document.createElement("canvas");
-      const MAX = 800;
-      let w = img.width, h = img.height;
-      if(w > MAX) { h = h * MAX / w; w = MAX; }
-      if(h > MAX) { w = w * MAX / h; h = MAX; }
-      canvas.width = w; canvas.height = h;
-      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-      fotoBase64 = canvas.toDataURL("image/jpeg", 0.75);
-      document.getElementById("foto-img").src = fotoBase64;
-      document.getElementById("foto-placeholder").style.display = "none";
-      document.getElementById("foto-preview").style.display = "block";
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function quitarFoto() {
-  fotoBase64 = null;
-  document.getElementById("foto-img").src = "";
-  document.getElementById("foto-preview").style.display = "none";
-  document.getElementById("foto-placeholder").style.display = "block";
-  document.getElementById("foto_id_input").value = "";
-}
-
 async function enviar() {
-  const isPeninsula = deptoInfo.template === "peninsula";
-  // Peninsula: nombre from its own field; others: from first ocupante
-  const nombre = isPeninsula
-    ? (document.getElementById("nombre_vis")?.value || "").trim()
-    : (ocupantes[0]?.nombre || "").trim();
+  const T = TXT[lang];
+  const nombre = (ocupantes[0]?.nombre || "").trim();
   const fecha_entrada = document.getElementById("fecha_entrada").value;
   const fecha_salida = document.getElementById("fecha_salida").value;
 
-  if(!nombre){ alert("Por favor ingresa el nombre del responsable."); return; }
-  if(isPeninsula && !(document.getElementById("telefono_vis")?.value||"").trim()){ alert("Por favor ingresa tu telefono."); return; }
-  if(!fecha_entrada || !fecha_salida){ alert("Por favor ingresa las fechas de tu estancia."); return; }
-  if(!deptoKey){ alert("Departamento no especificado en el link."); return; }
+  if(!nombre){ alert(T.errNombre); return; }
+  if(!fecha_entrada || !fecha_salida){ alert(T.errFechas); return; }
+  if(!deptoKey){ alert(T.errDepto); return; }
 
   const btn = document.getElementById("btn-submit");
   const loading = document.getElementById("loading");
@@ -491,8 +452,6 @@ async function enviar() {
     template: deptoInfo.template || "general",
     tipo_formato: deptoInfo.tipo || "general",
     nombre,
-    edad: isPeninsula ? (document.getElementById("edad_vis")?.value || null) : null,
-    direccion: isPeninsula ? ((document.getElementById("direccion_vis")?.value || "").trim() || null) : null,
     email: (document.getElementById("email_vis")?.value || "").trim() || null,
     telefono: (document.getElementById("telefono_vis")?.value || "").trim() || null,
     fecha_entrada,
@@ -500,13 +459,8 @@ async function enviar() {
     num_adultos: parseInt(document.getElementById("num_adultos").value)||1,
     num_menores: parseInt(document.getElementById("num_menores").value)||0,
     num_mascotas: 0,
-    vehiculo_modelo: document.getElementById("vehiculo_modelo").value.trim() || null,
-    vehiculo_placas: document.getElementById("vehiculo_placas").value.trim() || null,
-    foto_id: fotoBase64 || null,
-    // For Peninsula, ocupante[0] = titular (already in nombre field) — skip to avoid duplicate
-    ocupantes: isPeninsula
-      ? ocupantes.slice(1).filter(o=>o.nombre.trim())
-      : ocupantes.filter(o=>o.nombre.trim()),
+    vehiculo_modelo: null,
+    ocupantes: ocupantes.filter(o=>o.nombre.trim()),
   };
 
   try {
@@ -529,7 +483,7 @@ async function enviar() {
       throw new Error(err);
     }
   } catch(e) {
-    alert("Error al enviar. Por favor intenta de nuevo.\n" + e.message);
+    alert(T.errEnvio + e.message);
     btn.disabled = false; loading.style.display = "none";
   }
 }
