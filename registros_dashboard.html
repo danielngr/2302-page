@@ -446,7 +446,9 @@ async function marcarGenerado(id) {
       "Content-Type": "application/json", "Prefer": "return=minimal"
     },
     body: JSON.stringify({pdf_generado: true})
-  }).catch(e => console.warn("marcarGenerado error:", e));
+  }).then(res => {
+    if(!res.ok) res.text().then(t => console.error("marcarGenerado PATCH error:", res.status, t));
+  }).catch(e => console.error("marcarGenerado fetch error:", e));
 }
 
 function fc(s) {
