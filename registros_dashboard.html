@@ -480,11 +480,11 @@ function generarFormato(id) {
   datos.recamaras = r.num_recamaras || r.recamaras || 2;
 
   if(r.tipo_formato === "pdf") {
-    generarPDF(r, datos, ocupantesArr);
+    generarPDF(r, datos, ocupantesArr, id);
   } else {
     mostrarTexto(r, datos, ocupantesArr);
+    marcarGenerado(id);
   }
-  marcarGenerado(id);
 }
 
 // ── PDF generators (same as generador_formatos) ─────────────
@@ -504,17 +504,17 @@ function pdfField(doc, y, label, value, x1=14, x2=60) {
   doc.text(value||"___",x2,y); return y+6;
 }
 
-function generarPDF(r, datos, ocupantes) {
+function generarPDF(r, datos, ocupantes, _genId) {
   console.log("[generarPDF] template:", r.template);
   const { jsPDF } = window.jspdf;
   let doc;
-  if(r.template === "flamingos") doc = pdfFlamingos(datos, ocupantes);
-  else if(r.template === "albatros") doc = pdfAlbatros(datos, ocupantes);
-  else if(r.template === "gd") doc = pdfGD(datos, ocupantes);
-  else if(r.template === "alamar") doc = pdfAlamar(datos, ocupantes);
-  else if(r.template === "venetian") doc = pdfVenetian(datos, ocupantes);
-  else if(r.template === "xikiri") doc = pdfXikiri(datos, ocupantes);
-  else if(r.template === "quiya") { pdfQuiya(datos, ocupantes); return; }
+  if(r.template === "flamingos") doc = pdfFlamingos(datos, ocupantes, _genId);
+  else if(r.template === "albatros") doc = pdfAlbatros(datos, ocupantes, _genId);
+  else if(r.template === "gd") doc = pdfGD(datos, ocupantes, _genId);
+  else if(r.template === "alamar") doc = pdfAlamar(datos, ocupantes, _genId);
+  else if(r.template === "venetian") doc = pdfVenetian(datos, ocupantes, _genId);
+  else if(r.template === "xikiri") doc = pdfXikiri(datos, ocupantes, _genId);
+  else if(r.template === "quiya") { pdfQuiya(datos, ocupantes, _genId); return; }
   else if(r.template === "peninsula") {
     var idioma = r._idioma || "es";
     if(idioma === "es"){ pdfPeninsulaES(datos, ocupantes); setTimeout(function(){ leasePeninsulaES(datos); }, 800); }
@@ -524,7 +524,7 @@ function generarPDF(r, datos, ocupantes) {
   else { mostrarTexto(r, datos, ocupantes); return; }
 }
 
-function pdfFlamingos(datos, ocupantes) {
+function pdfFlamingos(datos, ocupantes, _genId) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const W = 612, ML = 36, MR = 36, CW = 540, RIGHT = 576;
@@ -654,10 +654,11 @@ function pdfFlamingos(datos, ocupantes) {
   doc.setDrawColor(0); doc.setLineWidth(1.8); doc.rect(30, 12, 552, 768);
 
   const deptoNum=(datos.depto||"").replace("FLAMINGOS ","")|| "27";
+  if(_genId) marcarGenerado(_genId);
   doc.save(`Flamingos_${deptoNum}_${fc((datos.nombre||"huesped").split(" ")[0])}.pdf`);
 }
 
-function pdfAlbatros(datos, ocupantes) {
+function pdfAlbatros(datos, ocupantes, _genId) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const W = 612, H = 792, ML = 45, MR = 45;
@@ -824,10 +825,11 @@ function pdfAlbatros(datos, ocupantes) {
   doc.text("Nombre del vigilante en Turno:", ML, y + 13);
 
   const deptoCorto = depto.replace(/ /g,"");
+  if(_genId) marcarGenerado(_genId);
   doc.save(`Albatros_${deptoCorto}_registro.pdf`);
 }
 
-function pdfGD(datos, ocupantes) {
+function pdfGD(datos, ocupantes, _genId) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:"pt", format:"letter"});
   const W = 612, H = 792;
@@ -972,11 +974,12 @@ function pdfGD(datos, ocupantes) {
   doc.setFillColor(...GREEN);
   doc.rect(0, H-18, W, 18, "F");
 
+  if(_genId) marcarGenerado(_genId);
   doc.save(`GreenDistrict_${unidad}_${(datos.nombre||"huesped").split(" ")[0]}.pdf`);
 }
 
 
-function pdfAlamar(datos, ocupantes) {
+function pdfAlamar(datos, ocupantes, _genId) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const W = 612, H = 792;
@@ -1524,10 +1527,11 @@ function pdfAlamar(datos, ocupantes) {
   footer(doc);
 
   const filename = `ALAMAR_${fc(datos.depto.replace('ALAMAR ','').replace(/ /g,'_'))}_${lang.toUpperCase()}.pdf`;
+  if(_genId) marcarGenerado(_genId);
   doc.save(filename);
 }
 
-function pdfVenetian(datos, ocupantes) {
+function pdfVenetian(datos, ocupantes, _genId) {
   var jsPDF = window.jspdf.jsPDF;
   var doc = new jsPDF({unit:"pt", format:"letter", putOnlyUsedFonts:true, floatPrecision:16});
   // Helper to fix special chars for jsPDF standard fonts
@@ -1905,6 +1909,7 @@ function pdfVenetian(datos, ocupantes) {
   y = jp(doc, "De manera enunciativa pero no limitativa, los casos no previstos en esta política serán evaluados por el Consejo y la Administración, para determinar las sanciones correspondientes.", y, {font:"bold", gap:12});
   y = jp(doc, "Así como de ser necesario, el consejo podrá evaluar cualquier controversia, para determinar su responsabilidad.", y, {font:"bold", gap:0});
 
+  if(_genId) marcarGenerado(_genId);
   doc.save("GrandVenetian_" + unidad + "_" + (datos.nombre||"huesped").split(" ")[0] + ".pdf");
 }
 
@@ -1915,7 +1920,7 @@ function pdfVenetian(datos, ocupantes) {
 
 
 
-function pdfQuiya(datos, ocupantes) {
+function pdfQuiya(datos, ocupantes, _genId) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:"pt", format:"letter"});
   const W = 612, H = 792;
@@ -2024,10 +2029,11 @@ function pdfQuiya(datos, ocupantes) {
   y = field("Fecha de ingreso:", fmtLong(datos.entrada || datos.fecha_entrada), y, 36);
   y = field("Fecha de salida:", fmtLong(datos.salida || datos.fecha_salida), y, 36);
 
+  if(_genId) marcarGenerado(_genId);
   doc.save(`Quiya_${villa.replace("VILLA ","")}_${(datos.nombre||"huesped").split(" ")[0]}.pdf`);
 }
 
-function pdfXikiri(datos, ocupantes) {
+function pdfXikiri(datos, ocupantes, _genId) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:"mm",format:"letter"});
   const hoy = new Date();
@@ -2090,6 +2096,7 @@ function pdfXikiri(datos, ocupantes) {
   doc.text("NOMBRE Y FIRMA DEL HUESPED",105,y+5.5,{align:"center"}); doc.setTextColor(0);
   doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.text(fc("Pagina 1 de 1"),105,y+18,{align:"center"});
   const apellido=fc(datos.nombre||"huesped").split(" ").slice(-1)[0];
+  if(_genId) marcarGenerado(_genId);
   doc.save(`Xikiri_${apellido}.pdf`);
 }
 
