@@ -260,6 +260,7 @@ const LOGOS = {
 };
 
 let todosRegistros = [];
+let frakcioQR = []; // {depto, fecha, qr_enviado, id}
 let filtroActual = "todos";
 
 function fmtSlash(val) {
@@ -3282,11 +3283,53 @@ function enviarWA(btn) {
 cargarRegistros();
 setInterval(cargarRegistros, 60000);
 
+
+const FRAKCIO_PREFIJOS = ["ARIA","MARITIMA","BOLONGO","ZOHO","PUERTARENA","BAY VIEW","ZANTAMAR"];
+function esFrakcio(depto) {
+  const d = depto.toUpperCase().trim();
+  return FRAKCIO_PREFIJOS.some(p => d.startsWith(p));
+}
 const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbPcCF6EoM93GIga20ntKOsuys9KLp4gkG2czTR4qyy_nASRil8qURTuceB_Rw5PEMR_us7EpQNADX/pub?gid=220927923&single=true&output=csv";
 
 function toggleEntradas() {
   const body = document.getElementById('entradas-body');
   body.classList.toggle('hidden');
+}
+
+
+async function cargarFrakcioQR(fechaISO) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr?fecha=eq.${fechaISO}&select=*`, {
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+    });
+    frakcioQR = await res.json();
+  } catch(e) { console.warn("cargarFrakcioQR:", e); frakcioQR = []; }
+}
+
+async function marcarQREnviado(depto, fechaISO) {
+  const existing = frakcioQR.find(x => x.depto === depto && x.fecha === fechaISO);
+  if(existing) {
+    // Update
+    await fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr?id=eq.${existing.id}`, {
+      method: "PATCH", keepalive: true,
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json", "Prefer": "return=minimal" },
+      body: JSON.stringify({qr_enviado: true})
+    });
+    existing.qr_enviado = true;
+  } else {
+    // Insert
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr`, {
+      method: "POST", keepalive: true,
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json", "Prefer": "return=representation" },
+      body: JSON.stringify({depto, fecha: fechaISO, qr_enviado: true})
+    });
+    const data = await res.json();
+    if(data[0]) frakcioQR.push(data[0]);
+  }
+  // Refrescar sección
+  cargarEntradas();
 }
 
 async function cargarEntradas() {
@@ -3302,8 +3345,12 @@ async function cargarEntradas() {
     // Fecha en col 0, formato col 1, entrada col 2, salida col 3
     const hoy = new Date();
     const yyyy = hoy.getFullYear();
+    const mm0 = String(hoy.getMonth()+1).padStart(2,'0');
+    const dd0 = String(hoy.getDate()).padStart(2,'0');
+    const fechaISO = `${yyyy}-${mm0}-${dd0}`; // para Supabase
     // Sheet usa D/M/YYYY sin ceros — ej: 13/3/2026
     const fechaHoy = `${hoy.getDate()}/${hoy.getMonth()+1}/${yyyy}`;
+    await cargarFrakcioQR(fechaISO);
 
     const entradas = rows.filter((r,i) => {
       if(i===0) return false;
@@ -3324,30 +3371,49 @@ async function cargarEntradas() {
     status.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
 
     // Cruzar con registros de Supabase
-    // Solo los que NO tienen registro en Supabase
+    // Separar Frakcio del resto
     const sinRegistro = entradas.filter(r => {
       const depto = (r[2]||'').trim().replace(/"/g,'').toUpperCase();
+      if(esFrakcio(depto)) return false;
       return !todosRegistros.find(x => {
         const d = (x.depto||'').toUpperCase().trim();
-        // Match exacto o por prefijo (ej "FLAMINGOS" matchea "FLAMINGOS 27")
         return d === depto || d.startsWith(depto + ' ') || depto.startsWith(d + ' ');
       });
     });
 
-    count.textContent = sinRegistro.length > 0 ? `(${sinRegistro.length})` : '(0)';
+    const frakcioHoy = entradas.filter(r => esFrakcio((r[2]||'').trim().replace(/"/g,'')));
 
-    if(sinRegistro.length === 0) {
-      body.innerHTML = '<div style="color:var(--green);font-size:12px;font-family:var(--mono);padding:8px 0;">✓ Todos los huéspedes de hoy llenaron el registro</div>';
+    const totalFaltan = sinRegistro.length;
+    count.textContent = totalFaltan > 0 ? `(${totalFaltan} pendiente${totalFaltan>1?'s':''})` : '(ok)';
+
+    if(sinRegistro.length === 0 && frakcioHoy.length === 0) {
+      body.innerHTML = '<div style="color:var(--green);font-size:12px;font-family:var(--mono);padding:8px 0;">✓ Todo en orden</div>';
       return;
     }
 
-    body.innerHTML = sinRegistro.map(r => {
+    const rowsSinReg = sinRegistro.map(r => {
       const depto = (r[2]||'').trim().replace(/"/g,'');
       return `<div class="entrada-row">
         <div class="entrada-depto">${depto}</div>
         <div class="entrada-guest" style="color:var(--red);font-size:11px;">sin registro</div>
       </div>`;
-    }).join('');
+    });
+
+    const rowsFrakcio = frakcioHoy.map(r => {
+      const depto = (r[2]||'').trim().replace(/"/g,'');
+      const qrRec = frakcioQR.find(x => x.depto.toUpperCase() === depto.toUpperCase());
+      const qrOk  = qrRec && qrRec.qr_enviado;
+      const badge = qrOk
+        ? `<span class="entrada-badge badge-ok">✓ QR enviado</span>`
+        : `<span class="entrada-badge" style="background:rgba(232,197,106,.12);color:var(--accent);border:1px solid rgba(232,197,106,.3);font-size:11px;padding:3px 10px;border-radius:12px;font-family:var(--mono);cursor:pointer;" onclick="marcarQREnviado('${depto}','${fechaISO}')">QR pendiente</span>`;
+      return `<div class="entrada-row">
+        <div class="entrada-depto" style="${qrOk?'color:var(--muted)':''}">${depto}</div>
+        <div class="entrada-guest" style="font-size:11px;color:var(--muted);flex:1;"></div>
+        ${badge}
+      </div>`;
+    });
+
+    body.innerHTML = [...rowsSinReg, ...rowsFrakcio].join('');
 
   } catch(e) {
     body.innerHTML = `<div style="color:var(--red);font-size:12px;font-family:var(--mono);padding:8px 0;">Error cargando sheet: ${e.message}</div>`;
