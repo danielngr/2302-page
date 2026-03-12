@@ -3419,22 +3419,26 @@ async function cargarEntradas() {
       if(entradas.length === 0) continue;
 
       // Separar sin registro, frakcio
+      function matchReg(depto, fechaISO) {
+        const d = depto.toUpperCase();
+        return todosRegistros.find(x => {
+          const xd = (x.depto||'').toUpperCase().trim();
+          const deptoMatch = xd === d || xd.startsWith(d+' ') || d.startsWith(xd+' ');
+          const fechaMatch = x.fecha_entrada === fechaISO;
+          return deptoMatch && fechaMatch;
+        });
+      }
+
       const sinReg = entradas.filter(r => {
         const depto = (r[2]||'').trim().replace(/"/g,'').toUpperCase();
         if(esFrakcio(depto)) return false;
-        return !todosRegistros.find(x => {
-          const d = (x.depto||'').toUpperCase().trim();
-          return d === depto || d.startsWith(depto+' ') || depto.startsWith(d+' ');
-        });
+        return !matchReg(depto, fechaISO);
       });
 
       const conReg = entradas.filter(r => {
         const depto = (r[2]||'').trim().replace(/"/g,'').toUpperCase();
         if(esFrakcio(depto)) return false;
-        return !!todosRegistros.find(x => {
-          const d = (x.depto||'').toUpperCase().trim();
-          return d === depto || d.startsWith(depto+' ') || depto.startsWith(d+' ');
-        });
+        return !!matchReg(depto, fechaISO);
       });
 
       const frakcioHoy = entradas.filter(r => esFrakcio((r[2]||'').trim().replace(/"/g,'')));
@@ -3463,10 +3467,7 @@ async function cargarEntradas() {
 
       conReg.forEach(r => {
         const depto = (r[2]||'').trim().replace(/"/g,'').toUpperCase();
-        const reg = todosRegistros.find(x => {
-          const d = (x.depto||'').toUpperCase().trim();
-          return d === depto || d.startsWith(depto+' ') || depto.startsWith(d+' ');
-        });
+        const reg = matchReg(depto, fechaISO);
         const nombre = reg ? (reg.nombre||'') : '';
         const badge = reg && reg.pdf_generado
           ? `<span class="entrada-badge badge-ok">✓ Generado</span>`
