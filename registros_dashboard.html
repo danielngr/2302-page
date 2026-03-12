@@ -166,6 +166,7 @@
     border-bottom: 1px solid var(--border);
     cursor: pointer; user-select: none;
   }
+  .entradas-dias-wrapper { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
   .entradas-header h3 {
     font-family: var(--mono); font-size: 12px; color: var(--accent);
     text-transform: uppercase; letter-spacing: 1.5px;
@@ -217,16 +218,8 @@
   </div>
 
 
-  <!-- ── Entradas Hoy ── -->
-  <div class="entradas-section" id="entradas-section">
-    <div class="entradas-header" onclick="toggleEntradas()">
-      <h3>⚠️ Sin registro hoy <span id="eh-count" style="color:var(--muted);font-size:11px;margin-left:8px;"></span></h3>
-      <span class="eh-meta" id="eh-status">Cargando...</span>
-    </div>
-    <div class="entradas-body" id="entradas-body">
-      <div style="color:var(--muted);font-size:12px;font-family:var(--mono);padding:8px 0;">Cargando hoja de operaciones...</div>
-    </div>
-  </div>
+  <!-- ── Entradas por día ── -->
+  <div id="entradas-dias-container"></div>
 
   <div class="filters">
     <button class="filter-btn active" onclick="setFiltro('todos',this)">Todos</button>
@@ -3291,9 +3284,9 @@ function esFrakcio(depto) {
 }
 const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbPcCF6EoM93GIga20ntKOsuys9KLp4gkG2czTR4qyy_nASRil8qURTuceB_Rw5PEMR_us7EpQNADX/pub?gid=220927923&single=true&output=csv";
 
-function toggleEntradas() {
-  const body = document.getElementById('entradas-body');
-  body.classList.toggle('hidden');
+function toggleDia(idx) {
+  const body = document.getElementById(`eh-body-${idx}`);
+  if(body) body.classList.toggle('hidden');
 }
 
 
@@ -3333,95 +3326,151 @@ async function marcarQREnviado(depto, fechaISO) {
 }
 
 async function cargarEntradas() {
-  const status = document.getElementById('eh-status');
-  const body   = document.getElementById('eh-body') || document.getElementById('entradas-body');
-  const count  = document.getElementById('eh-count');
+  const container = document.getElementById('entradas-dias-container');
+  if(!container) return;
+  const DIAS = 5; // hoy + 4
+  const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+
   try {
     const res = await fetch(SHEET_CSV);
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const text = await res.text();
     const rows = text.split('\n').map(r => r.split(','));
-    // Fila 0 = headers: FECHA,FORMATO ENVIADO,ENTRADA,SALIDA,TIPO,CHICA,...
-    // Fecha en col 0, formato col 1, entrada col 2, salida col 3
+
     const hoy = new Date();
-    const yyyy = hoy.getFullYear();
-    const mm0 = String(hoy.getMonth()+1).padStart(2,'0');
-    const dd0 = String(hoy.getDate()).padStart(2,'0');
-    const fechaISO = `${yyyy}-${mm0}-${dd0}`; // para Supabase
-    // Sheet usa D/M/YYYY sin ceros — ej: 13/3/2026
-    const fechaHoy = `${hoy.getDate()}/${hoy.getMonth()+1}/${yyyy}`;
-    await cargarFrakcioQR(fechaISO);
+    hoy.setHours(0,0,0,0);
 
-    const entradas = rows.filter((r,i) => {
-      if(i===0) return false;
-      const fecha = (r[0]||'').trim().replace(/"/g,'');
-      const depto = (r[2]||'').trim().replace(/"/g,'');
-      if(!depto) return false;
-      return fecha === fechaHoy;
-    });
-
-    if(entradas.length === 0) {
-      body.innerHTML = '<div style="color:var(--muted);font-size:12px;font-family:var(--mono);padding:8px 0;">Sin entradas hoy</div>';
-      count.textContent = '(0)';
-      status.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-      return;
+    // Cargar frakcioQR para rango de fechas
+    const fechasISO = [];
+    for(let i=0; i<DIAS; i++) {
+      const d = new Date(hoy); d.setDate(hoy.getDate()+i);
+      const yyyy = d.getFullYear();
+      const mm0 = String(d.getMonth()+1).padStart(2,'0');
+      const dd0 = String(d.getDate()).padStart(2,'0');
+      fechasISO.push(`${yyyy}-${mm0}-${dd0}`);
     }
 
-    count.textContent = `(${entradas.length})`;
-    status.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-
-    // Cruzar con registros de Supabase
-    // Separar Frakcio del resto
-    const sinRegistro = entradas.filter(r => {
-      const depto = (r[2]||'').trim().replace(/"/g,'').toUpperCase();
-      if(esFrakcio(depto)) return false;
-      return !todosRegistros.find(x => {
-        const d = (x.depto||'').toUpperCase().trim();
-        return d === depto || d.startsWith(depto + ' ') || depto.startsWith(d + ' ');
+    // Cargar todos los frakcioQR del rango
+    try {
+      const qres = await fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr?fecha=gte.${fechasISO[0]}&fecha=lte.${fechasISO[DIAS-1]}&select=*`, {
+        headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
       });
-    });
+      frakcioQR = await qres.json();
+    } catch(e) { frakcioQR = []; }
 
-    const frakcioHoy = entradas.filter(r => esFrakcio((r[2]||'').trim().replace(/"/g,'')));
+    // Construir pills por día
+    let html = '<div class="entradas-dias-wrapper">';
 
-    const totalFaltan = sinRegistro.length;
-    count.textContent = totalFaltan > 0 ? `(${totalFaltan} pendiente${totalFaltan>1?'s':''})` : '(ok)';
+    for(let i=0; i<DIAS; i++) {
+      const dia = new Date(hoy); dia.setDate(hoy.getDate()+i);
+      const fechaHoy = `${dia.getDate()}/${dia.getMonth()+1}/${dia.getFullYear()}`;
+      const fechaISO = fechasISO[i];
+      const label = i===0 ? `HOY — ${dia.getDate()} ${MESES[dia.getMonth()]}`
+                  : i===1 ? `MAÑANA — ${dia.getDate()} ${MESES[dia.getMonth()]}`
+                  : `${dia.getDate()} ${MESES[dia.getMonth()]}`;
 
-    if(sinRegistro.length === 0 && frakcioHoy.length === 0) {
-      body.innerHTML = '<div style="color:var(--green);font-size:12px;font-family:var(--mono);padding:8px 0;">✓ Todo en orden</div>';
-      return;
+      const entradas = rows.filter((r,ri) => {
+        if(ri===0) return false;
+        const fecha = (r[0]||'').trim().replace(/"/g,'');
+        const depto = (r[2]||'').trim().replace(/"/g,'');
+        return depto && fecha === fechaHoy;
+      });
+
+      if(entradas.length === 0) continue;
+
+      // Separar sin registro, frakcio
+      const sinReg = entradas.filter(r => {
+        const depto = (r[2]||'').trim().replace(/"/g,'').toUpperCase();
+        if(esFrakcio(depto)) return false;
+        return !todosRegistros.find(x => {
+          const d = (x.depto||'').toUpperCase().trim();
+          return d === depto || d.startsWith(depto+' ') || depto.startsWith(d+' ');
+        });
+      });
+
+      const conReg = entradas.filter(r => {
+        const depto = (r[2]||'').trim().replace(/"/g,'').toUpperCase();
+        if(esFrakcio(depto)) return false;
+        return !!todosRegistros.find(x => {
+          const d = (x.depto||'').toUpperCase().trim();
+          return d === depto || d.startsWith(depto+' ') || depto.startsWith(d+' ');
+        });
+      });
+
+      const frakcioHoy = entradas.filter(r => esFrakcio((r[2]||'').trim().replace(/"/g,'')));
+      const frakcioQRPend = frakcioHoy.filter(r => {
+        const depto = (r[2]||'').trim().replace(/"/g,'');
+        const qrRec = frakcioQR.find(x => x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fechaISO);
+        return !qrRec || !qrRec.qr_enviado;
+      });
+
+      const pendientes = sinReg.length + frakcioQRPend.length;
+      const countLabel = pendientes > 0
+        ? `<span style="color:var(--red);margin-left:8px;font-size:11px;">(${pendientes} pendiente${pendientes>1?'s':''})</span>`
+        : `<span style="color:var(--green);margin-left:8px;font-size:11px;">✓</span>`;
+
+      // Rows
+      let rows_html = '';
+
+      sinReg.forEach(r => {
+        const depto = (r[2]||'').trim().replace(/"/g,'');
+        rows_html += `<div class="entrada-row">
+          <div class="entrada-depto">${depto}</div>
+          <div class="entrada-guest" style="color:var(--red);font-size:11px;flex:1;">sin registro</div>
+        </div>`;
+      });
+
+      conReg.forEach(r => {
+        const depto = (r[2]||'').trim().replace(/"/g,'').toUpperCase();
+        const reg = todosRegistros.find(x => {
+          const d = (x.depto||'').toUpperCase().trim();
+          return d === depto || d.startsWith(depto+' ') || depto.startsWith(d+' ');
+        });
+        const nombre = reg ? (reg.nombre||'') : '';
+        const badge = reg && reg.pdf_generado
+          ? `<span class="entrada-badge badge-ok">✓ Generado</span>`
+          : reg && reg.tipo_formato==='pdf'
+            ? `<span class="entrada-badge badge-pdf" onclick="generarFormato('${reg.id}')">Generar PDF</span>`
+            : `<span class="entrada-badge badge-ok">✓ Registro</span>`;
+        rows_html += `<div class="entrada-row">
+          <div class="entrada-depto" style="color:var(--muted)">${reg ? reg.depto : depto}</div>
+          <div class="entrada-guest" style="font-size:12px;flex:1;">${nombre}</div>
+          ${badge}
+        </div>`;
+      });
+
+      frakcioHoy.forEach(r => {
+        const depto = (r[2]||'').trim().replace(/"/g,'');
+        const qrRec = frakcioQR.find(x => x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fechaISO);
+        const qrOk  = qrRec && qrRec.qr_enviado;
+        const badge = qrOk
+          ? `<span class="entrada-badge badge-ok">✓ QR enviado</span>`
+          : `<span class="entrada-badge" style="background:rgba(232,197,106,.12);color:var(--accent);border:1px solid rgba(232,197,106,.3);font-size:11px;padding:3px 10px;border-radius:12px;font-family:var(--mono);cursor:pointer;" onclick="marcarQREnviado('${depto}','${fechaISO}')">QR pendiente</span>`;
+        rows_html += `<div class="entrada-row">
+          <div class="entrada-depto" style="${qrOk?'color:var(--muted)':''}">${depto}</div>
+          <div class="entrada-guest" style="font-size:11px;color:var(--muted);flex:1;"></div>
+          ${badge}
+        </div>`;
+      });
+
+      html += `<div class="entradas-section">
+        <div class="entradas-header" onclick="toggleDia(${i})">
+          <h3>📅 ${label} ${countLabel}</h3>
+          <span class="eh-meta">${entradas.length} entrada${entradas.length>1?'s':''}</span>
+        </div>
+        <div class="entradas-body${i>0?' hidden':''}" id="eh-body-${i}">
+          ${rows_html}
+        </div>
+      </div>`;
     }
 
-    const rowsSinReg = sinRegistro.map(r => {
-      const depto = (r[2]||'').trim().replace(/"/g,'');
-      return `<div class="entrada-row">
-        <div class="entrada-depto">${depto}</div>
-        <div class="entrada-guest" style="color:var(--red);font-size:11px;">sin registro</div>
-      </div>`;
-    });
-
-    const rowsFrakcio = frakcioHoy.map(r => {
-      const depto = (r[2]||'').trim().replace(/"/g,'');
-      const qrRec = frakcioQR.find(x => x.depto.toUpperCase() === depto.toUpperCase());
-      const qrOk  = qrRec && qrRec.qr_enviado;
-      const badge = qrOk
-        ? `<span class="entrada-badge badge-ok">✓ QR enviado</span>`
-        : `<span class="entrada-badge" style="background:rgba(232,197,106,.12);color:var(--accent);border:1px solid rgba(232,197,106,.3);font-size:11px;padding:3px 10px;border-radius:12px;font-family:var(--mono);cursor:pointer;" onclick="marcarQREnviado('${depto}','${fechaISO}')">QR pendiente</span>`;
-      return `<div class="entrada-row">
-        <div class="entrada-depto" style="${qrOk?'color:var(--muted)':''}">${depto}</div>
-        <div class="entrada-guest" style="font-size:11px;color:var(--muted);flex:1;"></div>
-        ${badge}
-      </div>`;
-    });
-
-    body.innerHTML = [...rowsSinReg, ...rowsFrakcio].join('');
+    html += '</div>';
+    container.innerHTML = html;
 
   } catch(e) {
-    body.innerHTML = `<div style="color:var(--red);font-size:12px;font-family:var(--mono);padding:8px 0;">Error cargando sheet: ${e.message}</div>`;
-    status.textContent = 'Error';
+    container.innerHTML = `<div style="color:var(--red);font-size:12px;font-family:var(--mono);padding:8px 0 16px;">Error cargando sheet: ${e.message}</div>`;
     console.error('cargarEntradas:', e);
   }
 }
 
-</script>
-</body>
-</html>
+>
