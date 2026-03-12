@@ -151,6 +151,52 @@
   }
   .btn-ine-action:hover { border-color: var(--accent); color: var(--accent); }
 
+
+  /* ── Entradas Hoy ── */
+  .entradas-section {
+    margin-bottom: 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .entradas-header {
+    padding: 14px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer; user-select: none;
+  }
+  .entradas-header h3 {
+    font-family: var(--mono); font-size: 12px; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 1.5px;
+  }
+  .entradas-header .eh-meta { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .entradas-body { padding: 12px 18px; }
+  .entradas-body.hidden { display: none; }
+  .entrada-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid var(--border); gap: 12px;
+  }
+  .entrada-row:last-child { border-bottom: none; }
+  .entrada-depto {
+    font-family: var(--mono); font-size: 13px; font-weight: 500;
+    min-width: 140px;
+  }
+  .entrada-guest { font-size: 12px; color: var(--muted); flex: 1; }
+  .entrada-badge {
+    font-size: 11px; font-family: var(--mono); padding: 3px 10px;
+    border-radius: 12px; white-space: nowrap; flex-shrink: 0;
+  }
+  .badge-ok    { background: rgba(90,232,160,.12); color: var(--green); border: 1px solid rgba(90,232,160,.3); }
+  .badge-pdf   { background: rgba(232,197,106,.12); color: var(--accent); border: 1px solid rgba(232,197,106,.3); cursor: pointer; }
+  .badge-pdf:hover { background: rgba(232,197,106,.25); }
+  .badge-wait  { background: rgba(136,136,136,.1); color: var(--muted); border: 1px solid var(--border); }
+  .badge-whats { background: rgba(90,232,160,.08); color: #25d366; border: 1px solid rgba(37,211,102,.3); cursor: pointer; }
+  .badge-whats:hover { background: rgba(37,211,102,.2); }
+  .entrada-fmt-sent { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .fmt-sent-yes { color: var(--green); }
+  .fmt-sent-no  { color: var(--red); }
+
 </style>
 </head>
 <body>
@@ -168,6 +214,18 @@
     <div class="stat"><div class="stat-num" id="stat-hoy">—</div><div class="stat-label">Check-in hoy</div></div>
     <div class="stat"><div class="stat-num" id="stat-pendientes">—</div><div class="stat-label">PDF pendiente</div></div>
     <div class="stat"><div class="stat-num" id="stat-generados">—</div><div class="stat-label">Generados</div></div>
+  </div>
+
+
+  <!-- ── Entradas Hoy ── -->
+  <div class="entradas-section" id="entradas-section">
+    <div class="entradas-header" onclick="toggleEntradas()">
+      <h3>📅 Entradas hoy <span id="eh-count" style="color:var(--muted);font-size:11px;margin-left:8px;"></span></h3>
+      <span class="eh-meta" id="eh-status">Cargando...</span>
+    </div>
+    <div class="entradas-body" id="entradas-body">
+      <div style="color:var(--muted);font-size:12px;font-family:var(--mono);padding:8px 0;">Cargando hoja de operaciones...</div>
+    </div>
   </div>
 
   <div class="filters">
@@ -253,6 +311,7 @@ async function cargarRegistros() {
     document.getElementById("last-update").textContent = "Actualizado " + new Date().toLocaleTimeString("es-MX", {hour:"2-digit",minute:"2-digit"});
     actualizarStats();
     renderRegistros();
+    cargarEntradas();
   } catch(e) {
     document.getElementById("registros-container").innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><p>Error cargando registros: ${e.message}</p></div>`;
   }
@@ -3222,6 +3281,102 @@ function enviarWA(btn) {
 // Auto-refresh every 60 seconds
 cargarRegistros();
 setInterval(cargarRegistros, 60000);
+
+const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbPcCF6EoM93GIga20ntKOsuys9KLp4gkG2czTR4qyy_nASRil8qURTuceB_Rw5PEMR_us7EpQNADX/pub?gid=220927923&single=true&output=csv";
+
+function toggleEntradas() {
+  const body = document.getElementById('entradas-body');
+  body.classList.toggle('hidden');
+}
+
+async function cargarEntradas() {
+  const status = document.getElementById('eh-status');
+  const body   = document.getElementById('eh-body') || document.getElementById('entradas-body');
+  const count  = document.getElementById('eh-count');
+  try {
+    const res = await fetch(SHEET_CSV);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const rows = text.split('\n').map(r => r.split(','));
+    // Fila 0 = headers: FECHA,FORMATO ENVIADO,ENTRADA,SALIDA,TIPO,CHICA,...
+    // Fecha en col 0, formato col 1, entrada col 2, salida col 3
+    const hoy = new Date();
+    const dd = String(hoy.getDate()).padStart(2,'0');
+    const mm = String(hoy.getMonth()+1).padStart(2,'0');
+    const yyyy = hoy.getFullYear();
+    // El sheet tiene fechas como M/D/YYYY o DD/MM/YYYY — probar ambos
+    const fechaHoy1 = `${dd}/${mm}/${yyyy}`;   // DD/MM/YYYY
+    const fechaHoy2 = `${mm}/${dd}/${yyyy}`;   // MM/DD/YYYY
+    const fechaHoy3 = `${hoy.getMonth()+1}/${hoy.getDate()}/${yyyy}`; // M/D/YYYY sin ceros
+
+    const entradas = rows.filter((r,i) => {
+      if(i===0) return false;
+      const fecha = (r[0]||'').trim().replace(/"/g,'');
+      const depto = (r[2]||'').trim().replace(/"/g,'');
+      if(!depto) return false;
+      return fecha === fechaHoy1 || fecha === fechaHoy2 || fecha === fechaHoy3;
+    });
+
+    if(entradas.length === 0) {
+      body.innerHTML = '<div style="color:var(--muted);font-size:12px;font-family:var(--mono);padding:8px 0;">Sin entradas hoy</div>';
+      count.textContent = '(0)';
+      status.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+      return;
+    }
+
+    count.textContent = `(${entradas.length})`;
+    status.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+
+    // Cruzar con registros de Supabase
+    body.innerHTML = entradas.map(r => {
+      const depto     = (r[2]||'').trim().replace(/"/g,'');
+      const fmtSent   = (r[1]||'').trim().replace(/"/g,''); // TRUE/FALSE o checkbox
+      const fmtSentOk = fmtSent === 'TRUE' || fmtSent === '1' || fmtSent === 'true';
+
+      // Buscar en todosRegistros
+      const reg = todosRegistros.find(x => {
+        const d = (x.depto||'').toUpperCase().trim();
+        return d === depto.toUpperCase();
+      });
+
+      let badgeHtml = '';
+      let guestName = '';
+
+      if(reg) {
+        guestName = reg.nombre || '';
+        const tipo = reg.tipo_formato || 'pdf';
+        if(reg.pdf_generado) {
+          badgeHtml = '<span class="entrada-badge badge-ok">✓ Generado</span>';
+        } else if(tipo === 'pdf') {
+          badgeHtml = `<span class="entrada-badge badge-pdf" onclick="generarFormato('${reg.id}')">Generar PDF</span>`;
+        } else if(tipo === 'whatsapp') {
+          badgeHtml = `<span class="entrada-badge badge-whats" onclick="mostrarTexto(todosRegistros.find(x=>x.id=='${reg.id}'),{depto:reg.depto,nombre:reg.nombre,entrada:reg.fecha_entrada,salida:reg.fecha_salida},[])">WhatsApp</span>`;
+        } else {
+          badgeHtml = '<span class="entrada-badge badge-ok">✓ Registro</span>';
+        }
+      } else {
+        badgeHtml = '<span class="entrada-badge badge-wait">Sin registro</span>';
+      }
+
+      const fmtIcon = fmtSentOk
+        ? '<span class="entrada-fmt-sent fmt-sent-yes" title="Formato enviado">✓ fmt</span>'
+        : '<span class="entrada-fmt-sent fmt-sent-no"  title="Formato no enviado">✗ fmt</span>';
+
+      return `<div class="entrada-row">
+        <div class="entrada-depto">${depto}</div>
+        <div class="entrada-guest">${guestName}</div>
+        ${fmtIcon}
+        ${badgeHtml}
+      </div>`;
+    }).join('');
+
+  } catch(e) {
+    body.innerHTML = `<div style="color:var(--red);font-size:12px;font-family:var(--mono);padding:8px 0;">Error cargando sheet: ${e.message}</div>`;
+    status.textContent = 'Error';
+    console.error('cargarEntradas:', e);
+  }
+}
+
 </script>
 </body>
 </html>
