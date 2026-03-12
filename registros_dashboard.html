@@ -453,6 +453,13 @@ function copiarLink(depto) {
     const btn = document.querySelector(`[data-copy="${depto}"]`);
     if(btn) { btn.textContent = "✓ Copiado"; btn.classList.add("copied");
       setTimeout(() => { btn.textContent = "🔗 Link"; btn.classList.remove("copied"); }, 2000); }
+    // Si tiene registro WhatsApp, marcar como generado
+    const reg = todosRegistros.find(x => {
+      const d = (x.depto||'').toUpperCase().trim();
+      const dep = depto.toUpperCase();
+      return (d === dep || d.startsWith(dep+' ') || dep.startsWith(d+' ')) && x.tipo_formato === 'whatsapp';
+    });
+    if(reg && !reg.pdf_generado) marcarGenerado(reg.id);
   });
 }
 
