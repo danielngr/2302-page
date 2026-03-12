@@ -81,6 +81,14 @@
   }
   .btn-gen:hover { background: #f0d070; }
   .btn-gen.done { background: rgba(90,232,160,.15); color: var(--green); border: 1px solid rgba(90,232,160,.3); }
+  .btn-copy-link {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px;
+    font-family: var(--mono); transition: all .2s; white-space: nowrap;
+  }
+  .btn-copy-link:hover { border-color: var(--blue); color: var(--blue); }
+  .btn-copy-link.copied { border-color: var(--green); color: var(--green); }
+
   .btn-detail {
     padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border);
     background: none; color: var(--muted); cursor: pointer; font-size: 12px;
@@ -369,6 +377,7 @@ function cardHTML(r) {
       </div>
       <div class="card-fechas">${fmtFecha(r.fecha_entrada)} → ${fmtFecha(r.fecha_salida)}</div>
       <div class="card-actions">
+        <button class="btn-copy-link" data-copy="${r.depto}" onclick="copiarLink('${r.depto}')">🔗 Link</button>
         <button class="btn-detail" onclick="toggleDetail('${r.id}')">▾</button>
         ${(r.template === "peninsula" || r.template === "alamar") ? `
         <select class="sel-idioma" id="idioma-${r.id}" title="Idioma del formato">
@@ -414,6 +423,37 @@ function cardHTML(r) {
       </div>` : ""}
     </div>
   </div>`;
+}
+
+const COMPLEJO_NOMBRE = {
+  "QUIYA": "Quiya", "VENETIAN": "Grand Venetian", "GD": "Green District",
+  "FLAMINGOS": "Flamingos", "ALBATROS": "Albatros", "ALAMAR": "Alamar",
+  "XIKIRI": "Xikiri", "NAUTICO": "Náutico", "RINCON": "Rincón del Mar",
+  "MARSALA": "Marsala", "AMOARA": "Amoara", "PENINSULA": "Península",
+  "ARIA": "Aria", "MARITIMA": "Marítima", "BOLONGO": "Bolongo",
+  "ZOHO": "Zoho", "PUERTARENA": "Puertarena", "BAY VIEW": "Bay View Grand",
+  "ZANTAMAR": "Zantamar", "TULES": "Tules", "ARCANO": "Arcano",
+  "PLAYA ESMERALDA": "Playa Esmeralda", "MARINA SOL": "Marina Sol",
+  "DELTA": "Delta"
+};
+function getComplejo(depto) {
+  const d = depto.toUpperCase();
+  // Exact match primero
+  if(COMPLEJO_NOMBRE[d]) return COMPLEJO_NOMBRE[d];
+  // Por prefijo
+  const key = Object.keys(COMPLEJO_NOMBRE).find(k => d.startsWith(k));
+  return key ? COMPLEJO_NOMBRE[key] : depto;
+}
+
+function copiarLink(depto) {
+  const url = "https://danielngr.github.io/2302-page/registro.html?dept=" + encodeURIComponent(depto);
+  const complejo = getComplejo(depto);
+  const msg = `Hola 👋 Para coordinar tu llegada a ${complejo}, necesito que llenes este breve formulario de registro — son solo tus datos básicos y los nombres de todos los que se hospedarán contigo (incluyendo niños). El condominio lo requiere para permitir el acceso el día de tu check-in.\n\n${url}\n\nSi tienes alguna duda con algo del formulario, con gusto te ayudo 🙌`;
+  navigator.clipboard.writeText(msg).then(() => {
+    const btn = document.querySelector(`[data-copy="${depto}"]`);
+    if(btn) { btn.textContent = "✓ Copiado"; btn.classList.add("copied");
+      setTimeout(() => { btn.textContent = "🔗 Link"; btn.classList.remove("copied"); }, 2000); }
+  });
 }
 
 function toggleDetail(id) {
