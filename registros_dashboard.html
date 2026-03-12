@@ -220,7 +220,7 @@
   <!-- ── Entradas Hoy ── -->
   <div class="entradas-section" id="entradas-section">
     <div class="entradas-header" onclick="toggleEntradas()">
-      <h3>📅 Entradas hoy <span id="eh-count" style="color:var(--muted);font-size:11px;margin-left:8px;"></span></h3>
+      <h3>⚠️ Sin registro hoy <span id="eh-count" style="color:var(--muted);font-size:11px;margin-left:8px;"></span></h3>
       <span class="eh-meta" id="eh-status">Cargando...</span>
     </div>
     <div class="entradas-body" id="entradas-body">
@@ -3301,20 +3301,16 @@ async function cargarEntradas() {
     // Fila 0 = headers: FECHA,FORMATO ENVIADO,ENTRADA,SALIDA,TIPO,CHICA,...
     // Fecha en col 0, formato col 1, entrada col 2, salida col 3
     const hoy = new Date();
-    const dd = String(hoy.getDate()).padStart(2,'0');
-    const mm = String(hoy.getMonth()+1).padStart(2,'0');
     const yyyy = hoy.getFullYear();
-    // El sheet tiene fechas como M/D/YYYY o DD/MM/YYYY — probar ambos
-    const fechaHoy1 = `${dd}/${mm}/${yyyy}`;   // DD/MM/YYYY
-    const fechaHoy2 = `${mm}/${dd}/${yyyy}`;   // MM/DD/YYYY
-    const fechaHoy3 = `${hoy.getMonth()+1}/${hoy.getDate()}/${yyyy}`; // M/D/YYYY sin ceros
+    // Sheet usa D/M/YYYY sin ceros — ej: 13/3/2026
+    const fechaHoy = `${hoy.getDate()}/${hoy.getMonth()+1}/${yyyy}`;
 
     const entradas = rows.filter((r,i) => {
       if(i===0) return false;
       const fecha = (r[0]||'').trim().replace(/"/g,'');
       const depto = (r[2]||'').trim().replace(/"/g,'');
       if(!depto) return false;
-      return fecha === fechaHoy1 || fecha === fechaHoy2 || fecha === fechaHoy3;
+      return fecha === fechaHoy;
     });
 
     if(entradas.length === 0) {
@@ -3328,45 +3324,28 @@ async function cargarEntradas() {
     status.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
 
     // Cruzar con registros de Supabase
-    body.innerHTML = entradas.map(r => {
-      const depto     = (r[2]||'').trim().replace(/"/g,'');
-      const fmtSent   = (r[1]||'').trim().replace(/"/g,''); // TRUE/FALSE o checkbox
-      const fmtSentOk = fmtSent === 'TRUE' || fmtSent === '1' || fmtSent === 'true';
-
-      // Buscar en todosRegistros
-      const reg = todosRegistros.find(x => {
+    // Solo los que NO tienen registro en Supabase
+    const sinRegistro = entradas.filter(r => {
+      const depto = (r[2]||'').trim().replace(/"/g,'').toUpperCase();
+      return !todosRegistros.find(x => {
         const d = (x.depto||'').toUpperCase().trim();
-        return d === depto.toUpperCase();
+        // Match exacto o por prefijo (ej "FLAMINGOS" matchea "FLAMINGOS 27")
+        return d === depto || d.startsWith(depto + ' ') || depto.startsWith(d + ' ');
       });
+    });
 
-      let badgeHtml = '';
-      let guestName = '';
+    count.textContent = sinRegistro.length > 0 ? `(${sinRegistro.length})` : '(0)';
 
-      if(reg) {
-        guestName = reg.nombre || '';
-        const tipo = reg.tipo_formato || 'pdf';
-        if(reg.pdf_generado) {
-          badgeHtml = '<span class="entrada-badge badge-ok">✓ Generado</span>';
-        } else if(tipo === 'pdf') {
-          badgeHtml = `<span class="entrada-badge badge-pdf" onclick="generarFormato('${reg.id}')">Generar PDF</span>`;
-        } else if(tipo === 'whatsapp') {
-          badgeHtml = `<span class="entrada-badge badge-whats" onclick="mostrarTexto(todosRegistros.find(x=>x.id=='${reg.id}'),{depto:reg.depto,nombre:reg.nombre,entrada:reg.fecha_entrada,salida:reg.fecha_salida},[])">WhatsApp</span>`;
-        } else {
-          badgeHtml = '<span class="entrada-badge badge-ok">✓ Registro</span>';
-        }
-      } else {
-        badgeHtml = '<span class="entrada-badge badge-wait">Sin registro</span>';
-      }
+    if(sinRegistro.length === 0) {
+      body.innerHTML = '<div style="color:var(--green);font-size:12px;font-family:var(--mono);padding:8px 0;">✓ Todos los huéspedes de hoy llenaron el registro</div>';
+      return;
+    }
 
-      const fmtIcon = fmtSentOk
-        ? '<span class="entrada-fmt-sent fmt-sent-yes" title="Formato enviado">✓ fmt</span>'
-        : '<span class="entrada-fmt-sent fmt-sent-no"  title="Formato no enviado">✗ fmt</span>';
-
+    body.innerHTML = sinRegistro.map(r => {
+      const depto = (r[2]||'').trim().replace(/"/g,'');
       return `<div class="entrada-row">
         <div class="entrada-depto">${depto}</div>
-        <div class="entrada-guest">${guestName}</div>
-        ${fmtIcon}
-        ${badgeHtml}
+        <div class="entrada-guest" style="color:var(--red);font-size:11px;">sin registro</div>
       </div>`;
     }).join('');
 
