@@ -3325,6 +3325,12 @@ setInterval(cargarRegistros, 60000);
 
 
 const FRAKCIO_PREFIJOS = ["ARIA","MARITIMA","BOLONGO","ZOHO","PUERTARENA","BAY VIEW","ZANTAMAR"];
+const MANUAL_DEPTOS = ["TULES", "MASCOTA"];
+function esManual(depto) {
+  const d = depto.toUpperCase().trim();
+  return MANUAL_DEPTOS.some(m => d === m || d.startsWith(m + ' '));
+}
+let formatoManual = [];
 function esFrakcio(depto) {
   const d = depto.toUpperCase().trim();
   return FRAKCIO_PREFIJOS.some(p => d.startsWith(p));
@@ -3336,6 +3342,38 @@ function toggleDia(idx) {
   if(body) body.classList.toggle('hidden');
 }
 
+
+async function cargarFormatoManual(fechaDesde, fechaHasta) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/formato_manual?fecha=gte.${fechaDesde}&fecha=lte.${fechaHasta}&select=*`, {
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+    });
+    formatoManual = await res.json();
+  } catch(e) { console.warn("cargarFormatoManual:", e); formatoManual = []; }
+}
+
+async function marcarManualEnviado(depto, fechaISO) {
+  const existing = formatoManual.find(x => x.depto === depto && x.fecha === fechaISO);
+  if(existing) {
+    await fetch(`${SUPABASE_URL}/rest/v1/formato_manual?id=eq.${existing.id}`, {
+      method: "PATCH", keepalive: true,
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json", "Prefer": "return=minimal" },
+      body: JSON.stringify({enviado: true})
+    });
+    existing.enviado = true;
+  } else {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/formato_manual`, {
+      method: "POST", keepalive: true,
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json", "Prefer": "return=representation" },
+      body: JSON.stringify({depto, fecha: fechaISO, enviado: true})
+    });
+    const data = await res.json();
+    if(data[0]) formatoManual.push(data[0]);
+  }
+  cargarEntradas();
+}
 
 async function cargarFrakcioQR(fechaISO) {
   try {
@@ -3397,13 +3435,14 @@ async function cargarEntradas() {
       fechasISO.push(`${yyyy}-${mm0}-${dd0}`);
     }
 
-    // Cargar todos los frakcioQR del rango
+    // Cargar frakcioQR y formatoManual del rango
     try {
       const qres = await fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr?fecha=gte.${fechasISO[0]}&fecha=lte.${fechasISO[DIAS-1]}&select=*`, {
         headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
       });
       frakcioQR = await qres.json();
     } catch(e) { frakcioQR = []; }
+    await cargarFormatoManual(fechasISO[0], fechasISO[DIAS-1]);
 
     // Construir pills por día
     let html = '<div class="entradas-dias-wrapper">';
@@ -3426,6 +3465,9 @@ async function cargarEntradas() {
       if(entradas.length === 0) continue;
 
       // Separar sin registro, frakcio
+      function esExcluido(depto) {
+        return esFrakcio(depto) || esManual(depto);
+      }
       function matchReg(depto, fechaISO) {
         const d = depto.toUpperCase();
         return todosRegistros.find(x => {
@@ -3438,24 +3480,31 @@ async function cargarEntradas() {
 
       const sinReg = entradas.filter(r => {
         const depto = (r[2]||'').trim().replace(/"/g,'').toUpperCase();
-        if(esFrakcio(depto)) return false;
+        if(esExcluido(depto)) return false;
         return !matchReg(depto, fechaISO);
       });
 
       const conReg = entradas.filter(r => {
         const depto = (r[2]||'').trim().replace(/"/g,'').toUpperCase();
-        if(esFrakcio(depto)) return false;
+        if(esExcluido(depto)) return false;
         return !!matchReg(depto, fechaISO);
       });
 
       const frakcioHoy = entradas.filter(r => esFrakcio((r[2]||'').trim().replace(/"/g,'')));
+      const manualHoy  = entradas.filter(r => esManual((r[2]||'').trim().replace(/"/g,'')));
       const frakcioQRPend = frakcioHoy.filter(r => {
         const depto = (r[2]||'').trim().replace(/"/g,'');
         const qrRec = frakcioQR.find(x => x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fechaISO);
         return !qrRec || !qrRec.qr_enviado;
       });
 
-      const pendientes = sinReg.length + frakcioQRPend.length;
+      const manualPend = manualHoy.filter(r => {
+        const depto = (r[2]||'').trim().replace(/"/g,'');
+        const rec = formatoManual.find(x => x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fechaISO);
+        return !rec || !rec.enviado;
+      });
+
+      const pendientes = sinReg.length + frakcioQRPend.length + manualPend.length;
       const countLabel = pendientes > 0
         ? `<span style="color:var(--red);margin-left:8px;font-size:11px;">(${pendientes} pendiente${pendientes>1?'s':''})</span>`
         : `<span style="color:var(--green);margin-left:8px;font-size:11px;">✓</span>`;
@@ -3486,6 +3535,20 @@ async function cargarEntradas() {
         rows_html += `<div class="entrada-row">
           <div class="entrada-depto" style="color:var(--muted)">${reg ? reg.depto : depto}</div>
           <div class="entrada-guest" style="font-size:12px;flex:1;">${nombre}</div>
+          ${badge}
+        </div>`;
+      });
+
+      manualHoy.forEach(r => {
+        const depto = (r[2]||'').trim().replace(/"/g,'');
+        const rec    = formatoManual.find(x => x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fechaISO);
+        const ok     = rec && rec.enviado;
+        const badge  = ok
+          ? `<span class="entrada-badge badge-ok">✓ Enviado</span>`
+          : `<span class="entrada-badge" style="background:rgba(106,180,232,.12);color:var(--blue);border:1px solid rgba(106,180,232,.3);font-size:11px;padding:3px 10px;border-radius:12px;font-family:var(--mono);cursor:pointer;" onclick="marcarManualEnviado('${depto}','${fechaISO}')">Pendiente</span>`;
+        rows_html += `<div class="entrada-row">
+          <div class="entrada-depto" style="${ok?'color:var(--muted)':''}">${depto}</div>
+          <div class="entrada-guest" style="font-size:11px;color:var(--muted);flex:1;"></div>
           ${badge}
         </div>`;
       });
