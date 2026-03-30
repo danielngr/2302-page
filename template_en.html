@@ -252,6 +252,7 @@ function buildPills() {
     { icon:'🏊', label: D.hasTerrace !== false ? 'Terrace & Pools' : 'Complex Pools' },
     { icon:'🌮', label:'Local Spots' },
     { icon:'ℹ️', label:'House Info' },
+    ...(D.hasBalcony ? [{ label:'Your outdoor space', title:'Balcony', desc:'Enjoy the fresh air and views from your private balcony.', balcony:true }] : []),
     ...(D.hasQuiya ? [{ icon:'🍽', label:'Quiya Restaurant' }] : []),
     ...(D.hasBolongo ? [{ icon:'🍽', label:'Bolongo Restaurants' }] : []),
     { icon:'🌤', label:"Today's Weather" },
@@ -362,15 +363,13 @@ function getChapters() {
         { icon:'⚠️', title:'Complex common areas', body:'At the complex pools (Selva, Bar, beach) <strong>only products purchased at the Quiya restaurant are allowed</strong>. Own drinks only in a closed thermos or Yeti.' },
       ]
     } : {
-      label:'Pools', title:'Complex\nPools',
-      desc: D.poolInfo_en || 'Enjoy the shared pools at the complex.',
-      image: 'https://i.imgur.com/IAHXB3q.jpeg',
+      label: D.hasTerrace ? 'Terrace & Pools' : 'Pools',
+      title: D.hasTerrace ? 'Terrace\n& Pools' : 'Complex\nPools',
+      desc: D.poolInfo_en || 'Enjoy the complex pools.',
+      image: D.images.pool || D.images.terrace || null,
       info:[
-        { icon:'🌿', title:'Jungle Pool', body:'Surrounded by tropical vegetation. The most relaxed atmosphere in the complex.' },
-        { icon:'🍹', title:'Bar Pool', body:'With drink and snack service from the bar. Perfect for midday.' },
-        { icon:'🌊', title:'Beachfront Pool', body:'With direct ocean views. Most popular at sunset.' },
-        { icon:'🏖', title:'Beach towels', body:'Available at the pool area.' },
-        { icon:'⚠️', title:'Complex rule', body:'At the shared pools <strong>only Quiya restaurant products are allowed</strong>. Own drinks only in a closed thermos or Yeti.' },
+        ...(D.poolInfo_en ? [{ icon:'🏊', title:'Pools', body: D.poolInfo_en }] : []),
+        ...(D.poolRules_en ? [{ icon:'⚠️', title:'Complex rule', body: D.poolRules_en }] : []),
       ]
     },
     {
@@ -495,6 +494,17 @@ function openChapter(idx) {
         <div><h5>${s.name}</h5><p>${s.desc}</p></div>
       </div>`;
     });
+  }
+
+  if (ch.balcony) {
+    html += `
+    <div style="border-radius:16px;overflow:hidden;margin-bottom:20px;">
+      <img src="${D.images.terrace}" style="width:100%;height:260px;object-fit:cover;display:block;" />
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 20px;font-size:13px;color:rgba(255,255,255,0.7);line-height:1.7;">
+      🌅 Your private balcony — the perfect spot for morning coffee or an evening sunset.
+    </div>
+    `;
   }
 
   if (ch.quiya) {

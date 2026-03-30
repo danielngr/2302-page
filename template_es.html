@@ -250,8 +250,10 @@ function buildPills() {
     { icon:'🛏', label: (D.bedrooms && D.bedrooms.length === 1) ? 'Recámara' : 'Recámaras' },
     { icon:'🚿', label: (D.bathrooms === 1) ? 'Baño' : 'Baños' },
     { icon:'🏊', label: D.hasTerrace !== false ? 'Terraza & Albercas' : 'Albercas del complejo' },
+    ...(D.hasBalcony ? [{ icon:'🌅', label:'Balcón' }] : []),
     { icon:'🌮', label:'Spots Locales' },
     { icon:'ℹ️', label:'Info casa' },
+    ...(D.hasBalcony ? [{ label:'Tu espacio exterior', title:'Balcón', desc:'Disfruta del aire y las vistas desde tu balcón privado.', balcony:true }] : []),
     ...(D.hasQuiya ? [{ icon:'🍽', label:'Restaurante Quiya' }] : []),
     ...(D.hasBolongo ? [{ icon:'🍽', label:'Restaurantes Bolongo' }] : []),
     { icon:'🌤', label:'Clima de hoy' },
@@ -362,15 +364,13 @@ function getChapters() {
         ...(D.poolRules_es ? [{ icon:'⚠️', title:'Áreas comunes del complejo', body: D.poolRules_es }] : [{ icon:'⚠️', title:'Áreas comunes del complejo', body:'En las piscinas del complejo (Selva, Bar, playa) <strong>solo se permite consumir productos comprados en el restaurante Quiya</strong>. Si llevas bebidas propias, deben ir en termo o Yeti cerrado — sin vasos ni botellas a la vista.' }]),
       ]
     } : {
-      label:'Albercas', title:'Albercas\ndel complejo',
-      desc: D.poolInfo_es || 'Disfruta de las piscinas de uso común del complejo.',
-      image: 'https://i.imgur.com/IAHXB3q.jpeg',
+      label: D.hasTerrace ? 'Terraza & Albercas' : 'Albercas',
+      title: D.hasTerrace ? 'Terraza\n& Albercas' : 'Albercas\ndel complejo',
+      desc: D.poolInfo_es || 'Disfruta de las albercas del complejo.',
+      image: D.images.pool || D.images.terrace || null,
       info:[
-        { icon:'🌿', title:'Piscina Selva', body:'Rodeada de vegetación tropical. El ambiente más tranquilo del complejo.' },
-        { icon:'🍹', title:'Piscina Bar', body:'Con servicio de bebidas y snacks desde la barra. Perfecta para el mediodía.' },
-        { icon:'🌊', title:'Piscina frente a la playa', body:'Con vista directa al mar. La más popular al atardecer.' },
-        { icon:'🏖', title:'Toallas de playa', body:'Se entregan en la zona de alberca.' },
-        ...(D.poolRules_es ? [{ icon:'⚠️', title:'Regla del complejo', body: D.poolRules_es }] : [{ icon:'⚠️', title:'Regla del complejo', body:'En las piscinas comunes <strong>solo se permite consumir productos del restaurante Quiya</strong>. Bebidas propias solo en termo o Yeti cerrado.' }]),
+        ...(D.poolInfo_es ? [{ icon:'🏊', title:'Albercas', body: D.poolInfo_es }] : []),
+        ...(D.poolRules_es ? [{ icon:'⚠️', title:'Regla del complejo', body: D.poolRules_es }] : []),
       ]
     },
     {
@@ -495,6 +495,17 @@ function openChapter(idx) {
         <div><h5>${s.name}</h5><p>${s.desc}</p></div>
       </div>`;
     });
+  }
+
+  if (ch.balcony) {
+    html += `
+    <div style="border-radius:16px;overflow:hidden;margin-bottom:20px;">
+      <img src="${D.images.terrace}" style="width:100%;height:260px;object-fit:cover;display:block;" />
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 20px;font-size:13px;color:rgba(255,255,255,0.7);line-height:1.7;">
+      🌅 Tu balcón privado — el lugar perfecto para el café de la mañana o el atardecer de la tarde.
+    </div>
+    `;
   }
 
   if (ch.quiya) {
