@@ -34,7 +34,7 @@
   .btn-primary .arr { font-size:22px; }
   .hero-strip { position:absolute; top:clamp(24px,4vw,48px); right:clamp(24px,4vw,48px); display:flex; flex-direction:column; align-items:flex-end; gap:6px; opacity:0; animation:fadeIn 0.8s 1.3s forwards; }
   .strip-badge { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:8px 14px; font-size:12px; font-weight:300; color:rgba(255,255,255,0.7); letter-spacing:1px; backdrop-filter:blur(8px); }
-  #tour-screen { position:fixed; inset:0; z-index:50; opacity:0; pointer-events:none; transition:opacity 0.8s ease; display:flex; flex-direction:column; background:url('https://i.imgur.com/fh2quot.jpeg') center/cover; }
+  #tour-screen { position:fixed; inset:0; z-index:50; opacity:0; pointer-events:none; transition:opacity 0.8s ease; display:flex; flex-direction:column; background-size:cover; background-position:center; }
   #tour-screen.active { opacity:1; pointer-events:all; }
   .tour-bar { display:flex; align-items:center; justify-content:space-between; padding:14px 24px; background:var(--ocean-deep); border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0; }
   .tour-brand { font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:white; letter-spacing:1px; }
@@ -225,7 +225,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 function initPage() {
   const D = window.D;
   // Welcome screen
-  document.getElementById('heroBg').style.backgroundImage = `url('${D.coverImage}')`;
+  document.getElementById('heroBg').style.backgroundImage = `url('${D.coverImage}')`;document.getElementById('tour-screen').style.backgroundImage = `url('${D.bgImage || D.coverImage}')`;
   document.getElementById('locationBadge').textContent = D.location;
   document.getElementById('heroTitle').innerHTML = `${D.name}<br><em>${D.subtitle_es}</em>`;
   document.title = `${D.name} · ${D.location}`;
@@ -389,6 +389,7 @@ function getChapters() {
         { icon:'🧹', title:'Limpieza adicional', body:'Disponible con 24h de anticipación vía WhatsApp. Sin costo en estancias de 7+ noches.' },
       ]
     },
+    ...(D.hasBalcony ? [{ icon:'🌅', label:'Balcón', title:'Tu\nBalcón', desc:'Disfruta del aire y las vistas desde tu balcón privado.', balcony:true }] : []),
     ...(D.hasQuiya ? [{ label:'Dentro del complejo', title:'Restaurante\nQuiya', desc:'Come y bebe sin salir del complejo. Aquí el menú completo y horarios.', quiya:true }] : []),
     ...(D.hasBolongo ? [{ label:'Dentro del complejo', title:'Restaurantes\nBolongo', desc:'Tres opciones sin salir del complejo — mariscos, sushi y snacks. Menús completos aquí.', bolongo:true }] : []),
     {
