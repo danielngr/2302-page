@@ -253,6 +253,7 @@ function buildPills() {
     { icon:'🌮', label:'Local Spots' },
     { icon:'ℹ️', label:'House Info' },
     ...(D.hasBalcony ? [{ icon:'🌅', label:'Balcony', title:'Balcony', desc:'Enjoy the fresh air and views from your private balcony.', balcony:true }] : []),
+    ...(D.hasMaritima ? [{ icon:'🍽', label:'MARÉ Restaurant', title:'MARÉ\nRestaurant', desc:'Eat and drink without leaving the complex. Full menu here.', maritima:true }] : []),
     ...(D.hasQuiya ? [{ icon:'🍽', label:'Quiya Restaurant' }] : []),
     ...(D.hasBolongo ? [{ icon:'🍽', label:'Bolongo Restaurants' }] : []),
     { icon:'🌤', label:"Today's Weather" },
@@ -333,7 +334,7 @@ function getChapters() {
     {
       label:'Rest', title:(D.bedrooms && D.bedrooms.length === 1) ? 'The\nBedroom' : 'The\nBedrooms',
       desc:`${D.bedrooms.length} bedrooms with everything you need to rest comfortably.`,
-      images: [D.images.bedroom1, D.images.bedroom2, D.images.bedroom3, D.images.bedroom4].filter(Boolean),
+      images: [D.images.bedroom1, D.images.bedroom2, D.images.bedroom3, D.images.bedroom4, D.images.bedroom5, D.images.bedroom6].filter(Boolean),
       info:[
         ...D.bedrooms.map(b => ({ icon: b.icon, title: b.title_en, body: b.body_en })),
         { icon:'👔', title:'Closet', body: D.safe_en },
@@ -495,6 +496,23 @@ function openChapter(idx) {
         <div><h5>${s.name}</h5><p>${s.desc}</p></div>
       </div>`;
     });
+  }
+
+  if (ch.maritima) {
+    html += `
+    <div style="margin-bottom:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 20px;">
+      <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:4px;">Inside the complex · Room Service</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.6);line-height:1.8;">
+        🦞 <strong style="color:white;">MARÉ by Michemar</strong> — From the sea to your palate<br>
+        📞 Room Service: <a href="tel:+523224584038" style="color:var(--gold-light)">322 458 4038</a>
+      </div>
+    </div>
+    ${menuSection('🥗 Starters & Salads','',[{cat:'Starters',items:[['Tampiko Tostadas 4pcs — fried tortillas, tampiko salad','$155'],['Shrimp Gyozas 6pcs — soy sauce, serrano chili','$185'],['Pork Gyozas 6pcs — soy sauce, serrano chili','$185'],['Edamames 150gr — shishimi','$175'],['Bola de Fuego — rice, philadelphia, plantain, cucumber, tampiko, shrimp','$265'],['Salmon Sashimi — cucumber, ponzu, sriracha, scallion','$245'],['Tuna Sashimi — cucumber, ponzu, sriracha, scallion','$245'],['Spicy Tuna Tostadas 4pcs — mango, spicy tuna, avocado, sesame','$255'],['Shrimp Popcorn — spicy, eel sauce','$245'],['Ribeye Chicharrón — guacamole, roasted serranos','$289'],['Guacamole & Chips','$137']]},{cat:'Salads — $155',items:[['Caesar',''],['Tropical',''],['Spinach & Goat Cheese','']]},{cat:'Add protein',items:[['Chicken','$189'],['Salmon','$229'],['Shrimp','$219']]}])}
+    ${menuSection('🌮 Tacos & Burgers','',[{cat:'Tacos (3 pcs)',items:[['Battered Shrimp','$215'],['Battered Fish','$195'],['Golden Marlin','$175'],['Al Pastor Tuna','$215'],['Skirt Steak','$189']]},{cat:'Burgers',items:[['Classic','$189'],['Shrimp','$225'],['Bacon Cheeseburger','$235'],['Western Burger','$265']]}])}
+    ${menuSection('🦐 Ceviches & Sushi','',[{cat:'Ceviches',items:[['Golden Fish','$225'],['Marítima','$235'],['Shrimp','$235']]},{cat:'Sushi',items:[['California Roll','$205'],['Philadelphia Roll','$215'],['Battered California','$225'],['Kaisen Roll','$245'],['Spicy Tuna Roll','$255'],['Banana Roll','$255'],['Salmon Roll','$255'],['Avocado Roll','$265'],['Tampik Roll','$265'],['Rainbow Roll','$265'],['Tuna Roll','$265'],['Cosmo Roll','$285'],['Massago Roll','$285'],['Unagui Roll','$285']]}])}
+    ${menuSection('🥩 Specialties & Pastas','',[{cat:'Specialties',items:[['Mussel Casserole','$289'],['Coconut Shrimp','$299'],['Rib Eye','$465'],['Skirt Steak','$265'],['Vacío','$345'],['Salmon','$335'],['Tuna','$355'],['Garlic Shrimp','$275'],['Breaded Shrimp','$275']]},{cat:'Pastas — $199',items:[['Marinara',''],['Pesto',''],['Alfredo','']]},{cat:'Add to pasta',items:[['Chicken','$235'],['Shrimp','$255']]},{cat:'Desserts',items:[['Lime Carlota','$119'],['Flambéed Bananas','$139'],['Coffee Flan','$119']]}])}
+    ${menuSection('🍹 Drinks','',[{cat:'Non-alcoholic',items:[['Lemonade / Orange Juice','$70'],['Still Water','$39'],['Daily Water','$69'],['Mineral Water','$70'],['Sodas','$39']]},{cat:'Beer',items:[['Corona / Pacífico / Victoria','$55'],['Modelo / Negra Modelo / Ultra','$59'],['Michelada','$85']]},{cat:'Rum cocktails',items:[['Blue Hawaii / Daiquiri / Piña Colada','$145'],['Long Island','$139'],['Miami Vice','$165']]},{cat:'Tequila & Mezcal',items:[['Paloma / Tequila Sunrise / Margarita','$135'],['Mezcalitas','$185']]},{cat:'Tequila (shot)',items:[['Tradicional','$165'],['Herradura','$175'],['Don Julio Blanco','$185'],['Don Julio Reposado / Patrón','$199'],['Don Julio 70','$239']]},{cat:'Whisky',items:[['JW Red','$169'],['Jack Daniels','$189'],['JW Black / Buchanans','$245']]},{cat:'Liqueurs & Wine',items:[['Kahlua','$135'],['Baileys','$165'],['Aperol / St. Germain','$189'],['Prosecco / Licor 43','$150'],['Wine — White / Red / Sparkling','$150']]}])}
+    `;
   }
 
   if (ch.balcony) {

@@ -253,6 +253,7 @@ function buildPills() {
     { icon:'🌮', label:'Spots Locales' },
     { icon:'ℹ️', label:'Info casa' },
     ...(D.hasBalcony ? [{ icon:'🌅', label:'Balcón', title:'Balcón', desc:'Disfruta del aire y las vistas desde tu balcón privado.', balcony:true }] : []),
+    ...(D.hasMaritima ? [{ icon:'🍽', label:'Restaurante MARÉ', title:'Restaurante\nMARÉ', desc:'Come y bebe sin salir del complejo. Menú completo aquí.', maritima:true }] : []),
     ...(D.hasQuiya ? [{ icon:'🍽', label:'Restaurante Quiya' }] : []),
     ...(D.hasBolongo ? [{ icon:'🍽', label:'Restaurantes Bolongo' }] : []),
     { icon:'🌤', label:'Clima de hoy' },
@@ -333,7 +334,7 @@ function getChapters() {
     {
       label:'Descanso', title:(D.bedrooms && D.bedrooms.length === 1) ? 'La\nrecámara' : 'Las\nrecámaras',
       desc:`${D.bedrooms.length} recámaras con todo lo que necesitas para descansar cómodamente.`,
-      images: [D.images.bedroom1, D.images.bedroom2, D.images.bedroom3, D.images.bedroom4].filter(Boolean),
+      images: [D.images.bedroom1, D.images.bedroom2, D.images.bedroom3, D.images.bedroom4, D.images.bedroom5, D.images.bedroom6].filter(Boolean),
       info:[
         ...D.bedrooms.map(b => ({ icon: b.icon, title: b.title_es, body: b.body_es })),
         { icon:'👔', title:'Clóset', body: D.safe_es },
@@ -495,6 +496,23 @@ function openChapter(idx) {
         <div><h5>${s.name}</h5><p>${s.desc}</p></div>
       </div>`;
     });
+  }
+
+  if (ch.maritima) {
+    html += `
+    <div style="margin-bottom:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 20px;">
+      <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:4px;">Dentro del complejo · Room Service</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.6);line-height:1.8;">
+        🦞 <strong style="color:white;">MARÉ by Michemar</strong> — Del mar a tu paladar<br>
+        📞 Room Service: <a href="tel:+523224584038" style="color:var(--gold-light)">322 458 4038</a>
+      </div>
+    </div>
+    ${menuSection('🥗 Entradas & Ensaladas','',[{cat:'Entradas',items:[['Tostadas Tampiko 4pzas — tortillas fritas, ensalada tampiko','$155'],['Gyozas de Camarón 6pzas — salsa soya, chile serrano','$185'],['Gyozas de Cerdo 6pzas — salsa soya, chile serrano','$185'],['Edamames 150gr — shishimi','$175'],['Bola de Fuego — arroz, philadelphia, plátano, pepino, tampiko, camarón','$265'],['Sashimi Salmón — pepino, ponzu, sriracha, cebollín','$245'],['Sashimi Atún — pepino, ponzu, sriracha, cebollín','$245'],['Tostadas Spicy Tuna 4pzas — mango, atún spicy, aguacate, ajonjolí','$255'],['Palomitas de Camarón — spicy, anguila','$245'],['Chicharrón de Ribeye — guacamole, serranos toreados','$289'],['Guacamole & Chips','$137']]},{cat:'Ensaladas — $155',items:[['César',''],['Tropical',''],['Espinaca y Queso de Cabra','']]},{cat:'Extra proteína',items:[['Pollo','$189'],['Salmón','$229'],['Camarones','$219']]}])}
+    ${menuSection('🌮 Tacos & Hamburguesas','',[{cat:'Tacos (3 pzas)',items:[['Camarón capeado','$215'],['Pescado capeado','$195'],['Marlín dorado','$175'],['Atún al pastor','$215'],['Arrachera','$189']]},{cat:'Hamburguesas',items:[['Clásica','$189'],['Camarón','$225'],['Bacon Cheeseburger','$235'],['Western Burger','$265']]}])}
+    ${menuSection('🦐 Ceviches & Sushi','',[{cat:'Ceviches',items:[['Pescado dorado','$225'],['Marítima','$235'],['Camarón','$235']]},{cat:'Sushi',items:[['California Roll','$205'],['Philadelphia Roll','$215'],['California Empanizado','$225'],['Kaisen Roll','$245'],['Spicy Tuna Roll','$255'],['Banana Roll','$255'],['Salmón Roll','$255'],['Avocado Roll','$265'],['Tampik Roll','$265'],['Arcoiris Roll','$265'],['Tuna Roll','$265'],['Cosmo Roll','$285'],['Massago Roll','$285'],['Unagui Roll','$285']]}])}
+    ${menuSection('🥩 Especialidades & Pastas','',[{cat:'Especialidades',items:[['Cazuela de mejillones','$289'],['Camarones al coco','$299'],['Rib Eye','$465'],['Arrachera','$265'],['Vacío','$345'],['Salmón','$335'],['Atún','$355'],['Camarones al ajillo','$275'],['Camarones empanizados','$275']]},{cat:'Pastas — $199',items:[['Marinara',''],['Pesto',''],['Alfredo','']]},{cat:'Extra pasta',items:[['Pollo','$235'],['Camarón','$255']]},{cat:'Postres',items:[['Carlota de limón','$119'],['Plátanos flameados','$139'],['Flan de café','$119']]}])}
+    ${menuSection('🍹 Bebidas','',[{cat:'Sin alcohol',items:[['Limonada / Naranjada','$70'],['Agua natural','$39'],['Agua del día','$69'],['Rusa mineral','$70'],['Canica / Pantera / Piñada','$70–79'],['Refrescos','$39']]},{cat:'Cervezas',items:[['Corona / Pacífico / Victoria','$55'],['Modelo / Negra Modelo / Ultra','$59'],['Michelada','$85']]},{cat:'Cócteles de ron',items:[['Blue Hawaii / Daiquiri / Piña Colada','$145'],['Long Island','$139'],['Miami Vice','$165']]},{cat:'Tequila & Mezcal',items:[['Paloma / Tequila Sunrise / Margarita','$135'],['Mezcalitas','$185']]},{cat:'Tequila (copa)',items:[['Tradicional','$165'],['Herradura','$175'],['Don Julio Blanco','$185'],['Maestro Dobel','$189'],['Don Julio Reposado / Patrón','$199'],['Don Julio 70','$239']]},{cat:'Whisky',items:[['JW Red','$169'],['Jack Daniels','$189'],['JW Black / Buchanans','$245']]},{cat:'Licores & Vinos',items:[['Kahlua','$135'],['Baileys','$165'],['Aperol / St. Germain','$189'],['Prosecco / Licor 43','$150'],['Vino Blanco / Tinto / Espumoso','$150']]}])}
+    `;
   }
 
   if (ch.balcony) {
