@@ -398,8 +398,6 @@
         .btn-outline-green  { border: 1px solid var(--status-green-border); color: var(--status-green); background: var(--status-green-bg); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
         .btn-outline-green:hover { background: rgba(34,211,125,.15); border-color: rgba(34,211,125,.4); transform: translateY(-2px); }
         .btn-outline-green.solid { background: rgba(34,211,125,.15); border-color: rgba(34,211,125,.3); pointer-events: none; text-shadow: 0 0 10px rgba(34,211,125,.4); }
-        .btn-outline-yellow { border: 1px solid var(--status-yellow-border); color: var(--status-yellow); background: var(--status-yellow-bg); }
-        .btn-outline-yellow:hover { background: rgba(232,184,75,.15); border-color: rgba(232,184,75,.4); transform: translateY(-2px); }
         .btn-link { border: 1px solid transparent; color: var(--text-tertiary); background: transparent; justify-self: end; padding: 8px 12px; }
         .btn-link:hover { color: var(--text-primary); background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.1); }
 
@@ -507,6 +505,7 @@
         .filter-pill:hover { border-color: rgba(255,255,255,.2); color: var(--text-primary); background: rgba(255,255,255,.05); }
         .filter-pill.active { border-color: var(--accent-terracota); color: var(--accent-terracota); background: rgba(224,122,62,.08); }
 
+        /* ══ MOBILE ══ */
     </style>
 </head>
 <body>
@@ -516,11 +515,7 @@
     <div id="webgl-container"></div>
     <div id="toast"></div>
 
-    <!-- Mobile hamburger + overlay -->
-    <button class="hamburger" onclick="toggleSidebar()" id="hamburger-btn">
-        <i class="ph ph-list" id="hamburger-icon"></i>
-    </button>
-    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
 
     <div class="app-container">
 
@@ -584,14 +579,6 @@
 
         <!-- ══ MAIN ══ -->
         <main class="main-content" id="main-content">
-            <!-- Header móvil con botón volver -->
-            <div class="mobile-module-header" id="mobile-header">
-                <button class="btn-back" onclick="volverHome()">
-                    <i class="ph ph-arrow-left"></i> Menú
-                </button>
-                <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary)" id="mobile-mod-title"></span>
-            </div>
-
             <!-- MÓDULO: REGISTROS -->
             <div class="module active" id="mod-registros">
 
@@ -726,77 +713,14 @@
     let sheetHoy = 0;
 
     // ── Navegación ──────────────────────────────────────────────
-    const MOD_LABELS = {
-        registros:'REGISTROS', housekeeping:'HOUSEKEEPING', nomina:'NÓMINA',
-        reviews:'REVIEWS', mapa:'MAPA', aircover:'AIRCOVER', bot:'BOT AIRBNB'
-    };
-
     function goTo(mod, el) {
         document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.getElementById('mod-' + mod).classList.add('active');
         el.classList.add('active');
-
-        // En móvil: mostrar main-content y ocultar sidebar
-        if(window.innerWidth <= 768) {
-            const main = document.getElementById('main-content');
-            const header = document.getElementById('mobile-header');
-            const title = document.getElementById('mobile-mod-title');
-            const sidebar = document.querySelector('.sidebar');
-            main.classList.add('mobile-open');
-            header.style.display = 'flex';
-            if(title) title.textContent = MOD_LABELS[mod] || mod.toUpperCase();
-            if(sidebar) sidebar.style.display = 'none'; // ocultar sidebar
-            // Mover canvas 3D al main para que backdrop-filter funcione
-            const webgl = document.getElementById('webgl-container');
-            const glows = document.querySelectorAll('.ambient-glow');
-            if(webgl && !document.getElementById('webgl-mobile')) {
-                webgl.id = 'webgl-mobile';
-                webgl.style.position = 'fixed';
-                webgl.style.zIndex = '51';
-                webgl.style.pointerEvents = 'none';
-                main.insertBefore(webgl, main.firstChild);
-                glows.forEach(g => {
-                    g.style.position = 'fixed';
-                    g.style.zIndex = '51';
-                    g.style.pointerEvents = 'none';
-                    main.insertBefore(g, main.firstChild);
-                });
-            }
-        }
     }
 
-    function volverHome() {
-        const main = document.getElementById('main-content');
-        const sidebar = document.querySelector('.sidebar');
-        main.classList.remove('mobile-open');
-        if(sidebar) sidebar.style.display = '';
-        // Devolver canvas al body
-        const webgl = document.getElementById('webgl-mobile');
-        if(webgl) {
-            webgl.id = 'webgl-container';
-            webgl.style.position = 'fixed';
-            webgl.style.zIndex = '1';
-            document.body.insertBefore(webgl, document.body.firstChild);
-            document.querySelectorAll('.ambient-glow').forEach(g => {
-                g.style.position = 'fixed';
-                g.style.zIndex = '2';
-                document.body.insertBefore(g, document.body.firstChild);
-            });
-        }
-    }
-
-    // Cerrar sidebar overlay (desktop no lo usa, mobile sí)
-    function closeSidebar() {
-        document.querySelector('.sidebar').classList.remove('open');
-        const ov = document.getElementById('sidebar-overlay');
-        if(ov) ov.classList.remove('active');
-    }
-    function toggleSidebar() {
-        const s = document.querySelector('.sidebar');
-        s.classList.toggle('open');
-    }
-
+    
     // ── Toast ───────────────────────────────────────────────────
     function toast(msg, dur=2200) {
         const t = document.getElementById('toast');
@@ -889,20 +813,15 @@
             if(entrada) {
                 checkins++;
                 const tipo = getTmpl(entrada).tipo;
-                if(tipo === 'manual') {
-                    // Manual no cuenta
-                } else if(tipo === 'frakcio') {
-                    const qrRec = (frakcioQR||[]).find(x =>
-                        x.depto && x.depto.toUpperCase()===entrada.toUpperCase() && x.fecha===hoyISO
-                    );
-                    if(!qrRec || !qrRec.qr_enviado) pendientes++;
-                } else {
+                // Frakcio y Manual tienen flujo diferente, no contar
+                if(tipo !== 'frakcio' && tipo !== 'manual') {
                     const d = entrada.toUpperCase();
                     const reg = todosRegistros.find(x => {
                         const xd = (x.depto||'').toUpperCase().trim();
                         return (xd === d || xd.startsWith(d+' ') || d.startsWith(xd+' '))
                             && x.fecha_entrada === hoyISO;
                     });
+                    // Pendiente = sin registro O con registro pero pdf_generado=false
                     if(!reg || !reg.pdf_generado) pendientes++;
                 }
             }
@@ -1032,7 +951,7 @@
             const qrOkH = qrRecH && qrRecH.qr_enviado;
             accion = qrOkH
                 ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
-                : `<button class="btn btn-outline-yellow" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
+                : `<button class="btn btn-outline-green" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
         } else {
             accion=`<button class="btn btn-link">Manual</button>`;
         }
@@ -1111,7 +1030,7 @@
                     const qrOk = qrRec && qrRec.qr_enviado;
                     const qrBtn = qrOk
                         ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
-                        : `<button class="btn btn-outline-yellow" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
+                        : `<button class="btn btn-outline-green" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
                     rowsH+=`<div class="list-item${qrOk?' generado':''}">
                         <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">FRAKCIO</span></div>
                         <div class="guest-name guest-empty">—</div>
@@ -1342,27 +1261,6 @@
         }
     }
 
-
-    // ── Mobile sidebar ──────────────────────────────────────────
-    function toggleSidebar() {
-        const sidebar = document.querySelector('.sidebar');
-        const overlay = document.getElementById('sidebar-overlay');
-        const icon = document.getElementById('hamburger-icon');
-        const isOpen = sidebar.classList.contains('open');
-        if(isOpen) {
-            closeSidebar();
-        } else {
-            sidebar.classList.add('open');
-            overlay.classList.add('active');
-            icon.className = 'ph ph-x';
-        }
-    }
-
-    function closeSidebar() {
-        document.querySelector('.sidebar').classList.remove('open');
-        document.getElementById('sidebar-overlay').classList.remove('active');
-        document.getElementById('hamburger-icon').className = 'ph ph-list';
-    }
 
     // Mostrar loading inmediato
     document.getElementById('s-checkins').textContent = '—';
