@@ -634,36 +634,26 @@
             .list-container { flex:1; min-height:0; margin-bottom:12px; }
             .coming-soon { padding: 40px 20px; }
 
-            /* Glass effect mobile — usar fondo opaco ya que backdrop-filter
-               no funciona bien con position:fixed + canvas en algunos browsers */
+            /* Glass effect mobile */
             .glass-card {
-                background: rgba(22, 22, 20, 0.82);
+                background: rgba(18, 18, 16, 0.78);
                 border-color: rgba(255,255,255,0.1);
+                backdrop-filter: blur(16px) saturate(160%);
+                -webkit-backdrop-filter: blur(16px) saturate(160%);
+                box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
             }
             .glass-panel {
-                background: rgba(14, 14, 12, 0.88);
+                background: rgba(12, 12, 10, 0.85);
                 border-color: rgba(255,255,255,0.09);
+                backdrop-filter: blur(24px) saturate(160%);
+                -webkit-backdrop-filter: blur(24px) saturate(160%);
+                box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07);
             }
             .stat-card.highlight {
-                background: linear-gradient(135deg, rgba(224,122,62,0.18) 0%, rgba(22,22,20,0.82) 100%);
+                background: linear-gradient(135deg, rgba(224,122,62,0.2) 0%, rgba(18,18,16,0.78) 100%);
             }
-            /* Simular glass con pseudo-elemento en stat-card */
-            .stat-card::after {
-                content: '';
-                position: absolute;
-                inset: 0;
-                border-radius: inherit;
-                background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 60%);
-                pointer-events: none;
-            }
-            /* Canvas visible detrás del main — usar iframe trick */
-            .main-content.mobile-open::before {
-                content: '';
-                position: fixed;
-                inset: 0;
-                background: rgba(8,8,8,0.4);
-                z-index: -1;
-                pointer-events: none;
+            .stat-card {
+                box-shadow: 0 2px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
             }
         }
 
@@ -1063,17 +1053,17 @@
 
             if(entrada) {
                 checkins++;
-                // Pendiente = check-in hoy sin registro en Supabase
-                // Frakcio y Manual no cuentan como pendientes criticos
                 const tipo = getTmpl(entrada).tipo;
+                // Frakcio y Manual tienen flujo diferente, no contar
                 if(tipo !== 'frakcio' && tipo !== 'manual') {
-                    const tieneReg = todosRegistros.some(x => {
+                    const d = entrada.toUpperCase();
+                    const reg = todosRegistros.find(x => {
                         const xd = (x.depto||'').toUpperCase().trim();
-                        const d  = entrada.toUpperCase();
                         return (xd === d || xd.startsWith(d+' ') || d.startsWith(xd+' '))
                             && x.fecha_entrada === hoyISO;
                     });
-                    if(!tieneReg) pendientes++;
+                    // Pendiente = sin registro O con registro pero pdf_generado=false
+                    if(!reg || !reg.pdf_generado) pendientes++;
                 }
             }
             if(salida) checkouts++;
