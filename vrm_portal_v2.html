@@ -541,7 +541,8 @@
                 z-index: 52;
                 padding: 0;
                 gap: 0;
-                overflow-y: auto;
+                overflow: hidden;
+                flex-direction: column;
                 -webkit-mask-image: none;
                 mask-image: none;
                 background: transparent;
@@ -558,9 +559,14 @@
 
             /* Módulo ocupa toda la pantalla con padding */
             .module {
-                padding: 16px;
+                padding: 12px;
                 gap: 12px;
                 padding-top: 0;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                flex: 1;
+                position: relative;
+                z-index: 55;
             }
 
             /* Header del módulo con botón volver */
@@ -568,8 +574,10 @@
                 display: flex;
                 align-items: center;
                 gap: 12px;
-                padding: 16px 16px 8px;
+                padding: 12px 12px 6px;
                 flex-shrink: 0;
+                position: relative;
+                z-index: 60;
             }
 
             /* Stats */
@@ -623,6 +631,7 @@
             .ver-mas-btn { font-size: 9.5px; padding: 9px; }
             .filters-bar { padding: 8px 14px !important; gap: 5px !important; }
             .filter-pill { padding: 5px 10px; font-size: 10px; }
+            .list-container { flex:1; min-height:0; margin-bottom:12px; }
             .coming-soon { padding: 40px 20px; }
 
             /* Glass effect mobile — usar fondo opaco ya que backdrop-filter
@@ -921,10 +930,12 @@
                 webgl.id = 'webgl-mobile';
                 webgl.style.position = 'fixed';
                 webgl.style.zIndex = '51';
+                webgl.style.pointerEvents = 'none';
                 main.insertBefore(webgl, main.firstChild);
                 glows.forEach(g => {
                     g.style.position = 'fixed';
                     g.style.zIndex = '51';
+                    g.style.pointerEvents = 'none';
                     main.insertBefore(g, main.firstChild);
                 });
             }
@@ -1337,7 +1348,7 @@
         document.getElementById('list-main-title').textContent = titleMap[tabActual]||"";
         document.getElementById('badge-entradas-hdr').textContent = totalEntradas + " entrada" + (totalEntradas!==1?"s":"");
         const pb = document.getElementById('badge-pendientes-hdr');
-        if(totalPend>0){pb.textContent=totalPend+" pendientes";pb.style.display="";}else pb.style.display="none";
+        pb.style.display="none"; // badge quitado, está en boxes de arriba
     }
 
     // ── Render historial ────────────────────────────────────────
