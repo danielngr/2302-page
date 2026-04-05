@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRM — Portal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="pdf-engine.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #080808;
+            --text-primary: #FFFFFF;
+            --text-secondary: #A1A1AA;
+            --text-tertiary: #52525B;
+            --accent-terracota: #E07A3E;
+            --accent-glow: rgba(224, 122, 62, 0.5);
+            --accent-gold: #F5C070;
+            --status-red: #FF5C5C;
+            --status-red-bg: rgba(255, 92, 92, 0.08);
+            --status-red-border: rgba(255, 92, 92, 0.2);
+            --status-green: #22D37D;
+            --status-green-bg: rgba(34, 211, 125, 0.08);
+            --status-green-border: rgba(34, 211, 125, 0.2);
+            --status-blue: #4AA4FF;
+            --status-blue-bg: rgba(74, 164, 255, 0.08);
+            --status-blue-border: rgba(74, 164, 255, 0.2);
+            --status-yellow: #E8B84B;
+            --status-yellow-bg: rgba(232, 184, 75, 0.08);
+            --status-yellow-border: rgba(232, 184, 75, 0.2);
+            --glass-bg: rgba(18, 18, 18, 0.35);
+            --glass-bg-hover: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            --shadow-premium: 
+                0 4px 6px -1px rgba(0, 0, 0, 0.2),
+                0 24px 48px -12px rgba(0, 0, 0, 0.6);
+            --radius-xl: 32px;
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --radius-sm: 10px;
+            --font-display: 'Plus Jakarta Sans', sans-serif;
+            --font-body: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --transition-smooth: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-base);
+            font-family: var(--font-body);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        #webgl-container {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+        }
+
+        .ambient-glow {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: 1;
+            opacity: 0.4;
+            pointer-events: none;
+            animation: floatGlow 20s ease-in-out infinite alternate;
+        }
+        .glow-1 {
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(212,121,58,0.15) 0%, rgba(0,0,0,0) 70%);
+            top: -100px; left: -100px;
+        }
+        .glow-2 {
+            width: 800px; height: 800px;
+            background: radial-gradient(circle, rgba(61,214,140,0.08) 0%, rgba(0,0,0,0) 70%);
+            bottom: -200px; right: -100px;
+            animation-delay: -10s;
+        }
+        @keyframes floatGlow {
+            0%   { transform: translate(0, 0) scale(1); }
+            50%  { transform: translate(50px, 30px) scale(1.1); }
+            100% { transform: translate(-30px, 60px) scale(0.9); }
+        }
+
+        .app-container {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 10;
+            display: flex;
+            padding: 32px;
+            gap: 32px;
+            pointer-events: none;
+        }
+        .app-container > * { pointer-events: auto; }
+
+        /* ── Glass ── */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(32px) saturate(200%);
+            -webkit-backdrop-filter: blur(32px) saturate(200%);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow-premium), var(--glass-highlight);
+            border-radius: var(--radius-xl);
+            position: relative;
+            overflow: hidden;
+        }
+        .glass-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.05) 100%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-highlight);
+            border-radius: var(--radius-lg);
+            transition: var(--transition-smooth);
+            position: relative;
+        }
+        .glass-card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.04);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px -10px rgba(0,0,0,0.5), var(--glass-highlight);
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: 280px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 32px 0;
+            overflow-y: auto;
+        }
+        .sidebar::-webkit-scrollbar { display: none; }
+
+        .brand {
+            padding: 0 32px;
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand-icon {
+            width: 32px; height: 32px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent-terracota), #ff9858);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 18px;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+        .brand-text {
+            font-family: var(--font-display);
+            font-size: 18px; font-weight: 700; letter-spacing: -0.5px;
+        }
+
+        .sidebar-section { margin-bottom: 36px; }
+        .sidebar-title {
+            font-family: var(--font-display);
+            font-size: 11px; font-weight: 600;
+            color: var(--text-tertiary);
+            text-transform: uppercase; letter-spacing: 1.5px;
+            padding: 0 32px; margin-bottom: 12px;
+        }
+
+        .nav-item {
+            display: flex; align-items: center;
+            padding: 12px 32px;
+            color: var(--text-secondary);
+            font-size: 14px; font-weight: 500;
+            transition: var(--transition-smooth);
+            position: relative; cursor: pointer; gap: 12px;
+        }
+        .nav-item i { font-size: 20px; color: var(--text-tertiary); transition: var(--transition-smooth); }
+        .nav-item:hover { color: var(--text-primary); background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, transparent 100%); }
+        .nav-item:hover i { color: var(--text-secondary); }
+        .nav-item.active { color: var(--text-primary); font-weight: 600; background: linear-gradient(90deg, rgba(224,122,62,0.08) 0%, transparent 100%); }
+        .nav-item.active i { color: var(--accent-terracota); filter: drop-shadow(0 0 8px var(--accent-glow)); }
+        .nav-item.active::before {
+            content: '';
+            position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+            background: var(--accent-terracota);
+            box-shadow: 0 0 10px var(--accent-glow);
+            border-radius: 0 4px 4px 0;
+        }
+
+        .badge {
+            margin-left: auto;
+            background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border);
+            color: var(--text-primary); font-family: var(--font-mono);
+            font-size: 11px; font-weight: 500; padding: 2px 10px; border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .badge-dark { background: #111; color: var(--text-primary); }
+        .badge-green { background: var(--status-green-bg); color: var(--status-green); border-color: var(--status-green-border); text-shadow: 0 0 8px rgba(34,211,125,0.4); }
+        .badge-red { background: var(--status-red-bg); color: var(--status-red); border-color: var(--status-red-border); }
+        .badge-yellow { background: var(--status-yellow-bg); color: var(--status-yellow); border-color: var(--status-yellow-border); }
+
+        .user-profile {
+            margin-top: auto; padding: 24px 32px 0 32px;
+            display: flex; align-items: center; gap: 16px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .avatar {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: linear-gradient(135deg, #2A2A2A, #111111);
+            border: 1px solid rgba(255,255,255,0.15);
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--font-display); font-weight: 700; font-size: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); position: relative;
+        }
+        .avatar::after {
+            content: ''; position: absolute; bottom: 0; right: 0;
+            width: 12px; height: 12px;
+            background: var(--status-green); border: 2px solid #1A1A1A; border-radius: 50%;
+        }
+        .user-info { display: flex; flex-direction: column; gap: 2px; }
+        .user-name { font-family: var(--font-display); font-size: 14px; font-weight: 600; }
+        .user-role { font-size: 12px; color: var(--text-tertiary); }
+
+        /* ── Main Content ── */
+        .main-content {
+            flex: 1; height: 100%;
+            display: flex; flex-direction: column; gap: 28px;
+            overflow-y: auto; padding-right: 8px;
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 16px, black calc(100% - 16px), transparent);
+            mask-image: linear-gradient(to bottom, transparent, black 16px, black calc(100% - 16px), transparent);
+        }
+        .main-content::-webkit-scrollbar { width: 0; }
+
+        /* ── Módulos ── */
+        .module { display: none; flex-direction: column; height: 100%; gap: 28px; }
+        .module.active { display: flex; }
+
+        /* ── Stats ── */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 24px; margin-top: 16px;
+        }
+        .stat-card { padding: 28px; display: flex; flex-direction: column; gap: 16px; }
+        .stat-header { display: flex; justify-content: space-between; align-items: center; }
+        .stat-icon { font-size: 20px; color: var(--text-tertiary); }
+        .stat-title { font-family: var(--font-display); font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-family: var(--font-display); font-size: 40px; font-weight: 700; line-height: 1; letter-spacing: -1px; }
+
+        .stat-card.highlight { border-color: rgba(224,122,62,0.4); background: linear-gradient(135deg, rgba(224,122,62,0.08) 0%, rgba(0,0,0,0) 100%); }
+        .stat-card.highlight .stat-icon { color: var(--accent-terracota); filter: drop-shadow(0 0 8px var(--accent-glow)); }
+        .stat-card.highlight .stat-value { color: var(--accent-terracota); text-shadow: 0 0 20px var(--accent-glow); }
+
+        /* ── Search ── */
+        .search-container {
+            padding: 16px 28px; display: flex; align-items: center; gap: 16px;
+            border-radius: var(--radius-lg);
+        }
+        .search-icon { color: var(--text-secondary); font-size: 20px; }
+        .search-input {
+            background: transparent; border: none; outline: none;
+            color: var(--text-primary); font-size: 16px; font-family: var(--font-body);
+            width: 100%; font-weight: 500;
+        }
+        .search-input::placeholder { color: var(--text-tertiary); font-weight: 400; }
+
+        /* ── Filtros ── */
+        .filters-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+        .filter-pill {
+            padding: 8px 16px; border-radius: 100px;
+            border: 1px solid var(--glass-border); background: transparent;
+            color: var(--text-secondary); font-family: var(--font-display);
+            font-size: 12px; font-weight: 600; cursor: pointer; transition: var(--transition-smooth);
+        }
+        .filter-pill:hover { border-color: rgba(255,255,255,.2); color: var(--text-primary); background: rgba(255,255,255,.05); }
+        .filter-pill.active { border-color: var(--accent-terracota); color: var(--accent-terracota); background: rgba(224,122,62,.08); }
+
+        /* ── Días colapsables ── */
+        .dias-wrapper { display: flex; flex-direction: column; gap: 6px; }
+        .entradas-section {
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md); overflow: hidden;
+            transition: border-color .2s;
+        }
+        .entradas-section:hover { border-color: rgba(255,255,255,.14); }
+        .entradas-header {
+            padding: 14px 20px; display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer; user-select: none; transition: background .15s;
+        }
+        .entradas-header:hover { background: rgba(255,255,255,.02); }
+        .entradas-header h3 {
+            font-family: var(--font-display); font-size: 13px; font-weight: 600;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .eh-meta { font-size: 11px; color: var(--text-tertiary); font-family: var(--font-mono); }
+        .entradas-body { padding: 0 20px 4px; border-top: 1px solid rgba(255,255,255,.06); }
+        .entradas-body.hidden { display: none; }
+
+        .entrada-row {
+            display: flex; align-items: center; padding: 9px 0;
+            border-bottom: 1px solid rgba(255,255,255,.04); gap: 12px;
+        }
+        .entrada-row:last-child { border-bottom: none; }
+        .entrada-depto { font-family: var(--font-mono); font-size: 12px; font-weight: 500; min-width: 150px; }
+        .entrada-guest { font-size: 12px; color: var(--text-secondary); flex: 1; }
+        .entrada-badge {
+            font-size: 10px; font-family: var(--font-mono); padding: 4px 12px;
+            border-radius: 20px; white-space: nowrap; font-weight: 500; cursor: pointer;
+        }
+        .badge-ok    { background: var(--status-green-bg); color: var(--status-green); border: 1px solid var(--status-green-border); }
+        .badge-warn  { background: var(--status-yellow-bg); color: var(--status-yellow); border: 1px solid var(--status-yellow-border); }
+        .badge-err   { background: var(--status-red-bg); color: var(--status-red); border: 1px solid var(--status-red-border); }
+        .badge-blue  { background: var(--status-blue-bg); color: var(--status-blue); border: 1px solid var(--status-blue-border); }
+
+        /* ── Lista histórico ── */
+        .list-container {
+            display: flex; flex-direction: column;
+            flex: 1; min-height: 0; margin-bottom: 24px;
+        }
+        .list-header {
+            padding: 24px 32px; border-bottom: 1px solid rgba(255,255,255,0.06);
+            display: flex; align-items: center; gap: 16px;
+            background: rgba(0,0,0,0.2);
+        }
+        .list-title-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background-color: var(--accent-gold);
+            box-shadow: 0 0 10px rgba(245,192,112,0.6);
+        }
+        .list-title { font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
+        .list-header-badges { margin-left: auto; display: flex; gap: 12px; }
+        .list-body { overflow-y: auto; padding: 8px 0; }
+        .list-body::-webkit-scrollbar { width: 6px; }
+        .list-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+
+        /* Separador fecha */
+        .date-sep {
+            padding: 8px 32px 4px;
+            font-size: 10px; font-family: var(--font-mono); color: var(--text-tertiary);
+            letter-spacing: 1px; text-transform: uppercase;
+            border-bottom: 1px solid rgba(255,255,255,.05);
+        }
+
+        .list-item {
+            display: grid; grid-template-columns: 2.5fr 3fr 2fr 100px;
+            align-items: center; padding: 20px 32px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: var(--transition-smooth); position: relative;
+        }
+        .list-item:hover { background: linear-gradient(90deg, rgba(255,255,255,0.02) 0%, transparent 100%); padding-left: 36px; }
+        .list-item::after {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+            background: var(--text-secondary); border-radius: 0 4px 4px 0;
+            opacity: 0; transform: scaleY(0); transition: var(--transition-smooth);
+        }
+        .list-item:hover::after { opacity: 1; transform: scaleY(0.6); }
+        .list-item.generado { opacity: .5; }
+        .list-item.generado:hover { opacity: .8; }
+
+        .depto-info { display: flex; flex-direction: column; gap: 6px; }
+        .depto-name { font-family: var(--font-display); font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
+        .depto-type { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); letter-spacing: 1px; }
+        .guest-name { font-size: 15px; font-weight: 500; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
+        .guest-missing { color: var(--status-red); font-weight: 400; }
+
+        /* ── Botones ── */
+        .btn {
+            padding: 10px 18px; border-radius: 100px;
+            font-family: var(--font-display); font-weight: 600; font-size: 12px;
+            cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+            gap: 8px; transition: var(--transition-smooth); letter-spacing: 0.3px;
+        }
+        .btn i { font-size: 16px; }
+        .btn-outline-red    { border: 1px solid var(--status-red-border); color: var(--status-red); background: var(--status-red-bg); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
+        .btn-outline-red:hover { background: rgba(255,92,92,.15); border-color: rgba(255,92,92,.4); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255,92,92,.15); }
+        .btn-outline-white  { border: 1px solid rgba(255,255,255,.15); color: var(--text-primary); background: transparent; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
+        .btn-outline-white:hover { border-color: rgba(255,255,255,.4); background: rgba(255,255,255,.08); transform: translateY(-2px); }
+        .btn-outline-blue   { border: 1px solid var(--status-blue-border); color: var(--status-blue); background: var(--status-blue-bg); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
+        .btn-outline-blue:hover { background: rgba(74,164,255,.15); border-color: rgba(74,164,255,.4); transform: translateY(-2px); }
+        .btn-outline-green  { border: 1px solid var(--status-green-border); color: var(--status-green); background: var(--status-green-bg); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
+        .btn-outline-green:hover { background: rgba(34,211,125,.15); border-color: rgba(34,211,125,.4); transform: translateY(-2px); }
+        .btn-outline-green.solid { background: rgba(34,211,125,.15); border-color: rgba(34,211,125,.3); pointer-events: none; text-shadow: 0 0 10px rgba(34,211,125,.4); }
+        .btn-link { border: 1px solid transparent; color: var(--text-tertiary); background: transparent; justify-self: end; padding: 8px 12px; }
+        .btn-link:hover { color: var(--text-primary); background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.1); }
+
+        /* Ver más */
+        .ver-mas-btn {
+            width: 100%; padding: 12px; background: none;
+            border: 1px dashed rgba(255,255,255,.1); color: var(--text-tertiary);
+            border-radius: var(--radius-md); cursor: pointer;
+            font-family: var(--font-mono); font-size: 11px; letter-spacing: .5px;
+            margin: 12px 0; transition: var(--transition-smooth);
+        }
+        .ver-mas-btn:hover { border-color: rgba(255,255,255,.2); color: var(--text-secondary); }
+
+        /* ── Toast ── */
+        #toast {
+            position: fixed; bottom: 28px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: rgba(30,30,30,.96); border: 1px solid rgba(255,255,255,.12);
+            border-radius: var(--radius-md); padding: 12px 20px;
+            font-size: 13px; font-weight: 500; z-index: 9999;
+            transition: transform .35s cubic-bezier(.16,1,.3,1), opacity .35s;
+            opacity: 0; pointer-events: none; white-space: nowrap;
+            backdrop-filter: blur(20px);
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        /* ── Coming soon ── */
+        .coming-soon {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 16px; color: var(--text-tertiary); padding: 60px;
+        }
+        .coming-soon i { font-size: 48px; opacity: .3; }
+        .coming-soon h2 { font-size: 20px; font-weight: 600; color: var(--text-secondary); }
+        .coming-soon p { font-size: 14px; text-align: center; max-width: 340px; line-height: 1.6; }
+
+        /* ── Modal WhatsApp ── */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 1000;
+            display: flex; align-items: center; justify-content: center; padding: 20px;
+            backdrop-filter: blur(8px);
+        }
+        .modal-box {
+            background: #141414; border: 1px solid rgba(255,255,255,.1);
+            border-radius: var(--radius-xl); max-width: 580px; width: 100%;
+            max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;
+        }
+        .modal-head { padding: 16px 22px; border-bottom: 1px solid rgba(255,255,255,.07); display: flex; justify-content: space-between; align-items: center; }
+        .modal-pre { padding: 18px 22px; font-family: var(--font-mono); font-size: 12px; line-height: 1.7; overflow-y: auto; white-space: pre-wrap; color: var(--text-secondary); flex: 1; }
+        .modal-foot { padding: 12px 22px; border-top: 1px solid rgba(255,255,255,.07); display: flex; gap: 10px; }
+
+        /* ── Tabs del panel principal ── */
+        .tab-btn {
+            padding: 12px 20px;
+            background: none; border: none;
+            color: var(--text-tertiary);
+            font-family: var(--font-display); font-size: 11px; font-weight: 700;
+            letter-spacing: 1px; text-transform: uppercase;
+            cursor: pointer; position: relative;
+            transition: var(--transition-smooth);
+        }
+        .tab-btn:hover { color: var(--text-secondary); }
+        .tab-btn.active { color: var(--text-primary); }
+        .tab-btn.active::after {
+            content: '';
+            position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+            background: var(--accent-terracota);
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        /* ── Sección de día colapsable (dentro del panel) ── */
+        .dia-section-inner {
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .dia-section-inner:last-child { border-bottom: none; }
+        .dia-header-inner {
+            padding: 16px 32px; display: flex; align-items: center;
+            justify-content: space-between; cursor: pointer;
+            transition: background .15s; user-select: none;
+        }
+        .dia-header-inner:hover { background: rgba(255,255,255,0.02); }
+        .dia-header-inner h3 {
+            font-family: var(--font-display); font-size: 12px; font-weight: 700;
+            display: flex; align-items: center; gap: 10px; letter-spacing: .5px;
+        }
+        .dia-meta-inner { font-size: 10px; color: var(--text-tertiary); font-family: var(--font-mono); }
+        .dia-body-inner { padding: 0; }
+        .dia-body-inner.hidden { display: none; }
+
+        /* ── Filtros historial ── */
+        .filters-bar {
+            display: flex; gap: 8px; flex-wrap: wrap;
+            padding: 12px 32px; border-bottom: 1px solid rgba(255,255,255,0.04);
+            background: rgba(0,0,0,0.1);
+        }
+        .filter-pill {
+            padding: 6px 14px; border-radius: 100px;
+            border: 1px solid var(--glass-border); background: transparent;
+            color: var(--text-secondary); font-family: var(--font-display);
+            font-size: 11px; font-weight: 600; cursor: pointer;
+            transition: var(--transition-smooth);
+        }
+        .filter-pill:hover { border-color: rgba(255,255,255,.2); color: var(--text-primary); background: rgba(255,255,255,.05); }
+        .filter-pill.active { border-color: var(--accent-terracota); color: var(--accent-terracota); background: rgba(224,122,62,.08); }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+    <div id="webgl-container"></div>
+    <div id="toast"></div>
+
+    <div class="app-container">
+
+        <!-- ══ SIDEBAR ══ -->
+        <aside class="sidebar glass-panel">
+            <div class="brand">
+                <div class="brand-icon"><i class="ph-bold ph-diamonds-four"></i></div>
+                <div class="brand-text">VRM</div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Operaciones</div>
+                <div class="nav-item active" onclick="goTo('registros',this)">
+                    <i class="ph-fill ph-book-bookmark"></i>
+                    Registros
+                    <span class="badge badge-dark" id="badge-pend">—</span>
+                </div>
+                <div class="nav-item" onclick="goTo('housekeeping',this)">
+                    <i class="ph ph-broom"></i>
+                    Housekeeping
+                </div>
+                <div class="nav-item" onclick="goTo('nomina',this)">
+                    <i class="ph ph-money"></i>
+                    Nómina
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Análisis</div>
+                <div class="nav-item" onclick="goTo('reviews',this)">
+                    <i class="ph ph-star"></i>
+                    Reviews
+                </div>
+                <div class="nav-item" onclick="goTo('mapa',this)">
+                    <i class="ph ph-map-pin"></i>
+                    Mapa
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Sistema</div>
+                <div class="nav-item" onclick="goTo('aircover',this)">
+                    <i class="ph ph-shield-check"></i>
+                    Aircover
+                </div>
+                <div class="nav-item" onclick="goTo('bot',this)">
+                    <i class="ph ph-robot"></i>
+                    Bot Airbnb
+                    <span class="badge badge-green">ON</span>
+                </div>
+            </div>
+
+            <div class="user-profile">
+                <div class="avatar">D</div>
+                <div class="user-info">
+                    <span class="user-name">Daniel</span>
+                    <span class="user-role">Admin Workspace</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ══ MAIN ══ -->
+        <main class="main-content">
+
+            <!-- MÓDULO: REGISTROS -->
+            <div class="module active" id="mod-registros">
+
+                <!-- Stats — igual al boceto -->
+                <div class="stats-grid">
+                    <div class="stat-card glass-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Total Registros</div>
+                            <i class="ph ph-files stat-icon"></i>
+                        </div>
+                        <div class="stat-value" id="s-total">—</div>
+                    </div>
+                    <div class="stat-card glass-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Check-in Hoy</div>
+                            <i class="ph ph-calendar-check stat-icon"></i>
+                        </div>
+                        <div class="stat-value" id="s-hoy">—</div>
+                    </div>
+                    <div class="stat-card glass-card highlight">
+                        <div class="stat-header">
+                            <div class="stat-title" style="color: var(--accent-terracota);">PDF Pendiente</div>
+                            <i class="ph-fill ph-warning-circle stat-icon"></i>
+                        </div>
+                        <div class="stat-value" id="s-pend">—</div>
+                    </div>
+                    <div class="stat-card glass-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Generados</div>
+                            <i class="ph ph-check-circle stat-icon"></i>
+                        </div>
+                        <div class="stat-value" id="s-gen">—</div>
+                    </div>
+                </div>
+
+                <!-- Search — igual al boceto -->
+                <div class="search-container glass-card">
+                    <i class="ph ph-magnifying-glass search-icon"></i>
+                    <input type="text" class="search-input" id="buscar" placeholder="Buscar departamento, número o nombre de huésped..." oninput="renderTodo()">
+                </div>
+
+                <!-- Panel principal — igual al boceto: header con fecha + lista -->
+                <div class="list-container glass-panel">
+                    <div class="list-header">
+                        <div class="list-title-dot"></div>
+                        <div class="list-title" id="list-main-title">HOY — cargando...</div>
+                        <div class="list-header-badges">
+                            <span class="badge badge-dark" id="badge-pendientes-hdr" style="display:none"></span>
+                            <span class="badge" id="badge-entradas-hdr">—</span>
+                        </div>
+                    </div>
+
+                    <!-- Tabs de navegación dentro del panel -->
+                    <div style="display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,0.06);padding:0 32px;background:rgba(0,0,0,0.1)">
+                        <button class="tab-btn active" onclick="setTab('hoy',this)" id="tab-hoy">HOY</button>
+                        <button class="tab-btn" onclick="setTab('ayer',this)" id="tab-ayer">AYER</button>
+                        <button class="tab-btn" onclick="setTab('manana',this)" id="tab-manana">MAÑANA</button>
+                        <button class="tab-btn" onclick="setTab('semana',this)" id="tab-semana">+4 DÍAS</button>
+                        <button class="tab-btn" onclick="setTab('historial',this)" id="tab-hist">HISTORIAL</button>
+                        <span style="margin-left:auto;display:flex;align-items:center;gap:8px;padding:0 0 0 16px">
+                            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary)" id="last-upd"></span>
+                            <button onclick="cargarRegistros()" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;padding:4px;font-size:16px"><i class="ph ph-arrows-clockwise"></i></button>
+                        </span>
+                    </div>
+
+                    <div class="list-body" id="lista-body">
+                        <div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando...</div>
+                    </div>
+                </div>
+
+            </div><!-- /registros -->
+
+            <!-- MÓDULO: HOUSEKEEPING -->
+            <div class="module" id="mod-housekeeping">
+                <div class="coming-soon">
+                    <i class="ph ph-broom"></i>
+                    <h2>Housekeeping</h2>
+                    <p>Conectado al Google Sheet de operaciones con checklist de limpieza y nómina semanal.</p>
+                </div>
+            </div>
+
+            <!-- MÓDULO: NÓMINA -->
+            <div class="module" id="mod-nomina">
+                <div class="coming-soon">
+                    <i class="ph ph-money"></i>
+                    <h2>Nómina</h2>
+                    <p>Resumen semanal de pagos a chicas de limpieza, bonos y ajustes.</p>
+                </div>
+            </div>
+
+            <!-- MÓDULO: REVIEWS -->
+            <div class="module" id="mod-reviews">
+                <div class="coming-soon">
+                    <i class="ph ph-star"></i>
+                    <h2>Reviews</h2>
+                    <p>Dashboard con scraper integrado, análisis por propiedad y tracker de Superhost.</p>
+                </div>
+            </div>
+
+            <!-- MÓDULO: MAPA -->
+            <div class="module" id="mod-mapa">
+                <div class="coming-soon">
+                    <i class="ph ph-map-pin"></i>
+                    <h2>Mapa</h2>
+                    <p>64 propiedades con estado en tiempo real y drawer de información por unidad.</p>
+                </div>
+            </div>
+
+            <!-- MÓDULO: AIRCOVER -->
+            <div class="module" id="mod-aircover">
+                <div class="coming-soon">
+                    <i class="ph ph-shield-check"></i>
+                    <h2>Aircover</h2>
+                    <p>Seguimiento de casos de protección Airbnb activos.</p>
+                </div>
+            </div>
+
+            <!-- MÓDULO: BOT -->
+            <div class="module" id="mod-bot">
+                <div class="coming-soon">
+                    <i class="ph ph-robot"></i>
+                    <h2>Bot Airbnb</h2>
+                    <p>Logs, toggle de modo observación y configuración de respuestas automáticas.</p>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ══ LÓGICA APP ══ -->
+    <script>
+    const SUPABASE_URL = "https://grsykedeppdwenpfxlfh.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm";
+    const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbPcCF6EoM93GIga20ntKOsuys9KLp4gkG2czTR4qyy_nASRil8qURTuceB_Rw5PEMR_us7EpQNADX/pub?gid=220927923&single=true&output=csv";
+    const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+
+    let todosRegistros = [], frakcioQR = [], formatoManual = [];
+    let filtroActual = "todos", sheetHoy = 0;
+
+    // ── Navegación ──────────────────────────────────────────────
+    function goTo(mod, el) {
+        document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById('mod-' + mod).classList.add('active');
+        el.classList.add('active');
+    }
+
+    // ── Toast ───────────────────────────────────────────────────
+    function toast(msg, dur=2200) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), dur);
+    }
+
+    // ── Helpers fecha ───────────────────────────────────────────
+    function fmtFecha(val) {
+        if(!val) return "—";
+        const [y,m,d] = val.split("-");
+        return `${parseInt(d)} ${MESES[parseInt(m)-1]}`;
+    }
+
+    // ── Template mapping ────────────────────────────────────────
+    const TMPL = {
+        "QUIYA":{t:"quiya",tipo:"pdf"},"VENETIAN":{t:"venetian",tipo:"pdf"},
+        "GD":{t:"gd",tipo:"pdf"},"FLAMINGOS":{t:"flamingos",tipo:"pdf"},
+        "ALBATROS":{t:"albatros",tipo:"pdf"},"ALAMAR":{t:"alamar",tipo:"pdf"},
+        "XIKIRI":{t:"xikiri",tipo:"pdf"},"PENINSULA":{t:"peninsula",tipo:"pdf"},
+        "NAUTICO":{t:"whatsapp",tipo:"whatsapp"},"RINCON":{t:"whatsapp",tipo:"whatsapp"},
+        "MARSALA":{t:"whatsapp",tipo:"whatsapp"},"AMOARA":{t:"whatsapp",tipo:"whatsapp"},
+        "PLAYA ESMERALDA":{t:"whatsapp",tipo:"whatsapp"},"ARCANO":{t:"whatsapp",tipo:"whatsapp"},
+        "MARINA SOL":{t:"whatsapp",tipo:"whatsapp"},
+        "ARIA":{t:"frakcio",tipo:"frakcio"},"MARITIMA":{t:"frakcio",tipo:"frakcio"},
+        "BOLONGO":{t:"frakcio",tipo:"frakcio"},"ZOHO":{t:"frakcio",tipo:"frakcio"},
+        "PUERTARENA":{t:"frakcio",tipo:"frakcio"},"BAY VIEW":{t:"frakcio",tipo:"frakcio"},
+        "ZANTAMAR":{t:"frakcio",tipo:"frakcio"},
+        "TULES":{t:"manual",tipo:"manual"},"MASCOTA":{t:"manual",tipo:"manual"},
+    };
+    const EXACT = {"PLAYA ESMERALDA":{t:"whatsapp",tipo:"whatsapp"},"ARCANO":{t:"whatsapp",tipo:"whatsapp"},"MARINA SOL":{t:"whatsapp",tipo:"whatsapp"},"BAY VIEW":{t:"frakcio",tipo:"frakcio"}};
+
+    function getTmpl(depto) {
+        const d = (depto||"").toUpperCase().trim();
+        if(EXACT[d]) return EXACT[d];
+        const k = Object.keys(TMPL).find(k => d.startsWith(k));
+        return k ? TMPL[k] : {t:"general",tipo:"general"};
+    }
+
+    // ── Cargar Supabase ─────────────────────────────────────────
+    async function cargarRegistros() {
+        try {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?select=*&order=fecha_entrada.asc,created_at.desc`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            });
+            todosRegistros = await res.json();
+            todosRegistros = todosRegistros.map(r => {
+                const m = getTmpl(r.depto||"");
+                if(!r.template) r.template = m.t;
+                if(!r.tipo_formato || r.tipo_formato==="general") r.tipo_formato = m.tipo;
+                return r;
+            });
+            document.getElementById('last-upd').textContent = "Actualizado " + new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
+            actualizarStats();
+            renderTodo();
+            cargarEntradas().catch(e => console.error("Sheet:", e));
+        } catch(e) {
+            document.getElementById('lista-body').innerHTML = `<div style="padding:40px;text-align:center;color:var(--status-red);font-family:var(--font-mono);font-size:12px">Error: ${e.message}</div>`;
+        }
+    }
+
+    function actualizarStats() {
+        const pend = todosRegistros.filter(r => !r.pdf_generado).length;
+        const gen  = todosRegistros.filter(r =>  r.pdf_generado).length;
+        document.getElementById('s-total').textContent = todosRegistros.length;
+        document.getElementById('s-hoy').textContent   = sheetHoy||"—";
+        document.getElementById('s-pend').textContent  = pend;
+        document.getElementById('s-gen').textContent   = gen;
+        const bp = document.getElementById('badge-pend');
+        bp.textContent = pend||"—";
+        bp.className = pend>0 ? 'badge badge-red' : 'badge badge-green';
+    }
+
+    // ── Filtros ─────────────────────────────────────────────────
+    let tabActual = "hoy";
+    let filtroActual = "todos_hist";
+
+    function setTab(tab, btn) {
+        tabActual = tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderTodo();
+    }
+
+    function setFiltro(f, btn) {
+        filtroActual = f;
+        document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderTodo();
+    }
+
+    function renderTodo() {
+        if(tabActual === "historial") {
+            renderHistorial();
+        } else {
+            renderDias();
+        }
+    }
+
+    // ── Render lista ────────────────────────────────────────────
+    function renderLista() {
+        const body = document.getElementById('lista-body');
+        const lista = filtrar(todosRegistros);
+        if(!lista.length) {
+            body.innerHTML = `<div style="padding:50px;text-align:center;color:var(--text-tertiary)"><i class="ph ph-inbox" style="font-size:36px;opacity:.3;display:block;margin-bottom:12px"></i>No hay registros</div>`;
+            document.getElementById('hist-total').textContent = "0";
+            return;
+        }
+
+        const hoy = new Date();
+        const hace30 = new Date(); hace30.setDate(hoy.getDate()-30);
+        const hace30S = hace30.toISOString().split("T")[0];
+
+        const recientes = lista.filter(r => !r.fecha_entrada||r.fecha_entrada>=hace30S);
+        const antiguos  = lista.filter(r =>  r.fecha_entrada&&r.fecha_entrada<hace30S);
+
+        const sortDesc = arr => [...arr].sort((a,b)=>{
+            const fa=a.fecha_entrada||"",fb=b.fecha_entrada||"";
+            return fb!==fa ? fb.localeCompare(fa) : (a.depto||"").localeCompare(b.depto||"");
+        });
+
+        function agrupar(arr) {
+            const g={};
+            sortDesc(arr).forEach(r=>{const k=r.fecha_entrada||"sin-fecha";if(!g[k])g[k]=[];g[k].push(r);});
+            return g;
+        }
+
+        function renderGrupos(grupos) {
+            let h="";
+            for(const fecha of Object.keys(grupos)) {
+                let lbl=fecha;
+                if(fecha!=="sin-fecha"){const[y,m,d]=fecha.split("-");lbl=`${parseInt(d)} ${MESES[parseInt(m)-1]} ${y}`;}
+                h+=`<div class="date-sep">${lbl}</div>`;
+                h+=grupos[fecha].map(r=>itemHTML(r)).join("");
+            }
+            return h;
+        }
+
+        let html = renderGrupos(agrupar(recientes));
+        if(antiguos.length) {
+            html+=`<div style="padding:0 32px">
+              <button class="ver-mas-btn" onclick="mostrarAntiguos()" id="btn-ver-mas">
+                Ver más — ${antiguos.length} registro${antiguos.length>1?"s":""} anteriores a 30 días
+              </button>
+              <div id="antiguos-div" style="display:none"></div>
+            </div>`;
+            window._regAnt = antiguos;
+        }
+
+        body.innerHTML = html;
+        document.getElementById('hist-total').textContent = lista.length + " total";
+        const pc = lista.filter(r=>!r.pdf_generado).length;
+        const pb = document.getElementById('hist-pend');
+        if(pc>0){pb.textContent=pc+" pendientes";pb.style.display="";}else pb.style.display="none";
+    }
+
+    function mostrarAntiguos() {
+        document.getElementById('btn-ver-mas').style.display="none";
+        const div = document.getElementById('antiguos-div');
+        const sortDesc = arr=>[...arr].sort((a,b)=>(b.fecha_entrada||"").localeCompare(a.fecha_entrada||""));
+        const grupos={};
+        sortDesc(window._regAnt||[]).forEach(r=>{const k=r.fecha_entrada||"sin-fecha";if(!grupos[k])grupos[k]=[];grupos[k].push(r);});
+        let h="";
+        for(const fecha of Object.keys(grupos)){
+            let lbl=fecha;
+            if(fecha!=="sin-fecha"){const[y,m,d]=fecha.split("-");lbl=`${parseInt(d)} ${MESES[parseInt(m)-1]} ${y}`;}
+            h+=`<div class="date-sep">${lbl}</div>`;
+            h+=grupos[fecha].map(r=>itemHTML(r)).join("");
+        }
+        div.innerHTML=h; div.style.display="block";
+    }
+
+    function itemHTML(r) {
+        let accion="";
+        if(r.pdf_generado) {
+            accion=`<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Generado</button>`;
+        } else if(r.tipo_formato==="pdf") {
+            accion=`<button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button>`;
+        } else if(r.tipo_formato==="whatsapp") {
+            accion=`<button class="btn btn-outline-blue" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button>`;
+        } else if(r.tipo_formato==="frakcio") {
+            accion=`<button class="btn btn-outline-green"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
+        } else {
+            accion=`<button class="btn btn-link">Manual</button>`;
+        }
+        const nombre = r.nombre
+            ? `<span class="guest-name">${r.nombre}</span>`
+            : `<span class="guest-name guest-missing"><i class="ph ph-warning"></i> Sin registro</span>`;
+
+        return `<div class="list-item${r.pdf_generado?' generado':''}" id="li-${r.id}">
+            <div class="depto-info">
+                <span class="depto-name">${r.depto||"—"}</span>
+                <span class="depto-type">${fmtFecha(r.fecha_entrada)} → ${fmtFecha(r.fecha_salida)} · ${r.num_adultos||0}A${(r.num_menores||0)>0?" "+(r.num_menores)+"N":""}</span>
+            </div>
+            ${nombre}
+            <div>${accion}</div>
+            <button class="btn btn-link" data-copy="${r.depto}" onclick="copiarLink('${r.depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
+        </div>`;
+    }
+
+
+    // ── Render días (tabs HOY/AYER/MAÑANA/+4DÍAS) ──────────────
+    function renderDias() {
+        const body = document.getElementById('lista-body');
+        const MESES_L = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+        const q = (document.getElementById('buscar')?.value||"").toLowerCase();
+
+        // Mapear tab a rango de días
+        const rangoMap = { hoy:[0,0], ayer:[-1,-1], manana:[1,1], semana:[1,4] };
+        const rango = rangoMap[tabActual] || [0,0];
+
+        const hoyBase = new Date(); hoyBase.setHours(0,0,0,0);
+        let html = "";
+        let totalEntradas = 0, totalPend = 0;
+
+        for(let i = rango[0]; i <= rango[1]; i++) {
+            const dia = new Date(hoyBase); dia.setDate(hoyBase.getDate()+i);
+            const fs = `${dia.getDate()}/${dia.getMonth()+1}/${dia.getFullYear()}`;
+            const fiso = dia.toISOString().split("T")[0];
+            const lbl = i===-1 ? `AYER — ${dia.getDate()} ${MESES_L[dia.getMonth()]}`
+                       : i===0  ? `HOY — ${dia.getDate()} ${MESES_L[dia.getMonth()]}`
+                       : i===1  ? `MAÑANA — ${dia.getDate()} ${MESES_L[dia.getMonth()]}`
+                       : `${dia.getDate()} ${MESES_L[dia.getMonth()]}`;
+
+            const ents = (window._sheetRows||[]).filter((r,ri)=>{
+                if(ri===0) return false;
+                const f=(r[0]||'').trim().replace(/"/g,'');
+                const d=(r[2]||'').trim().replace(/"/g,'');
+                if(!d) return false;
+                if(q && !d.toLowerCase().includes(q)) return false;
+                return f===fs;
+            });
+            if(!ents.length && tabActual!=='historial') continue;
+            totalEntradas += ents.length;
+
+            function matchReg(depto){
+                const d=depto.toUpperCase();
+                return todosRegistros.find(x=>{
+                    const xd=(x.depto||'').toUpperCase().trim();
+                    return (xd===d||xd.startsWith(d+' ')||d.startsWith(xd+' '))&&x.fecha_entrada===fiso;
+                });
+            }
+
+            let rowsH="", pend=0;
+            ents.forEach(row=>{
+                const depto=(row[2]||'').trim().replace(/"/g,'');
+                const tipo=getTmpl(depto).tipo;
+                const reg=matchReg(depto);
+
+                if(tipo==="frakcio"){
+                    rowsH+=`<div class="list-item">
+                        <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">FRAKCIO</span></div>
+                        <div class="guest-name guest-empty">—</div>
+                        <div><button class="btn btn-outline-green"><i class="ph-bold ph-qr-code"></i> QR pendiente</button></div>
+                        <div></div>
+                    </div>`;
+                    pend++; totalPend++;
+                } else if(tipo==="manual"){
+                    rowsH+=`<div class="list-item">
+                        <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">MANUAL</span></div>
+                        <div class="guest-name guest-empty">—</div>
+                        <div><button class="btn btn-link">Manual</button></div>
+                        <div></div>
+                    </div>`;
+                } else if(!reg){
+                    rowsH+=`<div class="list-item">
+                        <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">ENTRADA</span></div>
+                        <div class="guest-name guest-missing"><i class="ph ph-warning"></i> Sin registro previo</div>
+                        <div><button class="btn btn-outline-red" onclick="copiarLink('${depto}')"><i class="ph-bold ph-prohibit"></i> Sin registro</button></div>
+                        <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
+                    </div>`;
+                    pend++; totalPend++;
+                } else {
+                    const done=reg.pdf_generado;
+                    let accion="";
+                    if(done) accion=`<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Generado</button>`;
+                    else if(reg.tipo_formato==="pdf") accion=`<button class="btn btn-outline-white" onclick="generarFormato('${reg.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button>`;
+                    else if(reg.tipo_formato==="whatsapp") accion=`<button class="btn btn-outline-blue" onclick="generarFormato('${reg.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button>`;
+                    else accion=`<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Listo</button>`;
+                    if(!done){pend++;totalPend++;}
+                    rowsH+=`<div class="list-item${done?' generado':''}" id="li-${reg.id}">
+                        <div class="depto-info"><span class="depto-name">${reg.depto||depto}</span><span class="depto-type">ENTRADA</span></div>
+                        <div class="guest-name">${reg.nombre||''}</div>
+                        <div>${accion}</div>
+                        <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
+                    </div>`;
+                }
+            });
+
+            // Si hay múltiples días (+4), mostrar separador
+            if(rango[1]-rango[0] > 0) {
+                const cBadge = pend>0
+                    ?`<span style="color:var(--status-red);font-family:var(--font-mono);font-size:10px">${pend} pend.</span>`
+                    :`<span style="color:var(--status-green);font-family:var(--font-mono);font-size:10px">✓</span>`;
+                html+=`<div class="dia-section-inner">
+                    <div class="dia-header-inner" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                        <h3>📅 ${lbl} ${cBadge}</h3>
+                        <span class="dia-meta-inner">${ents.length} entrada${ents.length>1?'s':''}</span>
+                    </div>
+                    <div class="dia-body-inner${i!==0?' hidden':''}">${rowsH}</div>
+                </div>`;
+            } else {
+                html += rowsH;
+            }
+        }
+
+        if(!html) {
+            html=`<div style="padding:50px;text-align:center;color:var(--text-tertiary)"><i class="ph ph-calendar-blank" style="font-size:36px;opacity:.3;display:block;margin-bottom:12px"></i>Sin entradas para este día</div>`;
+        }
+
+        body.innerHTML = html;
+
+        // Actualizar header del panel
+        const hoyD = new Date(); hoyD.setHours(0,0,0,0);
+        const tabD = new Date(hoyD); tabD.setDate(hoyD.getDate()+rango[0]);
+        const MESES_L2 = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+        const titleMap = { hoy:`HOY — ${tabD.getDate()} ${MESES_L2[tabD.getMonth()]}`, ayer:`AYER — ${tabD.getDate()} ${MESES_L2[tabD.getMonth()]}`, manana:`MAÑANA — ${tabD.getDate()} ${MESES_L2[tabD.getMonth()]}`, semana:`PRÓXIMOS 4 DÍAS` };
+        document.getElementById('list-main-title').textContent = titleMap[tabActual]||"";
+        document.getElementById('badge-entradas-hdr').textContent = totalEntradas + " entrada" + (totalEntradas!==1?"s":"");
+        const pb = document.getElementById('badge-pendientes-hdr');
+        if(totalPend>0){pb.textContent=totalPend+" pendientes";pb.style.display="";}else pb.style.display="none";
+    }
+
+    // ── Render historial ────────────────────────────────────────
+    function renderHistorial() {
+        const body = document.getElementById('lista-body');
+        document.getElementById('list-main-title').textContent = "HISTORIAL";
+
+        // Filtros barra
+        let filtersHTML = `<div class="filters-bar">
+            <button class="filter-pill ${filtroActual==='todos_hist'?'active':''}" onclick="setFiltro('todos_hist',this)">Todos</button>
+            <button class="filter-pill ${filtroActual==='pendientes'?'active':''}" onclick="setFiltro('pendientes',this)">Sin generar</button>
+            <button class="filter-pill ${filtroActual==='pdf'?'active':''}" onclick="setFiltro('pdf',this)">PDF</button>
+            <button class="filter-pill ${filtroActual==='whatsapp'?'active':''}" onclick="setFiltro('whatsapp',this)">WhatsApp</button>
+        </div>`;
+
+        const q = (document.getElementById('buscar')?.value||"").toLowerCase();
+        let lista = todosRegistros;
+        if(q) lista = lista.filter(x=>(x.depto||"").toLowerCase().includes(q)||(x.nombre||"").toLowerCase().includes(q));
+        switch(filtroActual){
+            case "pendientes": lista=lista.filter(x=>!x.pdf_generado); break;
+            case "pdf":        lista=lista.filter(x=>x.tipo_formato==="pdf"); break;
+            case "whatsapp":   lista=lista.filter(x=>x.tipo_formato==="whatsapp"); break;
+        }
+
+        if(!lista.length){
+            body.innerHTML=filtersHTML+`<div style="padding:40px;text-align:center;color:var(--text-tertiary)"><i class="ph ph-inbox" style="font-size:36px;opacity:.3;display:block;margin-bottom:12px"></i>No hay registros</div>`;
+            document.getElementById('badge-entradas-hdr').textContent="0";
+            document.getElementById('badge-pendientes-hdr').style.display="none";
+            return;
+        }
+
+        const hoy=new Date(), hace30=new Date();
+        hace30.setDate(hoy.getDate()-30);
+        const hace30S=hace30.toISOString().split("T")[0];
+        const recientes=lista.filter(r=>!r.fecha_entrada||r.fecha_entrada>=hace30S);
+        const antiguos =lista.filter(r=> r.fecha_entrada&&r.fecha_entrada<hace30S);
+        const sortDesc=arr=>[...arr].sort((a,b)=>{const fa=a.fecha_entrada||"",fb=b.fecha_entrada||"";return fb!==fa?fb.localeCompare(fa):(a.depto||"").localeCompare(b.depto||"");});
+        function agrupar(arr){const g={};sortDesc(arr).forEach(r=>{const k=r.fecha_entrada||"sin-fecha";if(!g[k])g[k]=[];g[k].push(r);});return g;}
+        function renderGrupos(grupos){
+            const MESES_L=["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+            let h="";
+            for(const fecha of Object.keys(grupos)){
+                let lbl=fecha;
+                if(fecha!=="sin-fecha"){const[y,m,d]=fecha.split("-");lbl=`${parseInt(d)} ${MESES_L[parseInt(m)-1]} ${y}`;}
+                h+=`<div class="date-sep">${lbl}</div>`;
+                h+=grupos[fecha].map(r=>itemHTML(r)).join("");
+            }
+            return h;
+        }
+        let html=filtersHTML+renderGrupos(agrupar(recientes));
+        if(antiguos.length){
+            html+=`<div style="padding:0 32px"><button class="ver-mas-btn" onclick="mostrarAntiguos()" id="btn-ver-mas">Ver más — ${antiguos.length} registro${antiguos.length>1?"s":""} anteriores a 30 días</button><div id="antiguos-div" style="display:none"></div></div>`;
+            window._regAnt=antiguos;
+        }
+        body.innerHTML=html;
+        document.getElementById('badge-entradas-hdr').textContent=lista.length+" total";
+        const pc=lista.filter(r=>!r.pdf_generado).length;
+        const pb=document.getElementById('badge-pendientes-hdr');
+        if(pc>0){pb.textContent=pc+" pendientes";pb.style.display="";}else pb.style.display="none";
+    }
+
+    // ── Copiar link ─────────────────────────────────────────────
+    function copiarLink(depto) {
+        const url = "https://danielngr.github.io/2302-page/registro.html?dept=" + encodeURIComponent(depto);
+        const msg = `Hola 👋 Para coordinar tu llegada, necesito que llenes este breve formulario de registro:\n\n${url}\n\nSi tienes alguna duda, con gusto te ayudo 🙌`;
+        navigator.clipboard.writeText(msg).then(() => {
+            toast("✓ Link copiado");
+            const reg = todosRegistros.find(x=>{
+                const d=(x.depto||'').toUpperCase().trim(), dep=depto.toUpperCase();
+                return (d===dep||d.startsWith(dep+' ')||dep.startsWith(d+' '))&&x.tipo_formato==='whatsapp';
+            });
+            if(reg&&!reg.pdf_generado) marcarGenerado(reg.id);
+        });
+    }
+
+    // ── Generar formato ─────────────────────────────────────────
+    function generarFormato(id) {
+        const r = todosRegistros.find(x=>x.id===id);
+        if(!r) return;
+        const ocupantes = Array.isArray(r.ocupantes)?r.ocupantes:[];
+        const datos = {
+            depto:r.depto, nombre:r.nombre, telefono:r.telefono, correo:r.email,
+            edad:r.edad||"", direccion:r.direccion||"",
+            entrada:r.fecha_entrada, salida:r.fecha_salida,
+            adultos:r.num_adultos, menores:r.num_menores, mascotas:r.num_mascotas,
+            vehiculo:r.vehiculo_modelo, placas:r.vehiculo_placas,
+            personas:(r.num_adultos||0)+(r.num_menores||0),
+            foto_id:r.foto_id||null,
+            recamaras:r.num_recamaras||r.recamaras||2,
+        };
+        r._idioma = "es"; datos._idioma = "es";
+
+        if(r.tipo_formato==="pdf") {
+            try { generarPDF(r, datos, ocupantes, id); }
+            catch(e) { console.error("PDF error:", e); toast("❌ Error: " + e.message); }
+        } else if(r.tipo_formato==="whatsapp") {
+            mostrarTexto(r, datos, ocupantes);
+            marcarGenerado(id);
+        } else {
+            toast("Formato: " + r.tipo_formato);
+        }
+    }
+
+    // ── Marcar generado ─────────────────────────────────────────
+    async function marcarGenerado(id) {
+        const r = todosRegistros.find(x=>x.id===id);
+        if(r) r.pdf_generado=true;
+        actualizarStats();
+        document.getElementById(`li-${id}`)?.classList.add('generado');
+        fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?id=eq.${id}`,{
+            method:"PATCH",keepalive:true,
+            headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+            body:JSON.stringify({pdf_generado:true})
+        }).catch(()=>{});
+    }
+
+    // ── Entradas del sheet (solo data loader) ──────────────────
+    async function cargarEntradas() {
+        try {
+            const res = await fetch(SHEET_CSV);
+            const text = await res.text();
+            const rows = text.split('\n').map(r=>r.split(','));
+            window._sheetRows = rows;
+            const hoy = new Date();
+            const hoyStr = `${hoy.getDate()}/${hoy.getMonth()+1}/${hoy.getFullYear()}`;
+            sheetHoy = rows.filter((r,i)=>{
+                if(i===0) return false;
+                return (r[2]||'').trim().replace(/"/g,'') && (r[0]||'').trim().replace(/"/g,'')=== hoyStr;
+            }).length;
+            document.getElementById('s-hoy').textContent = sheetHoy;
+            actualizarStats();
+            renderTodo();
+        } catch(e) {
+            console.error("Sheet error:", e);
+        }
+    }
+
+    cargarRegistros();
+    setInterval(cargarRegistros, 60000);
+    </script>
+
+    <!-- ══ 3D BACKGROUND — exacto del boceto ══ -->
+    <script>
+        const config = {
+            gridSize: 110,
+            spacing: 4,
+            waveSpeed: 0.5,
+            waveHeight: 20,
+            mouseRadius: 65,
+            mouseForce: 45
+        };
+
+        let scene, camera, renderer, instancedMesh;
+        let clock = new THREE.Clock();
+        const dummy = new THREE.Object3D();
+        const center = new THREE.Vector3(0, 0, 0);
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2(-1000, -1000);
+        let mouse3D = new THREE.Vector3(-1000, 0, -1000);
+        let hitPlane;
+
+        init();
+        animate();
+
+        function init() {
+            const container = document.getElementById('webgl-container');
+            scene = new THREE.Scene();
+            scene.background = null;
+            scene.fog = new THREE.FogExp2(0x080808, 0.0035);
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
+            camera.position.set(0, 160, 220);
+            camera.lookAt(0, 0, 0);
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0x000000, 0);
+            container.appendChild(renderer.domElement);
+            createInstancedWave();
+            const planeGeo = new THREE.PlaneGeometry(2000, 2000);
+            planeGeo.rotateX(-Math.PI / 2);
+            const planeMat = new THREE.MeshBasicMaterial({ visible: false });
+            hitPlane = new THREE.Mesh(planeGeo, planeMat);
+            scene.add(hitPlane);
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('touchmove', onTouchMove, {passive: true});
+            window.addEventListener('touchstart', onTouchMove, {passive: true});
+            window.addEventListener('touchend', onTouchEnd);
+        }
+
+        function createInstancedWave() {
+            const numParticles = config.gridSize * config.gridSize;
+            const geometry = new THREE.SphereGeometry(0.22, 12, 12);
+            const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+            instancedMesh = new THREE.InstancedMesh(geometry, material, numParticles);
+            const palleteHex = [
+                0xE07A3E, 0xD4793A, 0xFFB088, 0xF5C070, 0xFFFFFF,
+                0x151515, 0x222222, 0x333333, 0x444444
+            ];
+            let i = 0;
+            const offset = (config.gridSize * config.spacing) / 2;
+            for (let x = 0; x < config.gridSize; x++) {
+                for (let z = 0; z < config.gridSize; z++) {
+                    const posX = (x * config.spacing) - offset;
+                    const posZ = (z * config.spacing) - offset;
+                    dummy.position.set(posX, 0, posZ);
+                    dummy.lookAt(center);
+                    dummy.updateMatrix();
+                    instancedMesh.setMatrixAt(i, dummy.matrix);
+                    let colorIndex = Math.random() < 0.70
+                        ? Math.floor(Math.random() * 4) + 5
+                        : Math.floor(Math.random() * 5);
+                    instancedMesh.setColorAt(i, new THREE.Color(palleteHex[colorIndex]));
+                    i++;
+                }
+            }
+            scene.add(instancedMesh);
+        }
+
+        function onMouseMove(event) { mouse.x = (event.clientX / window.innerWidth) * 2 - 1; mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; }
+        function onTouchMove(event) { mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1; mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1; }
+        function onTouchEnd() { mouse.x = -1000; mouse.y = -1000; }
+        function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+        function animate() { requestAnimationFrame(animate); render(); }
+
+        function render() {
+            const time = clock.getElapsedTime() * config.waveSpeed;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(hitPlane);
+            if (intersects.length > 0) { mouse3D.lerp(intersects[0].point, 0.1); }
+            else { mouse3D.lerp(new THREE.Vector3(-1000, 0, -1000), 0.05); }
+            let i = 0;
+            const offset = (config.gridSize * config.spacing) / 2;
+            for (let x = 0; x < config.gridSize; x++) {
+                for (let z = 0; z < config.gridSize; z++) {
+                    const posX = (x * config.spacing) - offset;
+                    const posZ = (z * config.spacing) - offset;
+                    let waveY = Math.sin((posX / 25) + time) * Math.cos((posZ / 25) + time) * config.waveHeight;
+                    const distToMouse = Math.sqrt(Math.pow(posX - mouse3D.x, 2) + Math.pow(posZ - mouse3D.z, 2));
+                    let mouseBump = 0;
+                    if (distToMouse < config.mouseRadius) {
+                        const intensity = 1 - (distToMouse / config.mouseRadius);
+                        mouseBump = (Math.sin(intensity * Math.PI - (Math.PI / 2)) + 1) * 0.5 * config.mouseForce;
+                    }
+                    dummy.position.set(posX, waveY + mouseBump, posZ);
+                    dummy.lookAt(center.x, dummy.position.y, center.z);
+                    dummy.rotateX(Math.PI / 2);
+                    const waveSlope = Math.cos((posX / 25) + time) * 0.2;
+                    dummy.rotateY(waveSlope);
+                    dummy.updateMatrix();
+                    instancedMesh.setMatrixAt(i, dummy.matrix);
+                    i++;
+                }
+            }
+            instancedMesh.instanceMatrix.needsUpdate = true;
+            instancedMesh.rotation.y = time * 0.05;
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
