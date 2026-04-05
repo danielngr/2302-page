@@ -631,6 +631,49 @@
         }
         .ajuste-input:focus { border-color: var(--accent-terracota); }
         .ajuste-input::placeholder { color: var(--text-tertiary); }
+
+        /* ── Detalle registro expandible ── */
+        .reg-detail {
+            display: none;
+            background: rgba(0,0,0,0.2);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding: 16px 32px 20px;
+            animation: fadeIn .2s ease;
+        }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+        .reg-detail.open { display: block; }
+        .reg-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .reg-field { display: flex; flex-direction: column; gap: 4px; }
+        .reg-field-label {
+            font-family: var(--font-mono); font-size: 9px;
+            color: var(--text-tertiary); letter-spacing: 1px; text-transform: uppercase;
+        }
+        .reg-field-val {
+            font-size: 13px; font-weight: 500; color: var(--text-secondary);
+        }
+        .reg-field-val.highlight { color: var(--accent-terracota); font-weight: 600; }
+        .ocupantes-list {
+            display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+        }
+        .ocupante-chip {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+            border-radius: 100px; padding: 4px 12px;
+            font-size: 11px; color: var(--text-secondary);
+        }
+        .chevron-btn {
+            background: none; border: none; cursor: pointer;
+            color: var(--text-tertiary); font-size: 18px;
+            padding: 4px 8px; transition: var(--transition-smooth);
+            display: flex; align-items: center;
+        }
+        .chevron-btn:hover { color: var(--text-primary); }
+        .chevron-btn.open i { transform: rotate(180deg); }
+        .chevron-btn i { transition: transform .25s; }
     </style>
 </head>
 <body>
@@ -1131,15 +1174,72 @@
             ? `<span class="guest-name">${r.nombre}</span>`
             : `<span class="guest-name guest-missing"><i class="ph ph-warning"></i> Sin registro</span>`;
 
-        return `<div class="list-item${r.pdf_generado?' generado':''}" id="li-${r.id}">
-            <div class="depto-info">
-                <span class="depto-name">${r.depto||"—"}</span>
-                <span class="depto-type">${fmtFecha(r.fecha_entrada)} → ${fmtFecha(r.fecha_salida)} · ${r.num_adultos||0}A${(r.num_menores||0)>0?" "+(r.num_menores)+"N":""}</span>
+        // Detalle expandible
+        const ocupantes = Array.isArray(r.ocupantes) ? r.ocupantes : [];
+        const ocupantesHTML = ocupantes.length
+            ? ocupantes.map(o=>`<span class="ocupante-chip">${o.nombre||o}</span>`).join('')
+            : '<span style="font-size:12px;color:var(--text-tertiary)">—</span>';
+
+        const detailHTML = `<div class="reg-detail" id="det-${r.id}">
+            <div class="reg-detail-grid">
+                <div class="reg-field">
+                    <span class="reg-field-label">Teléfono</span>
+                    <span class="reg-field-val">${r.telefono||'—'}</span>
+                </div>
+                <div class="reg-field">
+                    <span class="reg-field-label">Email</span>
+                    <span class="reg-field-val">${r.email||'—'}</span>
+                </div>
+                <div class="reg-field">
+                    <span class="reg-field-label">Tipo formato</span>
+                    <span class="reg-field-val highlight">${(r.tipo_formato||'—').toUpperCase()}</span>
+                </div>
+                <div class="reg-field">
+                    <span class="reg-field-label">Mascotas</span>
+                    <span class="reg-field-val">${r.num_mascotas||0}</span>
+                </div>
+                <div class="reg-field">
+                    <span class="reg-field-label">Check-in</span>
+                    <span class="reg-field-val">${r.fecha_entrada ? r.fecha_entrada.split('-').reverse().join('/') : '—'}</span>
+                </div>
+                <div class="reg-field">
+                    <span class="reg-field-label">Check-out</span>
+                    <span class="reg-field-val">${r.fecha_salida ? r.fecha_salida.split('-').reverse().join('/') : '—'}</span>
+                </div>
+                <div class="reg-field">
+                    <span class="reg-field-label">Vehículo</span>
+                    <span class="reg-field-val">${r.vehiculo_modelo||'—'}</span>
+                </div>
+                <div class="reg-field">
+                    <span class="reg-field-label">Placas</span>
+                    <span class="reg-field-val">${r.vehiculo_placas||'—'}</span>
+                </div>
             </div>
-            ${nombre}
-            <div>${accion}</div>
-            <button class="btn btn-link" data-copy="${r.depto}" onclick="copiarLink('${r.depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
+            ${ocupantes.length ? `<div class="reg-field"><span class="reg-field-label">Ocupantes</span><div class="ocupantes-list">${ocupantesHTML}</div></div>` : ''}
         </div>`;
+
+        return `<div id="li-wrap-${r.id}">
+            <div class="list-item${r.pdf_generado?' generado':''}" id="li-${r.id}" style="cursor:default">
+                <div class="depto-info">
+                    <span class="depto-name">${r.depto||"—"}</span>
+                    <span class="depto-type">${fmtFecha(r.fecha_entrada)} → ${fmtFecha(r.fecha_salida)} · ${r.num_adultos||0}A${(r.num_menores||0)>0?" "+(r.num_menores)+"N":""}</span>
+                </div>
+                ${nombre}
+                <div>${accion}</div>
+                <button class="chevron-btn" id="chev-${r.id}" onclick="toggleDetalle('${r.id}')">
+                    <i class="ph ph-caret-down"></i>
+                </button>
+            </div>
+            ${detailHTML}
+        </div>`;
+    }
+
+    function toggleDetalle(id) {
+        const det = document.getElementById('det-' + id);
+        const chev = document.getElementById('chev-' + id);
+        if(!det) return;
+        det.classList.toggle('open');
+        chev.classList.toggle('open');
     }
 
 
