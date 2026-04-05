@@ -790,21 +790,31 @@
     function calcularStatsHoy(rows) {
         const hoy = new Date();
         const hoyStr = `${hoy.getDate()}/${hoy.getMonth()+1}/${hoy.getFullYear()}`;
+        const hoyISO = hoy.toISOString().split("T")[0];
 
         let checkins = 0, checkouts = 0, pendientes = 0;
 
         rows.forEach((r, ri) => {
-            if(ri === 0) return; // skip header
-            const fecha  = (r[0]||'').trim().replace(/"/g,'');
-            const enviado = (r[1]||'').trim().replace(/"/g,'').toUpperCase(); // col B: FORMATO ENVIADO
-            const entrada = (r[2]||'').trim().replace(/"/g,''); // col C: depto entrada
-            const salida  = (r[3]||'').trim().replace(/"/g,''); // col D: depto salida
+            if(ri === 0) return;
+            const fecha   = (r[0]||'').trim().replace(/"/g,'');
+            const entrada = (r[2]||'').trim().replace(/"/g,'');
+            const salida  = (r[3]||'').trim().replace(/"/g,'');
             if(fecha !== hoyStr) return;
 
             if(entrada) {
                 checkins++;
-                // Pendiente = tiene check-in hoy y formato NO enviado
-                if(enviado !== 'TRUE') pendientes++;
+                // Pendiente = check-in hoy sin registro en Supabase
+                // Frakcio y Manual no cuentan como pendientes criticos
+                const tipo = getTmpl(entrada).tipo;
+                if(tipo !== 'frakcio' && tipo !== 'manual') {
+                    const tieneReg = todosRegistros.some(x => {
+                        const xd = (x.depto||'').toUpperCase().trim();
+                        const d  = entrada.toUpperCase();
+                        return (xd === d || xd.startsWith(d+' ') || d.startsWith(xd+' '))
+                            && x.fecha_entrada === hoyISO;
+                    });
+                    if(!tieneReg) pendientes++;
+                }
             }
             if(salida) checkouts++;
         });
@@ -813,9 +823,8 @@
         document.getElementById('s-checkouts').textContent = checkouts || "0";
         document.getElementById('s-pend').textContent      = pendientes || "0";
 
-        // Badge sidebar
         const bp = document.getElementById('badge-pend');
-        bp.textContent = pendientes || "✓";
+        bp.textContent = pendientes || "0";
         bp.className = pendientes > 0 ? 'badge badge-red' : 'badge badge-green';
     }
 
