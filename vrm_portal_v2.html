@@ -889,15 +889,20 @@
             if(entrada) {
                 checkins++;
                 const tipo = getTmpl(entrada).tipo;
-                // Frakcio y Manual tienen flujo diferente, no contar
-                if(tipo !== 'frakcio' && tipo !== 'manual') {
+                if(tipo === 'manual') {
+                    // Manual no cuenta
+                } else if(tipo === 'frakcio') {
+                    const qrRec = (frakcioQR||[]).find(x =>
+                        x.depto && x.depto.toUpperCase()===entrada.toUpperCase() && x.fecha===hoyISO
+                    );
+                    if(!qrRec || !qrRec.qr_enviado) pendientes++;
+                } else {
                     const d = entrada.toUpperCase();
                     const reg = todosRegistros.find(x => {
                         const xd = (x.depto||'').toUpperCase().trim();
                         return (xd === d || xd.startsWith(d+' ') || d.startsWith(xd+' '))
                             && x.fecha_entrada === hoyISO;
                     });
-                    // Pendiente = sin registro O con registro pero pdf_generado=false
                     if(!reg || !reg.pdf_generado) pendientes++;
                 }
             }
