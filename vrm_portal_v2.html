@@ -538,7 +538,7 @@
                 display: none;
                 position: fixed;
                 inset: 0;
-                z-index: 50;
+                z-index: 52;
                 padding: 0;
                 gap: 0;
                 overflow-y: auto;
@@ -625,30 +625,36 @@
             .filter-pill { padding: 5px 10px; font-size: 10px; }
             .coming-soon { padding: 40px 20px; }
 
-            /* Glass effect en mobile — fondo explícito para que funcione el blur */
+            /* Glass effect mobile — usar fondo opaco ya que backdrop-filter
+               no funciona bien con position:fixed + canvas en algunos browsers */
             .glass-card {
-                background: rgba(20, 20, 20, 0.65);
-                backdrop-filter: blur(20px) saturate(180%);
-                -webkit-backdrop-filter: blur(20px) saturate(180%);
+                background: rgba(22, 22, 20, 0.82);
+                border-color: rgba(255,255,255,0.1);
             }
             .glass-panel {
-                background: rgba(15, 15, 15, 0.7);
-                backdrop-filter: blur(28px) saturate(180%);
-                -webkit-backdrop-filter: blur(28px) saturate(180%);
+                background: rgba(14, 14, 12, 0.88);
+                border-color: rgba(255,255,255,0.09);
             }
             .stat-card.highlight {
-                background: linear-gradient(135deg, rgba(224,122,62,0.2) 0%, rgba(20,20,20,0.65) 100%);
+                background: linear-gradient(135deg, rgba(224,122,62,0.18) 0%, rgba(22,22,20,0.82) 100%);
             }
-
-            /* nav-items necesitan fondo para leerse sobre las olas */
-            .nav-item:hover {
-                background: rgba(255,255,255,0.05);
+            /* Simular glass con pseudo-elemento en stat-card */
+            .stat-card::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                border-radius: inherit;
+                background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 60%);
+                pointer-events: none;
             }
-            .nav-item.active {
-                background: linear-gradient(90deg, rgba(224,122,62,0.12) 0%, transparent 100%);
-            }
-            .sidebar-title {
-                text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+            /* Canvas visible detrás del main — usar iframe trick */
+            .main-content.mobile-open::before {
+                content: '';
+                position: fixed;
+                inset: 0;
+                background: rgba(8,8,8,0.4);
+                z-index: -1;
+                pointer-events: none;
             }
         }
 
@@ -908,6 +914,20 @@
             header.style.display = 'flex';
             if(title) title.textContent = MOD_LABELS[mod] || mod.toUpperCase();
             if(sidebar) sidebar.style.display = 'none'; // ocultar sidebar
+            // Mover canvas 3D al main para que backdrop-filter funcione
+            const webgl = document.getElementById('webgl-container');
+            const glows = document.querySelectorAll('.ambient-glow');
+            if(webgl && !document.getElementById('webgl-mobile')) {
+                webgl.id = 'webgl-mobile';
+                webgl.style.position = 'fixed';
+                webgl.style.zIndex = '51';
+                main.insertBefore(webgl, main.firstChild);
+                glows.forEach(g => {
+                    g.style.position = 'fixed';
+                    g.style.zIndex = '51';
+                    main.insertBefore(g, main.firstChild);
+                });
+            }
         }
     }
 
@@ -915,7 +935,20 @@
         const main = document.getElementById('main-content');
         const sidebar = document.querySelector('.sidebar');
         main.classList.remove('mobile-open');
-        if(sidebar) sidebar.style.display = ''; // restaurar sidebar
+        if(sidebar) sidebar.style.display = '';
+        // Devolver canvas al body
+        const webgl = document.getElementById('webgl-mobile');
+        if(webgl) {
+            webgl.id = 'webgl-container';
+            webgl.style.position = 'fixed';
+            webgl.style.zIndex = '1';
+            document.body.insertBefore(webgl, document.body.firstChild);
+            document.querySelectorAll('.ambient-glow').forEach(g => {
+                g.style.position = 'fixed';
+                g.style.zIndex = '2';
+                document.body.insertBefore(g, document.body.firstChild);
+            });
+        }
     }
 
     // Cerrar sidebar overlay (desktop no lo usa, mobile sí)
