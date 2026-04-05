@@ -102,6 +102,7 @@
             padding: 32px;
             gap: 32px;
             pointer-events: none;
+            overflow: hidden;
         }
         .app-container > * { pointer-events: auto; }
 
@@ -501,6 +502,102 @@
         }
         .filter-pill:hover { border-color: rgba(255,255,255,.2); color: var(--text-primary); background: rgba(255,255,255,.05); }
         .filter-pill.active { border-color: var(--accent-terracota); color: var(--accent-terracota); background: rgba(224,122,62,.08); }
+
+        /* ── Mobile ── */
+        @media (max-width: 768px) {
+            #webgl-container { display: none; }
+            .ambient-glow { display: none; }
+
+            .app-container {
+                padding: 0;
+                gap: 0;
+                flex-direction: column;
+                overflow-y: auto;
+                position: relative;
+            }
+
+            .sidebar {
+                display: none; /* ocultar sidebar en móvil */
+            }
+
+            .main-content {
+                height: auto;
+                overflow-y: visible;
+                padding: 12px;
+                gap: 12px;
+                -webkit-mask-image: none;
+                mask-image: none;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 10px;
+                margin-top: 0;
+            }
+
+            .stat-card { padding: 14px; gap: 8px; }
+            .stat-value { font-size: 28px; }
+            .stat-title { font-size: 9px; }
+            .stat-icon { font-size: 16px; }
+
+            /* Panel principal full height en móvil */
+            .list-container {
+                min-height: 60vh;
+                margin-bottom: 12px;
+            }
+
+            /* Tabs scrollables horizontalmente */
+            .tabs-bar {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            .tabs-bar::-webkit-scrollbar { display: none; }
+
+            .tab-btn {
+                padding: 10px 14px;
+                font-size: 10px;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+
+            /* Lista items más compactos */
+            .list-item {
+                grid-template-columns: 1fr auto;
+                grid-template-rows: auto auto;
+                gap: 4px;
+                padding: 14px 16px;
+            }
+            .list-item:hover { padding-left: 16px; }
+
+            .d-info { grid-column: 1; }
+            .g-name { grid-column: 1; font-size: 12px; }
+            .list-item > div:nth-child(3) { grid-column: 2; grid-row: 1 / 3; display: flex; align-items: center; }
+            .list-item > button:last-child { display: none; } /* ocultar link en móvil */
+
+            .d-name { font-size: 13px; }
+            .d-type { font-size: 9px; }
+            .btn { padding: 7px 12px; font-size: 10px; }
+            .btn i { font-size: 13px; }
+
+            .date-sep { padding: 6px 16px 3px; font-size: 9px; }
+            .list-head { padding: 14px 16px; }
+            .list-title { font-size: 11px; letter-spacing: .8px; }
+
+            .glass-panel { border-radius: 16px; }
+            .glass-card { border-radius: 12px; }
+
+            .search-container { padding: 10px 14px; }
+            .search-input { font-size: 14px; }
+
+            .ver-mas-btn { padding: 10px; font-size: 10px; }
+        }
+
+        @media (max-width: 400px) {
+            .stats-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 6px; }
+            .stat-value { font-size: 22px; }
+            .stat-title { font-size: 8px; letter-spacing: 0; }
+        }
     </style>
 </head>
 <body>
@@ -612,14 +709,12 @@
                     <div class="list-header">
                         <div class="list-title-dot"></div>
                         <div class="list-title" id="list-main-title">HOY — cargando...</div>
-                        <div class="list-header-badges">
-                            <span class="badge badge-dark" id="badge-pendientes-hdr" style="display:none"></span>
-                            <span class="badge" id="badge-entradas-hdr">—</span>
-                        </div>
+                        <div class="list-header-badges" id="badge-pendientes-hdr" style="display:none"></div>
+                        <span id="badge-entradas-hdr" style="display:none"></span>
                     </div>
 
                     <!-- Tabs de navegación dentro del panel -->
-                    <div style="display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,0.06);padding:0 32px;background:rgba(0,0,0,0.1)">
+                    <div class="tabs-bar" style="display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,0.06);padding:0 16px;background:rgba(0,0,0,0.1);overflow-x:auto">
                         <button class="tab-btn active" onclick="setTab('hoy',this)" id="tab-hoy">HOY</button>
                         <button class="tab-btn" onclick="setTab('ayer',this)" id="tab-ayer">AYER</button>
                         <button class="tab-btn" onclick="setTab('manana',this)" id="tab-manana">MAÑANA</button>
