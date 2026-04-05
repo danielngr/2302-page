@@ -398,6 +398,8 @@
         .btn-outline-green  { border: 1px solid var(--status-green-border); color: var(--status-green); background: var(--status-green-bg); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
         .btn-outline-green:hover { background: rgba(34,211,125,.15); border-color: rgba(34,211,125,.4); transform: translateY(-2px); }
         .btn-outline-green.solid { background: rgba(34,211,125,.15); border-color: rgba(34,211,125,.3); pointer-events: none; text-shadow: 0 0 10px rgba(34,211,125,.4); }
+        .btn-outline-yellow { border: 1px solid var(--status-yellow-border); color: var(--status-yellow); background: var(--status-yellow-bg); }
+        .btn-outline-yellow:hover { background: rgba(232,184,75,.15); border-color: rgba(232,184,75,.4); transform: translateY(-2px); }
         .btn-link { border: 1px solid transparent; color: var(--text-tertiary); background: transparent; justify-self: end; padding: 8px 12px; }
         .btn-link:hover { color: var(--text-primary); background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.1); }
 
@@ -813,15 +815,20 @@
             if(entrada) {
                 checkins++;
                 const tipo = getTmpl(entrada).tipo;
-                // Frakcio y Manual tienen flujo diferente, no contar
-                if(tipo !== 'frakcio' && tipo !== 'manual') {
+                if(tipo === 'manual') {
+                    // Manual no cuenta
+                } else if(tipo === 'frakcio') {
+                    const qrRec = (frakcioQR||[]).find(x =>
+                        x.depto && x.depto.toUpperCase()===entrada.toUpperCase() && x.fecha===hoyISO
+                    );
+                    if(!qrRec || !qrRec.qr_enviado) pendientes++;
+                } else {
                     const d = entrada.toUpperCase();
                     const reg = todosRegistros.find(x => {
                         const xd = (x.depto||'').toUpperCase().trim();
                         return (xd === d || xd.startsWith(d+' ') || d.startsWith(xd+' '))
                             && x.fecha_entrada === hoyISO;
                     });
-                    // Pendiente = sin registro O con registro pero pdf_generado=false
                     if(!reg || !reg.pdf_generado) pendientes++;
                 }
             }
@@ -951,7 +958,7 @@
             const qrOkH = qrRecH && qrRecH.qr_enviado;
             accion = qrOkH
                 ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
-                : `<button class="btn btn-outline-green" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
+                : `<button class="btn btn-outline-yellow" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
         } else {
             accion=`<button class="btn btn-link">Manual</button>`;
         }
@@ -1030,7 +1037,7 @@
                     const qrOk = qrRec && qrRec.qr_enviado;
                     const qrBtn = qrOk
                         ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
-                        : `<button class="btn btn-outline-green" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
+                        : `<button class="btn btn-outline-yellow" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
                     rowsH+=`<div class="list-item${qrOk?' generado':''}">
                         <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">FRAKCIO</span></div>
                         <div class="guest-name guest-empty">—</div>
