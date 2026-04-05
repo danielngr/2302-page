@@ -634,26 +634,37 @@
             .list-container { flex:1; min-height:0; margin-bottom:12px; }
             .coming-soon { padding: 40px 20px; }
 
-            /* Glass effect mobile */
+            /* Glass effect mobile — simulado con gradientes ya que 
+               backdrop-filter no funciona con WebGL canvas en mobile */
             .glass-card {
-                background: rgba(18, 18, 16, 0.78);
-                border-color: rgba(255,255,255,0.1);
-                backdrop-filter: blur(16px) saturate(160%);
-                -webkit-backdrop-filter: blur(16px) saturate(160%);
-                box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+                background: linear-gradient(135deg, rgba(35,33,30,0.95) 0%, rgba(22,20,18,0.92) 100%);
+                border: 1px solid rgba(255,255,255,0.12);
+                box-shadow: 
+                    0 4px 24px rgba(0,0,0,0.5),
+                    inset 0 1px 0 rgba(255,255,255,0.1),
+                    inset 0 -1px 0 rgba(0,0,0,0.3);
             }
             .glass-panel {
-                background: rgba(12, 12, 10, 0.85);
-                border-color: rgba(255,255,255,0.09);
-                backdrop-filter: blur(24px) saturate(160%);
-                -webkit-backdrop-filter: blur(24px) saturate(160%);
-                box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07);
+                background: linear-gradient(160deg, rgba(28,26,23,0.97) 0%, rgba(16,15,12,0.96) 100%);
+                border: 1px solid rgba(255,255,255,0.1);
+                box-shadow: 
+                    0 8px 40px rgba(0,0,0,0.6),
+                    inset 0 1px 0 rgba(255,255,255,0.09),
+                    inset 0 -1px 0 rgba(0,0,0,0.4);
+            }
+            .stat-card.glass-card {
+                background: linear-gradient(135deg, rgba(32,30,27,0.95) 0%, rgba(20,19,16,0.92) 100%);
             }
             .stat-card.highlight {
-                background: linear-gradient(135deg, rgba(224,122,62,0.2) 0%, rgba(18,18,16,0.78) 100%);
+                background: linear-gradient(135deg, rgba(224,122,62,0.22) 0%, rgba(28,20,14,0.95) 100%);
+                border-color: rgba(224,122,62,0.35);
+                box-shadow:
+                    0 4px 24px rgba(224,122,62,0.15),
+                    inset 0 1px 0 rgba(255,255,255,0.08);
             }
-            .stat-card {
-                box-shadow: 0 2px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+            /* Borde iluminado superior en cada card */
+            .glass-card::before, .glass-panel::before {
+                background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 50%);
             }
         }
 
@@ -1024,7 +1035,8 @@
             });
             document.getElementById('last-upd').textContent = "Actualizado " + new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
             actualizarStats();
-            renderTodo();
+            // Solo renderizar días si ya tenemos el sheet, si no esperar
+            if(window._sheetRows) renderTodo();
             cargarEntradas().catch(e => console.error("Sheet:", e));
         } catch(e) {
             document.getElementById('lista-body').innerHTML = `<div style="padding:40px;text-align:center;color:var(--status-red);font-family:var(--font-mono);font-size:12px">Error: ${e.message}</div>`;
@@ -1215,6 +1227,10 @@
     // ── Render días (tabs HOY/AYER/MAÑANA/+4DÍAS) ──────────────
     function renderDias() {
         const body = document.getElementById('lista-body');
+        if(!window._sheetRows || !todosRegistros.length) {
+            body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando...</div>`;
+            return;
+        }
         const MESES_L = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
         const q = (document.getElementById('buscar')?.value||"").toLowerCase();
 
