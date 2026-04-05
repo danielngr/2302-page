@@ -576,35 +576,28 @@
             <!-- MÓDULO: REGISTROS -->
             <div class="module active" id="mod-registros">
 
-                <!-- Stats — igual al boceto -->
-                <div class="stats-grid">
+                <!-- Stats — 3 boxes operacionales -->
+                <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
                     <div class="stat-card glass-card">
                         <div class="stat-header">
-                            <div class="stat-title">Total Registros</div>
-                            <i class="ph ph-files stat-icon"></i>
+                            <div class="stat-title">Check-ins hoy</div>
+                            <i class="ph ph-arrow-circle-down stat-icon"></i>
                         </div>
-                        <div class="stat-value" id="s-total">—</div>
+                        <div class="stat-value" id="s-checkins">—</div>
                     </div>
                     <div class="stat-card glass-card">
                         <div class="stat-header">
-                            <div class="stat-title">Check-in Hoy</div>
-                            <i class="ph ph-calendar-check stat-icon"></i>
+                            <div class="stat-title">Check-outs hoy</div>
+                            <i class="ph ph-arrow-circle-up stat-icon"></i>
                         </div>
-                        <div class="stat-value" id="s-hoy">—</div>
+                        <div class="stat-value" id="s-checkouts">—</div>
                     </div>
                     <div class="stat-card glass-card highlight">
                         <div class="stat-header">
-                            <div class="stat-title" style="color: var(--accent-terracota);">PDF Pendiente</div>
+                            <div class="stat-title" style="color:var(--accent-terracota)">Pendientes hoy</div>
                             <i class="ph-fill ph-warning-circle stat-icon"></i>
                         </div>
                         <div class="stat-value" id="s-pend">—</div>
-                    </div>
-                    <div class="stat-card glass-card">
-                        <div class="stat-header">
-                            <div class="stat-title">Generados</div>
-                            <i class="ph ph-check-circle stat-icon"></i>
-                        </div>
-                        <div class="stat-value" id="s-gen">—</div>
                     </div>
                 </div>
 
@@ -762,10 +755,17 @@
     // ── Cargar Supabase ─────────────────────────────────────────
     async function cargarRegistros() {
         try {
-            const res = await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?select=*&order=fecha_entrada.asc,created_at.desc`, {
-                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
-            });
-            todosRegistros = await res.json();
+            // Cargar registros + frakcio_qr en paralelo
+            const [resReg, resQR] = await Promise.all([
+                fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?select=*&order=fecha_entrada.asc,created_at.desc`, {
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+                }),
+                fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr?select=*`, {
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+                })
+            ]);
+            frakcioQR = await resQR.json();
+            todosRegistros = await resReg.json();
             todosRegistros = todosRegistros.map(r => {
                 const m = getTmpl(r.depto||"");
                 if(!r.template) r.template = m.t;
@@ -782,15 +782,41 @@
     }
 
     function actualizarStats() {
-        const pend = todosRegistros.filter(r => !r.pdf_generado).length;
-        const gen  = todosRegistros.filter(r =>  r.pdf_generado).length;
-        document.getElementById('s-total').textContent = todosRegistros.length;
-        document.getElementById('s-hoy').textContent   = sheetHoy||"—";
-        document.getElementById('s-pend').textContent  = pend;
-        document.getElementById('s-gen').textContent   = gen;
+        // Los stats se calculan desde el sheet en calcularStatsHoy()
+        // Este se llama cuando cargan los registros pero los números del sheet
+        // se actualizan en cargarEntradas()
+    }
+
+    function calcularStatsHoy(rows) {
+        const hoy = new Date();
+        const hoyStr = `${hoy.getDate()}/${hoy.getMonth()+1}/${hoy.getFullYear()}`;
+
+        let checkins = 0, checkouts = 0, pendientes = 0;
+
+        rows.forEach((r, ri) => {
+            if(ri === 0) return; // skip header
+            const fecha  = (r[0]||'').trim().replace(/"/g,'');
+            const enviado = (r[1]||'').trim().replace(/"/g,'').toUpperCase(); // col B: FORMATO ENVIADO
+            const entrada = (r[2]||'').trim().replace(/"/g,''); // col C: depto entrada
+            const salida  = (r[3]||'').trim().replace(/"/g,''); // col D: depto salida
+            if(fecha !== hoyStr) return;
+
+            if(entrada) {
+                checkins++;
+                // Pendiente = tiene check-in hoy y formato NO enviado
+                if(enviado !== 'TRUE') pendientes++;
+            }
+            if(salida) checkouts++;
+        });
+
+        document.getElementById('s-checkins').textContent  = checkins || "0";
+        document.getElementById('s-checkouts').textContent = checkouts || "0";
+        document.getElementById('s-pend').textContent      = pendientes || "0";
+
+        // Badge sidebar
         const bp = document.getElementById('badge-pend');
-        bp.textContent = pend||"—";
-        bp.className = pend>0 ? 'badge badge-red' : 'badge badge-green';
+        bp.textContent = pendientes || "✓";
+        bp.className = pendientes > 0 ? 'badge badge-red' : 'badge badge-green';
     }
 
     // ── Filtros ─────────────────────────────────────────────────
@@ -901,7 +927,13 @@
         } else if(r.tipo_formato==="whatsapp") {
             accion=`<button class="btn btn-outline-blue" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button>`;
         } else if(r.tipo_formato==="frakcio") {
-            accion=`<button class="btn btn-outline-green"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
+            const qrRecH = (frakcioQR||[]).find(x =>
+                x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()
+            );
+            const qrOkH = qrRecH && qrRecH.qr_enviado;
+            accion = qrOkH
+                ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
+                : `<button class="btn btn-outline-green" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
         } else {
             accion=`<button class="btn btn-link">Manual</button>`;
         }
@@ -970,13 +1002,20 @@
                 const reg=matchReg(depto);
 
                 if(tipo==="frakcio"){
-                    rowsH+=`<div class="list-item">
+                    const qrRec = (frakcioQR||[]).find(x =>
+                        x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fiso
+                    );
+                    const qrOk = qrRec && qrRec.qr_enviado;
+                    const qrBtn = qrOk
+                        ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
+                        : `<button class="btn btn-outline-green" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
+                    rowsH+=`<div class="list-item${qrOk?' generado':''}">
                         <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">FRAKCIO</span></div>
                         <div class="guest-name guest-empty">—</div>
-                        <div><button class="btn btn-outline-green"><i class="ph-bold ph-qr-code"></i> QR pendiente</button></div>
+                        <div>${qrBtn}</div>
                         <div></div>
                     </div>`;
-                    pend++; totalPend++;
+                    if(!qrOk){ pend++; totalPend++;
                 } else if(tipo==="manual"){
                     rowsH+=`<div class="list-item">
                         <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">MANUAL</span></div>
@@ -1102,6 +1141,35 @@
         if(pc>0){pb.textContent=pc+" pendientes";pb.style.display="";}else pb.style.display="none";
     }
 
+    // ── Marcar QR enviado ───────────────────────────────────────
+    async function marcarQR(depto, fechaISO) {
+        const existing = (frakcioQR||[]).find(x =>
+            x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fechaISO
+        );
+        try {
+            if(existing) {
+                await fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr?id=eq.${existing.id}`, {
+                    method:"PATCH", keepalive:true,
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                    body:JSON.stringify({qr_enviado:true})
+                });
+                existing.qr_enviado = true;
+            } else {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr`, {
+                    method:"POST", keepalive:true,
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=representation"},
+                    body:JSON.stringify({depto, fecha:fechaISO, qr_enviado:true})
+                });
+                const data = await res.json();
+                if(data[0]) frakcioQR.push(data[0]);
+            }
+            toast("✓ QR marcado como enviado");
+            renderTodo();
+        } catch(e) {
+            toast("❌ Error: " + e.message);
+        }
+    }
+
     // ── Copiar link ─────────────────────────────────────────────
     function copiarLink(depto) {
         const url = "https://danielngr.github.io/2302-page/registro.html?dept=" + encodeURIComponent(depto);
@@ -1164,14 +1232,7 @@
             const text = await res.text();
             const rows = text.split('\n').map(r=>r.split(','));
             window._sheetRows = rows;
-            const hoy = new Date();
-            const hoyStr = `${hoy.getDate()}/${hoy.getMonth()+1}/${hoy.getFullYear()}`;
-            sheetHoy = rows.filter((r,i)=>{
-                if(i===0) return false;
-                return (r[2]||'').trim().replace(/"/g,'') && (r[0]||'').trim().replace(/"/g,'')=== hoyStr;
-            }).length;
-            document.getElementById('s-hoy').textContent = sheetHoy;
-            actualizarStats();
+            calcularStatsHoy(rows);
             renderTodo();
         } catch(e) {
             console.error("Sheet error:", e);
