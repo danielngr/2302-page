@@ -398,6 +398,8 @@
         .btn-outline-green  { border: 1px solid var(--status-green-border); color: var(--status-green); background: var(--status-green-bg); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
         .btn-outline-green:hover { background: rgba(34,211,125,.15); border-color: rgba(34,211,125,.4); transform: translateY(-2px); }
         .btn-outline-green.solid { background: rgba(34,211,125,.15); border-color: rgba(34,211,125,.3); pointer-events: none; text-shadow: 0 0 10px rgba(34,211,125,.4); }
+        .btn-outline-yellow { border: 1px solid var(--status-yellow-border); color: var(--status-yellow); background: var(--status-yellow-bg); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
+        .btn-outline-yellow:hover { background: rgba(232,184,75,.15); border-color: rgba(232,184,75,.4); transform: translateY(-2px); }
         .btn-link { border: 1px solid transparent; color: var(--text-tertiary); background: transparent; justify-self: end; padding: 8px 12px; }
         .btn-link:hover { color: var(--text-primary); background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.1); }
 
@@ -595,7 +597,7 @@
             .search-input { font-size: 13px; }
 
             /* Panel */
-            .list-container { min-height: 50vh; margin-bottom: 12px; }
+            .list-container { flex:1; min-height:0; margin-bottom:12px; }
             .list-head { padding: 12px 16px; }
             .list-title { font-size: 10px; letter-spacing: 1px; }
             .list-title-dot { width: 7px; height: 7px; }
@@ -634,37 +636,24 @@
             .list-container { flex:1; min-height:0; margin-bottom:12px; }
             .coming-soon { padding: 40px 20px; }
 
-            /* Glass effect mobile — simulado con gradientes ya que 
-               backdrop-filter no funciona con WebGL canvas en mobile */
+            /* Glass effect mobile — canvas se mueve al main, backdrop-filter funciona */
             .glass-card {
-                background: linear-gradient(135deg, rgba(35,33,30,0.95) 0%, rgba(22,20,18,0.92) 100%);
-                border: 1px solid rgba(255,255,255,0.12);
-                box-shadow: 
-                    0 4px 24px rgba(0,0,0,0.5),
-                    inset 0 1px 0 rgba(255,255,255,0.1),
-                    inset 0 -1px 0 rgba(0,0,0,0.3);
+                background: rgba(18,18,16,0.5);
+                backdrop-filter: blur(20px) saturate(180%);
+                -webkit-backdrop-filter: blur(20px) saturate(180%);
+                border-color: rgba(255,255,255,0.13);
+                box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
             }
             .glass-panel {
-                background: linear-gradient(160deg, rgba(28,26,23,0.97) 0%, rgba(16,15,12,0.96) 100%);
-                border: 1px solid rgba(255,255,255,0.1);
-                box-shadow: 
-                    0 8px 40px rgba(0,0,0,0.6),
-                    inset 0 1px 0 rgba(255,255,255,0.09),
-                    inset 0 -1px 0 rgba(0,0,0,0.4);
-            }
-            .stat-card.glass-card {
-                background: linear-gradient(135deg, rgba(32,30,27,0.95) 0%, rgba(20,19,16,0.92) 100%);
+                background: rgba(10,10,8,0.6);
+                backdrop-filter: blur(28px) saturate(180%);
+                -webkit-backdrop-filter: blur(28px) saturate(180%);
+                border-color: rgba(255,255,255,0.09);
+                box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
             }
             .stat-card.highlight {
-                background: linear-gradient(135deg, rgba(224,122,62,0.22) 0%, rgba(28,20,14,0.95) 100%);
+                background: rgba(224,122,62,0.15);
                 border-color: rgba(224,122,62,0.35);
-                box-shadow:
-                    0 4px 24px rgba(224,122,62,0.15),
-                    inset 0 1px 0 rgba(255,255,255,0.08);
-            }
-            /* Borde iluminado superior en cada card */
-            .glass-card::before, .glass-panel::before {
-                background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 50%);
             }
         }
 
@@ -1204,7 +1193,7 @@
             const qrOkH = qrRecH && qrRecH.qr_enviado;
             accion = qrOkH
                 ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
-                : `<button class="btn btn-outline-green" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
+                : `<button class="btn btn-outline-yellow" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
         } else {
             accion=`<button class="btn btn-link">Manual</button>`;
         }
@@ -1283,7 +1272,7 @@
                     const qrOk = qrRec && qrRec.qr_enviado;
                     const qrBtn = qrOk
                         ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
-                        : `<button class="btn btn-outline-green" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
+                        : `<button class="btn btn-outline-yellow" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
                     rowsH+=`<div class="list-item${qrOk?' generado':''}">
                         <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">FRAKCIO</span></div>
                         <div class="guest-name guest-empty">—</div>
