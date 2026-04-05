@@ -765,12 +765,13 @@
     // ── Cargar Supabase ─────────────────────────────────────────
     async function cargarRegistros() {
         try {
-            // Cargar registros + frakcio_qr en paralelo
+            // Cargar todo en paralelo — Supabase x2 + Sheet simultáneamente
+            const fields = 'id,depto,nombre,fecha_entrada,fecha_salida,num_adultos,num_menores,pdf_generado,tipo_formato,template,ocupantes,telefono,email,num_mascotas,vehiculo_modelo,vehiculo_placas,foto_id,created_at';
             const [resReg, resQR] = await Promise.all([
-                fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?select=*&order=fecha_entrada.asc,created_at.desc`, {
+                fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?select=${fields}&order=fecha_entrada.asc,created_at.desc`, {
                     headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
                 }),
-                fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr?select=*`, {
+                fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr?select=id,depto,fecha,qr_enviado`, {
                     headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
                 })
             ]);
@@ -1268,11 +1269,11 @@
     }
 
 
-    // Mostrar loading inmediato
+    // Lanzar todo en paralelo desde el inicio
     document.getElementById('s-checkins').textContent = '—';
     document.getElementById('s-checkouts').textContent = '—';
     document.getElementById('s-pend').textContent = '—';
-    cargarRegistros();
+    cargarRegistros(); // Supabase + frakcio_qr
     setInterval(cargarRegistros, 60000);
     </script>
 
