@@ -506,156 +506,111 @@
         .filter-pill.active { border-color: var(--accent-terracota); color: var(--accent-terracota); background: rgba(224,122,62,.08); }
 
         /* ══ MOBILE ══ */
-        /* Hamburger button — solo visible en móvil */
         .hamburger {
             display: none;
-            position: fixed;
-            top: 16px; left: 16px;
-            z-index: 200;
-            background: rgba(18,18,18,0.9);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            width: 40px; height: 40px;
+            position: fixed; top: 16px; left: 16px; z-index: 200;
+            background: rgba(18,18,18,0.95); border: 1px solid var(--glass-border);
+            border-radius: 12px; width: 42px; height: 42px;
             align-items: center; justify-content: center;
             cursor: pointer; backdrop-filter: blur(20px);
             color: var(--text-primary); font-size: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
         }
-
-        /* Overlay oscuro cuando sidebar abierto */
         .sidebar-overlay {
-            display: none;
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.6);
-            z-index: 150;
-            backdrop-filter: blur(4px);
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.7); z-index: 150;
+            backdrop-filter: blur(6px);
         }
         .sidebar-overlay.active { display: block; }
 
         @media (max-width: 768px) {
-            /* Desactivar 3D en móvil (performance) */
+            /* Apagar 3D */
             #webgl-container { display: none; }
+            .ambient-glow { opacity: 0.15; }
 
             /* Hamburger visible */
             .hamburger { display: flex; }
 
-            /* App container: solo main ocupa toda la pantalla */
+            /* Layout: main ocupa todo */
             .app-container {
-                padding: 12px 12px 12px 12px;
+                flex-direction: column;
+                padding: 12px;
                 gap: 0;
                 overflow-y: auto;
-                position: fixed;
-                -webkit-overflow-scrolling: touch;
+                overflow-x: hidden;
             }
 
-            /* Sidebar: drawer lateral, oculto por defecto */
+            /* Sidebar: drawer desde la izquierda */
             .sidebar {
-                position: fixed;
-                top: 0; left: 0;
-                height: 100%;
-                width: 280px;
-                z-index: 160;
-                transform: translateX(-100%);
-                transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+                position: fixed; top: 0; left: 0; height: 100%;
+                width: 280px; z-index: 160;
                 border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
+                transform: translateX(-110%);
+                transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
             }
-            .sidebar.open {
-                transform: translateX(0);
-            }
+            .sidebar.open { transform: translateX(0); }
 
-            /* Main: ocupa toda la pantalla */
+            /* Main content: sin máscara, scroll normal */
             .main-content {
-                width: 100%;
-                height: auto;
-                min-height: calc(100vh - 24px);
-                padding-top: 56px; /* espacio para hamburger */
-                overflow-y: visible;
-                -webkit-mask-image: none;
-                mask-image: none;
+                width: 100%; height: auto;
+                overflow: visible;
+                -webkit-mask-image: none; mask-image: none;
+                padding-top: 60px;
                 gap: 12px;
             }
 
-            /* Módulos */
-            .module { gap: 12px; }
-
-            /* Stats: 3 boxes en una fila compacta */
+            /* Stats: 3 boxes compactos */
             .stats-grid {
-                grid-template-columns: repeat(3, 1fr) !important;
-                gap: 8px;
-                margin-top: 0;
+                grid-template-columns: repeat(3,1fr) !important;
+                gap: 8px; margin-top: 0;
             }
-            .stat-card { padding: 14px 10px; gap: 8px; }
-            .stat-value { font-size: 26px; letter-spacing: -0.5px; }
-            .stat-title { font-size: 8.5px; letter-spacing: 0.5px; }
-            .stat-icon { font-size: 15px; }
+            .stat-card { padding: 12px 8px; gap: 8px; }
+            .stat-value { font-size: 24px; letter-spacing: -0.5px; }
+            .stat-title { font-size: 8px; letter-spacing: 0.5px; }
+            .stat-icon { font-size: 14px; }
 
             /* Search */
-            .search-container { padding: 12px 16px; }
+            .search-container { padding: 11px 16px; }
             .search-input { font-size: 14px; }
 
-            /* Panel lista: flex para llenar espacio */
-            .list-container { 
-                min-height: 50vh;
-                margin-bottom: 16px;
-            }
-            .list-head { padding: 16px 20px; }
+            /* Panel principal */
+            .list-container { min-height: 55vh; margin-bottom: 16px; }
+            .list-head { padding: 14px 18px; }
             .list-title { font-size: 11px; letter-spacing: 1px; }
-            .list-title-dot { width: 8px; height: 8px; }
 
             /* Tabs scrollables */
-            .tabs-bar {
-                overflow-x: auto !important;
-                scrollbar-width: none;
-                flex-wrap: nowrap !important;
-                padding: 0 8px !important;
-            }
+            .tabs-bar { overflow-x: auto !important; scrollbar-width: none; }
             .tabs-bar::-webkit-scrollbar { display: none; }
-            .tab-btn {
-                padding: 10px 12px;
-                font-size: 9.5px;
-                white-space: nowrap;
-                flex-shrink: 0;
-            }
+            .tab-btn { padding: 10px 14px; font-size: 9.5px; }
 
-            /* List items: 2 columnas en móvil */
+            /* List items en móvil */
             .list-item {
                 grid-template-columns: 1fr auto;
                 grid-template-rows: auto auto;
-                column-gap: 8px;
-                row-gap: 2px;
-                padding: 13px 16px;
+                padding: 12px 16px; column-gap: 8px; row-gap: 2px;
                 align-items: start;
             }
             .list-item:hover { padding-left: 16px; }
             .list-item::after { display: none; }
-
-            .d-info { grid-column: 1; grid-row: 1; }
-            .g-name { grid-column: 1; grid-row: 2; font-size: 12px; }
+            .d-info { grid-column:1; grid-row:1; }
+            .g-name { grid-column:1; grid-row:2; font-size:12px; }
             .list-item > div:nth-child(3) {
-                grid-column: 2; grid-row: 1 / 3;
-                display: flex; align-items: center; justify-content: flex-end;
+                grid-column:2; grid-row:1/3;
+                display:flex; align-items:center; justify-content:flex-end;
             }
             .list-item > button:last-child { display: none; }
-
             .d-name { font-size: 13px; }
             .d-type { font-size: 9px; }
-            .btn { padding: 8px 12px; font-size: 10.5px; }
+            .btn { padding: 7px 11px; font-size: 10.5px; }
             .btn i { font-size: 13px; }
 
-            /* Date sep */
-            .date-sep { padding: 7px 16px 4px; font-size: 9px; }
-
-            /* Glass radios más pequeños */
-            .glass-panel { border-radius: 20px; }
-            .glass-card { border-radius: 16px; }
-
-            /* Ver más */
+            /* Misc */
+            .date-sep { padding: 6px 16px 3px; font-size: 9px; }
+            .glass-panel { border-radius: 18px; }
+            .glass-card { border-radius: 14px; }
             .ver-mas-btn { font-size: 10px; padding: 10px; }
-
-            /* Filters */
-            .filters-bar { padding: 10px 16px !important; gap: 6px !important; }
-            .filter-pill { padding: 6px 12px; font-size: 10.5px; }
-
-            /* Coming soon */
+            .filters-bar { padding: 8px 16px !important; gap: 6px !important; }
+            .filter-pill { padding: 5px 11px; font-size: 10.5px; }
             .coming-soon { padding: 40px 20px; }
         }
     </style>
