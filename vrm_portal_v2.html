@@ -1980,6 +1980,10 @@
                     <i class="ph ph-shield-check"></i>
                     Aircover
                 </div>
+                <div class="nav-item" onclick="goTo('dispersion',this)">
+                    <i class="ph ph-paper-plane-tilt"></i>
+                    Dispersión
+                </div>
                 <div class="nav-item" onclick="goTo('bot',this)">
                     <i class="ph ph-robot"></i>
                     Bot Airbnb
@@ -2513,6 +2517,56 @@
                 <!-- Grid de casos -->
                 <div class="ac-grid" id="ac-grid">
                     <div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px;grid-column:1/-1">Cargando...</div>
+                </div>
+
+            </div>
+
+            <!-- MÓDULO: DISPERSIÓN -->
+            <div class="module" id="mod-dispersion" style="gap:20px">
+
+                <!-- Header -->
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;margin-top:16px">
+                    <div>
+                        <div style="font-family:var(--font-display);font-size:20px;font-weight:700">Dispersión Nómina</div>
+                        <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px" id="disp-semana-label">—</div>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center">
+                        <button class="btn btn-ghost" onclick="dispAgregarExtra()" style="font-size:11px;padding:9px 16px">
+                            <i class="ph ph-plus"></i> Persona extra
+                        </button>
+                        <button class="btn btn-outline-white" onclick="dispGenerarExcel()" style="font-size:11px;padding:9px 16px">
+                            <i class="ph ph-file-xls"></i> Generar Excel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;flex-shrink:0">
+                    <div class="glass-card" style="padding:20px 24px">
+                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Total nómina</div>
+                        <div style="font-family:var(--font-display);font-size:28px;font-weight:700;color:var(--status-green)" id="disp-total">$0</div>
+                    </div>
+                    <div class="glass-card" style="padding:20px 24px">
+                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Personas</div>
+                        <div style="font-family:var(--font-display);font-size:28px;font-weight:700;color:var(--status-blue)" id="disp-count">0</div>
+                    </div>
+                    <div class="glass-card" style="padding:20px 24px">
+                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Semana</div>
+                        <div style="font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--accent-gold);margin-top:4px" id="disp-periodo">—</div>
+                    </div>
+                </div>
+
+                <!-- Tabla de nómina -->
+                <div class="glass-panel" style="overflow:hidden;flex-shrink:0">
+                    <div class="list-header" style="display:grid;grid-template-columns:2fr 1.5fr 1fr auto;padding:10px 24px;gap:16px">
+                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px">Nombre</div>
+                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px">Cuenta</div>
+                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px">Monto</div>
+                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px"></div>
+                    </div>
+                    <div id="disp-body" style="max-height:500px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(224,122,62,0.3) transparent">
+                        <div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando...</div>
+                    </div>
                 </div>
 
             </div>
@@ -5229,6 +5283,217 @@ function updateNotifBadge(){
         });
     }
 
+
+
+    // ══ DISPERSIÓN NÓMINA ═════════════════════════════════
+    const DISP_BANCOS = {"133": "ACTINVER", "062": "AFIRME", "721": "albo", "706": "ARCUS FI", "659": "ASP INTEGRA OPC", "127": "AZTECA", "166": "BaBien", "030": "BAJIO", "002": "BANAMEX", "154": "BANCO COVALTO", "006": "BANCOMEXT", "137": "BANCOPPEL", "160": "BANCO S3", "152": "BANCREA", "019": "BANJERCITO", "147": "BANKAOOL", "106": "BANK OF AMERICA", "159": "BANK OF CHINA", "009": "BANOBRAS", "072": "BANORTE", "058": "BANREGIO", "060": "BANSI", "001": "BANXICO", "129": "BARCLAYS", "145": "BBASE", "012": "BBVA MEXICO", "112": "BMONEX", "677": "CAJA POP MEXICA", "683": "CAJA TELEFONIST", "715": "CASHI CUENTA", "630": "CB INTERCAM", "631": "CI BOLSA", "124": "CITI MEXICO", "901": "CLS", "903": "CoDi Valida", "130": "COMPARTAMOS", "140": "CONSUBANCO", "725": "COOPDESARROLLO", "652": "CREDICAPITAL", "688": "CREDICLUB", "680": "CRISTOBAL COLON", "723": "Cuenca", "729": "Dep y Pag Dig", "151": "DONDE", "616": "FINAMEX", "634": "FINCOMUN", "734": "FINCO PAY", "738": "FINTOC", "699": "FONDEADORA", "685": "FONDO (FIRA)", "601": "GBM", "167": "HEY BANCO", "168": "HIPOTECARIA FED", "021": "HSBC", "155": "ICBC", "036": "INBURSA", "902": "INDEVAL", "150": "INMOBILIARIO", "136": "INTERCAM BANCO", "059": "INVEX", "110": "JP MORGAN", "128": "KAPITAL", "661": "KLAR", "653": "KUSPIT", "670": "LIBERTAD", "602": "MASARI", "722": "Mercado Pago W", "720": "MexPago", "042": "MIFEL", "158": "MIZUHO BANK", "600": "MONEXCB", "108": "MUFG", "132": "MULTIVA BANCO", "135": "NAFIN", "638": "NU MEXICO", "710": "NVIO", "148": "PAGATODO", "732": "Peibo", "620": "PROFUTURO", "156": "SABADELL", "014": "SANTANDER", "044": "SCOTIABANK", "157": "SHINHAN", "728": "SPIN BY OXXO", "646": "STP", "730": "Swap", "703": "TESORED", "684": "TRANSFER", "727": "TRANSFER DIRECT", "138": "UALA", "656": "UNAGRA", "617": "VALMEX", "605": "VALUE", "113": "VE POR MAS", "141": "VOLKSWAGEN"};
+    const DISP_BINS = {"41523141": "BBVA", "41523137": "BBVA", "40276600": "AZTECA PR", "52635401": "AZTECA PR", "41691608": "BANCOPPEL", "40276658": "AZTECA PR", "41523143": "BBVA", "40276657": "AZTECA PR", "52041659": "CITIBANAMEX", "41523144": "BBVA", "41523139": "BBVA", "41523140": "BBVA", "41523142": "BBVA", "40985130": "BBVA", "41891400": "BANORTE PR", "41523135": "BBVA", "52041661": "CITIBANAMEX"};
+    let dispPersonas = []; // {nombre_completo, cuenta, monto, apodo, es_extra}
+
+    function dispGetBanco(cuenta) {
+        cuenta = String(cuenta).trim();
+        if(cuenta.length === 18) {
+            const key = cuenta.substring(0,3);
+            return DISP_BANCOS[key] || '';
+        }
+        if(cuenta.length === 16) {
+            const key = cuenta.substring(0,8);
+            return DISP_BINS[key] || '';
+        }
+        return '';
+    }
+
+    async function dispCargar() {
+        // Cargar staff con cuentas + limpiezas de la semana actual
+        const [resStaff, resLimp, resFijos, resAjustes] = await Promise.all([
+            fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?select=*&order=nombre.asc`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?select=*&estatus=eq.terminada`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?es_fijo=eq.true&select=*`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=eq.pendiente&select=*`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            })
+        ]);
+        const staff = await resStaff.json();
+        const limpiezas = await resLimp.json();
+        const fijos = await resFijos.json();
+        const ajustes = await resAjustes.json();
+
+        // Calcular semana actual (lunes-domingo)
+        const hoy = new Date();
+        const lunes = new Date(hoy);
+        lunes.setDate(hoy.getDate() - ((hoy.getDay()+6)%7));
+        const domingo = new Date(lunes);
+        domingo.setDate(lunes.getDate() + 6);
+        const fmt = d => d.toLocaleDateString('es-MX',{day:'2-digit',month:'short'});
+        document.getElementById('disp-semana-label').textContent = `Semana ${fmt(lunes)} — ${fmt(domingo)} 2026`;
+        document.getElementById('disp-periodo').textContent = `${fmt(lunes)} al ${fmt(domingo)}`;
+
+        // Rango semana
+        const lunesISO = lunes.toISOString().split('T')[0];
+        const domingoISO = domingo.toISOString().split('T')[0];
+
+        // Calcular montos por staff de esta semana
+        const montosPorStaff = {};
+        limpiezas.forEach(l => {
+            if(l.fecha >= lunesISO && l.fecha <= domingoISO) {
+                montosPorStaff[l.staff_id] = (montosPorStaff[l.staff_id]||0) + parseFloat(l.tarifa_aplicada||0);
+            }
+        });
+
+        // Ajustes
+        ajustes.forEach(a => {
+            montosPorStaff[a.staff_id] = (montosPorStaff[a.staff_id]||0) + parseFloat(a.monto||0);
+        });
+
+        // Construir lista — solo chicas con monto > 0 o fijos
+        dispPersonas = [];
+        staff.forEach(s => {
+            const monto = montosPorStaff[s.id] || 0;
+            if(monto > 0 || s.es_fijo) {
+                dispPersonas.push({
+                    id: s.id,
+                    apodo: s.nombre,
+                    nombre_completo: s.nombre_completo || s.nombre,
+                    cuenta: s.cuenta_bancaria || '',
+                    banco: s.banco || dispGetBanco(s.cuenta_bancaria||''),
+                    monto: s.es_fijo ? (s.monto_fijo || 0) : monto,
+                    es_fijo: s.es_fijo || false,
+                    es_extra: false
+                });
+            }
+        });
+
+        dispRender();
+    }
+
+    function dispRender() {
+        const total = dispPersonas.reduce((a,p) => a+p.monto, 0);
+        document.getElementById('disp-total').textContent = '$' + total.toLocaleString('es-MX',{minimumFractionDigits:2});
+        document.getElementById('disp-count').textContent = dispPersonas.length;
+
+        document.getElementById('disp-body').innerHTML = dispPersonas.map((p,i) => `
+            <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr auto;align-items:center;padding:14px 24px;border-bottom:1px solid rgba(255,255,255,.05);gap:16px;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='transparent'">
+                <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--text-primary)">${p.nombre_completo}</div>
+                    <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px">${p.apodo}${p.es_fijo?' · FIJO':''}${p.es_extra?' · EXTRA':''}</div>
+                </div>
+                <div>
+                    <div style="font-size:12px;font-family:var(--font-mono);color:var(--text-secondary)">${p.cuenta||'—'}</div>
+                    <div style="font-size:10px;color:var(--text-tertiary);margin-top:1px">${p.banco||dispGetBanco(p.cuenta)}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <input type="number" value="${p.monto}" step="0.01"
+                        onchange="dispPersonas[${i}].monto=parseFloat(this.value)||0; dispActualizarTotal();"
+                        style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text-primary);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:6px 10px;width:100%;outline:none;text-align:right">
+                </div>
+                <button onclick="dispEliminar(${i})" style="background:rgba(255,92,92,.08);border:1px solid rgba(255,92,92,.2);border-radius:8px;color:var(--status-red);cursor:pointer;padding:6px 10px;font-size:13px;transition:all .15s" onmouseover="this.style.background='rgba(255,92,92,.15)'" onmouseout="this.style.background='rgba(255,92,92,.08)'">
+                    <i class="ph ph-trash"></i>
+                </button>
+            </div>
+        `).join('') || '<div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Sin datos esta semana</div>';
+    }
+
+    function dispActualizarTotal() {
+        const total = dispPersonas.reduce((a,p) => a+p.monto, 0);
+        document.getElementById('disp-total').textContent = '$' + total.toLocaleString('es-MX',{minimumFractionDigits:2});
+    }
+
+    function dispEliminar(i) {
+        dispPersonas.splice(i, 1);
+        dispRender();
+    }
+
+    function dispAgregarExtra() {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `<div class="modal-box" style="max-width:460px">
+            <div class="modal-head">
+                <span style="font-family:var(--font-mono);font-size:11px;color:var(--accent-terracota)">+ PERSONA EXTRA</span>
+                <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()" style="padding:4px 8px"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                    <label style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase">Nombre completo *</label>
+                    <input id="extra-nombre" type="text" placeholder="Ej: Lorena Alatorre Chavez" class="ajuste-input">
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px">
+                    <label style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase">Cuenta bancaria *</label>
+                    <input id="extra-cuenta" type="text" placeholder="Número de cuenta o CLABE" class="ajuste-input" oninput="document.getElementById('extra-banco').textContent=dispGetBanco(this.value)">
+                </div>
+                <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)" id="extra-banco"></div>
+                <div style="display:flex;flex-direction:column;gap:4px">
+                    <label style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase">Monto *</label>
+                    <input id="extra-monto" type="number" placeholder="0.00" step="0.01" class="ajuste-input">
+                </div>
+                <button class="btn btn-outline-white" onclick="dispConfirmarExtra()">
+                    <i class="ph-bold ph-plus"></i> Agregar
+                </button>
+            </div>
+        </div>`;
+        overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+        document.body.appendChild(overlay);
+    }
+
+    function dispConfirmarExtra() {
+        const nombre = document.getElementById('extra-nombre')?.value?.trim();
+        const cuenta = document.getElementById('extra-cuenta')?.value?.trim();
+        const monto = parseFloat(document.getElementById('extra-monto')?.value);
+        if(!nombre || !cuenta || isNaN(monto) || monto <= 0) { toast('⚠️ Completa todos los campos'); return; }
+        dispPersonas.push({
+            apodo: nombre.split(' ')[0],
+            nombre_completo: nombre,
+            cuenta, banco: dispGetBanco(cuenta),
+            monto, es_extra: true, es_fijo: false
+        });
+        document.querySelector('.modal-overlay')?.remove();
+        dispRender();
+        toast('✓ Persona agregada');
+    }
+
+    async function dispGenerarExcel() {
+        if(!dispPersonas.length) { toast('No hay datos'); return; }
+        toast('⏳ Generando Excel...');
+
+        try {
+            // Usar SheetJS para generar el Excel con las fórmulas de banco
+            const {utils, write} = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs');
+
+            // Datos de la dispersión
+            const wsData = [['CUENTA_BENEFICIARIO','Banco','NOMBRE_BENEFICIARIO','MONTO','CONCEPTO_PAGO']];
+            dispPersonas.forEach((p,i) => {
+                const r = i + 2;
+                const formulaBanco = `=IF(LEN(A${r})=18,VLOOKUP(LEFT(A${r},3),Bancos!$A$1:$B$95,2,FALSE),IF(LEN(A${r})=16,VLOOKUP(LEFT(A${r},8),Bins!$A$1:$B$86668,2,FALSE),""))`;
+                wsData.push([p.cuenta, {f: formulaBanco}, p.nombre_completo, p.monto, 'Transferencia ']);
+            });
+
+            const ws = utils.aoa_to_sheet(wsData);
+            ws['!cols'] = [{wch:22},{wch:18},{wch:38},{wch:12},{wch:16}];
+
+            const wb = utils.book_new();
+            utils.book_append_sheet(wb, ws, 'Dispersion');
+
+            // Generar y descargar
+            const buf = write(wb, {bookType:'xlsx', type:'array'});
+            const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const fecha = new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
+            a.download = `dispersion_${fecha}.xlsx`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast('✓ Excel descargado');
+        } catch(e) {
+            console.error(e);
+            toast('❌ Error: ' + e.message);
+        }
+    }
 
     cargarRegistros(); // Supabase + frakcio_qr
     setInterval(cargarRegistros, 60000);
