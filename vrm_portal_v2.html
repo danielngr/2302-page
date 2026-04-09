@@ -3445,7 +3445,8 @@
     async function nomGuardarAjuste(staffId) {
         const monto = parseFloat(document.getElementById('aj-monto')?.value);
         const motivo = document.getElementById('aj-motivo')?.value || '';
-        if(isNaN(monto)) { toast("⚠️ Ingresa un monto válido"); return; }
+        if(isNaN(monto) || monto === 0) { toast("⚠️ Ingresa un monto válido"); return; }
+        if(!motivo.trim()) { toast("⚠️ El motivo es obligatorio"); document.getElementById('aj-motivo')?.focus(); return; }
 
         await fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes`, {
             method:"POST", keepalive:true,
