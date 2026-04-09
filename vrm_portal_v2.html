@@ -1030,6 +1030,16 @@
         #deptTable tbody td { padding: 9px 16px; }
 
         /* ── Mapa Leaflet ── */
+        #vrm-map { background: transparent !important; }
+        #mod-mapa { background: transparent !important; }
+        #mapa-container { background: transparent !important; }
+        /* Hacer el agua del mapa transparente */
+        .leaflet-tile-pane {
+            mix-blend-mode: lighten;
+        }
+        .leaflet-shadow-pane {
+            mix-blend-mode: normal;
+        }
         .vrm-tooltip {
             background: rgba(8,8,8,0.9) !important;
             border: 1px solid rgba(255,255,255,0.15) !important;
@@ -1421,7 +1431,7 @@
                         <!-- MÓDULO: MAPA -->
             <div class="module" id="mod-mapa" style="gap:0;padding:0;height:100%;overflow:hidden">
                 <div id="mapa-container" style="width:100%;height:100%;position:relative">
-                    <div id="vrm-map" style="width:100%;height:100%"></div>
+                    <div id="vrm-map" style="width:100%;height:100%;background:transparent"></div>
                     <!-- Drawer lateral -->
                     <div id="mapa-drawer" style="position:absolute;top:0;right:0;width:0;height:100%;background:rgba(8,8,8,0.97);border-left:1px solid rgba(255,255,255,0.08);overflow:hidden;transition:width .3s cubic-bezier(0.16,1,0.3,1);z-index:1000;display:flex;flex-direction:column">
                         <div id="mapa-drawer-inner" style="width:320px;height:100%;overflow-y:auto;padding:24px"></div>
@@ -3103,14 +3113,28 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
         });
 
         // Tile oscuro — CartoDB Dark Matter
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        // Tile con solo tierra/calles — el mar queda en el color del fondo
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
             attribution: '© OpenStreetMap © CARTO',
             subdomains: 'abcd',
-            maxZoom: 19
+            maxZoom: 19,
+            opacity: 1
         }).addTo(mapaInstance);
 
-        // Estilo del mapa
-        mapaInstance.getContainer().style.background = '#080808';
+        // Labels encima
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+            attribution: '',
+            subdomains: 'abcd',
+            maxZoom: 19,
+            pane: 'shadowPane'
+        }).addTo(mapaInstance);
+
+        // El mar es el color de fondo del mapa — lo hacemos transparente
+        mapaInstance.getContainer().style.background = 'transparent';
+        // El agua en CartoDB dark es aproximadamente #0a0f1a
+        // Aplicamos CSS para hacer el contenedor transparente
+        const mapEl = document.getElementById('vrm-map');
+        mapEl.style.background = 'transparent';
 
         // Renderizar pins
         mapaRenderPins(PROPS);
