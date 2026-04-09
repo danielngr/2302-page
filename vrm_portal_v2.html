@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VRM — Portal</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/compat/app.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/compat/firestore.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/compat/storage.min.js"></script>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -1908,7 +1906,7 @@
         if(mod === 'housekeeping') cargarHousekeeping();
         if(mod === 'nomina') cargarNomina();
         if(mod === 'reportes') {
-            // Firebase ya inicializado — el login/app se maneja internamente
+            setTimeout(repInit, 100);
         }
         if(mod === 'aircover') {
             setTimeout(acCargar, 100);
@@ -4071,8 +4069,34 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
     }
 
 
-    // ══ REPORTES (Firebase) ═══════════════════════════════
-    
+
+
+    let repLoaded = false;
+
+    function repInit() {
+        if(repLoaded) return;
+        repLoaded = true;
+
+        // Cargar Firebase SDKs dinámicamente
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.onload = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+
+        Promise.all([
+            loadScript('https://cdn.jsdelivr.net/npm/firebase@9.23.0/compat/app.min.js'),
+        ]).then(() => {
+            return Promise.all([
+                loadScript('https://cdn.jsdelivr.net/npm/firebase@9.23.0/compat/firestore.min.js'),
+                loadScript('https://cdn.jsdelivr.net/npm/firebase@9.23.0/compat/storage.min.js'),
+            ]);
+        }).then(() => {
+            // Firebase listo — ejecutar código de reportes
 var TG_TOKEN   = '8462112004:AAFa8ZBfoJmHLg2pljfZmmIqstSGuEgSsjc';
 var TG_CHAT_ID = '-5227411507';
 var HORAS_CRITICO = 8;
@@ -4472,6 +4496,13 @@ function updateNotifBadge(){
   var b=document.getElementById('notifBadge');
   b.style.display=n>0?'flex':'none'; b.textContent=n;
 }
+
+
+        }).catch(e => {
+            console.error('Error cargando Firebase:', e);
+            toast('❌ Error cargando módulo de reportes');
+        });
+    }
 
 
     cargarRegistros(); // Supabase + frakcio_qr
