@@ -257,6 +257,7 @@
         /* ── Módulos ── */
         .module { display: none; flex-direction: column; height: 100%; gap: 28px; }
         .module.active { display: flex; }
+        #mod-reportes.active { display: block !important; }
 
         /* ── Stats ── */
         .stats-grid {
@@ -1187,6 +1188,8 @@
 
         /* ══ REPORTES ══ */
         #mod-reportes { height:100%; overflow:hidden; padding:0; gap:0; }
+        /* Reportes — asegurar visibilidad */
+
 
 #mod-reportes {--rep-bg:#080808;--rep-surface:rgba(18,18,18,0.6);--rep-surface2:rgba(30,30,30,0.5);--rep-border:rgba(255,255,255,0.08);--rep-text:#FFFFFF;--text-muted:#666;--text-dim:#999;--rep-accent:#E07A3E;--rep-accent-dim:rgba(224,122,62,0.12);--rep-red:#FF5C5C;--rep-red-dim:rgba(255,92,92,0.12);--rep-orange:#F5C070;--rep-orange-dim:rgba(245,192,112,0.12);--rep-green:#22D37D;--rep-green-dim:rgba(34,211,125,0.12);--rep-blue:#4AA4FF;--rep-blue-dim:rgba(74,164,255,0.12);--purple:#b97fff;--purple-dim:rgba(185,127,255,0.12);--radius:12px;--radius-sm:8px;}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -1309,6 +1312,9 @@
 .acceso-chip.na{background:var(--rep-surface2);color:var(--rep-text-muted);border:1px solid var(--rep-border);}
 .logout-btn{background:transparent;border:1px solid var(--rep-border);border-radius:var(--rep-radius-sm);padding:6px 11px;color:var(--rep-text-muted);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;}
 
+
+        #mapa-lista-body::-webkit-scrollbar { width: 4px; }
+        #mapa-lista-body::-webkit-scrollbar-thumb { background: rgba(224,122,62,0.3); border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -1678,7 +1684,20 @@
 
                         <!-- MÓDULO: MAPA -->
             <div class="module" id="mod-mapa" style="gap:0;padding:0;height:100%;overflow:hidden">
-                <div id="mapa-container" style="width:100%;height:100%;position:relative">
+                <div id="mapa-container" style="width:100%;height:100%;position:relative;display:flex">
+                    <!-- Lista lateral izquierda -->
+                    <div id="mapa-lista" style="width:220px;height:100%;background:rgba(8,8,8,0.92);border-right:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;z-index:999;flex-shrink:0">
+                        <div style="padding:12px;border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0">
+                            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:8px;display:flex;align-items:center;gap:8px;padding:7px 10px">
+                                <i class="ph ph-magnifying-glass" style="color:rgba(255,255,255,0.35);font-size:13px;flex-shrink:0"></i>
+                                <input id="mapa-lista-search" type="text" placeholder="Buscar..." oninput="mapaListaSearch(this.value)"
+                                    style="background:none;border:none;outline:none;color:#fff;font-size:12px;width:100%;font-family:var(--font-body)">
+                            </div>
+                        </div>
+                        <div id="mapa-lista-body" style="overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:rgba(224,122,62,0.3) transparent"></div>
+                    </div>
+                    <!-- Mapa -->
+                    <div style="flex:1;position:relative">
                     <div id="vrm-map" style="width:100%;height:100%;background:transparent"></div>
                     <!-- Drawer lateral -->
                     <div id="mapa-drawer" style="position:absolute;top:0;right:0;width:0;height:100%;background:rgba(8,8,8,0.97);border-left:1px solid rgba(255,255,255,0.08);overflow:hidden;transition:width .3s cubic-bezier(0.16,1,0.3,1);z-index:1000;display:flex;flex-direction:column">
@@ -1702,7 +1721,7 @@
             </div>
 
             <!-- MÓDULO: REPORTES -->
-            <div class="module" id="mod-reportes" style="display:none">
+            <div class="module" id="mod-reportes" style="display:none;padding:0;gap:0;height:100%;overflow:hidden">
                 <div id="loginScreen">
   <div class="login-logo">Reportes · Operación</div>
   <div class="login-title">¿Quién eres?</div>
@@ -3542,8 +3561,9 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
         // Renderizar pins
         mapaRenderPins(PROPS);
 
-        // Leyenda
+        // Leyenda y lista
         mapaRenderLeyenda();
+        mapaRenderLista(PROPS);
     }
 
     function mapaRenderPins(props) {
@@ -3597,6 +3617,53 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
         });
 
         document.getElementById('mapa-count').textContent = props.length + ' propiedades';
+    }
+
+    function mapaRenderLista(props) {
+        const body = document.getElementById('mapa-lista-body');
+        if(!body) return;
+
+        // Agrupar por tipo/complejo
+        const grupos = {};
+        props.forEach(p => {
+            const tipo = p.name.split(' ').slice(0,-1).join(' ') || p.tipo;
+            if(!grupos[tipo]) grupos[tipo] = [];
+            grupos[tipo].push(p);
+        });
+
+        body.innerHTML = Object.entries(grupos).map(([grupo, items]) => {
+            const color = getTipoColor(items[0].tipo);
+            const rows = items.map(p => `
+                <div onclick="mapaIrA(${p.lat},${p.lng},'${p.name.replace(/'/g,"\'")}')"
+                    style="padding:7px 16px 7px 32px;font-size:11px;color:rgba(255,255,255,0.6);cursor:pointer;transition:all .15s;border-radius:0;font-family:var(--font-mono)"
+                    onmouseover="this.style.background='rgba(224,122,62,0.1)';this.style.color='#fff'"
+                    onmouseout="this.style.background='transparent';this.style.color='rgba(255,255,255,0.6)'">
+                    ${p.name.split(' ').slice(-1)[0]}
+                </div>`).join('');
+
+            return `<div style="border-bottom:1px solid rgba(255,255,255,0.05)">
+                <div style="padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:10px;font-family:var(--font-mono);color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;font-weight:600">
+                    <div style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></div>
+                    ${grupo}
+                </div>
+                ${rows}
+            </div>`;
+        }).join('');
+    }
+
+    function mapaIrA(lat, lng, name) {
+        if(!mapaInstance) return;
+        mapaInstance.setView([lat, lng], 16, {animate:true, duration:0.8});
+        // Abrir drawer buscando la propiedad
+        const p = PROPS.find(x => x.name === name);
+        if(p) setTimeout(() => mapaAbrirDrawer(p), 500);
+    }
+
+    function mapaListaSearch(q) {
+        const filtered = q ? PROPS.filter(p => p.name.toLowerCase().includes(q.toLowerCase())) : PROPS;
+        mapaRenderLista(filtered);
+        mapaRenderPins(filtered);
+        if(filtered.length === 1) mapaInstance?.setView([filtered[0].lat, filtered[0].lng], 16);
     }
 
     function mapaRenderLeyenda() {
@@ -3658,15 +3725,9 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
     }
 
     function mapaSearch(q) {
-        if(!q) {
-            mapaRenderPins(PROPS);
-            return;
-        }
-        const filtered = PROPS.filter(p => p.name.toLowerCase().includes(q.toLowerCase()));
+        const filtered = q ? PROPS.filter(p => p.name.toLowerCase().includes(q.toLowerCase())) : PROPS;
         mapaRenderPins(filtered);
-        if(filtered.length === 1) {
-            mapaInstance.setView([filtered[0].lat, filtered[0].lng], 16);
-        }
+        if(filtered.length === 1) mapaInstance.setView([filtered[0].lat, filtered[0].lng], 16);
     }
 
 
