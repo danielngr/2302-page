@@ -1932,14 +1932,14 @@
                 <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
                     <div class="stat-card glass-card">
                         <div class="stat-header">
-                            <div class="stat-title">Check-ins hoy</div>
+                            <div class="stat-title" id="lbl-checkins">Check-ins hoy</div>
                             <i class="ph ph-arrow-circle-down stat-icon"></i>
                         </div>
                         <div class="stat-value" id="s-checkins">—</div>
                     </div>
                     <div class="stat-card glass-card">
                         <div class="stat-header">
-                            <div class="stat-title">Check-outs hoy</div>
+                            <div class="stat-title" id="lbl-checkouts">Check-outs hoy</div>
                             <i class="ph ph-arrow-circle-up stat-icon"></i>
                         </div>
                         <div class="stat-value" id="s-checkouts">—</div>
@@ -2661,16 +2661,10 @@
             const fecha   = (r[0]||'').trim().replace(/"/g,'');
             const entrada = (r[2]||'').trim().replace(/"/g,'');
             const salida  = (r[3]||'').trim().replace(/"/g,'');
-            // Usar rango completo para semana, fecha exacta para otros tabs
-            const fechaMatch = tabActual === 'semana' ? fechasRango.has(fecha) : fecha === hoyStr;
+            // Para semana: mostrar solo el primer día del rango en stats
+            const fechaMatch = fecha === hoyStr;
             if(!fechaMatch) return;
-            // Para pendientes usar el día correcto
-            const fiso = tabActual === 'semana' 
-                ? [...fechasISORange].find(f => {
-                    const d = new Date(f);
-                    return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}` === fecha;
-                }) || hoyISO
-                : hoyISO;
+            const fiso = hoyISO;
 
             if(entrada) {
                 checkins++;
@@ -2712,8 +2706,14 @@
         tabActual = tab;
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        // Actualizar labels de stats
+        const lblMap = {hoy:'hoy', ayer:'ayer', manana:'mañana', semana:'próx. 4 días'};
+        const lbl = lblMap[tab] || 'hoy';
+        const lblSuffix = tab === 'semana' ? '(acum.)' : '';
+        if(document.getElementById('lbl-checkins')) document.getElementById('lbl-checkins').textContent = `Check-ins ${lbl}`;
+        if(document.getElementById('lbl-checkouts')) document.getElementById('lbl-checkouts').textContent = `Check-outs ${lbl}`;
+        if(document.getElementById('lbl-pend')) document.getElementById('lbl-pend').textContent = `Pendientes ${lbl}`;
         renderTodo();
-        // Recalcular stats para el tab seleccionado
         if(window._sheetRows) calcularStatsHoy(window._sheetRows);
     }
 
