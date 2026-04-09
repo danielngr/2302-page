@@ -1033,12 +1033,10 @@
         #vrm-map { background: transparent !important; }
         #mod-mapa { background: transparent !important; }
         #mapa-container { background: transparent !important; }
-        /* Hacer el agua del mapa transparente */
+        /* Invertir tile: tierra oscura, agua transparente (blanco → invisible con multiply) */
         .leaflet-tile-pane {
-            mix-blend-mode: lighten;
-        }
-        .leaflet-shadow-pane {
-            mix-blend-mode: normal;
+            filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.1);
+            mix-blend-mode: multiply;
         }
         .vrm-tooltip {
             background: rgba(8,8,8,0.9) !important;
@@ -3113,28 +3111,15 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
         });
 
         // Tile oscuro — CartoDB Dark Matter
-        // Tile con solo tierra/calles — el mar queda en el color del fondo
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-            attribution: '© OpenStreetMap © CARTO',
-            subdomains: 'abcd',
-            maxZoom: 19,
+        // Tile Stamen Toner — blanco en tierra, TRANSPARENTE en agua
+        L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}{r}.png', {
+            attribution: '© Stadia Maps © Stamen Design © OpenStreetMap',
+            maxZoom: 20,
             opacity: 1
         }).addTo(mapaInstance);
 
-        // Labels encima
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
-            attribution: '',
-            subdomains: 'abcd',
-            maxZoom: 19,
-            pane: 'shadowPane'
-        }).addTo(mapaInstance);
-
-        // El mar es el color de fondo del mapa — lo hacemos transparente
+        // Fondo del mapa = transparente (el agua del tile Toner es blanco puro)
         mapaInstance.getContainer().style.background = 'transparent';
-        // El agua en CartoDB dark es aproximadamente #0a0f1a
-        // Aplicamos CSS para hacer el contenedor transparente
-        const mapEl = document.getElementById('vrm-map');
-        mapEl.style.background = 'transparent';
 
         // Renderizar pins
         mapaRenderPins(PROPS);
