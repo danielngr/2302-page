@@ -4843,7 +4843,12 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
     let repLoaded = false;
 
     function repInit() {
-        if(repLoaded) return;
+        if(repLoaded) {
+            // Ya cargado — solo cerrar modales abiertos
+            const mBg = document.getElementById('mod-reportes').querySelector('.modal-bg');
+            if(mBg) mBg.style.display = 'none';
+            return;
+        }
         repLoaded = true;
 
         // Cargar Firebase SDKs dinámicamente
@@ -5345,16 +5350,15 @@ function updateNotifBadge(){
         document.getElementById('disp-semana-label').textContent = `Semana ${fmt(lunes)} — ${fmt(domingo)} 2026`;
         document.getElementById('disp-periodo').textContent = `${fmt(lunes)} al ${fmt(domingo)}`;
 
-        // Rango semana
+        // Rango semana — usar lunes/domingo calculados
         const lunesISO = lunes.toISOString().split('T')[0];
         const domingoISO = domingo.toISOString().split('T')[0];
 
-        // Calcular montos por staff de esta semana
+        // Calcular montos por staff — todas las limpiezas terminadas no pagadas
+        // (estatus=terminada, sin filtro de fecha estricto para capturar semana actual)
         const montosPorStaff = {};
         limpiezas.forEach(l => {
-            if(l.fecha >= lunesISO && l.fecha <= domingoISO) {
-                montosPorStaff[l.staff_id] = (montosPorStaff[l.staff_id]||0) + parseFloat(l.tarifa_aplicada||0);
-            }
+            montosPorStaff[l.staff_id] = (montosPorStaff[l.staff_id]||0) + parseFloat(l.tarifa_aplicada||0);
         });
 
         // Ajustes
