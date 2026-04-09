@@ -2106,8 +2106,12 @@
                         <div class="nom-periodo" id="nom-periodo">—</div>
                     </div>
                     <div style="display:flex;gap:12px;align-items:center">
-                        <span style="font-family:var(--font-mono);font-size:13px;color:var(--status-green);font-weight:700" id="nom-total-global">$0.00</span>
-                        <button class="btn btn-ghost" onclick="abrirHistorico()" style="font-size:11px;padding:9px 14px">
+                        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:100px;display:flex;align-items:center;gap:8px;padding:8px 14px">
+                            <i class="ph ph-magnifying-glass" style="color:var(--text-tertiary);font-size:14px"></i>
+                            <input id="nom-search" type="text" placeholder="Buscar..." oninput="nomFiltrar(this.value)"
+                                style="background:none;border:none;outline:none;color:var(--text-primary);font-size:12px;width:120px;font-family:var(--font-body)">
+                        </div>
+                        <span style="font-family:var(--font-mono);font-size:13px;color:var(--status-green);font-weight:700" id="nom-total-global">$0.00</span><button class="btn btn-ghost" onclick="abrirHistorico()" style="font-size:11px;padding:9px 14px">
                             <i class="ph ph-clock-counter-clockwise"></i> Histórico
                         </button>
                         <button class="btn btn-outline-red" onclick="liquidarSemana()" style="font-size:11px">
@@ -3317,6 +3321,14 @@
     // ══════════════════════════════════════════════════════
     // NÓMINA
     // ══════════════════════════════════════════════════════
+    function nomFiltrar(q) {
+        const rows = document.querySelectorAll('#nom-body .nom-staff');
+        rows.forEach(row => {
+            const nombre = row.querySelector('.nom-name')?.textContent?.toLowerCase() || '';
+            row.style.display = (!q || nombre.includes(q.toLowerCase())) ? '' : 'none';
+        });
+    }
+
     async function cargarNomina() {
         const body = document.getElementById('nom-body');
 
