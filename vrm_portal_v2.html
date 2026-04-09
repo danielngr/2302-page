@@ -1937,6 +1937,20 @@
         #mod-reportes .modal-bg:not([style*="flex"]):not([style*="block"]) {
             display: none !important;
         }
+
+        #mod-reportes #modalOverlay { display: none !important; }
+        #mod-reportes #modalOverlay.active,
+        #mod-reportes #modalOverlay[style*="flex"],
+        #mod-reportes #modalOverlay[style*="block"] { display: flex !important; }
+
+        /* Reportes — ocultar modalOverlay hasta que se active */
+        #mod-reportes #modalOverlay {
+            display: none !important;
+        }
+        #mod-reportes #modalOverlay[style*="flex"],
+        #mod-reportes #modalOverlay[style*="block"] {
+            display: flex !important;
+        }
     </style>
 </head>
 <body>
@@ -5345,15 +5359,18 @@ function updateNotifBadge(){
         const limpiezas = await resLimp.json();
         const ajustes = await resAjustes.json();
 
-        // Calcular semana actual (lunes-domingo)
+        // Calcular semana actual (jueves-miércoles)
         const hoy = new Date();
-        const lunes = new Date(hoy);
-        lunes.setDate(hoy.getDate() - ((hoy.getDay()+6)%7));
-        const domingo = new Date(lunes);
-        domingo.setDate(lunes.getDate() + 6);
+        const diaSemana = hoy.getDay(); // 0=dom,1=lun,...,4=jue
+        // Días desde el último jueves
+        const diasDesdeJueves = (diaSemana + 3) % 7; // jue=0,vie=1,sab=2,dom=3,lun=4,mar=5,mie=6
+        const jueves = new Date(hoy);
+        jueves.setDate(hoy.getDate() - diasDesdeJueves);
+        const miercoles = new Date(jueves);
+        miercoles.setDate(jueves.getDate() + 6);
         const fmt = d => d.toLocaleDateString('es-MX',{day:'2-digit',month:'short'});
-        document.getElementById('disp-semana-label').textContent = `Semana ${fmt(lunes)} — ${fmt(domingo)} 2026`;
-        document.getElementById('disp-periodo').textContent = `${fmt(lunes)} al ${fmt(domingo)}`;
+        document.getElementById('disp-semana-label').textContent = `Semana ${fmt(jueves)} — ${fmt(miercoles)} 2026`;
+        document.getElementById('disp-periodo').textContent = `${fmt(jueves)} al ${fmt(miercoles)}`;
 
         // Rango semana — usar lunes/domingo calculados
         const lunesISO = lunes.toISOString().split('T')[0];
