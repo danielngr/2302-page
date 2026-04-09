@@ -2592,11 +2592,10 @@
 
                 <!-- Tabla de nómina -->
                 <div class="glass-panel" style="overflow:hidden;flex-shrink:0">
-                    <div class="list-header" style="display:grid;grid-template-columns:2fr 1.5fr 1fr auto;padding:10px 24px;gap:16px">
+                    <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr;padding:10px 24px;gap:16px;border-bottom:1px solid rgba(255,255,255,.06)">
                         <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px">Nombre</div>
                         <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px">Cuenta</div>
-                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px">Monto</div>
-                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px"></div>
+                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px;text-align:right">Monto</div>
                     </div>
                     <div id="disp-body" style="max-height:500px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(224,122,62,0.3) transparent">
                         <div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando...</div>
@@ -5423,26 +5422,57 @@ function updateNotifBadge(){
         document.getElementById('disp-total').textContent = '$' + total.toLocaleString('es-MX',{minimumFractionDigits:2});
         document.getElementById('disp-count').textContent = dispPersonas.length;
 
-        document.getElementById('disp-body').innerHTML = dispPersonas.map((p,i) => `
-            <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr auto;align-items:center;padding:14px 24px;border-bottom:1px solid rgba(255,255,255,.05);gap:16px;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='transparent'">
+        const limpieza = dispPersonas.filter(p => !p.es_fijo && !p.es_extra);
+        const fijos = dispPersonas.filter(p => p.es_fijo);
+        const extras = dispPersonas.filter(p => p.es_extra);
+
+        const rowLimpieza = (p, i) => `
+            <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr;align-items:center;padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.04);gap:16px;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.015)'" onmouseout="this.style.background='transparent'">
+                <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--text-primary)">${p.nombre_completo}</div>
+                    <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px">${p.apodo}</div>
+                </div>
+                <div>
+                    <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-secondary)">${p.cuenta||'—'}</div>
+                    <div style="font-size:10px;color:var(--text-tertiary);margin-top:1px">${p.banco||dispGetBanco(p.cuenta)}</div>
+                </div>
+                <div style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--status-green);text-align:right">
+                    $${p.monto.toLocaleString('es-MX',{minimumFractionDigits:2})}
+                </div>
+            </div>`;
+
+        const rowEditable = (p, idx) => `
+            <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr auto;align-items:center;padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.04);gap:16px;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.015)'" onmouseout="this.style.background='transparent'">
                 <div>
                     <div style="font-size:13px;font-weight:600;color:var(--text-primary)">${p.nombre_completo}</div>
                     <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px">${p.apodo}${p.es_fijo?' · FIJO':''}${p.es_extra?' · EXTRA':''}</div>
                 </div>
                 <div>
-                    <div style="font-size:12px;font-family:var(--font-mono);color:var(--text-secondary)">${p.cuenta||'—'}</div>
+                    <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-secondary)">${p.cuenta||'—'}</div>
                     <div style="font-size:10px;color:var(--text-tertiary);margin-top:1px">${p.banco||dispGetBanco(p.cuenta)}</div>
                 </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                    <input type="number" value="${p.monto}" step="0.01"
-                        onchange="dispPersonas[${i}].monto=parseFloat(this.value)||0; dispActualizarTotal();"
-                        style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text-primary);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:6px 10px;width:100%;outline:none;text-align:right">
-                </div>
-                <button onclick="dispEliminar(${i})" style="background:rgba(255,92,92,.08);border:1px solid rgba(255,92,92,.2);border-radius:8px;color:var(--status-red);cursor:pointer;padding:6px 10px;font-size:13px;transition:all .15s" onmouseover="this.style.background='rgba(255,92,92,.15)'" onmouseout="this.style.background='rgba(255,92,92,.08)'">
+                <input type="number" value="${p.monto}" step="0.01"
+                    onchange="dispPersonas[${idx}].monto=parseFloat(this.value)||0; dispActualizarTotal();"
+                    style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text-primary);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:6px 10px;outline:none;text-align:right;width:100%">
+                <button onclick="dispEliminar(${idx})" style="background:rgba(255,92,92,.08);border:1px solid rgba(255,92,92,.2);border-radius:8px;color:var(--status-red);cursor:pointer;padding:6px 10px;font-size:13px" onmouseover="this.style.background='rgba(255,92,92,.15)'" onmouseout="this.style.background='rgba(255,92,92,.08)'">
                     <i class="ph ph-trash"></i>
                 </button>
+            </div>`;
+
+        const seccion = (titulo, color, items, editable) => items.length ? `
+            <div style="padding:10px 24px 6px;background:rgba(255,255,255,.02);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:8px">
+                <div style="width:6px;height:6px;border-radius:50%;background:${color}"></div>
+                <span style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px">${titulo}</span>
+                <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);margin-left:auto">$${items.reduce((a,p)=>a+p.monto,0).toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
             </div>
-        `).join('') || '<div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Sin datos esta semana</div>';
+            ${items.map((p,i) => editable ? rowEditable(p, dispPersonas.indexOf(p)) : rowLimpieza(p, dispPersonas.indexOf(p))).join('')}
+        ` : '';
+
+        document.getElementById('disp-body').innerHTML =
+            seccion('Personal de limpieza', 'var(--status-blue)', limpieza, false) +
+            seccion('Fijos', 'var(--accent-gold)', fijos, true) +
+            seccion('Extras', 'var(--accent-terracota)', extras, true) ||
+            '<div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Sin datos esta semana</div>';
     }
 
     function dispActualizarTotal() {
