@@ -1018,6 +1018,11 @@
         #worstList::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius: 4px; }
         #worstList::-webkit-scrollbar-thumb { background: rgba(224,122,62,0.5); border-radius: 4px; }
         #worstList::-webkit-scrollbar-thumb:hover { background: rgba(224,122,62,0.8); }
+
+        #alertsList::-webkit-scrollbar { width: 4px; }
+        #alertsList::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius: 4px; }
+        #alertsList::-webkit-scrollbar-thumb { background: rgba(255,92,92,0.5); border-radius: 4px; }
+        #alertsList::-webkit-scrollbar-thumb:hover { background: rgba(255,92,92,0.8); }
     </style>
 </head>
 <body>
@@ -1261,18 +1266,23 @@
                             <div style="font-size:10px;color:var(--text-tertiary);margin-bottom:8px">Reviews negativas antes de perder Superhost</div>
                             <table id="absorptionTable" style="width:100%;font-size:11px"></table>
                         </div>
-                        <div style="background:rgba(255,255,255,.03);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:14px">
-                            <div style="font-size:11px;font-weight:700;margin-bottom:8px">🔮 Simulador</div>
-                            <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px">
-                                <span>Si recibo</span>
-                                <input type="number" id="simCount" value="5" min="1" max="50" style="width:44px;background:rgba(255,255,255,.08);border:1px solid var(--glass-border);color:var(--text-primary);border-radius:6px;padding:4px 6px;font-size:11px">
-                                <span>reviews de</span>
-                                <select id="simStars" style="background:rgba(255,255,255,.08);border:1px solid var(--glass-border);color:var(--text-primary);border-radius:6px;padding:4px;font-size:11px">
-                                    <option value="5">★5</option><option value="4">★4</option><option value="3">★3</option><option value="2">★2</option><option value="1">★1</option>
-                                </select>
-                                <button onclick="runSim()" class="btn btn-outline-white" style="font-size:10px;padding:5px 10px">Calcular</button>
+                        <div style="background:rgba(255,255,255,.03);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:16px;display:flex;flex-direction:column;gap:12px">
+                            <div style="font-size:11px;font-weight:700">🔮 Simulador de Impacto</div>
+                            <div style="font-size:10px;color:var(--text-tertiary)">¿Qué pasa si recibes N reviews de X estrellas?</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                                <div style="display:flex;flex-direction:column;gap:4px">
+                                    <span style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase">Cantidad</span>
+                                    <input type="number" id="simCount" value="5" min="1" max="50" style="background:rgba(255,255,255,.06);border:1px solid var(--glass-border);color:var(--text-primary);border-radius:8px;padding:8px 10px;font-size:13px;font-family:var(--font-mono);outline:none;width:100%">
+                                </div>
+                                <div style="display:flex;flex-direction:column;gap:4px">
+                                    <span style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase">Estrellas</span>
+                                    <select id="simStars" style="background:rgba(255,255,255,.06);border:1px solid var(--glass-border);color:var(--text-primary);border-radius:8px;padding:8px 10px;font-size:13px;outline:none;width:100%">
+                                        <option value="5">★★★★★ 5</option><option value="4">★★★★ 4</option><option value="3">★★★ 3</option><option value="2">★★ 2</option><option value="1">★ 1</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div id="simResult" style="margin-top:10px;font-size:11px"></div>
+                            <button onclick="runSim()" style="background:linear-gradient(135deg,var(--accent-terracota),#ff9858);border:none;color:#fff;border-radius:8px;padding:9px;font-family:var(--font-display);font-size:12px;font-weight:600;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">Calcular impacto</button>
+                            <div id="simResult" style="font-size:12px;min-height:20px"></div>
                         </div>
                         <div style="background:rgba(255,255,255,.03);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:14px">
                             <div style="font-size:11px;font-weight:700;margin-bottom:8px">📅 Tendencia vs 4.8</div>
@@ -1343,9 +1353,9 @@
                 <div class="glass-panel" style="overflow:hidden;flex-shrink:0">
                     <div class="list-header">
                         <div class="list-title-dot" style="background:var(--status-red)"></div>
-                        <div class="list-title">🔴 ALERTAS <span style="font-size:9px;color:var(--text-tertiary);font-weight:400">(subcategoría &lt; 4★)</span></div>
+                        <div class="list-title">ALERTAS <span style="font-size:9px;color:var(--text-tertiary);font-weight:400">(subcategoría &lt; 4★)</span></div>
                     </div>
-                    <div style="padding:8px 16px" class="alerts-list" id="alertsList"></div>
+                    <div style="padding:8px 16px;max-height:420px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,92,92,0.4) rgba(255,255,255,0.04)" class="alerts-list" id="alertsList"></div>
                 </div>
 
                 <!-- Todas las reviews -->
@@ -2577,13 +2587,28 @@ function applyFilters(){const m=document.getElementById('fMonth').value,d=docume
 function render(){renderHeader();renderKPIs();renderTrend();renderStars();renderCatBars();renderRadar();renderDeptTable();renderAlerts();renderAllTable();renderSuperhost()}
 function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
 function renderHeader(){const ds=filtered.filter(r=>r.fecha).map(r=>r.fecha).sort();document.getElementById('dateRange').textContent=ds.length?ds[0]+' → '+ds[ds.length-1]+' · '+filtered.length+' reviews':'Sin datos';const g=filtered.filter(r=>r.general).map(r=>r.general);document.getElementById('headerStats').innerHTML='<div class="stat"><div class="val">'+filtered.length+'</div><div class="lbl">Reviews</div></div><div class="stat"><div class="val">'+avg(g).toFixed(2)+'</div><div class="lbl">General ★</div></div><div class="stat"><div class="val">'+(g.length?(g.filter(x=>x===5).length/g.length*100).toFixed(1):0)+'%</div><div class="lbl">5 Estrellas</div></div>'}
-function renderKPIs(){const g=filtered.filter(r=>r.general).map(r=>r.general),l=filtered.filter(r=>r.limpieza).map(r=>r.limpieza),ll=filtered.filter(r=>r.llegada).map(r=>r.llegada),alerts=filtered.filter(r=>[r.llegada,r.limpieza,r.veracidad,r.comunicacion,r.ubicacion,r.calidad].some(c=>c&&c<4));document.getElementById('kpis').innerHTML='<div class="kpi"><div class="val" style="color:var(--gold)">'+avg(g).toFixed(2)+'</div><div class="lbl">General ★</div></div><div class="kpi"><div class="val">'+avg(l).toFixed(2)+'</div><div class="lbl">Limpieza ★</div></div><div class="kpi"><div class="val">'+avg(ll).toFixed(2)+'</div><div class="lbl">Llegada ★</div></div><div class="kpi"><div class="val" style="color:var(--green)">'+(g.length?(g.filter(x=>x===5).length/g.length*100).toFixed(1)+'%':'-')+'</div><div class="lbl">Tasa 5★</div></div><div class="kpi"><div class="val" style="color:var(--red)">'+alerts.length+'</div><div class="lbl">Alertas</div></div>'}
+function renderKPIs(){
+    const a=(k)=>avg(filtered.filter(r=>r[k]).map(r=>r[k]));
+    const g=filtered.filter(r=>r.general).map(r=>r.general);
+    const alerts=filtered.filter(r=>[r.llegada,r.limpieza,r.veracidad,r.comunicacion,r.ubicacion,r.calidad].some(c=>c&&c<4));
+    const kpiData=[
+        {val:avg(g).toFixed(2),lbl:'General ★',color:'var(--gold)'},
+        {val:a('limpieza').toFixed(2),lbl:'Limpieza ★'},
+        {val:a('llegada').toFixed(2),lbl:'Llegada ★'},
+        {val:a('comunicacion').toFixed(2),lbl:'Comunicación ★'},
+        {val:a('ubicacion').toFixed(2),lbl:'Ubicación ★'},
+        {val:a('calidad').toFixed(2),lbl:'Calidad ★'},
+        {val:(g.length?(g.filter(x=>x===5).length/g.length*100).toFixed(1)+'%':'-'),lbl:'Tasa 5★',color:'var(--green)'},
+        {val:alerts.length,lbl:'Alertas',color:'var(--red)'},
+    ];
+    document.getElementById('kpis').innerHTML=kpiData.map(k=>'<div class="kpi"><div class="val"'+(k.color?' style="color:'+k.color+'"':'')+'>'+k.val+'</div><div class="lbl">'+k.lbl+'</div></div>').join('');
+}
 function renderTrend(){const mo={};filtered.forEach(r=>{if(!r.fecha)return;const m=r.fecha.substring(0,7);if(!mo[m])mo[m]={g:[],l:[],ll:[]};if(r.general)mo[m].g.push(r.general);if(r.limpieza)mo[m].l.push(r.limpieza);if(r.llegada)mo[m].ll.push(r.llegada)});const lb=Object.keys(mo).sort();if(tC)tC.destroy();tC=new Chart(document.getElementById('trendChart'),{type:'line',data:{labels:lb,datasets:[{label:'General',data:lb.map(m=>avg(mo[m].g)),borderColor:'#C8A96E',backgroundColor:'rgba(200,169,110,0.1)',tension:.3,fill:true},{label:'Limpieza',data:lb.map(m=>avg(mo[m].l)),borderColor:'#4A8C6F',backgroundColor:'rgba(74,140,111,0.1)',tension:.3,fill:true},{label:'Llegada',data:lb.map(m=>avg(mo[m].ll)),borderColor:'#4A7C96',backgroundColor:'rgba(74,124,150,0.1)',tension:.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'rgba(255,255,255,0.6)',boxWidth:12,font:{size:10}}}},scales:{y:{min:3.5,max:5.1,ticks:{color:'rgba(255,255,255,0.5)'},grid:{color:'rgba(255,255,255,0.06)'}},x:{ticks:{color:'rgba(255,255,255,0.5)'},grid:{color:'rgba(255,255,255,0.06)'}}}}})}
 function renderStars(){const d={1:0,2:0,3:0,4:0,5:0};filtered.forEach(r=>{if(r.general)d[r.general]++});if(sC)sC.destroy();sC=new Chart(document.getElementById('starChart'),{type:'bar',data:{labels:['★1','★2','★3','★4','★5'],datasets:[{data:[d[1],d[2],d[3],d[4],d[5]],backgroundColor:['#D4463A','#D4463A','#E8A838','#C8A96E','#4A8C6F'],borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{color:'rgba(255,255,255,0.5)'},grid:{color:'rgba(255,255,255,0.06)'}},x:{ticks:{color:'rgba(255,255,255,0.5)'},grid:{color:'rgba(255,255,255,0.06)'}}}}})}
 function renderCatBars(){const cats=[{k:'general',l:'General'},{k:'llegada',l:'Llegada'},{k:'limpieza',l:'Limpieza'},{k:'veracidad',l:'Veracidad'},{k:'comunicacion',l:'Comunicación'},{k:'ubicacion',l:'Ubicación'},{k:'calidad',l:'Calidad'}];document.getElementById('catBars').innerHTML=cats.map(c=>{const v=filtered.filter(r=>r[c.k]).map(r=>r[c.k]),a=avg(v),p=(a/5*100).toFixed(0),cl=a>=4.5?'var(--green)':a>=4?'var(--gold)':a>=3.5?'#E8A838':'var(--red)';return'<div class="cat-bar"><span class="name">'+c.l+'</span><div class="bar-bg"><div class="bar-fill" style="width:'+p+'%;background:'+cl+'"></div></div><span class="bar-val">'+a.toFixed(2)+'</span></div>'}).join('')}
 function renderRadar(){const cats=['llegada','limpieza','veracidad','comunicacion','ubicacion','calidad'],lb=['Llegada','Limpieza','Veracidad','Comunicación','Ubicación','Calidad'],v=cats.map(k=>avg(filtered.filter(r=>r[k]).map(r=>r[k])));if(rC)rC.destroy();rC=new Chart(document.getElementById('radarChart'),{type:'radar',data:{labels:lb,datasets:[{data:v,borderColor:'#E07A3E',backgroundColor:'rgba(224,122,62,0.15)',borderWidth:2,pointBackgroundColor:'#F5C070',pointBorderColor:'#E07A3E',pointBorderWidth:2,pointRadius:5,pointHoverRadius:7,pointHoverBackgroundColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{r:{min:3.5,max:5,ticks:{stepSize:.5,color:'rgba(255,255,255,0.4)',backdropColor:'transparent',font:{size:9}},grid:{color:'rgba(255,255,255,0.08)'},angleLines:{color:'rgba(255,255,255,0.1)'},pointLabels:{color:'rgba(255,255,255,0.7)',font:{size:11,weight:'600'}}}}}})}
 function renderDeptTable(){const ds={};filtered.forEach(r=>{if(!r.depto)return;if(!ds[r.depto])ds[r.depto]={n:0,g:[],l:[],ll:[],c:[],u:[],v:[],ca:[]};ds[r.depto].n++;if(r.general)ds[r.depto].g.push(r.general);if(r.limpieza)ds[r.depto].l.push(r.limpieza);if(r.llegada)ds[r.depto].ll.push(r.llegada);if(r.comunicacion)ds[r.depto].c.push(r.comunicacion);if(r.ubicacion)ds[r.depto].u.push(r.ubicacion);if(r.veracidad)ds[r.depto].v.push(r.veracidad);if(r.calidad)ds[r.depto].ca.push(r.calidad)});const rows=Object.entries(ds).filter(([,d])=>d.n>=3).map(([nm,d])=>({dept:nm,count:d.n,general:avg(d.g),limpieza:avg(d.l),llegada:avg(d.ll),comunicacion:avg(d.c),ubicacion:avg(d.u),veracidad:avg(d.v),calidad:avg(d.ca)})).sort((a,b)=>b.general-a.general);const f=v=>{const s=v>=4.5?'color:var(--green)':v>=4?'color:var(--gold)':v>=3.5?'':'color:var(--red)';return'<span style="'+s+'">'+v.toFixed(2)+'</span>'};document.querySelector('#deptTable tbody').innerHTML=rows.map(r=>'<tr><td><strong>'+r.dept+'</strong></td><td>'+r.count+'</td><td>'+f(r.general)+'</td><td>'+f(r.limpieza)+'</td><td>'+f(r.llegada)+'</td><td>'+f(r.comunicacion)+'</td><td>'+f(r.ubicacion)+'</td><td>'+f(r.veracidad)+'</td><td>'+f(r.calidad)+'</td></tr>').join('')}
-function renderAlerts(){const cl={llegada:'Llegada',limpieza:'Limpieza',veracidad:'Veracidad',comunicacion:'Comunicación',ubicacion:'Ubicación',calidad:'Calidad'};const alerts=filtered.filter(r=>[r.llegada,r.limpieza,r.veracidad,r.comunicacion,r.ubicacion,r.calidad].some(c=>c&&c<4)).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));document.getElementById('alertsList').innerHTML=alerts.length?alerts.map(r=>{const fl=[];Object.entries(cl).forEach(([k,v])=>{if(r[k]&&r[k]<4)fl.push('<span class="alert-cat">'+v+': ★'+r[k]+'</span>')});return'<div class="alert-item"><div><span style="font-weight:500">'+r.huesped+'</span> <span class="badge b-gold">★'+(r.general||'?')+'</span><div style="color:var(--gray);font-size:0.8rem">'+r.depto+' · '+r.fecha+'</div><div class="alert-cats">'+fl.join('')+'</div>'+(r.comentario?'<div style="font-size:0.78rem;color:var(--gray);margin-top:0.3rem">'+r.comentario.substring(0,200)+(r.comentario.length>200?'...':'')+'</div>':'')+'</div></div>'}).join(''):'<div style="padding:2rem;text-align:center;color:var(--gray)">Sin alertas</div>'}
+function renderAlerts(){const cl={llegada:'Llegada',limpieza:'Limpieza',veracidad:'Veracidad',comunicacion:'Comunicación',ubicacion:'Ubicación',calidad:'Calidad'};const alerts=filtered.filter(r=>[r.llegada,r.limpieza,r.veracidad,r.comunicacion,r.ubicacion,r.calidad].some(c=>c&&c<4)).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));document.getElementById('alertsList').innerHTML=alerts.length?alerts.map(r=>{const fl=[];Object.entries(cl).forEach(([k,v])=>{if(r[k]&&r[k]<4)fl.push('<span class="alert-cat">'+v+': ★'+r[k]+'</span>')});return'<div class="alert-item" style="padding:12px 0;gap:12px"><div style="flex:1"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-weight:600;font-size:13px">'+r.huesped+'</span><span style="background:rgba(245,192,112,.15);color:var(--gold);border:1px solid rgba(245,192,112,.3);border-radius:100px;padding:2px 10px;font-size:11px;font-family:var(--font-mono)">★'+(r.general||'?')+'</span></div><div style="color:var(--text-tertiary);font-size:11px;font-family:var(--font-mono);margin-bottom:6px">'+r.depto+' · '+r.fecha+'</div><div class="alert-cats" style="margin-bottom:6px">'+fl.join('')+'</div>'+(r.comentario?'<div style="font-size:11px;color:var(--text-secondary);line-height:1.5">'+r.comentario.substring(0,180)+(r.comentario.length>180?'…':'')+'</div>':'')+'</div></div>'}).join(''):'<div style="padding:2rem;text-align:center;color:var(--gray)">Sin alertas</div>'}
 function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));document.getElementById('tableCount').textContent='('+rows.length+')';const f=v=>{if(!v&&v!==0)return'<span style="color:#ccc">-</span>';return v<4?'<span style="color:var(--red);font-weight:600">'+v+'</span>':v===5?'<span style="color:var(--green)">'+v+'</span>':''+v};document.querySelector('#allTable tbody').innerHTML=rows.slice(0,300).map(r=>'<tr><td style="white-space:nowrap;font-size:0.78rem">'+r.fecha+'</td><td style="font-size:0.78rem">'+r.depto+'</td><td>'+r.huesped+'</td><td>'+f(r.general)+'</td><td>'+f(r.llegada)+'</td><td>'+f(r.limpieza)+'</td><td>'+f(r.veracidad)+'</td><td>'+f(r.comunicacion)+'</td><td>'+f(r.ubicacion)+'</td><td>'+f(r.calidad)+'</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem">'+(r.comentario||'').substring(0,120)+'</td></tr>').join('')+(rows.length>300?'<tr><td colspan="11" style="text-align:center;color:var(--gray);padding:1rem">Mostrando 300 de '+rows.length+'</td></tr>':'')}
 // listeners se agregan en rvInit()
 
