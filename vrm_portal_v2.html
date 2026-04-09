@@ -1846,9 +1846,18 @@
 
         <!-- ══ SIDEBAR ══ -->
         <aside class="sidebar glass-panel">
-            <div class="brand">
-                <div class="brand-icon"><i class="ph-bold ph-diamonds-four"></i></div>
-                <div class="brand-text">VRM</div>
+            <div class="brand" style="padding:0 28px;margin-bottom:24px">
+                <div style="display:flex;flex-direction:column;gap:2px">
+                    <div style="display:flex;align-items:baseline;gap:0">
+                        <span style="font-size:30px;font-weight:900;color:var(--accent-terracota);font-family:var(--font-display);line-height:1">V</span>
+                        <span style="font-size:30px;font-weight:300;color:#ffffff;font-family:var(--font-display);line-height:1">RM</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <div style="height:1.5px;width:100%;background:var(--accent-terracota);border-radius:2px"></div>
+                        <span style="font-family:var(--font-mono);font-size:8px;color:#555;letter-spacing:4px;white-space:nowrap">PORTAL</span>
+                        <div style="height:1.5px;width:100%;background:var(--accent-terracota);border-radius:2px"></div>
+                    </div>
+                </div>
             </div>
 
             <div class="sidebar-section">
@@ -2624,9 +2633,26 @@
     }
 
     function calcularStatsHoy(rows) {
-        const hoy = new Date();
-        const hoyStr = `${hoy.getDate()}/${hoy.getMonth()+1}/${hoy.getFullYear()}`;
-        const hoyISO = hoy.toISOString().split("T")[0];
+        // Usar el tab activo para calcular las stats del día correcto
+        const rangoMap = { hoy:[0,0], ayer:[-1,-1], manana:[1,1], semana:[1,4] };
+        const rango = rangoMap[tabActual] || [0,0];
+        // Para tabs multi-día (semana), mostrar stats del primer día del rango
+        const offset = rango[0];
+
+        const diaRef = new Date(); diaRef.setHours(0,0,0,0);
+        diaRef.setDate(diaRef.getDate() + offset);
+        const hoyStr = `${diaRef.getDate()}/${diaRef.getMonth()+1}/${diaRef.getFullYear()}`;
+        const hoyISO = diaRef.toISOString().split("T")[0];
+
+        // Para semana: acumular todos los días del rango
+        const fechasRango = new Set();
+        const fechasISORange = new Set();
+        for(let i = rango[0]; i <= rango[1]; i++) {
+            const d = new Date(); d.setHours(0,0,0,0);
+            d.setDate(d.getDate() + i);
+            fechasRango.add(`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`);
+            fechasISORange.add(d.toISOString().split("T")[0]);
+        }
 
         let checkins = 0, checkouts = 0, pendientes = 0;
 
@@ -2635,7 +2661,16 @@
             const fecha   = (r[0]||'').trim().replace(/"/g,'');
             const entrada = (r[2]||'').trim().replace(/"/g,'');
             const salida  = (r[3]||'').trim().replace(/"/g,'');
-            if(fecha !== hoyStr) return;
+            // Usar rango completo para semana, fecha exacta para otros tabs
+            const fechaMatch = tabActual === 'semana' ? fechasRango.has(fecha) : fecha === hoyStr;
+            if(!fechaMatch) return;
+            // Para pendientes usar el día correcto
+            const fiso = tabActual === 'semana' 
+                ? [...fechasISORange].find(f => {
+                    const d = new Date(f);
+                    return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}` === fecha;
+                }) || hoyISO
+                : hoyISO;
 
             if(entrada) {
                 checkins++;
@@ -2644,7 +2679,7 @@
                     // Manual no cuenta
                 } else if(tipo === 'frakcio') {
                     const qrRec = (frakcioQR||[]).find(x =>
-                        x.depto && x.depto.toUpperCase()===entrada.toUpperCase() && x.fecha===hoyISO
+                        x.depto && x.depto.toUpperCase()===entrada.toUpperCase() && x.fecha===fiso
                     );
                     if(!qrRec || !qrRec.qr_enviado) pendientes++;
                 } else {
@@ -2652,7 +2687,7 @@
                     const reg = todosRegistros.find(x => {
                         const xd = (x.depto||'').toUpperCase().trim();
                         return (xd === d || xd.startsWith(d+' ') || d.startsWith(xd+' '))
-                            && x.fecha_entrada === hoyISO;
+                            && x.fecha_entrada === fiso;
                     });
                     if(!reg || !reg.pdf_generado) pendientes++;
                 }
@@ -2678,6 +2713,8 @@
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         renderTodo();
+        // Recalcular stats para el tab seleccionado
+        if(window._sheetRows) calcularStatsHoy(window._sheetRows);
     }
 
     function setFiltro(f, btn) {
