@@ -2439,7 +2439,8 @@ function rvRunSim(){
 
 // ======== MAIN DASHBOARD ========
 function rvInitFilters(){const ms=new Set(),ds=new Set();RV_DATA.forEach(r=>{if(r.fecha)ms.add(r.fecha.substring(0,7));if(r.depto)ds.add(r.depto)});const fM=document.getElementById('rv-fMonth');[...ms].sort().forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;fM.appendChild(o)});const fD=document.getElementById('rv-fDept');[...ds].sort().forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;fD.appendChild(o)})}
-function rvApplyFilters(){const m=document.getElementById('rv-fMonth').value,d=document.getElementById('rv-fDept').value,s=document.getElementById('rv-fStars').value,q=document.getElementById('rv-fSearch').value.toLowerCase();filtered=RV_DATA.filter(r=>{if(m&&(!r.fecha||!r.fecha.startsWith(m)))return false;if(d&&r.depto!==d)return false;if(s&&r.general!=parseInt(s))return false;if(q&&!((r.huesped||'').toLowerCase().includes(q)||(r.depto||'').toLowerCase().includes(q)||(r.comentario||'').toLowerCase().includes(q)))return false;return true});rvRender()}
+function rvApplyFilters(){const m=document.getElementById('rv-fMonth').value,d=document.getElementById('rv-fDept').value,s=document.getElementById('rv-fStars').value,q=document.getElementById('rv-fSearch').value.toLowerCase();filtered=RV_DATA.filter(r=>{if(m&&(!r.fecha||!r.fecha.startsWith(m)))return false;if(d&&r.depto!==d)return false;if(s&&r.general!=parseInt(s))return false;if(q&&!((r.huesped||'').toLowerCase().includes(q)||(r.depto||'').toLowerCase().includes(q)||(r.comentario||'').toLowerCase().includes(q)))return false;return true});rvRenderAll()}
+function rvRenderAll(){rvRenderHeader();rvRenderKPIs();rvRenderTrend();rvRenderStars();rvRenderCatBars();rvRenderDeptTable();rvRenderAlerts();rvRenderAllTable();rvRenderSuperhost();const tc=document.getElementById('rv-tableCount');if(tc)tc.textContent=filtered.length+' reviews';}
 function rvRender(){rvRenderHeader();rvRenderKPIs();rvRenderTrend();rvRenderStars();rvRenderCatBars();rvRenderRadar();rvRenderDeptTable();rvRenderAlerts();rvRenderAllTable();rvRenderSuperhost()}
 function rvAvg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
 function rvRenderHeader(){const ds=filtered.filter(r=>r.fecha).map(r=>r.fecha).sort();document.getElementById('rv-dateRange').textContent=ds.length?ds[0]+' → '+ds[ds.length-1]+' · '+filtered.length+' reviews':'Sin datos';const g=filtered.filter(r=>r.general).map(r=>r.general);document.getElementById('rv-headerStats').innerHTML='<div class="stat"><div class="val">'+filtered.length+'</div><div class="lbl">Reviews</div></div><div class="stat"><div class="val">'+rvAvg(g).toFixed(2)+'</div><div class="lbl">General ★</div></div><div class="stat"><div class="val">'+(g.length?(g.filter(x=>x===5).length/g.length*100).toFixed(1):0)+'%</div><div class="lbl">5 Estrellas</div></div>'}
@@ -2459,19 +2460,9 @@ rvInitFilters();rvRender();
 
     // Override render para usar glassmorphism
     function rvRender() {
-        rvApplyFilters();
-        rvFiltered = filtered;
-        rvRenderHeader();
-        rvRenderKPIs();
-        rvRenderTrend();
-        rvRenderStars();
-        rvRenderCatBars();
-        rvRenderDeptTable();
-        rvRenderAlerts();
-        rvRenderAllTable();
-        rvRenderSuperhost();
-        const tc = document.getElementById('rv-tableCount');
-        if(tc) tc.textContent = `${rvFiltered.length} reviews`;
+        filtered = [...RV_DATA]; // resetear filtros
+        rvInitFilters();
+        rvRenderAll();
     }
 
     cargarRegistros(); // Supabase + frakcio_qr
