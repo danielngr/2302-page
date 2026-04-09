@@ -3504,7 +3504,7 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
                         <div class="ac-depto">${c.propiedad}</div>
                         <div class="ac-huesped">${c.huesped}</div>
                     </div>
-                    <span class="ac-badge ${c.estatus}">${c.estatus.replace('_',' ').toUpperCase()}</span>
+                    <span class="ac-badge ${c.estatus}">${({activo:'ACTIVO',en_proceso:'EN MEDIACIÓN',ganado:'GANADO',perdido:'PERDIDO'})[c.estatus]||c.estatus.toUpperCase()}</span>
                 </div>
                 <div class="ac-meta">
                     <div class="ac-meta-item">
@@ -3680,22 +3680,54 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
     }
 
     async function acResolverCaso(id, estatus) {
-        let monto = null;
-        if(estatus === 'ganado') {
-            const input = prompt('¿Cuánto recuperaste? (dejar vacío si es el monto completo)');
-            if(input === null) return;
-            monto = parseFloat(input) || null;
-            if(!monto) {
-                const caso = acCasos.find(c => c.id === id);
-                monto = parseFloat(caso?.monto_solicitado) || null;
-            }
+        if(estatus === 'perdido') {
+            await fetch(`${SUPABASE_URL}/rest/v1/aircover_casos?id=eq.${id}`, {
+                method:"PATCH", keepalive:true,
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                body: JSON.stringify({ estatus:'perdido', fecha_resolucion: new Date().toISOString().split('T')[0] })
+            });
+            toast("Caso marcado como perdido");
+            acCargar();
+            return;
         }
+        // Ganado — modal para monto
+        const caso = acCasos.find(x => x.id === id);
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `<div class="modal-box" style="max-width:380px">
+            <div class="modal-head">
+                <span style="font-family:var(--font-mono);font-size:11px;color:var(--status-green)">✓ CASO GANADO — ${caso?.propiedad||''}</span>
+                <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()" style="padding:4px 8px"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="padding:24px;display:flex;flex-direction:column;gap:16px">
+                <div style="background:var(--status-green-bg);border:1px solid var(--status-green-border);border-radius:12px;padding:14px;text-align:center">
+                    <div style="font-size:11px;color:var(--status-green);font-family:var(--font-mono);margin-bottom:4px">MONTO SOLICITADO</div>
+                    <div style="font-size:24px;font-weight:700;font-family:var(--font-display);color:var(--status-green)">$${parseFloat(caso?.monto_solicitado||0).toFixed(0)}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                    <label style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase">¿Cuánto pagó Airbnb?</label>
+                    <input id="ac-monto-rec" type="number" placeholder="0.00" step="0.01"
+                        value="${parseFloat(caso?.monto_solicitado||0).toFixed(2)}"
+                        class="ajuste-input" style="font-size:20px;font-weight:700;text-align:center;color:var(--status-green)">
+                </div>
+                <button onclick="acConfirmarGanado('${id}')" style="width:100%;background:linear-gradient(135deg,#1a5c35,#22D37D22);border:1px solid var(--status-green-border);color:var(--status-green);border-radius:12px;padding:12px;font-family:var(--font-display);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(34,211,125,0.2)'" onmouseout="this.style.background='linear-gradient(135deg,#1a5c35,#22D37D22)'">
+                    <i class="ph-bold ph-check-circle"></i> Confirmar pago recibido
+                </button>
+            </div>
+        </div>`;
+        overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+        document.body.appendChild(overlay);
+    }
+
+    async function acConfirmarGanado(id) {
+        const monto = parseFloat(document.getElementById('ac-monto-rec')?.value) || null;
         await fetch(`${SUPABASE_URL}/rest/v1/aircover_casos?id=eq.${id}`, {
             method:"PATCH", keepalive:true,
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-            body: JSON.stringify({ estatus, fecha_resolucion: new Date().toISOString().split('T')[0], monto_recuperado: monto })
+            body: JSON.stringify({ estatus:'ganado', fecha_resolucion: new Date().toISOString().split('T')[0], monto_recuperado: monto })
         });
-        toast(estatus === 'ganado' ? "✓ ¡Caso ganado!" : "Caso marcado como perdido");
+        document.querySelector('.modal-overlay')?.remove();
+        toast("✓ ¡Caso ganado! $" + (monto||0).toFixed(0) + " recuperados");
         acCargar();
     }
 
