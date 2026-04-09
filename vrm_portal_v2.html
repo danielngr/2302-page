@@ -163,11 +163,11 @@
         .sidebar::-webkit-scrollbar { display: none; }
 
         .brand {
-            padding: 0 32px;
+            padding: 0 24px;
             margin-bottom: 24px;
             display: flex;
+            justify-content: center;
             align-items: center;
-            gap: 12px;
         }
         .brand-icon {
             width: 32px; height: 32px;
@@ -2661,10 +2661,15 @@
             const fecha   = (r[0]||'').trim().replace(/"/g,'');
             const entrada = (r[2]||'').trim().replace(/"/g,'');
             const salida  = (r[3]||'').trim().replace(/"/g,'');
-            // Para semana: mostrar solo el primer día del rango en stats
-            const fechaMatch = fecha === hoyStr;
+            // Semana acumula, otros tabs usan fecha exacta
+            const fechaMatch = tabActual === 'semana' ? fechasRango.has(fecha) : fecha === hoyStr;
             if(!fechaMatch) return;
-            const fiso = hoyISO;
+            const fiso = tabActual === 'semana'
+                ? [...fechasISORange].find(f => {
+                    const d = new Date(f + 'T12:00:00');
+                    return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}` === fecha;
+                }) || hoyISO
+                : hoyISO;
 
             if(entrada) {
                 checkins++;
