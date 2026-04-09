@@ -1133,6 +1133,49 @@
         }
 
         .ac-filters { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+
+        /* ── Aircover modal inputs premium ── */
+        .ajuste-input {
+            background: rgba(255,255,255,.06) !important;
+            border: 1px solid rgba(255,255,255,.12) !important;
+            color: var(--text-primary) !important;
+            border-radius: 10px !important;
+            padding: 10px 14px !important;
+            font-family: var(--font-body) !important;
+            font-size: 13px !important;
+            outline: none !important;
+            width: 100% !important;
+            transition: border-color .2s, background .2s !important;
+        }
+        .ajuste-input:focus {
+            border-color: var(--accent-terracota) !important;
+            background: rgba(255,255,255,.08) !important;
+        }
+        .ajuste-input::placeholder { color: var(--text-tertiary) !important; }
+        .ajuste-input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.6);
+            cursor: pointer;
+        }
+        .hk-select {
+            background: rgba(255,255,255,.06) !important;
+            border: 1px solid rgba(255,255,255,.12) !important;
+            border-radius: 10px !important;
+            padding: 10px 14px !important;
+            font-size: 13px !important;
+            transition: border-color .2s !important;
+        }
+        .hk-select:focus { border-color: var(--accent-terracota) !important; }
+        .modal-box {
+            background: #0f0f0f !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            border-radius: var(--radius-xl) !important;
+        }
+        .modal-head {
+            border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+            padding: 18px 24px !important;
+        }
+        #ac-depto-list::-webkit-scrollbar { width: 4px; }
+        #ac-depto-list::-webkit-scrollbar-thumb { background: rgba(224,122,62,0.4); border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -3224,24 +3267,45 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
     }
 
     function mapaRenderPins(props) {
-        // Limpiar markers existentes
         mapaMarkers.forEach(m => m.remove());
         mapaMarkers = [];
 
+        // Agrupar por coordenadas exactas para calcular offsets
+        const coordGroups = {};
         props.forEach(p => {
+            const key = p.lat.toFixed(6) + ',' + p.lng.toFixed(6);
+            if(!coordGroups[key]) coordGroups[key] = [];
+            coordGroups[key].push(p);
+        });
+
+        // Asignar offset espiral a cada depto del mismo complejo
+        const offsetDeg = 0.0008; // ~90m
+        props.forEach(p => {
+            const key = p.lat.toFixed(6) + ',' + p.lng.toFixed(6);
+            const group = coordGroups[key];
+            const idx = group.indexOf(p);
+            const total = group.length;
+            let lat = p.lat, lng = p.lng;
+            if(total > 1) {
+                // Disposición en espiral/círculo
+                const angle = (idx / total) * 2 * Math.PI;
+                const radius = total > 4 ? offsetDeg * 1.4 : offsetDeg;
+                lat = p.lat + Math.cos(angle) * radius;
+                lng = p.lng + Math.sin(angle) * radius * 1.2;
+            }
+
             const color = getTipoColor(p.tipo);
             const icon = L.divIcon({
-                html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2.5px solid rgba(255,255,255,0.9);box-shadow:0 0 8px ${color}88;cursor:pointer"></div>`,
+                html: `<div style="width:13px;height:13px;border-radius:50%;background:${color};border:2.5px solid rgba(255,255,255,0.95);box-shadow:0 0 10px ${color}99,0 2px 6px rgba(0,0,0,0.5);cursor:pointer;transition:transform .15s" onmouseover="this.style.transform='scale(1.4)'" onmouseout="this.style.transform='scale(1)'"></div>`,
                 className: '',
-                iconSize: [12, 12],
+                iconSize: [13, 13],
                 iconAnchor: [6, 6],
             });
 
-            const marker = L.marker([p.lat, p.lng], {icon})
+            const marker = L.marker([lat, lng], {icon})
                 .addTo(mapaInstance)
                 .on('click', () => mapaAbrirDrawer(p));
 
-            // Tooltip con nombre
             marker.bindTooltip(p.name, {
                 permanent: false,
                 direction: 'top',
@@ -3468,6 +3532,32 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
         }).join('');
     }
 
+    function acFiltrarDeptos(q) {
+        const list = document.getElementById('ac-depto-list');
+        const hidden = document.getElementById('ac-new-depto');
+        if(!list) return;
+        const filtered = q.length === 0
+            ? DEPTOS_AC
+            : DEPTOS_AC.filter(d => d.toLowerCase().includes(q.toLowerCase()));
+        if(!filtered.length) { list.style.display = 'none'; return; }
+        list.style.display = 'block';
+        list.innerHTML = filtered.slice(0,12).map(d =>
+            `<div onclick="acSelDepto('${d}')"
+                style="padding:9px 14px;font-size:12px;font-family:var(--font-mono);color:var(--text-primary);cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);transition:background .1s"
+                onmouseover="this.style.background='rgba(224,122,62,0.12)'"
+                onmouseout="this.style.background='transparent'">${d}</div>`
+        ).join('') + (filtered.length > 12 ? `<div style="padding:8px 14px;font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono)">${filtered.length - 12} más...</div>` : '');
+    }
+
+    function acSelDepto(depto) {
+        const search = document.getElementById('ac-new-depto-search');
+        const hidden = document.getElementById('ac-new-depto');
+        const list = document.getElementById('ac-depto-list');
+        if(search) search.value = depto;
+        if(hidden) hidden.value = depto;
+        if(list) list.style.display = 'none';
+    }
+
     function acNuevoCaso() {
         const hoy = new Date().toISOString().split('T')[0];
         const lim = new Date(); lim.setDate(lim.getDate()+14);
@@ -3483,12 +3573,14 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
             </div>
             <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                    <div style="display:flex;flex-direction:column;gap:4px">
+                    <div style="display:flex;flex-direction:column;gap:4px;position:relative">
                         <label style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase">Propiedad *</label>
-                        <select id="ac-new-depto" class="hk-select" style="width:100%">
-                            <option value="">Seleccionar...</option>
-                            ${deptoOpts}
-                        </select>
+                        <input id="ac-new-depto-search" type="text" placeholder="Escribe para buscar..." class="ajuste-input" autocomplete="off"
+                            oninput="acFiltrarDeptos(this.value)"
+                            onfocus="acFiltrarDeptos(this.value)"
+                            onblur="setTimeout(()=>document.getElementById('ac-depto-list').style.display='none',200)">
+                        <input type="hidden" id="ac-new-depto">
+                        <div id="ac-depto-list" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1a1a1a;border:1px solid rgba(255,255,255,0.15);border-radius:10px;max-height:180px;overflow-y:auto;z-index:9999;margin-top:4px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"></div>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:4px">
                         <label style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase">Huésped *</label>
