@@ -1272,10 +1272,10 @@
                             <div style="font-size:11px;font-weight:700;margin-bottom:8px">📅 Tendencia vs 4.8</div>
                             <canvas id="shTrendChart" style="max-height:160px"></canvas>
                         </div>
-                        <div style="background:rgba(255,255,255,.03);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:14px">
-                            <div style="font-size:11px;font-weight:700;margin-bottom:8px">💣 Reviews que más Impactan</div>
+                        <div style="background:rgba(255,255,255,.03);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:14px;display:flex;flex-direction:column;">
+                            <div style="font-size:11px;font-weight:700;margin-bottom:4px">💣 Reviews que más Impactan</div>
                             <div style="font-size:10px;color:var(--text-tertiary);margin-bottom:8px">Si pudieras eliminarlas, cuánto subiría tu promedio</div>
-                            <div id="worstList"></div>
+                            <div id="worstList" style="overflow-y:auto;flex:1;max-height:260px"></div>
                         </div>
                     </div>
                 </div>
@@ -1284,22 +1284,28 @@
                 <div id="kpis" style="display:flex;gap:12px;flex-shrink:0"></div>
 
                 <!-- Charts -->
-                <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:16px;flex-shrink:0">
-                    <div class="glass-card" style="padding:18px">
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:16px;flex-shrink:0;align-items:stretch">
+                    <div class="glass-card" style="padding:18px;display:flex;flex-direction:column">
                         <div class="rv-chart-title">📈 Tendencia Mensual</div>
-                        <canvas id="trendChart" style="max-height:180px"></canvas>
+                        <div style="flex:1;position:relative;min-height:200px">
+                            <canvas id="trendChart" style="position:absolute;inset:0;width:100%!important;height:100%!important"></canvas>
+                        </div>
                     </div>
-                    <div class="glass-card" style="padding:18px">
+                    <div class="glass-card" style="padding:18px;display:flex;flex-direction:column">
                         <div class="rv-chart-title">⭐ Distribución</div>
-                        <canvas id="starChart" style="max-height:180px"></canvas>
+                        <div style="flex:1;position:relative;min-height:200px">
+                            <canvas id="starChart" style="position:absolute;inset:0;width:100%!important;height:100%!important"></canvas>
+                        </div>
                     </div>
-                    <div class="glass-card" style="padding:18px">
+                    <div class="glass-card" style="padding:18px;display:flex;flex-direction:column">
                         <div class="rv-chart-title">🎯 Categorías</div>
-                        <div id="catBars"></div>
+                        <div id="catBars" style="flex:1;display:flex;flex-direction:column;justify-content:center"></div>
                     </div>
-                    <div class="glass-card" style="padding:18px">
+                    <div class="glass-card" style="padding:18px;display:flex;flex-direction:column">
                         <div class="rv-chart-title">🕸️ Radar 360°</div>
-                        <canvas id="radarChart" style="max-height:180px"></canvas>
+                        <div style="flex:1;position:relative;min-height:200px">
+                            <canvas id="radarChart" style="position:absolute;inset:0;width:100%!important;height:100%!important"></canvas>
+                        </div>
                     </div>
                 </div>
 
@@ -2566,8 +2572,8 @@ function render(){renderHeader();renderKPIs();renderTrend();renderStars();render
 function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
 function renderHeader(){const ds=filtered.filter(r=>r.fecha).map(r=>r.fecha).sort();document.getElementById('dateRange').textContent=ds.length?ds[0]+' → '+ds[ds.length-1]+' · '+filtered.length+' reviews':'Sin datos';const g=filtered.filter(r=>r.general).map(r=>r.general);document.getElementById('headerStats').innerHTML='<div class="stat"><div class="val">'+filtered.length+'</div><div class="lbl">Reviews</div></div><div class="stat"><div class="val">'+avg(g).toFixed(2)+'</div><div class="lbl">General ★</div></div><div class="stat"><div class="val">'+(g.length?(g.filter(x=>x===5).length/g.length*100).toFixed(1):0)+'%</div><div class="lbl">5 Estrellas</div></div>'}
 function renderKPIs(){const g=filtered.filter(r=>r.general).map(r=>r.general),l=filtered.filter(r=>r.limpieza).map(r=>r.limpieza),ll=filtered.filter(r=>r.llegada).map(r=>r.llegada),alerts=filtered.filter(r=>[r.llegada,r.limpieza,r.veracidad,r.comunicacion,r.ubicacion,r.calidad].some(c=>c&&c<4));document.getElementById('kpis').innerHTML='<div class="kpi"><div class="val" style="color:var(--gold)">'+avg(g).toFixed(2)+'</div><div class="lbl">General ★</div></div><div class="kpi"><div class="val">'+avg(l).toFixed(2)+'</div><div class="lbl">Limpieza ★</div></div><div class="kpi"><div class="val">'+avg(ll).toFixed(2)+'</div><div class="lbl">Llegada ★</div></div><div class="kpi"><div class="val" style="color:var(--green)">'+(g.length?(g.filter(x=>x===5).length/g.length*100).toFixed(1)+'%':'-')+'</div><div class="lbl">Tasa 5★</div></div><div class="kpi"><div class="val" style="color:var(--red)">'+alerts.length+'</div><div class="lbl">Alertas</div></div>'}
-function renderTrend(){const mo={};filtered.forEach(r=>{if(!r.fecha)return;const m=r.fecha.substring(0,7);if(!mo[m])mo[m]={g:[],l:[],ll:[]};if(r.general)mo[m].g.push(r.general);if(r.limpieza)mo[m].l.push(r.limpieza);if(r.llegada)mo[m].ll.push(r.llegada)});const lb=Object.keys(mo).sort();if(tC)tC.destroy();tC=new Chart(document.getElementById('trendChart'),{type:'line',data:{labels:lb,datasets:[{label:'General',data:lb.map(m=>avg(mo[m].g)),borderColor:'#C8A96E',backgroundColor:'rgba(200,169,110,0.1)',tension:.3,fill:true},{label:'Limpieza',data:lb.map(m=>avg(mo[m].l)),borderColor:'#4A8C6F',backgroundColor:'rgba(74,140,111,0.1)',tension:.3,fill:true},{label:'Llegada',data:lb.map(m=>avg(mo[m].ll)),borderColor:'#4A7C96',backgroundColor:'rgba(74,124,150,0.1)',tension:.3,fill:true}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{min:3.5,max:5.1}}}})}
-function renderStars(){const d={1:0,2:0,3:0,4:0,5:0};filtered.forEach(r=>{if(r.general)d[r.general]++});if(sC)sC.destroy();sC=new Chart(document.getElementById('starChart'),{type:'bar',data:{labels:['★1','★2','★3','★4','★5'],datasets:[{data:[d[1],d[2],d[3],d[4],d[5]],backgroundColor:['#D4463A','#D4463A','#E8A838','#C8A96E','#4A8C6F'],borderRadius:6}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}})}
+function renderTrend(){const mo={};filtered.forEach(r=>{if(!r.fecha)return;const m=r.fecha.substring(0,7);if(!mo[m])mo[m]={g:[],l:[],ll:[]};if(r.general)mo[m].g.push(r.general);if(r.limpieza)mo[m].l.push(r.limpieza);if(r.llegada)mo[m].ll.push(r.llegada)});const lb=Object.keys(mo).sort();if(tC)tC.destroy();tC=new Chart(document.getElementById('trendChart'),{type:'line',data:{labels:lb,datasets:[{label:'General',data:lb.map(m=>avg(mo[m].g)),borderColor:'#C8A96E',backgroundColor:'rgba(200,169,110,0.1)',tension:.3,fill:true},{label:'Limpieza',data:lb.map(m=>avg(mo[m].l)),borderColor:'#4A8C6F',backgroundColor:'rgba(74,140,111,0.1)',tension:.3,fill:true},{label:'Llegada',data:lb.map(m=>avg(mo[m].ll)),borderColor:'#4A7C96',backgroundColor:'rgba(74,124,150,0.1)',tension:.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'rgba(255,255,255,0.6)',boxWidth:12,font:{size:10}}}},scales:{y:{min:3.5,max:5.1,ticks:{color:'rgba(255,255,255,0.5)'},grid:{color:'rgba(255,255,255,0.06)'}},x:{ticks:{color:'rgba(255,255,255,0.5)'},grid:{color:'rgba(255,255,255,0.06)'}}}}})}
+function renderStars(){const d={1:0,2:0,3:0,4:0,5:0};filtered.forEach(r=>{if(r.general)d[r.general]++});if(sC)sC.destroy();sC=new Chart(document.getElementById('starChart'),{type:'bar',data:{labels:['★1','★2','★3','★4','★5'],datasets:[{data:[d[1],d[2],d[3],d[4],d[5]],backgroundColor:['#D4463A','#D4463A','#E8A838','#C8A96E','#4A8C6F'],borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{color:'rgba(255,255,255,0.5)'},grid:{color:'rgba(255,255,255,0.06)'}},x:{ticks:{color:'rgba(255,255,255,0.5)'},grid:{color:'rgba(255,255,255,0.06)'}}}}})}
 function renderCatBars(){const cats=[{k:'general',l:'General'},{k:'llegada',l:'Llegada'},{k:'limpieza',l:'Limpieza'},{k:'veracidad',l:'Veracidad'},{k:'comunicacion',l:'Comunicación'},{k:'ubicacion',l:'Ubicación'},{k:'calidad',l:'Calidad'}];document.getElementById('catBars').innerHTML=cats.map(c=>{const v=filtered.filter(r=>r[c.k]).map(r=>r[c.k]),a=avg(v),p=(a/5*100).toFixed(0),cl=a>=4.5?'var(--green)':a>=4?'var(--gold)':a>=3.5?'#E8A838':'var(--red)';return'<div class="cat-bar"><span class="name">'+c.l+'</span><div class="bar-bg"><div class="bar-fill" style="width:'+p+'%;background:'+cl+'"></div></div><span class="bar-val">'+a.toFixed(2)+'</span></div>'}).join('')}
 function renderRadar(){const cats=['llegada','limpieza','veracidad','comunicacion','ubicacion','calidad'],lb=['Llegada','Limpieza','Veracidad','Comunicación','Ubicación','Calidad'],v=cats.map(c=>avg(filtered.filter(r=>r[c]).map(r=>r[c])));if(rC)rC.destroy();rC=new Chart(document.getElementById('radarChart'),{type:'radar',data:{labels:lb,datasets:[{data:v,borderColor:'#C8A96E',backgroundColor:'rgba(200,169,110,0.2)',pointBackgroundColor:'#C8A96E',pointRadius:4}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{r:{min:3.5,max:5,ticks:{stepSize:.5}}}}})}
 function renderDeptTable(){const ds={};filtered.forEach(r=>{if(!r.depto)return;if(!ds[r.depto])ds[r.depto]={n:0,g:[],l:[],ll:[],c:[],u:[],v:[],ca:[]};ds[r.depto].n++;if(r.general)ds[r.depto].g.push(r.general);if(r.limpieza)ds[r.depto].l.push(r.limpieza);if(r.llegada)ds[r.depto].ll.push(r.llegada);if(r.comunicacion)ds[r.depto].c.push(r.comunicacion);if(r.ubicacion)ds[r.depto].u.push(r.ubicacion);if(r.veracidad)ds[r.depto].v.push(r.veracidad);if(r.calidad)ds[r.depto].ca.push(r.calidad)});const rows=Object.entries(ds).filter(([,d])=>d.n>=3).map(([nm,d])=>({dept:nm,count:d.n,general:avg(d.g),limpieza:avg(d.l),llegada:avg(d.ll),comunicacion:avg(d.c),ubicacion:avg(d.u),veracidad:avg(d.v),calidad:avg(d.ca)})).sort((a,b)=>b.general-a.general);const f=v=>{const s=v>=4.5?'color:var(--green)':v>=4?'color:var(--gold)':v>=3.5?'':'color:var(--red)';return'<span style="'+s+'">'+v.toFixed(2)+'</span>'};document.querySelector('#deptTable tbody').innerHTML=rows.map(r=>'<tr><td><strong>'+r.dept+'</strong></td><td>'+r.count+'</td><td>'+f(r.general)+'</td><td>'+f(r.limpieza)+'</td><td>'+f(r.llegada)+'</td><td>'+f(r.comunicacion)+'</td><td>'+f(r.ubicacion)+'</td><td>'+f(r.veracidad)+'</td><td>'+f(r.calidad)+'</td></tr>').join('')}
