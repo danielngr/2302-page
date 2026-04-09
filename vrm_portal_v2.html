@@ -5359,22 +5359,23 @@ function updateNotifBadge(){
         const limpiezas = await resLimp.json();
         const ajustes = await resAjustes.json();
 
-        // Calcular semana actual (jueves-miércoles)
+        // Calcular semana actual (viernes-jueves)
         const hoy = new Date();
-        const diaSemana = hoy.getDay(); // 0=dom,1=lun,...,4=jue
-        // Días desde el último jueves
-        const diasDesdeJueves = (diaSemana + 3) % 7; // jue=0,vie=1,sab=2,dom=3,lun=4,mar=5,mie=6
-        const jueves = new Date(hoy);
-        jueves.setDate(hoy.getDate() - diasDesdeJueves);
-        const miercoles = new Date(jueves);
-        miercoles.setDate(jueves.getDate() + 6);
+        const diaSemana = hoy.getDay(); // 0=dom,1=lun,2=mar,3=mie,4=jue,5=vie,6=sab
+        // Días desde el último viernes
+        const diasDesdeViernes = (diaSemana + 2) % 7; // vie=0,sab=1,dom=2,lun=3,mar=4,mie=5,jue=6
+        const viernes = new Date(hoy);
+        viernes.setDate(hoy.getDate() - diasDesdeViernes);
+        const jueves = new Date(viernes);
+        jueves.setDate(viernes.getDate() + 6);
+        const miercoles = jueves; // alias
         const fmt = d => d.toLocaleDateString('es-MX',{day:'2-digit',month:'short'});
-        document.getElementById('disp-semana-label').textContent = `Semana ${fmt(jueves)} — ${fmt(miercoles)} 2026`;
-        document.getElementById('disp-periodo').textContent = `${fmt(jueves)} al ${fmt(miercoles)}`;
+        document.getElementById('disp-semana-label').textContent = `Semana ${fmt(viernes)} — ${fmt(jueves)} 2026`;
+        document.getElementById('disp-periodo').textContent = `${fmt(viernes)} al ${fmt(jueves)}`;
 
-        // Rango semana — jueves a miércoles
-        const lunesISO = jueves.toISOString().split('T')[0];
-        const domingoISO = miercoles.toISOString().split('T')[0];
+        // Rango semana — viernes a jueves
+        const lunesISO = viernes.toISOString().split('T')[0];
+        const domingoISO = jueves.toISOString().split('T')[0];
 
         // Calcular montos por staff — todas las limpiezas terminadas no pagadas
         // (estatus=terminada, sin filtro de fecha estricto para capturar semana actual)
