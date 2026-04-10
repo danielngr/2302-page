@@ -2451,7 +2451,11 @@
                 <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;margin-top:16px">
                     <div>
                         <div style="font-family:var(--font-display);font-size:20px;font-weight:700">Dispersión Nómina</div>
-                        <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px" id="disp-semana-label">—</div>
+                        <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                            <button id="disp-nav-prev" onclick="dispNavegar(-1)" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text-secondary);cursor:pointer;padding:3px 8px;font-size:14px;line-height:1">‹</button>
+                            <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)" id="disp-semana-label">—</div>
+                            <button id="disp-nav-next" onclick="dispNavegar(1)" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text-secondary);cursor:pointer;padding:3px 8px;font-size:14px;line-height:1;opacity:0.3" disabled>›</button>
+                        </div>
                     </div>
                     <div style="display:flex;gap:10px;align-items:center">
                         <button class="btn btn-ghost" onclick="dispAgregarExtra()" style="font-size:11px;padding:9px 16px">
@@ -2513,6 +2517,7 @@
     const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
 
     let todosRegistros = [], frakcioQR = [], formatoManual = [];
+    let dispSemanaOffset = 0; // 0=actual, -1=semana pasada, -2=hace 2 semanas...
     let sheetHoy = 0;
 
     // ── Navegación ──────────────────────────────────────────────
@@ -3524,17 +3529,42 @@
     }
 
     async function liquidarSemana() {
-        if(!confirm("¿Liquidar la semana? Esto marcará todas las limpiezas como pagadas.")) return;
+        // Calcular el jueves que cerró (semana anterior al viernes actual)
+        const semPasada = dispGetSemana(-1);
+        const juevesISO = semPasada.juevesISO;
+        const viernesISO = semPasada.viernesISO;
+        const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+        const fmtD = d => `${d.getDate()} ${MESES[d.getMonth()]}`;
+        const labelSem = `${fmtD(semPasada.viernes)} — ${fmtD(semPasada.jueves)}`;
+
+        // Contar limpiezas a liquidar
+        const resCount = await fetch(
+            `${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&fecha=gte.${viernesISO}&fecha=lte.${juevesISO}&select=tarifa_aplicada`,
+            { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
+        );
+        const limp = await resCount.json();
+        const totalLimp = limp.reduce((a,l) => a + parseFloat(l.tarifa_aplicada||0), 0);
+
+        const resAj = await fetch(
+            `${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=eq.pendiente&select=monto`,
+            { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
+        );
+        const ajustes = await resAj.json();
+        const totalAj = ajustes.reduce((a,aj) => a + parseFloat(aj.monto||0), 0);
+        const total = totalLimp + totalAj;
+
+        if(!confirm(`¿Liquidar semana ${labelSem}?\n\n${limp.length} limpiezas · $${totalLimp.toLocaleString('es-MX')}\n${ajustes.length} ajustes · $${totalAj.toLocaleString('es-MX')}\n\nTotal: $${total.toLocaleString('es-MX')}`)) return;
+
         toast("⏳ Procesando liquidación...");
 
-        // Marcar limpiezas terminadas → pagadas
-        await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada`, {
+        // Solo limpiezas con fecha dentro de la semana cerrada (≤ jueves)
+        await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&fecha=gte.${viernesISO}&fecha=lte.${juevesISO}`, {
             method:"PATCH", keepalive:true,
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
             body:JSON.stringify({estatus:"pagada"})
         });
 
-        // Marcar ajustes pendientes → pagados
+        // Ajustes — todos los pendientes (no tienen fecha de semana)
         await fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=eq.pendiente`, {
             method:"PATCH", keepalive:true,
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
@@ -5341,32 +5371,69 @@ function updateNotifBadge(){
         return '';
     }
 
-    async function dispCargar() {
-        // Calcular semana primero para filtrar extras
-        const hoyPre = new Date();
-        const diasViernesPre = (hoyPre.getDay() - 5 + 7) % 7;
-        const viernesPre = new Date(hoyPre); viernesPre.setDate(hoyPre.getDate() - diasViernesPre);
-        const semanaInicio = viernesPre.toISOString().split('T')[0];
+    function dispGetSemana(offset) {
+        // offset=0 → semana actual, offset=-1 → semana pasada
+        const hoy = new Date();
+        const diasDesdeViernes = (hoy.getDay() - 5 + 7) % 7;
+        const viernes = new Date(hoy);
+        viernes.setDate(hoy.getDate() - diasDesdeViernes + (offset * 7));
+        viernes.setHours(0,0,0,0);
+        const jueves = new Date(viernes);
+        jueves.setDate(viernes.getDate() + 6);
+        return {
+            viernes,
+            jueves,
+            viernesISO: viernes.toISOString().split('T')[0],
+            juevesISO:  jueves.toISOString().split('T')[0],
+            esActual: offset === 0
+        };
+    }
 
-        // Cargar staff + limpiezas + ajustes + extras en paralelo
+    function dispNavegar(delta) {
+        dispSemanaOffset += delta;
+        dispCargar();
+    }
+
+    async function dispCargar() {
+        const sem = dispGetSemana(dispSemanaOffset);
+        const esActual = sem.esActual;
+
+        // Actualizar header de navegación
+        const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+        const fmtD = d => `${d.getDate()} ${MESES[d.getMonth()]}`;
+        const labelSem = `${fmtD(sem.viernes)} — ${fmtD(sem.jueves)} ${sem.jueves.getFullYear()}`;
+        document.getElementById('disp-semana-label').textContent = labelSem;
+        document.getElementById('disp-periodo').textContent = `${fmtD(sem.viernes)} al ${fmtD(sem.jueves)}`;
+        // Deshabilitar botón "siguiente" si ya estamos en semana actual
+        const btnNext = document.getElementById('disp-nav-next');
+        if(btnNext) btnNext.disabled = dispSemanaOffset >= 0;
+
+        // Semana actual → limpiezas terminadas; semana pasada → pagadas en ese rango
+        const estatusLimp = esActual ? 'terminada' : 'pagada';
+        const filtroFecha = `&fecha=gte.${sem.viernesISO}&fecha=lte.${sem.juevesISO}`;
+
         const [resStaff, resLimp, resAjustes, resExtras] = await Promise.all([
             fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?select=id,nombre,nombre_completo,cuenta_bancaria,banco,es_fijo,monto_fijo&order=nombre.asc`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
             }),
-            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?select=staff_id,fecha,tarifa_aplicada&estatus=eq.terminada`, {
+            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?select=staff_id,fecha,tarifa_aplicada&estatus=eq.${estatusLimp}${filtroFecha}`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             }),
-            fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=eq.pendiente&select=staff_id,monto`, {
-                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
-            }),
-            fetch(`${SUPABASE_URL}/rest/v1/dispersion_extras?semana_inicio=eq.${semanaInicio}&select=*`, {
+            esActual
+                ? fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=eq.pendiente&select=staff_id,monto`, {
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+                  })
+                : fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=eq.pagado&select=staff_id,monto&created_at=gte.${sem.viernesISO}T00:00:00&created_at=lte.${sem.juevesISO}T23:59:59`, {
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+                  }),
+            fetch(`${SUPABASE_URL}/rest/v1/dispersion_extras?semana_inicio=eq.${sem.viernesISO}&select=*`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             })
         ]);
-        const staff = await resStaff.json();
+        const staff    = await resStaff.json();
         const limpiezas = await resLimp.json();
-        const ajustes = await resAjustes.json();
-        const extrasDB = resExtras.ok ? await resExtras.json() : [];
+        const ajustes   = await resAjustes.json();
+        const extrasDB  = resExtras.ok ? await resExtras.json() : [];
 
         // Calcular semana actual (viernes-jueves)
         const hoy = new Date();
@@ -5415,31 +5482,6 @@ function updateNotifBadge(){
                 });
             }
         });
-
-        // Cargar extras de Supabase para esta semana
-        const hoyX = new Date();
-        const diasViernesX = (hoyX.getDay() - 5 + 7) % 7;
-        const viernesX = new Date(hoyX); viernesX.setDate(hoyX.getDate() - diasViernesX);
-        const semanaInicioX = viernesX.toISOString().split('T')[0];
-        try {
-            const resEx = await fetch(`${SUPABASE_URL}/rest/v1/dispersion_extras?semana_inicio=eq.${semanaInicioX}&select=*`, {
-                headers:{'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`}
-            });
-            if(resEx.ok) {
-                const extrasDB = await resEx.json();
-                (extrasDB||[]).forEach(e => {
-                    dispPersonas.push({
-                        id: e.id,
-                        apodo: (e.nombre_completo||'').split(' ')[0],
-                        nombre_completo: e.nombre_completo||'',
-                        cuenta: e.cuenta_bancaria||'',
-                        banco: dispGetBanco(e.cuenta_bancaria||''),
-                        monto: parseFloat(e.monto)||0,
-                        es_extra: true, es_fijo: false
-                    });
-                });
-            }
-        } catch(e) { console.error('Extras load error:', e); }
 
         // Esperar a que el módulo sea visible antes de renderizar
         requestAnimationFrame(() => {
