@@ -3387,7 +3387,7 @@
 
         // Cargar staff + limpiezas terminadas + ajustes pendientes
         const [resStaff, resLimp, resAjustes] = await Promise.all([
-            fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?activo=eq.true&select=*`, {
+            fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?activo=eq.true&select=*&_t=${Date.now()}`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
             }),
             fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&select=*&order=fecha.desc`, {
@@ -5350,7 +5350,7 @@ function updateNotifBadge(){
 
         // Cargar staff + limpiezas + ajustes + extras en paralelo
         const [resStaff, resLimp, resAjustes, resExtras] = await Promise.all([
-            fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?select=id,nombre,nombre_completo,cuenta_bancaria,banco,es_fijo,monto_fijo&order=nombre.asc`, {
+            fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?select=id,nombre,nombre_completo,cuenta_bancaria,banco,es_fijo,monto_fijo&order=nombre.asc&_t=${Date.now()}`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
             }),
             fetch(`${SUPABASE_URL}/rest/v1/limpiezas?select=staff_id,fecha,tarifa_aplicada&estatus=eq.terminada`, {
@@ -5595,15 +5595,10 @@ function updateNotifBadge(){
             savedId = Array.isArray(data) ? data[0]?.id : data?.id;
         } catch(e) { console.error('Extra save error:', e); }
 
-        dispPersonas.push({
-            id: savedId,
-            apodo: nombre.split(' ')[0],
-            nombre_completo: nombre,
-            cuenta, banco: dispGetBanco(cuenta),
-            monto, es_extra: true, es_fijo: false
-        });
         document.querySelector('.modal-overlay')?.remove();
-        dispRender();
+        toast('✓ Guardando...');
+        // Recargar todo para evitar duplicados y tener datos frescos
+        await dispCargar();
         toast('✓ Persona agregada');
     }
 
