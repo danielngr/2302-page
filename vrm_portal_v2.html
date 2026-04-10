@@ -5431,10 +5431,34 @@ function updateNotifBadge(){
             });
         }
 
+        // Cargar extras de Supabase para esta semana
+        const hoyX = new Date();
+        const diasViernesX = (hoyX.getDay() + 2) % 7;
+        const viernesX = new Date(hoyX); viernesX.setDate(hoyX.getDate() - diasViernesX);
+        const semanaInicioX = viernesX.toISOString().split('T')[0];
+        try {
+            const resEx = await fetch(`${SUPABASE_URL}/rest/v1/dispersion_extras?semana_inicio=eq.${semanaInicioX}&select=*`, {
+                headers:{'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`}
+            });
+            if(resEx.ok) {
+                const extrasDB = await resEx.json();
+                (extrasDB||[]).forEach(e => {
+                    dispPersonas.push({
+                        id: e.id,
+                        apodo: (e.nombre_completo||'').split(' ')[0],
+                        nombre_completo: e.nombre_completo||'',
+                        cuenta: e.cuenta_bancaria||'',
+                        banco: dispGetBanco(e.cuenta_bancaria||''),
+                        monto: parseFloat(e.monto)||0,
+                        es_extra: true, es_fijo: false
+                    });
+                });
+            }
+        } catch(e) { console.error('Extras load error:', e); }
+
         // Esperar a que el módulo sea visible antes de renderizar
         requestAnimationFrame(() => {
             dispRender();
-            // Reintento por si el módulo aún no era visible
             setTimeout(dispRender, 300);
         });
     }
@@ -5547,12 +5571,32 @@ function updateNotifBadge(){
         document.body.appendChild(overlay);
     }
 
-    function dispConfirmarExtra() {
+    async function dispConfirmarExtra() {
         const nombre = document.getElementById('extra-nombre')?.value?.trim();
         const cuenta = document.getElementById('extra-cuenta')?.value?.trim();
         const monto = parseFloat(document.getElementById('extra-monto')?.value);
         if(!nombre || !cuenta || isNaN(monto) || monto <= 0) { toast('⚠️ Completa todos los campos'); return; }
+
+        // Calcular semana actual
+        const hoy = new Date();
+        const diasViernes = (hoy.getDay() + 2) % 7;
+        const viernes = new Date(hoy); viernes.setDate(hoy.getDate() - diasViernes);
+        const semanaInicio = viernes.toISOString().split('T')[0];
+
+        let savedId = null;
+        try {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/dispersion_extras`, {
+                method: 'POST', keepalive: true,
+                headers: {'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json', 'Prefer': 'return=representation'},
+                body: JSON.stringify({ nombre_completo: nombre, cuenta_bancaria: cuenta, monto, semana_inicio: semanaInicio })
+            });
+            const data = await res.json();
+            savedId = Array.isArray(data) ? data[0]?.id : data?.id;
+        } catch(e) { console.error('Extra save error:', e); }
+
         dispPersonas.push({
+            id: savedId,
             apodo: nombre.split(' ')[0],
             nombre_completo: nombre,
             cuenta, banco: dispGetBanco(cuenta),
