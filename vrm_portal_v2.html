@@ -3412,13 +3412,12 @@
             return;
         }
 
-        // Periodo: viernes de la semana pasada (semana que se está pagando)
+        // Periodo: semana actual (viernes→jueves)
         const hoy = new Date();
         const diasDesdeViernes = (hoy.getDay() - 5 + 7) % 7;
-        const viernesBase = new Date(hoy); viernesBase.setDate(hoy.getDate() - diasDesdeViernes);
-        const viernesSem = new Date(viernesBase); viernesSem.setDate(viernesBase.getDate() - 7);
-        const juevesSem = new Date(viernesSem); juevesSem.setDate(viernesSem.getDate() + 6);
-        document.getElementById('nom-periodo').textContent = `${viernesSem.getDate()} ${MESES[viernesSem.getMonth()]} — ${juevesSem.getDate()} ${MESES[juevesSem.getMonth()]}`;
+        const viernesActual = new Date(hoy); viernesActual.setDate(hoy.getDate() - diasDesdeViernes);
+        const juevesActual = new Date(viernesActual); juevesActual.setDate(viernesActual.getDate() + 6);
+        document.getElementById('nom-periodo').textContent = `${viernesActual.getDate()} ${MESES[viernesActual.getMonth()]} — ${juevesActual.getDate()} ${MESES[juevesActual.getMonth()]}`;
 
         let totalGlobal = 0;
 
@@ -3619,19 +3618,19 @@
         }
 
         // Agrupar por semana (lunes de la semana de la fecha)
-        function getLunes(fechaStr) {
+        function getViernes(fechaStr) {
             const d = new Date(fechaStr + 'T12:00:00');
-            const day = d.getDay(); // 0=dom
-            const diff = (day === 0) ? -6 : 1 - day;
-            d.setDate(d.getDate() + diff);
+            const day = d.getDay(); // 0=dom,5=vie
+            const diasDesdeViernes = (day - 5 + 7) % 7;
+            d.setDate(d.getDate() - diasDesdeViernes);
             return d.toISOString().split('T')[0];
         }
 
         const grupos = {};
         limpiezas.forEach(l => {
-            const lunes = getLunes(l.fecha);
-            if(!grupos[lunes]) grupos[lunes] = [];
-            grupos[lunes].push(l);
+            const viernes = getViernes(l.fecha);
+            if(!grupos[viernes]) grupos[viernes] = [];
+            grupos[viernes].push(l);
         });
 
         // Construir HTML
@@ -3640,9 +3639,9 @@
 
         gruposOrdenados.forEach((lunes, gi) => {
             const items = grupos[lunes];
-            const lunesD = new Date(lunes + 'T12:00:00');
-            const domingo = new Date(lunesD); domingo.setDate(lunesD.getDate()+6);
-            const label = `${lunesD.getDate()} ${MESES_L[lunesD.getMonth()]} – ${domingo.getDate()} ${MESES_L[domingo.getMonth()]} ${domingo.getFullYear()}`;
+            const viernesD = new Date(lunes + 'T12:00:00');
+            const juevesD = new Date(viernesD); juevesD.setDate(viernesD.getDate()+6);
+            const label = `${viernesD.getDate()} ${MESES_L[viernesD.getMonth()]} – ${juevesD.getDate()} ${MESES_L[juevesD.getMonth()]} ${juevesD.getFullYear()}`;
             const totalCorte = items.reduce((acc,l) => acc+(parseFloat(l.tarifa_aplicada)||0), 0);
 
             // Agrupar por staff dentro del corte
