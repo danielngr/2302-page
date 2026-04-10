@@ -2599,19 +2599,26 @@
     // ── Cargar Supabase ─────────────────────────────────────────
     async function cargarRegistros() {
         try {
-            // Cargar todo en paralelo — Supabase x2 + Sheet simultáneamente
             const fields = 'id,depto,nombre,fecha_entrada,fecha_salida,num_adultos,num_menores,pdf_generado,tipo_formato,template,ocupantes,telefono,email,num_mascotas,vehiculo_modelo,vehiculo_placas,foto_id,created_at';
+            // Solo últimos 60 días en carga inicial — mucho más rápido
+            const hoy = new Date();
+            const hace60 = new Date(hoy); hace60.setDate(hoy.getDate()-60);
+            const desde = hace60.toISOString().split('T')[0];
+            const prox30 = new Date(hoy); prox30.setDate(hoy.getDate()+30);
+            const hasta = prox30.toISOString().split('T')[0];
+
+            // Fetch en paralelo: registros recientes + QR + sheet
             const [resReg, resQR] = await Promise.all([
-                fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?select=${fields}&order=fecha_entrada.asc,created_at.desc`, {
+                fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?select=${fields}&fecha_entrada=gte.${desde}&fecha_entrada=lte.${hasta}&order=fecha_entrada.asc,created_at.desc`, {
                     headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
                 }),
-                fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr?select=id,depto,fecha,qr_enviado`, {
+                fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr?select=id,depto,fecha,qr_enviado&fecha=gte.${desde}`, {
                     headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
                 })
             ]);
             frakcioQR = await resQR.json();
-            todosRegistros = await resReg.json();
-            todosRegistros = todosRegistros.map(r => {
+            const recientes = await resReg.json();
+            todosRegistros = recientes.map(r => {
                 const m = getTmpl(r.depto||"");
                 if(!r.template) r.template = m.t;
                 if(!r.tipo_formato || r.tipo_formato==="general") r.tipo_formato = m.tipo;
@@ -2619,8 +2626,10 @@
             });
             document.getElementById('last-upd').textContent = "Actualizado " + new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
             actualizarStats();
-            renderTodo(); // renderizar inmediatamente con datos de Supabase
-            cargarEntradas().catch(e => console.error("Sheet:", e)); // sheet en paralelo
+            renderTodo();
+            // Sheet y histórico en background, sin bloquear
+            cargarEntradas().catch(e => console.error("Sheet:", e));
+            cargarHistoricoBackground(fields, desde).catch(()=>{});
         } catch(e) {
             document.getElementById('lista-body').innerHTML = `<div style="padding:40px;text-align:center;color:var(--status-red);font-family:var(--font-mono);font-size:12px">Error: ${e.message}</div>`;
         }
@@ -2630,6 +2639,34 @@
         // Los stats se calculan desde el sheet en calcularStatsHoy()
         // Este se llama cuando cargan los registros pero los números del sheet
         // se actualizan en cargarEntradas()
+    }
+
+    // Carga el histórico completo en background para el tab Historial
+    let _historicoLoaded = false;
+    async function cargarHistoricoBackground(fields, desde) {
+        if(_historicoLoaded) return;
+        // Solo cargar si el usuario abre Historial
+        // Se llama desde renderHistorial() si todosRegistros solo tiene recientes
+        const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/registros_checkin?select=${fields}&fecha_entrada=lt.${desde}&order=fecha_entrada.desc,created_at.desc&limit=500`,
+            { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
+        );
+        if(!res.ok) return;
+        const antiguos = await res.json();
+        const mapped = antiguos.map(r => {
+            const m = getTmpl(r.depto||"");
+            if(!r.template) r.template = m.t;
+            if(!r.tipo_formato || r.tipo_formato==="general") r.tipo_formato = m.tipo;
+            return r;
+        });
+        // Merge evitando duplicados
+        const ids = new Set(todosRegistros.map(r=>r.id));
+        const nuevos = mapped.filter(r=>!ids.has(r.id));
+        if(nuevos.length) {
+            todosRegistros = [...todosRegistros, ...nuevos];
+            if(tabActual==='historial') renderHistorial();
+        }
+        _historicoLoaded = true;
     }
 
     function calcularStatsHoy(rows) {
@@ -3220,7 +3257,10 @@
             hkStaff = await res.json();
         }
 
-        // Checkouts del sheet para esa fecha
+        // Checkouts del sheet — usar cache si ya cargó, sino esperar
+        if(!window._sheetRows) {
+            await cargarEntradas().catch(()=>{});
+        }
         const fs = `${hkFecha.getDate()}/${hkFecha.getMonth()+1}/${hkFecha.getFullYear()}`;
         const sheetRows = window._sheetRows || [];
         const checkouts = sheetRows.filter((r,i)=>{
@@ -3230,9 +3270,9 @@
             return fecha===fs && salida;
         }).map(r => (r[3]||'').trim().replace(/"/g,''));
 
-        // Limpiezas ya asignadas para esta fecha
+        // Limpiezas ya asignadas para esta fecha (solo la fecha exacta)
         const res2 = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=eq.${fiso}&select=id,depto_codigo,staff_id,estatus,tarifa_aplicada`, {
-            headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
         });
         const limpiezas = await res2.json();
 
