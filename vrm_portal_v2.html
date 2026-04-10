@@ -5416,22 +5416,21 @@ function updateNotifBadge(){
         const btnNext = document.getElementById('disp-nav-next');
         if(btnNext) btnNext.style.opacity = dispSemanaOffset >= 0 ? '0.3' : '1';
 
-        // Semana actual → limpiezas terminadas; semana pasada → pagadas en ese rango
-        const estatusLimp = esActual ? 'terminada' : 'pagada';
+        // Semana actual → terminadas en ese rango; semana pasada → terminadas O pagadas
         const filtroFecha = `&fecha=gte.${sem.viernesISO}&fecha=lte.${sem.juevesISO}`;
 
         const [resStaff, resLimp, resAjustes, resExtras] = await Promise.all([
             fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?select=id,nombre,nombre_completo,cuenta_bancaria,banco,es_fijo,monto_fijo&order=nombre.asc`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
             }),
-            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?select=staff_id,fecha,tarifa_aplicada&estatus=eq.${estatusLimp}${filtroFecha}`, {
+            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?select=staff_id,fecha,tarifa_aplicada&estatus=in.(terminada,pagada)${filtroFecha}`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             }),
             esActual
                 ? fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=eq.pendiente&select=staff_id,monto`, {
                     headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
                   })
-                : fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=eq.pagado&select=staff_id,monto&created_at=gte.${sem.viernesISO}T00:00:00&created_at=lte.${sem.juevesISO}T23:59:59`, {
+                : fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=in.(pendiente,pagado)&select=staff_id,monto&created_at=gte.${sem.viernesISO}T00:00:00&created_at=lte.${sem.juevesISO}T23:59:59`, {
                     headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
                   }),
             fetch(`${SUPABASE_URL}/rest/v1/dispersion_extras?semana_inicio=eq.${sem.viernesISO}&select=*`, {
