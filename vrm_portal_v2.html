@@ -2540,6 +2540,7 @@
             setTimeout(repInit, 100);
         }
         if(mod === 'dispersion') {
+            dispSemanaOffset = 0; // reset al abrir el módulo
             requestAnimationFrame(() => setTimeout(dispCargar, 50));
         }
         if(mod === 'aircover') {
@@ -5393,15 +5394,16 @@ function updateNotifBadge(){
     }
 
     function dispNavegar(delta) {
+        if(dispSemanaOffset + delta > 0) return; // no ir al futuro
         dispSemanaOffset += delta;
-        console.log('[DISP] offset ahora:', dispSemanaOffset);
-        const sem = dispGetSemana(dispSemanaOffset);
-        console.log('[DISP] semana:', sem.viernesISO, '→', sem.juevesISO);
         dispCargar();
     }
 
+    let _dispToken = 0;
     async function dispCargar() {
-        const sem = dispGetSemana(dispSemanaOffset);
+        const myToken = ++_dispToken;
+        const myOffset = dispSemanaOffset;
+        const sem = dispGetSemana(myOffset);
         const esActual = sem.esActual;
 
         // Actualizar header de navegación
@@ -5489,10 +5491,14 @@ function updateNotifBadge(){
             }
         });
 
+        // Cancelar si llegó otra llamada más reciente
+        if(myToken !== _dispToken) return;
+
         // Esperar a que el módulo sea visible antes de renderizar
         requestAnimationFrame(() => {
+            if(myToken !== _dispToken) return;
             dispRender();
-            setTimeout(dispRender, 300);
+            setTimeout(() => { if(myToken === _dispToken) dispRender(); }, 300);
         });
     }
 
