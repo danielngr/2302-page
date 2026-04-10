@@ -5458,7 +5458,7 @@ function updateNotifBadge(){
         const extras = dispPersonas.filter(p => p.es_extra);
 
         const rowLimpieza = (p, i) => `
-            <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr;align-items:center;padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.04);gap:16px;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.015)'" onmouseout="this.style.background='transparent'">
+            <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr;align-items:center;padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.04);gap:16px;transition:background .15s;cursor:pointer" onclick="dispVerDesglose('${p.id}')" onmouseover="this.style.background='rgba(255,255,255,.015)'" onmouseout="this.style.background='transparent'">
                 <div>
                     <div style="font-size:13px;font-weight:600;color:var(--text-primary)">${p.nombre_completo}</div>
                     <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px">${p.apodo}</div>
@@ -5523,6 +5523,83 @@ function updateNotifBadge(){
         dispPersonas.splice(i, 1);
         dispRender();
         toast('✓ Persona eliminada');
+    }
+
+    async function dispVerDesglose(staffId) {
+        // Buscar persona en dispPersonas
+        const p = dispPersonas.find(x => x.id === staffId);
+        if(!p || p.es_extra) {
+            // Para extras no hay desglose
+            toast('Sin desglose para personas extra');
+            return;
+        }
+
+        // Traer limpiezas terminadas de esta persona
+        const [resLimp, resAjustes] = await Promise.all([
+            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?staff_id=eq.${staffId}&estatus=eq.terminada&select=depto_codigo,fecha,tarifa_aplicada,tipo&order=fecha.desc`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?staff_id=eq.${staffId}&estatus=eq.pendiente&select=monto,motivo,created_at`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            })
+        ]);
+        const limpiezas = await resLimp.json();
+        const ajustes   = await resAjustes.json();
+
+        const totalLimp  = limpiezas.reduce((a,l) => a + parseFloat(l.tarifa_aplicada||0), 0);
+        const totalAjust = ajustes.reduce((a,aj) => a + parseFloat(aj.monto||0), 0);
+        const total      = totalLimp + totalAjust;
+
+        const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+        const fmtFecha = f => { if(!f) return '—'; const [y,m,d] = f.split('-'); return `${parseInt(d)} ${MESES[parseInt(m)-1]}`; };
+
+        const limpRows = limpiezas.map(l => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+                <div>
+                    <div style="font-size:13px;font-weight:600">${l.depto_codigo}</div>
+                    <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono)">${fmtFecha(l.fecha)} · ${(l.tipo||'completa').toUpperCase()}</div>
+                </div>
+                <div style="font-family:var(--font-mono);font-size:13px;color:var(--status-green)">$${parseFloat(l.tarifa_aplicada||0).toFixed(0)}</div>
+            </div>`).join('');
+
+        const ajusteRows = ajustes.map(aj => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+                <div style="font-size:12px;color:var(--text-secondary)">${aj.motivo||'Ajuste'}</div>
+                <div style="font-family:var(--font-mono);font-size:13px;color:${parseFloat(aj.monto)>=0?'var(--status-green)':'var(--status-red)'}">${parseFloat(aj.monto)>=0?'+':''}$${Math.abs(parseFloat(aj.monto||0)).toFixed(0)}</div>
+            </div>`).join('');
+
+        // Crear overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.cssText = 'display:flex;z-index:300';
+        overlay.innerHTML = `
+            <div class="modal-box" style="max-width:480px;max-height:80vh;overflow-y:auto">
+                <div class="modal-head" style="position:sticky;top:0;background:var(--bg-surface);z-index:1;padding-bottom:12px">
+                    <div>
+                        <div style="font-family:var(--font-display);font-size:16px;font-weight:700">${p.nombre_completo}</div>
+                        <div style="font-size:10px;font-family:var(--font-mono);color:var(--text-tertiary);margin-top:2px">${p.cuenta||'—'} · ${p.banco||''}</div>
+                    </div>
+                    <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()" style="padding:4px 8px"><i class="ph ph-x"></i></button>
+                </div>
+                <div style="padding:0 0 8px">
+                    ${limpiezas.length ? `
+                    <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">
+                        Limpiezas (${limpiezas.length}) · $${totalLimp.toFixed(0)}
+                    </div>
+                    ${limpRows}` : ''}
+                    ${ajustes.length ? `
+                    <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px">
+                        Ajustes
+                    </div>
+                    ${ajusteRows}` : ''}
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0 0;border-top:1px solid rgba(255,255,255,.1);margin-top:12px">
+                        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-tertiary)">TOTAL</span>
+                        <span style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--status-green)">$${total.toFixed(0)}</span>
+                    </div>
+                </div>
+            </div>`;
+        overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+        document.body.appendChild(overlay);
     }
 
     function dispAgregarExtra() {
