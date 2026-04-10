@@ -5372,12 +5372,15 @@ function updateNotifBadge(){
     }
 
     function dispGetSemana(offset) {
-        // offset=0 → semana actual, offset=-1 → semana pasada
+        // Primero calcular el viernes base (de esta semana), luego aplicar offset
         const hoy = new Date();
         const diasDesdeViernes = (hoy.getDay() - 5 + 7) % 7;
-        const viernes = new Date(hoy);
-        viernes.setDate(hoy.getDate() - diasDesdeViernes + (offset * 7));
-        viernes.setHours(0,0,0,0);
+        const viernesBase = new Date(hoy);
+        viernesBase.setDate(hoy.getDate() - diasDesdeViernes);
+        viernesBase.setHours(0,0,0,0);
+        // Luego aplicar offset en semanas completas
+        const viernes = new Date(viernesBase);
+        viernes.setDate(viernesBase.getDate() + (offset * 7));
         const jueves = new Date(viernes);
         jueves.setDate(viernes.getDate() + 6);
         return {
