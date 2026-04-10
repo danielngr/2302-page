@@ -3412,10 +3412,13 @@
             return;
         }
 
-        // Periodo: lunes de esta semana
+        // Periodo: viernes de la semana pasada (semana que se está pagando)
         const hoy = new Date();
-        const lunes = new Date(hoy); lunes.setDate(hoy.getDate()-((hoy.getDay()+6)%7));
-        document.getElementById('nom-periodo').textContent = `Semana del ${lunes.getDate()} ${MESES[lunes.getMonth()]}`;
+        const diasDesdeViernes = (hoy.getDay() - 5 + 7) % 7;
+        const viernesBase = new Date(hoy); viernesBase.setDate(hoy.getDate() - diasDesdeViernes);
+        const viernesSem = new Date(viernesBase); viernesSem.setDate(viernesBase.getDate() - 7);
+        const juevesSem = new Date(viernesSem); juevesSem.setDate(viernesSem.getDate() + 6);
+        document.getElementById('nom-periodo').textContent = `${viernesSem.getDate()} ${MESES[viernesSem.getMonth()]} — ${juevesSem.getDate()} ${MESES[juevesSem.getMonth()]}`;
 
         let totalGlobal = 0;
 
