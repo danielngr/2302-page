@@ -2567,7 +2567,7 @@
         return d.toISOString().split("T")[0];
     }
 
-    let todosRegistros = [], frakcioQR = [], formatoManual = [];
+    let todosRegistros = [], frakcioQR = [], formatoManual = [], correosEnviados = [];
     let dispSemanaOffset = 0; // 0=semana actual
     let sheetHoy = 0;
 
@@ -2692,6 +2692,13 @@
                 })
             ]);
             frakcioQR = await resQR.json();
+            // Cargar correos enviados
+            try {
+                const resC = await fetch(`${SUPABASE_URL}/rest/v1/correos_enviados?select=id,depto,fecha,enviado&fecha=gte.${desde}`, {
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+                });
+                correosEnviados = resC.ok ? await resC.json() : [];
+            } catch(e) { correosEnviados = []; }
             const recientes = await resReg.json();
             todosRegistros = recientes.map(r => {
                 const m = getTmpl(r.depto||"");
@@ -3069,7 +3076,22 @@
                 const reg=matchReg(depto);
                 const tipo = reg ? (reg.tipo_formato || getTmpl(depto).tipo) : getTmpl(depto).tipo;
 
-                if(tipo==="frakcio"){
+                if(tipo==="correo"){
+                    const correoRec = (correosEnviados||[]).find(x =>
+                        x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fiso
+                    );
+                    const correoOk = correoRec && correoRec.enviado;
+                    const correoBtn = correoOk
+                        ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Correo enviado</button>`
+                        : `<button class="btn btn-outline-blue" onclick="marcarCorreo('${depto}','${fiso}')"><i class="ph-bold ph-envelope"></i> Marcar enviado</button>`;
+                    rowsH+=`<div class="list-item${correoOk?' generado':''}">
+                        <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">CORREO</span></div>
+                        <div class="guest-name guest-empty">—</div>
+                        <div>${correoBtn}</div>
+                        <div></div>
+                    </div>`;
+                    if(!correoOk){ pend++; totalPend++; }
+                } else if(tipo==="frakcio"){
                     const qrRec = (frakcioQR||[]).find(x =>
                         x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fiso
                     );
@@ -3200,6 +3222,31 @@
     }
 
     // ── Marcar QR enviado ───────────────────────────────────────
+    async function marcarCorreo(depto, fechaISO) {
+        const existing = (correosEnviados||[]).find(x =>
+            x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fechaISO
+        );
+        try {
+            if(existing) {
+                await fetch(`${SUPABASE_URL}/rest/v1/correos_enviados?id=eq.${existing.id}`, {
+                    method:"PATCH", keepalive:true,
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                    body:JSON.stringify({enviado:true})
+                });
+                existing.enviado = true;
+            } else {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/correos_enviados`, {
+                    method:"POST", keepalive:true,
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=representation"},
+                    body:JSON.stringify({depto, fecha:fechaISO, enviado:true})
+                });
+                const data = await res.json();
+                correosEnviados.push(Array.isArray(data)?data[0]:data);
+            }
+        } catch(e) { console.error(e); }
+        renderDias();
+    }
+
     async function marcarQR(depto, fechaISO) {
         const existing = (frakcioQR||[]).find(x =>
             x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fechaISO
