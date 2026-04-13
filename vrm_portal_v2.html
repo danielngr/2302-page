@@ -1831,6 +1831,38 @@
         #mod-dispersion input[type="number"]::-webkit-outer-spin-button,
         #mod-dispersion input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         #mod-dispersion input[type="number"] { -moz-appearance: textfield; }
+
+        @media (max-width: 768px) {
+            .app-container { padding: 0; flex-direction: column; }
+            .sidebar {
+                position: fixed; left: -290px; top: 0; height: 100%;
+                z-index: 100; width: 280px;
+                transition: left 0.3s cubic-bezier(0.4,0,0.2,1);
+                border-radius: 0 20px 20px 0;
+            }
+            .sidebar.open { left: 0; }
+            #hamburger-btn { display: flex !important; align-items: center; justify-content: center; }
+            .main-content { padding: 16px 12px 24px; padding-top: 64px; gap: 16px; }
+            .module { padding: 0 !important; gap: 16px !important; }
+            .stats-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+            .stat-card { padding: 14px 16px !important; }
+            .stat-value { font-size: 28px !important; }
+            .tab-btn { font-size: 11px; padding: 7px 10px; }
+            .list-item { grid-template-columns: 1fr auto !important; gap: 8px !important; padding: 12px 14px !important; }
+            .list-item .guest-name { grid-column: 1 / -1; font-size: 12px; }
+            .depto-name { font-size: 13px !important; }
+            .btn { font-size: 11px !important; padding: 7px 10px !important; }
+            .nom-staff-header { padding: 14px 16px !important; }
+            .nom-name { font-size: 13px !important; }
+            .nom-total { font-size: 15px !important; }
+            .ac-grid { grid-template-columns: 1fr !important; }
+            .ac-stats-grid { grid-template-columns: 1fr 1fr !important; }
+            .modal-box { width: calc(100vw - 32px) !important; max-width: 100% !important; }
+            #mapa-lista { width: 100% !important; max-height: 200px !important; }
+            #vrm-map { height: 50vh !important; }
+            #mapa-drawer { width: 100% !important; }
+            .glass-panel { border-radius: 16px !important; }
+        }
     </style>
 </head>
 <body>
@@ -1845,7 +1877,9 @@
     <div class="app-container">
 
         <!-- ══ SIDEBAR ══ -->
-        <aside class="sidebar glass-panel">
+        <div id="sidebar-overlay" onclick="toggleSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:90;backdrop-filter:blur(4px)"></div>
+        <button id="hamburger-btn" onclick="toggleSidebar()" style="display:none;position:fixed;top:16px;left:16px;z-index:110;background:rgba(18,18,18,0.9);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#fff;cursor:pointer;padding:10px 12px;font-size:18px;line-height:1;backdrop-filter:blur(20px)"><i class="ph ph-list"></i></button>
+        <aside class="sidebar glass-panel" id="sidebar">
             <div class="brand" style="padding:0 28px;margin-bottom:24px">
                 <div style="display:flex;flex-direction:column;gap:2px">
                     <div style="display:flex;align-items:baseline;gap:0">
@@ -2521,6 +2555,14 @@
     let sheetHoy = 0;
 
     // ── Navegación ──────────────────────────────────────────────
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        const isOpen = sidebar.classList.contains('open');
+        sidebar.classList.toggle('open');
+        overlay.style.display = isOpen ? 'none' : 'block';
+    }
+
     function goTo(mod, el) {
         document.querySelectorAll('.module').forEach(m => {
             m.classList.remove('active');
@@ -2532,6 +2574,11 @@
         modEl.style.display = mod === 'reportes' ? 'block' : 'flex';
         el.classList.add('active');
         document.getElementById('main-content').scrollTop = 0;
+        // Cerrar sidebar en móvil al navegar
+        const sb = document.getElementById('sidebar');
+        const ov = document.getElementById('sidebar-overlay');
+        if(sb) { sb.classList.remove('open'); }
+        if(ov) { ov.style.display = 'none'; }
         if(mod === 'housekeeping') cargarHousekeeping();
         if(mod === 'nomina') cargarNomina();
         if(mod === 'reportes') {
@@ -2552,6 +2599,11 @@
         }
         if(mod === 'reviews') {
             document.getElementById('main-content').scrollTop = 0;
+        // Cerrar sidebar en móvil al navegar
+        const sb = document.getElementById('sidebar');
+        const ov = document.getElementById('sidebar-overlay');
+        if(sb) { sb.classList.remove('open'); }
+        if(ov) { ov.style.display = 'none'; }
             setTimeout(() => {
                 requestAnimationFrame(() => {
                     rvInit();
