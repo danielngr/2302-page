@@ -1832,8 +1832,12 @@
         #mod-dispersion input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         #mod-dispersion input[type="number"] { -moz-appearance: textfield; }
 
+        .disp-row { display:grid; grid-template-columns:2fr 1.5fr 1fr; align-items:center; padding:12px 24px; border-bottom:1px solid rgba(255,255,255,.04); gap:16px; transition:background .15s; cursor:pointer; }
+        .disp-row-edit { grid-template-columns:2fr 1.5fr 1fr auto; cursor:default; }
+
         @media (max-width: 768px) {
-            .app-container { padding: 0; flex-direction: column; }
+            html, body { overflow-x: hidden; max-width: 100vw; }
+            .app-container { padding: 0; flex-direction: column; overflow-x: hidden; }
             .sidebar {
                 position: fixed; left: -290px; top: 0; height: 100%;
                 z-index: 100; width: 280px;
@@ -1846,9 +1850,10 @@
             .module { padding: 0 !important; gap: 16px !important; }
             .stats-grid { grid-template-columns: repeat(3,1fr) !important; gap: 6px !important; }
             .stat-card { padding: 8px 10px !important; }
-            .stat-value { font-size: 20px !important; }
+            .stat-value { font-size: 18px !important; }
             .stat-title { font-size: 9px !important; }
             .stat-header i { font-size: 14px !important; }
+            #disp-total { font-size: 20px !important; }
             .tab-btn { font-size: 11px; padding: 7px 10px; }
             .list-item { grid-template-columns: 1fr auto !important; gap: 8px !important; padding: 12px 14px !important; }
             .list-item .guest-name { grid-column: 1 / -1; font-size: 12px; }
@@ -5642,7 +5647,7 @@ function updateNotifBadge(){
         const extras = dispPersonas.filter(p => p.es_extra);
 
         const rowLimpieza = (p, i) => `
-            <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr;align-items:center;padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.04);gap:16px;transition:background .15s;cursor:pointer" onclick="dispVerDesglose('${p.id}')" onmouseover="this.style.background='rgba(255,255,255,.015)'" onmouseout="this.style.background='transparent'">
+            <div class="disp-row" onclick="dispVerDesglose('${p.id}')" onmouseover="this.style.background='rgba(255,255,255,.015)'" onmouseout="this.style.background='transparent'">
                 <div>
                     <div style="font-size:13px;font-weight:600;color:var(--text-primary)">${p.nombre_completo}</div>
                     <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px">${p.apodo}</div>
@@ -5657,7 +5662,7 @@ function updateNotifBadge(){
             </div>`;
 
         const rowEditable = (p, idx) => `
-            <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr auto;align-items:center;padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.04);gap:16px;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.015)'" onmouseout="this.style.background='transparent'">
+            <div class="disp-row disp-row-edit" onmouseover="this.style.background='rgba(255,255,255,.015)'" onmouseout="this.style.background='transparent'">
                 <div>
                     <div style="font-size:13px;font-weight:600;color:var(--text-primary)">${p.nombre_completo}</div>
                     <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px">${p.apodo}${p.es_fijo?' · FIJO':''}${p.es_extra?' · EXTRA':''}</div>
