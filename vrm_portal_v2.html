@@ -3030,7 +3030,10 @@
         for(let i = rango[0]; i <= rango[1]; i++) {
             const dia = new Date(hoyBase); dia.setDate(hoyBase.getDate()+i);
             const fs = `${dia.getDate()}/${dia.getMonth()+1}/${dia.getFullYear()}`;
-            const fiso = dia.toISOString().split("T")[0];
+            // fiso en formato YYYY-MM-DD sin conversión UTC para evitar desfase de zona
+            const mm = String(dia.getMonth()+1).padStart(2,'0');
+            const dd = String(dia.getDate()).padStart(2,'0');
+            const fiso = `${dia.getFullYear()}-${mm}-${dd}`;
             const lbl = i===-1 ? `AYER — ${dia.getDate()} ${MESES_L[dia.getMonth()]}`
                        : i===0  ? `HOY — ${dia.getDate()} ${MESES_L[dia.getMonth()]}`
                        : i===1  ? `MAÑANA — ${dia.getDate()} ${MESES_L[dia.getMonth()]}`
