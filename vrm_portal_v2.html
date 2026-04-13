@@ -2549,6 +2549,21 @@
     const SUPABASE_KEY = "sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm";
     const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbPcCF6EoM93GIga20ntKOsuys9KLp4gkG2czTR4qyy_nASRil8qURTuceB_Rw5PEMR_us7EpQNADX/pub?gid=220927923&single=true&output=csv";
     const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+    // Helper: fecha actual en zona horaria de México (donde están los deptos)
+    function getMXDate(offsetDias = 0) {
+        const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Mexico_City"}));
+        d.setHours(0,0,0,0);
+        if(offsetDias) d.setDate(d.getDate() + offsetDias);
+        return d;
+    }
+    function getMXStr(offsetDias = 0) {
+        const d = getMXDate(offsetDias);
+        return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+    }
+    function getMXISO(offsetDias = 0) {
+        const d = getMXDate(offsetDias);
+        return d.toISOString().split("T")[0];
+    }
 
     let todosRegistros = [], frakcioQR = [], formatoManual = [];
     let dispSemanaOffset = 0; // 0=semana actual
@@ -2733,17 +2748,15 @@
         // Para tabs multi-día (semana), mostrar stats del primer día del rango
         const offset = rango[0];
 
-        const diaRef = new Date(); diaRef.setHours(0,0,0,0);
-        diaRef.setDate(diaRef.getDate() + offset);
-        const hoyStr = `${diaRef.getDate()}/${diaRef.getMonth()+1}/${diaRef.getFullYear()}`;
-        const hoyISO = diaRef.toISOString().split("T")[0];
+        const diaRef = getMXDate(offset);
+        const hoyStr = getMXStr(offset);
+        const hoyISO = getMXISO(offset);
 
         // Para semana: acumular todos los días del rango
         const fechasRango = new Set();
         const fechasISORange = new Set();
         for(let i = rango[0]; i <= rango[1]; i++) {
-            const d = new Date(); d.setHours(0,0,0,0);
-            d.setDate(d.getDate() + i);
+            const d = getMXDate(i);
             fechasRango.add(`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`);
             fechasISORange.add(d.toISOString().split("T")[0]);
         }
@@ -3010,7 +3023,7 @@
         const rangoMap = { hoy:[0,0], ayer:[-1,-1], manana:[1,1], semana:[1,4] };
         const rango = rangoMap[tabActual] || [0,0];
 
-        const hoyBase = new Date(); hoyBase.setHours(0,0,0,0);
+        const hoyBase = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Mexico_City"})); hoyBase.setHours(0,0,0,0);
         let html = "";
         let totalEntradas = 0, totalPend = 0;
 
@@ -3589,6 +3602,21 @@
         const juevesISO = semPasada.juevesISO;
         const viernesISO = semPasada.viernesISO;
         const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+    // Helper: fecha actual en zona horaria de México (donde están los deptos)
+    function getMXDate(offsetDias = 0) {
+        const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Mexico_City"}));
+        d.setHours(0,0,0,0);
+        if(offsetDias) d.setDate(d.getDate() + offsetDias);
+        return d;
+    }
+    function getMXStr(offsetDias = 0) {
+        const d = getMXDate(offsetDias);
+        return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+    }
+    function getMXISO(offsetDias = 0) {
+        const d = getMXDate(offsetDias);
+        return d.toISOString().split("T")[0];
+    }
         const fmtD = d => `${d.getDate()} ${MESES[d.getMonth()]}`;
         const labelSem = `${fmtD(semPasada.viernes)} — ${fmtD(semPasada.jueves)}`;
 
@@ -5464,6 +5492,21 @@ function updateNotifBadge(){
 
         // Actualizar header de navegación
         const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+    // Helper: fecha actual en zona horaria de México (donde están los deptos)
+    function getMXDate(offsetDias = 0) {
+        const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Mexico_City"}));
+        d.setHours(0,0,0,0);
+        if(offsetDias) d.setDate(d.getDate() + offsetDias);
+        return d;
+    }
+    function getMXStr(offsetDias = 0) {
+        const d = getMXDate(offsetDias);
+        return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+    }
+    function getMXISO(offsetDias = 0) {
+        const d = getMXDate(offsetDias);
+        return d.toISOString().split("T")[0];
+    }
         const fmtD = d => `${d.getDate()} ${MESES[d.getMonth()]}`;
         const labelSem = `${fmtD(sem.viernes)} — ${fmtD(sem.jueves)} ${sem.jueves.getFullYear()}`;
         document.getElementById('disp-semana-label').textContent = labelSem;
@@ -5633,6 +5676,21 @@ function updateNotifBadge(){
         const total      = totalLimp + totalAjust;
 
         const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+    // Helper: fecha actual en zona horaria de México (donde están los deptos)
+    function getMXDate(offsetDias = 0) {
+        const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Mexico_City"}));
+        d.setHours(0,0,0,0);
+        if(offsetDias) d.setDate(d.getDate() + offsetDias);
+        return d;
+    }
+    function getMXStr(offsetDias = 0) {
+        const d = getMXDate(offsetDias);
+        return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+    }
+    function getMXISO(offsetDias = 0) {
+        const d = getMXDate(offsetDias);
+        return d.toISOString().split("T")[0];
+    }
         const fmtFecha = f => { if(!f) return '—'; const [y,m,d] = f.split('-'); return `${parseInt(d)} ${MESES[parseInt(m)-1]}`; };
 
         const limpRows = limpiezas.map((l,li) => `
