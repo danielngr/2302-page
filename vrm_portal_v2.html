@@ -1951,6 +1951,10 @@
                     <i class="ph ph-map-pin"></i>
                     Mapa
                 </div>
+                <div class="nav-item" onclick="goTo('limpieza-stats',this)">
+                    <i class="ph ph-chart-bar"></i>
+                    Limpieza
+                </div>
             </div>
 
             <div class="sidebar-section">
@@ -2327,7 +2331,84 @@
     })();
     </script>
 
-            <div class="module" id="mod-reportes" style="display:none;padding:0;gap:0;height:100%;overflow:hidden">
+            
+                <!-- ══ MÓDULO LIMPIEZA STATS ══ -->
+                <div class="module" id="mod-limpieza-stats" style="gap:24px">
+
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;margin-top:16px">
+                        <div>
+                            <div style="font-family:var(--font-display);font-size:20px;font-weight:700">Estadísticas de Limpieza</div>
+                            <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px">Basado en reportes del bot WhatsApp</div>
+                        </div>
+                        <button class="btn btn-outline-white" onclick="cargarLimpiezaStats()" style="font-size:11px">
+                            <i class="ph ph-arrow-clockwise"></i> Actualizar
+                        </button>
+                    </div>
+
+                    <!-- Stats rápidos -->
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;flex-shrink:0" id="ls-stats-grid">
+                        <div class="glass-card stat-card">
+                            <div class="stat-header"><div class="stat-title">Limpiezas hoy</div></div>
+                            <div class="stat-value" id="ls-hoy">—</div>
+                        </div>
+                        <div class="glass-card stat-card">
+                            <div class="stat-header"><div class="stat-title">Tiempo promedio</div></div>
+                            <div class="stat-value" id="ls-tiempo-prom">—</div>
+                            <div class="stat-subtitle">minutos</div>
+                        </div>
+                        <div class="glass-card stat-card">
+                            <div class="stat-header"><div class="stat-title">En proceso</div></div>
+                            <div class="stat-value" id="ls-en-proceso">—</div>
+                        </div>
+                        <div class="glass-card stat-card">
+                            <div class="stat-header"><div class="stat-title">Alertas</div></div>
+                            <div class="stat-value" id="ls-alertas" style="color:var(--status-red)">—</div>
+                        </div>
+                    </div>
+
+                    <!-- Gráfica tiempo por chica -->
+                    <div class="glass-card" style="padding:24px">
+                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:2px;margin-bottom:20px">
+                            Tiempo promedio por chica (min)
+                        </div>
+                        <div id="ls-chart-chicas" style="display:flex;flex-direction:column;gap:10px">
+                            <div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px;text-align:center;padding:40px">Sin datos aún — los datos aparecerán cuando las chicas reporten por WhatsApp</div>
+                        </div>
+                    </div>
+
+                    <!-- Gráfica tiempo por depto -->
+                    <div class="glass-card" style="padding:24px">
+                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:2px;margin-bottom:20px">
+                            Deptos que más tiempo toman (min)
+                        </div>
+                        <div id="ls-chart-deptos" style="display:flex;flex-direction:column;gap:10px">
+                            <div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px;text-align:center;padding:40px">Sin datos aún</div>
+                        </div>
+                    </div>
+
+                    <!-- Limpiezas por día de semana -->
+                    <div class="glass-card" style="padding:24px">
+                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:2px;margin-bottom:20px">
+                            Limpiezas por día de semana
+                        </div>
+                        <div id="ls-chart-dias" style="display:flex;align-items:flex-end;gap:8px;height:120px">
+                            <div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px;text-align:center;padding:40px;width:100%">Sin datos aún</div>
+                        </div>
+                    </div>
+
+                    <!-- Alertas activas -->
+                    <div class="glass-card" style="padding:24px">
+                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:2px;margin-bottom:16px">
+                            Alertas activas — limpiezas de más de 3 horas
+                        </div>
+                        <div id="ls-alertas-list">
+                            <div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px">Sin alertas activas ✓</div>
+                        </div>
+                    </div>
+
+                </div>
+
+<div class="module" id="mod-reportes" style="display:none;padding:0;gap:0;height:100%;overflow:hidden">
                 <div id="loginScreen">
   <div class="login-logo">Reportes · Operación</div>
   <div class="login-title">¿Quién eres?</div>
@@ -2622,6 +2703,9 @@
             // Reportes necesita display:block, no flex
             document.getElementById('mod-reportes').style.display = 'block';
             setTimeout(repInit, 100);
+        }
+        if(mod === 'limpieza-stats') {
+            requestAnimationFrame(() => setTimeout(cargarLimpiezaStats, 50));
         }
         if(mod === 'dispersion') {
             requestAnimationFrame(() => setTimeout(dispCargar, 50));
@@ -5532,6 +5616,158 @@ function updateNotifBadge(){
             return DISP_BINS[key] || '';
         }
         return '';
+    }
+
+    async function cargarLimpiezaStats() {
+        const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+        const DIAS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+
+        // Traer limpiezas con hora_inicio y hora_fin de los últimos 30 días
+        const hace30 = new Date(); hace30.setDate(hace30.getDate()-30);
+        const desde = hace30.toISOString().split('T')[0];
+        const hoy = new Date().toISOString().split('T')[0];
+
+        const [limp, enProceso] = await Promise.all([
+            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=gte.${desde}&hora_inicio=not.is.null&hora_fin=not.is.null&select=staff_id,depto_codigo,fecha,hora_inicio,hora_fin,tipo,estatus`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            }).then(r=>r.json()),
+            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=eq.${hoy}&estatus=eq.en_proceso&select=staff_id,depto_codigo,hora_inicio`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            }).then(r=>r.json())
+        ]);
+
+        const staff = await fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?activo=eq.true&select=id,nombre`, {
+            headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+        }).then(r=>r.json());
+
+        const staffMap = {};
+        (staff||[]).forEach(s => staffMap[s.id] = s.nombre);
+
+        // Calcular duración en minutos
+        const calcMin = (ini, fin) => {
+            if(!ini||!fin) return null;
+            const [ih,im] = ini.split(':').map(Number);
+            const [fh,fm] = fin.split(':').map(Number);
+            const mins = (fh*60+fm) - (ih*60+im);
+            return mins > 0 && mins < 480 ? mins : null; // max 8h
+        };
+
+        // Stats rápidos
+        const hoyLimp = (limp||[]).filter(l => l.fecha === hoy);
+        document.getElementById('ls-hoy').textContent = hoyLimp.length || '0';
+        document.getElementById('ls-en-proceso').textContent = (enProceso||[]).length || '0';
+
+        // Tiempo promedio global
+        const tiempos = (limp||[]).map(l => calcMin(l.hora_inicio, l.hora_fin)).filter(Boolean);
+        const promGlobal = tiempos.length ? Math.round(tiempos.reduce((a,b)=>a+b,0)/tiempos.length) : null;
+        document.getElementById('ls-tiempo-prom').textContent = promGlobal ? promGlobal + ' min' : '—';
+
+        // Alertas — en proceso más de 3 horas
+        const ahora = new Date();
+        const alertas = (enProceso||[]).filter(l => {
+            if(!l.hora_inicio) return false;
+            const [h,m] = l.hora_inicio.split(':').map(Number);
+            const inicioMs = new Date(); inicioMs.setHours(h,m,0,0);
+            return (ahora - inicioMs) > 3*60*60*1000;
+        });
+        document.getElementById('ls-alertas').textContent = alertas.length || '0';
+
+        // ── Gráfica por chica ──
+        const porChica = {};
+        (limp||[]).forEach(l => {
+            const mins = calcMin(l.hora_inicio, l.hora_fin);
+            if(!mins) return;
+            const nom = staffMap[l.staff_id] || l.staff_id?.slice(0,6);
+            if(!porChica[nom]) porChica[nom] = [];
+            porChica[nom].push(mins);
+        });
+
+        const chicaData = Object.entries(porChica)
+            .map(([nom,arr]) => ({nom, prom: Math.round(arr.reduce((a,b)=>a+b,0)/arr.length), count: arr.length}))
+            .sort((a,b) => a.prom - b.prom);
+
+        const maxChica = chicaData.length ? Math.max(...chicaData.map(d=>d.prom)) : 1;
+        const chartChicas = document.getElementById('ls-chart-chicas');
+        if(chicaData.length) {
+            chartChicas.innerHTML = chicaData.map(d => `
+                <div style="display:grid;grid-template-columns:120px 1fr 50px;align-items:center;gap:12px">
+                    <div style="font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);text-align:right">${d.nom}</div>
+                    <div style="background:rgba(255,255,255,0.05);border-radius:4px;height:20px;overflow:hidden">
+                        <div style="height:100%;border-radius:4px;background:var(--accent-terracota);width:${Math.round(d.prom/maxChica*100)}%;transition:width 0.6s ease"></div>
+                    </div>
+                    <div style="font-size:12px;font-family:var(--font-mono);color:var(--text-tertiary)">${d.prom} min<br><span style="font-size:10px;opacity:0.6">${d.count} limp</span></div>
+                </div>
+            `).join('');
+        } else {
+            chartChicas.innerHTML = '<div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px;text-align:center;padding:40px">Sin datos aún — los datos aparecerán cuando las chicas reporten por WhatsApp</div>';
+        }
+
+        // ── Gráfica por depto ──
+        const porDepto = {};
+        (limp||[]).forEach(l => {
+            const mins = calcMin(l.hora_inicio, l.hora_fin);
+            if(!mins) return;
+            if(!porDepto[l.depto_codigo]) porDepto[l.depto_codigo] = [];
+            porDepto[l.depto_codigo].push(mins);
+        });
+
+        const deptoData = Object.entries(porDepto)
+            .map(([dep,arr]) => ({dep, prom: Math.round(arr.reduce((a,b)=>a+b,0)/arr.length), count: arr.length}))
+            .filter(d => d.count >= 2)
+            .sort((a,b) => b.prom - a.prom)
+            .slice(0,10);
+
+        const maxDepto = deptoData.length ? Math.max(...deptoData.map(d=>d.prom)) : 1;
+        const chartDeptos = document.getElementById('ls-chart-deptos');
+        if(deptoData.length) {
+            chartDeptos.innerHTML = deptoData.map(d => `
+                <div style="display:grid;grid-template-columns:140px 1fr 50px;align-items:center;gap:12px">
+                    <div style="font-size:11px;color:var(--text-secondary);font-family:var(--font-mono);text-align:right">${d.dep}</div>
+                    <div style="background:rgba(255,255,255,0.05);border-radius:4px;height:20px;overflow:hidden">
+                        <div style="height:100%;border-radius:4px;background:var(--status-blue);width:${Math.round(d.prom/maxDepto*100)}%;transition:width 0.6s ease"></div>
+                    </div>
+                    <div style="font-size:12px;font-family:var(--font-mono);color:var(--text-tertiary)">${d.prom} min<br><span style="font-size:10px;opacity:0.6">${d.count} limp</span></div>
+                </div>
+            `).join('');
+        } else {
+            chartDeptos.innerHTML = '<div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px;text-align:center;padding:40px">Sin datos aún</div>';
+        }
+
+        // ── Limpiezas por día de semana ──
+        const porDia = {0:0,1:0,2:0,3:0,4:0,5:0,6:0};
+        (limp||[]).forEach(l => {
+            const d = new Date(l.fecha + 'T12:00:00');
+            porDia[d.getDay()]++;
+        });
+        const maxDia = Math.max(...Object.values(porDia), 1);
+        const chartDias = document.getElementById('ls-chart-dias');
+        chartDias.innerHTML = Object.entries(porDia).map(([dia,cnt]) => `
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary)">${cnt||''}</div>
+                <div style="width:100%;background:rgba(255,255,255,0.05);border-radius:4px 4px 0 0;height:${Math.round(cnt/maxDia*100)}px;min-height:${cnt?4:0}px;background:${cnt?'var(--accent-gold)':'rgba(255,255,255,0.05)'};transition:height 0.6s ease"></div>
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary)">${DIAS[dia]}</div>
+            </div>
+        `).join('');
+
+        // ── Alertas activas ──
+        const listaAlertas = document.getElementById('ls-alertas-list');
+        if(alertas.length) {
+            listaAlertas.innerHTML = alertas.map(a => {
+                const nom = staffMap[a.staff_id] || 'Desconocida';
+                const [h,m] = a.hora_inicio.split(':').map(Number);
+                const ini = new Date(); ini.setHours(h,m,0,0);
+                const mins = Math.round((ahora - ini) / 60000);
+                return `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+                    <div>
+                        <div style="font-size:13px;font-weight:600;color:var(--status-red)">${a.depto_codigo}</div>
+                        <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)">${nom} · desde ${a.hora_inicio}</div>
+                    </div>
+                    <div style="font-family:var(--font-mono);font-size:13px;color:var(--status-red)">${mins} min</div>
+                </div>`;
+            }).join('');
+        } else {
+            listaAlertas.innerHTML = '<div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px">Sin alertas activas ✓</div>';
+        }
     }
 
     function dispGetSemana(offset) {
