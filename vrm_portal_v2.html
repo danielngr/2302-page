@@ -2763,7 +2763,7 @@
         return d.toISOString().split("T")[0];
     }
 
-    let todosRegistros = [], frakcioQR = [], formatoManual = [], correosEnviados = [], frakcioCheckins = [];
+    let todosRegistros = [], frakcioQR = [], formatoManual = [], correosEnviados = [], frakcioCheckins = [], gformsCheckins = [];
     let dispSemanaOffset = 0; // 0=semana actual
     let sheetHoy = 0;
 
@@ -2855,7 +2855,7 @@
         "PLAYA ESMERALDA":{t:"whatsapp",tipo:"whatsapp"},"ARCANO":{t:"whatsapp",tipo:"whatsapp"},
         "MARINA SOL":{t:"whatsapp",tipo:"whatsapp"},
         "TULES":{t:"correo",tipo:"correo"},
-        "ARIA":{t:"frakcio",tipo:"frakcio"},"MARITIMA":{t:"frakcio",tipo:"frakcio"},
+        "ARIA":{t:"frakcio",tipo:"frakcio"},"MARITIMA GOLF":{t:"frakcio",tipo:"frakcio"},"MARITIMA 9S":{t:"gforms",tipo:"gforms"},"MARITIMA 10I":{t:"gforms",tipo:"gforms"},"MARITIMA 6S":{t:"gforms",tipo:"gforms"},"MARITIMA PHN":{t:"gforms",tipo:"gforms"},
         "BOLONGO":{t:"frakcio",tipo:"frakcio"},"ZOHO":{t:"frakcio",tipo:"frakcio"},
         "PUERTARENA":{t:"frakcio",tipo:"frakcio"},"BAY VIEW":{t:"frakcio",tipo:"frakcio"},
         "ZANTAMAR":{t:"frakcio",tipo:"frakcio"},
@@ -2895,6 +2895,13 @@
             ]);
             frakcioCheckins = await resCheckins.json();
             frakcioQR = await resQR.json();
+            // Cargar checkins gforms (Marítima Playa)
+            try {
+                const resGF = await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?select=id,depto,fecha_entrada,nombre,maritima_enviado&tipo_formato=eq.gforms&fecha_entrada=gte.${desde}`, {
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+                });
+                gformsCheckins = resGF.ok ? await resGF.json() : [];
+            } catch(e) { gformsCheckins = []; }
             // Cargar correos enviados
             try {
                 const resC = await fetch(`${SUPABASE_URL}/rest/v1/correos_enviados?select=id,depto,fecha,enviado&fecha=gte.${desde}`, {
@@ -3006,6 +3013,11 @@
                         x.depto && x.depto.toUpperCase()===entrada.toUpperCase() && x.fecha===fiso
                     );
                     if(!correoRec || !correoRec.enviado) pendientes++;
+                } else if(tipo === 'gforms') {
+                    const gfRec = (gformsCheckins||[]).find(x =>
+                        x.depto && x.depto.toUpperCase()===entrada.toUpperCase() && x.fecha_entrada===fiso
+                    );
+                    if(!gfRec || !gfRec.maritima_enviado) pendientes++;
                 } else {
                     const d = entrada.toUpperCase();
                     const reg = todosRegistros.find(x => {
@@ -3143,6 +3155,19 @@
             accion=`<button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button>`;
         } else if(r.tipo_formato==="whatsapp") {
             accion=`<button class="btn btn-outline-blue" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button>`;
+        } else if(r.tipo_formato==="gforms") {
+            const gfRec = (gformsCheckins||[]).find(x =>
+                x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()&&x.fecha_entrada===(r.fecha_entrada||"")
+            );
+            const gfOk = gfRec && gfRec.maritima_enviado;
+            const tieneRegGF = gfRec && gfRec.nombre;
+            if(gfOk) {
+                accion = `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Form enviado</button>`;
+            } else if(tieneRegGF) {
+                accion = `<button class="btn btn-outline-yellow" onclick="enviarGoogleForm('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-paper-plane-tilt"></i> Enviar form</button>`;
+            } else {
+                accion = `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
+            }
         } else if(r.tipo_formato==="correo") {
             accion=`<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Correo enviado</button>`;
         } else if(r.tipo_formato==="frakcio") {
@@ -3319,6 +3344,25 @@
                         <div></div>
                     </div>`;
                     if(!correoOk){ pend++; totalPend++; }
+                } else if(tipo==="gforms"){
+                    const gfRec = (gformsCheckins||[]).find(x =>
+                        x.depto&&x.depto.toUpperCase()===depto.toUpperCase()&&x.fecha_entrada===fiso
+                    );
+                    const gfOk = gfRec && gfRec.maritima_enviado;
+                    const tieneRegGF = gfRec && gfRec.nombre;
+                    const guestNameGF = tieneRegGF ? gfRec.nombre : null;
+                    const gfBtn = gfOk
+                        ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Form enviado</button>`
+                        : tieneRegGF
+                            ? `<button class="btn btn-outline-yellow" onclick="enviarGoogleForm('${depto}','${fiso}')"><i class="ph-bold ph-paper-plane-tilt"></i> Enviar form</button>`
+                            : `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
+                    rowsH+=`<div class="list-item${gfOk?' generado':''}">
+                        <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">GFORMS</span></div>
+                        <div class="${guestNameGF?'guest-name':'guest-name guest-empty'}">${guestNameGF||'—'}</div>
+                        <div>${gfBtn}</div>
+                        <div></div>
+                    </div>`;
+                    if(!gfOk){ pend++; totalPend++; }
                 } else if(tipo==="frakcio"){
                     const qrRec = (frakcioQR||[]).find(x =>
                         x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fiso
@@ -3640,6 +3684,98 @@
             const match = reservas.find(r => r.dateStart && r.dateStart.startsWith(fechaEntrada));
             return match ? match.id : null;
         } catch(e) { return null; }
+    }
+
+
+    // ── Google Forms — Marítima Playa ──────────────────────────
+    const MARITIMA_PROPIETARIO = {
+        "MARITIMA 9S":  "anabel.chavez.g@outlook.com",
+        "MARITIMA 10I": "anabel.chavez.g@outlook.com",
+        "MARITIMA 6S":  "arturo@kompano.mx",
+        "MARITIMA PHN": "Davidplatas2025@gmail.com",
+    };
+    const MARITIMA_DEPTO_CORTO = {
+        "MARITIMA 9S":  "9S",
+        "MARITIMA 10I": "10I",
+        "MARITIMA 6S":  "6S",
+        "MARITIMA PHN": "PHN",
+    };
+    const GOOGLE_FORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSdh0bnsMWOT0cBhQ9flyltlZP0koFWyPA2UUhpo-14c-anWPw/formResponse";
+
+    async function enviarGoogleForm(depto, fechaISO) {
+        const btn = document.querySelector(`[onclick*="enviarGoogleForm('${depto}'"]`);
+        if(btn) { btn.disabled=true; btn.innerHTML='<i class="ph-bold ph-spinner"></i> Enviando...'; }
+
+        try {
+            // Buscar datos del huésped
+            const resReg = await fetch(
+                `${SUPABASE_URL}/rest/v1/registros_checkin?depto=ilike.${encodeURIComponent(depto)}&fecha_entrada=eq.${fechaISO}&maritima_enviado=eq.false&select=id,nombre,fecha_salida,ocupantes,email&limit=1`,
+                {headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}}
+            );
+            const regData = await resReg.json();
+            const reg = regData[0];
+
+            const nombre = reg ? reg.nombre : depto;
+            const fSalida = reg ? (reg.fecha_salida||fechaISO) : fechaISO;
+            const email = reg ? (reg.email||'') : '';
+            const ocupantes = reg ? (typeof reg.ocupantes==='string' ? JSON.parse(reg.ocupantes||'[]') : (reg.ocupantes||[])) : [];
+            const nombresList = ocupantes.length
+                ? ocupantes.filter(o=>(o.nombre||'').trim()).map(o=>o.nombre.trim()).join(' ')
+                : nombre;
+
+            const deptoKey = Object.keys(MARITIMA_DEPTO_CORTO).find(k => depto.toUpperCase().includes(k) || k.includes(depto.toUpperCase())) || depto;
+            const deptoCorto = MARITIMA_DEPTO_CORTO[deptoKey] || depto;
+            const correoProp = MARITIMA_PROPIETARIO[deptoKey] || '';
+
+            const entrada = new Date(fechaISO + 'T12:00:00');
+            const salida  = new Date(fSalida + 'T12:00:00');
+
+            // Construir form data
+            const formData = new URLSearchParams({
+                "entry.972236446": nombre,
+                "entry.605360435": deptoCorto,
+                "entry.658795108": nombresList,
+                "entry.708456330": correoProp,
+                "entry.310336881": email,
+                "entry.324473893_year":  String(entrada.getFullYear()),
+                "entry.324473893_month": String(entrada.getMonth()+1),
+                "entry.324473893_day":   String(entrada.getDate()),
+                "entry.113549470_year":  String(salida.getFullYear()),
+                "entry.113549470_month": String(salida.getMonth()+1),
+                "entry.113549470_day":   String(salida.getDate()),
+                "entry.1422937358": "Renta",
+                "fvv": "1",
+                "pageHistory": "0,2",
+                "fbzx": "-832659340357287635",
+            });
+
+            // Google Forms no permite CORS directo — usar no-cors
+            await fetch(GOOGLE_FORM_ACTION, {
+                method: "POST",
+                mode: "no-cors",
+                headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                body: formData.toString()
+            });
+
+            // Marcar en Supabase
+            if(reg) {
+                await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?id=eq.${reg.id}`, {
+                    method:"PATCH", keepalive:true,
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                    body:JSON.stringify({maritima_enviado:true, maritima_enviado_at: new Date().toISOString()})
+                });
+                // Actualizar array local
+                const localRec = (gformsCheckins||[]).find(x=>x.id===reg.id);
+                if(localRec) localRec.maritima_enviado = true;
+                else gformsCheckins.push({...reg, maritima_enviado:true, fecha_entrada:fechaISO});
+            }
+
+            toast("✅ Formulario enviado a Marítima Playa");
+            renderTodo();
+        } catch(e) {
+            toast("❌ Error: " + e.message);
+            if(btn) { btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-paper-plane-tilt"></i> Enviar form'; }
+        }
     }
 
     async function marcarQR(depto, fechaISO) {
