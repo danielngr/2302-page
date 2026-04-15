@@ -3150,16 +3150,22 @@
                 x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()&&x.fecha===(r.fecha_entrada||"")
             );
             const qrOkH = qrRecH && qrRecH.qr_enviado;
-            const checkinRec = (frakcioCheckins||[]).find(x =>
-                x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()&&x.fecha_entrada===(r.fecha_entrada||"")
-            );
-            const tieneRegistro = checkinRec && checkinRec.nombre;
-            if(qrOkH) {
-                accion = `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`;
-            } else if(tieneRegistro) {
-                accion = `<button class="btn btn-outline-yellow" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> Generar QR</button>`;
+            if(esFrakcioReal(r.depto)) {
+                const checkinRec = (frakcioCheckins||[]).find(x =>
+                    x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()&&x.fecha_entrada===(r.fecha_entrada||"")
+                );
+                const tieneRegistro = checkinRec && checkinRec.nombre;
+                if(qrOkH) {
+                    accion = `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`;
+                } else if(tieneRegistro) {
+                    accion = `<button class="btn btn-outline-yellow" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> Generar QR</button>`;
+                } else {
+                    accion = `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
+                }
             } else {
-                accion = `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
+                accion = qrOkH
+                    ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
+                    : `<button class="btn btn-outline-yellow" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
             }
         } else {
             accion=`<button class="btn btn-link">Manual</button>`;
@@ -3318,16 +3324,23 @@
                         x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fiso
                     );
                     const qrOk = qrRec && qrRec.qr_enviado;
-                    const checkinFrak = (frakcioCheckins||[]).find(x =>
-                        x.depto&&x.depto.toUpperCase()===depto.toUpperCase()&&x.fecha_entrada===fiso
-                    );
-                    const tieneReg = checkinFrak && checkinFrak.nombre;
-                    const guestName = tieneReg ? checkinFrak.nombre : null;
-                    const qrBtn = qrOk
-                        ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
-                        : tieneReg
-                            ? `<button class="btn btn-outline-yellow" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> Generar QR</button>`
-                            : `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
+                    let qrBtn, guestName = null;
+                    if(esFrakcioReal(depto)) {
+                        const checkinFrak = (frakcioCheckins||[]).find(x =>
+                            x.depto&&x.depto.toUpperCase()===depto.toUpperCase()&&x.fecha_entrada===fiso
+                        );
+                        const tieneReg = checkinFrak && checkinFrak.nombre;
+                        guestName = tieneReg ? checkinFrak.nombre : null;
+                        qrBtn = qrOk
+                            ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
+                            : tieneReg
+                                ? `<button class="btn btn-outline-yellow" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> Generar QR</button>`
+                                : `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
+                    } else {
+                        qrBtn = qrOk
+                            ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
+                            : `<button class="btn btn-outline-yellow" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
+                    }
                     rowsH+=`<div class="list-item${qrOk?' generado':''}">
                         <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">FRAKCIO</span></div>
                         <div class="${guestName?'guest-name':'guest-name guest-empty'}">${guestName||'—'}</div>
@@ -3476,6 +3489,18 @@
         renderDias();
     }
 
+
+
+    const FRAKCIO_REAL = [
+        "ARIA 812","ARIA 906","ARIA 1001","ARIA PH 1001","ARIA 1010","ARIA 1013",
+        "ZANTAMAR","ZANTAMAR 109B",
+        "MARITIMA GOLF LW1","MARITIMA GOLF LW1B","MARITIMA GOLF 2M","MARITIMA GOLF 2L","MARITIMA GOLF 5R",
+        "BVG 505","BVG B-505","BVG 506","BVG B-506"
+    ];
+    function esFrakcioReal(depto) {
+        const d = (depto||'').toUpperCase().trim();
+        return FRAKCIO_REAL.some(k => d === k || d.includes(k) || k.includes(d));
+    }
 
     const FRAKCIO_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJsdW1lbi1qd3QtYWdybyIsInN1YiI6eyJpZCI6MzQyMDIsImlkUmVzaWRlbnQiOjM0MjM1LCJpZFN0YXR1cyI6MSwiZW1haWwiOiJjbGFkYTcyQG91dGxvb2suY29tIiwidXNlcm5hbWUiOiJaYW50YW1hcjM0MjAyIiwiY3JlYXRlZF9hdCI6IjIwMjQtMTAtMjIgMTM6Mzk6MDciLCJ1cGRhdGVkX2F0IjoiMjAyNi0wNC0xNSAwOToyNTowNiIsImRlbGV0ZWRfYXQiOm51bGwsInJmYyI6bnVsbCwiUmF6b25Tb2NpYWwiOm51bGwsIlVzb0NmZGkiOm51bGwsInRva2VuX2N1c3RvbWVyX2NvbmVrdGEiOm51bGwsImlkVXNvQ2ZkaSI6bnVsbCwibGFuZ3VhZ2UiOiJlcyJ9LCJpYXQiOjE3NzYyNjY3MjAsImV4cCI6MTkzMzk0NjcyMCwidHlwZSI6ImFkbWluIn0.PYq9qiNXpCUbByonhwc8PhcY6FcTFh2p28tM6pbkgcE";
     const FRAKCIO_HOUSING_MAP = {
