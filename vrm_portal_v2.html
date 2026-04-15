@@ -3586,7 +3586,13 @@
 
         const result = await postRes.json();
         if(!postRes.ok || result.status === false) {
-            throw new Error(result.message || postRes.status);
+            // Si el error es conflicto de fechas, tratar como éxito (QR ya existe)
+            const msg = result.message || '';
+            if(msg.toLowerCase().includes('conflicto') || msg.toLowerCase().includes('conflict')) {
+                // Ya existe reserva — considerar como enviado
+                return true;
+            }
+            throw new Error(msg || postRes.status);
         }
 
         // Marcar frakcio_enviado=true en registros_checkin si hay registro
