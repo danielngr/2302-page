@@ -3356,11 +3356,123 @@
         renderDias();
     }
 
-    async function marcarQR(depto, fechaISO) {
-        const existing = (frakcioQR||[]).find(x =>
-            x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fechaISO
+
+    const FRAKCIO_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJsdW1lbi1qd3QtYWdybyIsInN1YiI6eyJpZCI6MzQyMDIsImlkUmVzaWRlbnQiOjM0MjM1LCJpZFN0YXR1cyI6MSwiZW1haWwiOiJjbGFkYTcyQG91dGxvb2suY29tIiwidXNlcm5hbWUiOiJaYW50YW1hcjM0MjAyIiwiY3JlYXRlZF9hdCI6IjIwMjQtMTAtMjIgMTM6Mzk6MDciLCJ1cGRhdGVkX2F0IjoiMjAyNi0wNC0xNSAwOToyNTowNiIsImRlbGV0ZWRfYXQiOm51bGwsInJmYyI6bnVsbCwiUmF6b25Tb2NpYWwiOm51bGwsIlVzb0NmZGkiOm51bGwsInRva2VuX2N1c3RvbWVyX2NvbmVrdGEiOm51bGwsImlkVXNvQ2ZkaSI6bnVsbCwibGFuZ3VhZ2UiOiJlcyJ9LCJpYXQiOjE3NzYyNjY3MjAsImV4cCI6MTkzMzk0NjcyMCwidHlwZSI6ImFkbWluIn0.PYq9qiNXpCUbByonhwc8PhcY6FcTFh2p28tM6pbkgcE";
+    const FRAKCIO_HOUSING_MAP = {
+        "ARIA 812":           {c:164, h:25468},
+        "ARIA 906":           {c:164, h:25478},
+        "ARIA 1001":          {c:164, h:25488},
+        "ARIA PH 1001":       {c:164, h:25488},
+        "ARIA 1010":          {c:164, h:25497},
+        "ARIA 1013":          {c:164, h:34108},
+        "ZANTAMAR":           {c:286, h:33273},
+        "ZANTAMAR 109B":      {c:286, h:33273},
+        "MARITIMA GOLF LW1":  {c:320, h:37826},
+        "MARITIMA GOLF LW1B": {c:320, h:37826},
+        "MARITIMA GOLF 2M":   {c:320, h:37840},
+        "MARITIMA GOLF 2L":   {c:320, h:37839},
+        "MARITIMA GOLF 5R":   {c:320, h:37924},
+        "BVG 505":            {c:22,  h:30667},
+        "BVG B-505":          {c:22,  h:30667},
+        "BVG 506":            {c:22,  h:30668},
+        "BVG B-506":          {c:22,  h:30668},
+    };
+
+    function getFrakcioHousing(depto) {
+        const d = depto.toUpperCase().trim();
+        if(FRAKCIO_HOUSING_MAP[d]) return FRAKCIO_HOUSING_MAP[d];
+        for(const key of Object.keys(FRAKCIO_HOUSING_MAP)) {
+            if(d.includes(key) || key.includes(d)) return FRAKCIO_HOUSING_MAP[key];
+        }
+        return null;
+    }
+
+    async function enviarFrakcio(depto, fechaEntrada, fechaSalida) {
+        // Buscar datos del huésped en registros_checkin
+        const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/registros_checkin?depto=ilike.${encodeURIComponent(depto)}&fecha_entrada=eq.${fechaEntrada}&frakcio_enviado=eq.false&select=id,nombre,fecha_entrada,fecha_salida,num_adultos,num_menores,ocupantes&limit=1`,
+            {headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}}
         );
+        const data = await res.json();
+        const reg = data[0];
+
+        const housing = getFrakcioHousing(depto);
+        if(!housing) throw new Error(`Depto ${depto} no encontrado en mapa Frakcio`);
+
+        // Construir guests (responsable aparte, resto en guests)
+        let nombre = reg ? reg.nombre : depto;
+        let adultos = reg ? (parseInt(reg.num_adultos)||1) : 1;
+        let menores = reg ? (parseInt(reg.num_menores)||0) : 0;
+        let ocupantes = reg ? (typeof reg.ocupantes === 'string' ? JSON.parse(reg.ocupantes||'[]') : (reg.ocupantes||[])) : [];
+        let fSalida = (reg && reg.fecha_salida) ? reg.fecha_salida : fechaSalida;
+
+        let guests = [];
+        if(ocupantes.length > 1) {
+            guests = ocupantes.slice(1)
+                .filter(o => (o.nombre||'').trim())
+                .map(o => ({name: o.nombre.trim(), type: "Adulto"}));
+            adultos = ocupantes.filter(o => (o.nombre||'').trim()).length;
+        }
+
+        const payload = {
+            dateStart: `${fechaEntrada} 00:00:00`,
+            dateEnd:   `${fSalida} 23:59:00`,
+            adults:    adultos,
+            children:  menores,
+            responsibleName: nombre,
+            guests:    guests,
+            email:     null, phone: null, plate: null, observations: null,
+        };
+
+        const postRes = await fetch(
+            `https://ws.frakcio.com/api/v1/mobile/condominium/${housing.c}/housing/${housing.h}`,
+            {
+                method: "POST",
+                headers: {
+                    "authorization": FRAKCIO_TOKEN,
+                    "content-type": "application/json",
+                    "accept": "application/json, text/plain, */*",
+                    "origin": "https://app.frakcio.com",
+                    "referer": "https://app.frakcio.com/",
+                },
+                body: JSON.stringify(payload)
+            }
+        );
+
+        const result = await postRes.json();
+        if(!postRes.ok || result.status === false) {
+            throw new Error(result.message || postRes.status);
+        }
+
+        // Marcar frakcio_enviado=true en registros_checkin si hay registro
+        if(reg) {
+            await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?id=eq.${reg.id}`, {
+                method:"PATCH", keepalive:true,
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                body:JSON.stringify({frakcio_enviado:true, frakcio_enviado_at: new Date().toISOString()})
+            });
+        }
+        return true;
+    }
+
+    async function marcarQR(depto, fechaISO) {
+        // Buscar fecha_salida desde registros
+        const regSalida = todosRegistros.find(x => {
+            const d=(x.depto||'').toUpperCase().trim(), dep=depto.toUpperCase();
+            return (d===dep||d.startsWith(dep+' ')||dep.startsWith(d+' '));
+        });
+        const fechaSalida = regSalida ? (regSalida.fecha_salida||fechaISO) : fechaISO;
+
+        const btn = document.querySelector(`[onclick*="marcarQR('${depto}'"]`);
+        if(btn) { btn.disabled=true; btn.innerHTML='<i class="ph-bold ph-spinner"></i> Enviando...'; }
+
         try {
+            await enviarFrakcio(depto, fechaISO, fechaSalida);
+
+            // Marcar en frakcio_qr también
+            const existing = (frakcioQR||[]).find(x =>
+                x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fechaISO
+            );
             if(existing) {
                 await fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr?id=eq.${existing.id}`, {
                     method:"PATCH", keepalive:true,
@@ -3377,10 +3489,11 @@
                 const data = await res.json();
                 if(data[0]) frakcioQR.push(data[0]);
             }
-            toast("✓ QR marcado como enviado");
+            toast("✅ QR generado y enviado a Frakcio");
             renderTodo();
         } catch(e) {
-            toast("❌ Error: " + e.message);
+            toast("❌ Error Frakcio: " + e.message);
+            if(btn) { btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-qr-code"></i> QR pendiente'; }
         }
     }
 
