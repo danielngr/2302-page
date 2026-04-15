@@ -3633,7 +3633,9 @@
                     body:JSON.stringify({depto, fecha:fechaISO, qr_enviado:true})
                 });
                 const data = await res.json();
-                if(data[0]) frakcioQR.push(data[0]);
+                // Agregar al array local independientemente del response
+                const newRec = (data&&data[0]) ? data[0] : {depto, fecha:fechaISO, qr_enviado:true, id: 'local_'+Date.now()};
+                frakcioQR.push(newRec);
             }
             toast(esFrakcioReal(depto) ? "✅ QR generado y enviado a Frakcio" : "✓ QR marcado como enviado");
             renderTodo();
