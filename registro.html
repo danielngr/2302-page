@@ -120,6 +120,17 @@
   .success-screen p { color: var(--muted); font-size: 14px; line-height: 1.6; }
 
   .error-msg { color: var(--error); font-size: 12px; margin-top: 4px; display: none; }
+
+  .date-locked {
+    background: var(--accent-light) !important;
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+    font-weight: 600;
+    cursor: not-allowed;
+  }
+  .date-locked-hint {
+    font-size: 11px; color: var(--accent); margin-top: 4px;
+  }
   .required::after { content: " *"; color: var(--error); }
 
   #loading { display:none; text-align:center; padding:16px; color:var(--muted); font-size:14px; }
@@ -435,6 +446,12 @@ function init() {
   }
   document.getElementById("depto-badge").textContent = deptoKey || "—";
 
+  // Fechas/ocupantes pre-llenados desde URL (Airbnb scheduled message variables)
+  const urlEntrada = params.get("entrada");
+  const urlSalida  = params.get("salida");
+  const urlAdultos = params.get("adultos");
+  const urlMenores = params.get("menores");
+
   // Auto-detect browser language
   const browserLang = (navigator.language || "es").startsWith("en") ? "en" : "es";
   // URL override: ?lang=en
@@ -451,9 +468,27 @@ function init() {
 
   const hoy = new Date();
   const fmt = d => d.toISOString().split("T")[0];
-  document.getElementById("fecha_entrada").value = fmt(hoy);
-  const manana = new Date(hoy); manana.setDate(manana.getDate()+1);
-  document.getElementById("fecha_salida").value = fmt(manana);
+
+  if(urlEntrada && urlSalida) {
+    // Fechas bloqueadas — vienen de Airbnb vía URL, el huésped no puede cambiarlas
+    const fldEntrada = document.getElementById("fecha_entrada");
+    const fldSalida  = document.getElementById("fecha_salida");
+    fldEntrada.value = urlEntrada;
+    fldSalida.value  = urlSalida;
+    fldEntrada.readOnly = true;
+    fldSalida.readOnly  = true;
+    fldEntrada.classList.add("date-locked");
+    fldSalida.classList.add("date-locked");
+    fldEntrada.insertAdjacentHTML("afterend", '<p class="date-locked-hint">📅 Confirmada desde tu reserva</p>');
+    fldSalida.insertAdjacentHTML("afterend",  '<p class="date-locked-hint">📅 Confirmada desde tu reserva</p>');
+  } else {
+    document.getElementById("fecha_entrada").value = fmt(hoy);
+    const manana = new Date(hoy); manana.setDate(manana.getDate()+1);
+    document.getElementById("fecha_salida").value = fmt(manana);
+  }
+
+  if(urlAdultos) document.getElementById("num_adultos").value = parseInt(urlAdultos) || 1;
+  if(urlMenores) document.getElementById("num_menores").value = parseInt(urlMenores) || 0;
 
   setTimeout(syncOcupantes, 50);
 }
