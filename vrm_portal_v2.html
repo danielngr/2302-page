@@ -3585,14 +3585,19 @@
         );
 
         const result = await postRes.json();
+        let reservationId = null;
+
         if(!postRes.ok || result.status === false) {
-            // Si el error es conflicto de fechas, tratar como éxito (QR ya existe)
             const msg = result.message || '';
             if(msg.toLowerCase().includes('conflicto') || msg.toLowerCase().includes('conflict')) {
-                // Ya existe reserva — considerar como enviado
-                return true;
+                // Ya existe — buscar el ID de la reserva existente para obtener el QR
+                reservationId = await buscarReservaExistente(housing.c, housing.h, fechaEntrada);
+            } else {
+                throw new Error(msg || postRes.status);
             }
-            throw new Error(msg || postRes.status);
+        } else {
+            // La respuesta del POST trae el ID de la reserva creada
+            reservationId = result.data?.id || result.data || null;
         }
 
         // Marcar frakcio_enviado=true en registros_checkin si hay registro
@@ -3603,7 +3608,35 @@
                 body:JSON.stringify({frakcio_enviado:true, frakcio_enviado_at: new Date().toISOString()})
             });
         }
+
+        // Obtener URL del PDF del QR
+        if(reservationId) {
+            try {
+                const qrRes = await fetch(
+                    `https://ws.frakcio.com/api/v1/mobile/condominium/${housing.c}/housings3/${reservationId}`,
+                    {headers:{"authorization":FRAKCIO_TOKEN,"accept":"application/json, text/plain, */*","origin":"https://app.frakcio.com","referer":"https://app.frakcio.com/"}}
+                );
+                const qrData = await qrRes.json();
+                if(qrData.status && qrData.data?.url) {
+                    return qrData.data.url;
+                }
+            } catch(e) { console.warn("No se pudo obtener URL QR:", e); }
+        }
         return true;
+    }
+
+    async function buscarReservaExistente(condoId, housingId, fechaEntrada) {
+        // Buscar reservas del housing para encontrar la que coincide con la fecha
+        try {
+            const res = await fetch(
+                `https://ws.frakcio.com/api/v1/mobile/condominium/${condoId}/housing/${housingId}/reservations`,
+                {headers:{"authorization":FRAKCIO_TOKEN,"accept":"application/json, text/plain, */*","origin":"https://app.frakcio.com","referer":"https://app.frakcio.com/"}}
+            );
+            const data = await res.json();
+            const reservas = data.data || [];
+            const match = reservas.find(r => r.dateStart && r.dateStart.startsWith(fechaEntrada));
+            return match ? match.id : null;
+        } catch(e) { return null; }
     }
 
     async function marcarQR(depto, fechaISO) {
@@ -3612,13 +3645,17 @@
 
         try {
             // Solo llamar API Frakcio si es depto real de Frakcio
+            let qrUrl = null;
             if(esFrakcioReal(depto)) {
                 const regSalida = todosRegistros.find(x => {
                     const d=(x.depto||'').toUpperCase().trim(), dep=depto.toUpperCase();
                     return (d===dep||d.startsWith(dep+' ')||dep.startsWith(d+' '));
                 });
                 const fechaSalida = regSalida ? (regSalida.fecha_salida||fechaISO) : fechaISO;
-                await enviarFrakcio(depto, fechaISO, fechaSalida);
+                const resultado = await enviarFrakcio(depto, fechaISO, fechaSalida);
+                if(typeof resultado === 'string' && resultado.startsWith('http')) {
+                    qrUrl = resultado;
+                }
             }
 
             // Marcar en frakcio_qr (para todos)
@@ -3639,16 +3676,52 @@
                     body:JSON.stringify({depto, fecha:fechaISO, qr_enviado:true})
                 });
                 const data = await res.json();
-                // Agregar al array local independientemente del response
                 const newRec = (data&&data[0]) ? data[0] : {depto, fecha:fechaISO, qr_enviado:true, id: 'local_'+Date.now()};
                 frakcioQR.push(newRec);
             }
-            toast(esFrakcioReal(depto) ? "✅ QR generado y enviado a Frakcio" : "✓ QR marcado como enviado");
+
             renderTodo();
+
+            // Si tenemos URL del QR, mostrar modal para copiar
+            if(qrUrl) {
+                mostrarModalQR(depto, qrUrl);
+            } else {
+                toast(esFrakcioReal(depto) ? "✅ QR registrado en Frakcio" : "✓ QR marcado como enviado");
+            }
+
         } catch(e) {
             toast("❌ Error: " + e.message);
             if(btn) { btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-qr-code"></i> QR pendiente'; }
         }
+    }
+
+    function mostrarModalQR(depto, url) {
+        // Eliminar modal previo si existe
+        const prev = document.getElementById('modal-qr');
+        if(prev) prev.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'modal-qr';
+        modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9998;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);`;
+        modal.innerHTML = `
+            <div style="background:#121212;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:32px;width:380px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,0.8);">
+                <div style="font-size:36px;margin-bottom:12px;">📄</div>
+                <h3 style="font-family:var(--font-display);font-size:18px;font-weight:600;color:#fff;margin-bottom:6px;">QR generado — ${depto}</h3>
+                <p style="font-size:13px;color:var(--text-tertiary);margin-bottom:24px;">Copia el link y mándalo al huésped por Airbnb</p>
+                <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:20px;word-break:break-all;font-size:11px;color:var(--text-secondary);font-family:var(--font-mono);text-align:left;max-height:80px;overflow:hidden;">${url.split('?')[0]}</div>
+                <button onclick="navigator.clipboard.writeText('${url.replace(/'/g,"\'")}').then(()=>{ document.getElementById('modal-qr-copy-btn').innerHTML='<i class=\'ph-bold ph-check\'></i> ¡Copiado!'; document.getElementById('modal-qr-copy-btn').style.background='rgba(34,211,125,0.15)'; })"
+                    id="modal-qr-copy-btn"
+                    style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent-terracota),#ff9858);color:#fff;font-size:15px;font-family:var(--font-display);font-weight:600;cursor:pointer;margin-bottom:10px;">
+                    <i class="ph-bold ph-copy"></i> Copiar link QR
+                </button>
+                <button onclick="document.getElementById('modal-qr').remove()"
+                    style="width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:none;color:var(--text-tertiary);font-size:13px;cursor:pointer;">
+                    Cerrar
+                </button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
     }
 
     // ── Copiar link ─────────────────────────────────────────────
