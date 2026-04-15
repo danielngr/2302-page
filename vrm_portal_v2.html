@@ -3601,20 +3601,21 @@
     }
 
     async function marcarQR(depto, fechaISO) {
-        // Buscar fecha_salida desde registros
-        const regSalida = todosRegistros.find(x => {
-            const d=(x.depto||'').toUpperCase().trim(), dep=depto.toUpperCase();
-            return (d===dep||d.startsWith(dep+' ')||dep.startsWith(d+' '));
-        });
-        const fechaSalida = regSalida ? (regSalida.fecha_salida||fechaISO) : fechaISO;
-
         const btn = document.querySelector(`[onclick*="marcarQR('${depto}'"]`);
         if(btn) { btn.disabled=true; btn.innerHTML='<i class="ph-bold ph-spinner"></i> Enviando...'; }
 
         try {
-            await enviarFrakcio(depto, fechaISO, fechaSalida);
+            // Solo llamar API Frakcio si es depto real de Frakcio
+            if(esFrakcioReal(depto)) {
+                const regSalida = todosRegistros.find(x => {
+                    const d=(x.depto||'').toUpperCase().trim(), dep=depto.toUpperCase();
+                    return (d===dep||d.startsWith(dep+' ')||dep.startsWith(d+' '));
+                });
+                const fechaSalida = regSalida ? (regSalida.fecha_salida||fechaISO) : fechaISO;
+                await enviarFrakcio(depto, fechaISO, fechaSalida);
+            }
 
-            // Marcar en frakcio_qr también
+            // Marcar en frakcio_qr (para todos)
             const existing = (frakcioQR||[]).find(x =>
                 x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fechaISO
             );
@@ -3634,10 +3635,10 @@
                 const data = await res.json();
                 if(data[0]) frakcioQR.push(data[0]);
             }
-            toast("✅ QR generado y enviado a Frakcio");
+            toast(esFrakcioReal(depto) ? "✅ QR generado y enviado a Frakcio" : "✓ QR marcado como enviado");
             renderTodo();
         } catch(e) {
-            toast("❌ Error Frakcio: " + e.message);
+            toast("❌ Error: " + e.message);
             if(btn) { btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-qr-code"></i> QR pendiente'; }
         }
     }
