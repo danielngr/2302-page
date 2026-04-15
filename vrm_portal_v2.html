@@ -2763,7 +2763,7 @@
         return d.toISOString().split("T")[0];
     }
 
-    let todosRegistros = [], frakcioQR = [], formatoManual = [], correosEnviados = [];
+    let todosRegistros = [], frakcioQR = [], formatoManual = [], correosEnviados = [], frakcioCheckins = [];
     let dispSemanaOffset = 0; // 0=semana actual
     let sheetHoy = 0;
 
@@ -2882,8 +2882,11 @@
             const hasta = prox30.toISOString().split('T')[0];
 
             // Fetch en paralelo: registros recientes + QR + sheet
-            const [resReg, resQR] = await Promise.all([
+            const [resReg, resQR, resCheckins] = await Promise.all([
                 fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?select=${fields}&fecha_entrada=gte.${desde}&fecha_entrada=lte.${hasta}&order=fecha_entrada.asc,created_at.desc`, {
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+                }),
+                fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?select=id,depto,fecha_entrada,nombre,frakcio_enviado,num_adultos&tipo_formato=eq.frakcio&fecha_entrada=gte.${desde}`, {
                     headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
                 }),
                 fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr?select=id,depto,fecha,qr_enviado&fecha=gte.${desde}`, {
@@ -2891,6 +2894,7 @@
                 })
             ]);
             frakcioQR = await resQR.json();
+            frakcioCheckins = await resCheckins.json();
             // Cargar correos enviados
             try {
                 const resC = await fetch(`${SUPABASE_URL}/rest/v1/correos_enviados?select=id,depto,fecha,enviado&fecha=gte.${desde}`, {
@@ -3143,12 +3147,20 @@
             accion=`<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Correo enviado</button>`;
         } else if(r.tipo_formato==="frakcio") {
             const qrRecH = (frakcioQR||[]).find(x =>
-                x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()
+                x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()&&x.fecha===(r.fecha_entrada||"")
             );
             const qrOkH = qrRecH && qrRecH.qr_enviado;
-            accion = qrOkH
-                ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
-                : `<button class="btn btn-outline-yellow" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
+            const checkinRec = (frakcioCheckins||[]).find(x =>
+                x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()&&x.fecha_entrada===(r.fecha_entrada||"")
+            );
+            const tieneRegistro = checkinRec && checkinRec.nombre;
+            if(qrOkH) {
+                accion = `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`;
+            } else if(tieneRegistro) {
+                accion = `<button class="btn btn-outline-yellow" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> Generar QR</button>`;
+            } else {
+                accion = `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
+            }
         } else {
             accion=`<button class="btn btn-link">Manual</button>`;
         }
@@ -3306,12 +3318,19 @@
                         x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fiso
                     );
                     const qrOk = qrRec && qrRec.qr_enviado;
+                    const checkinFrak = (frakcioCheckins||[]).find(x =>
+                        x.depto&&x.depto.toUpperCase()===depto.toUpperCase()&&x.fecha_entrada===fiso
+                    );
+                    const tieneReg = checkinFrak && checkinFrak.nombre;
+                    const guestName = tieneReg ? checkinFrak.nombre : null;
                     const qrBtn = qrOk
                         ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
-                        : `<button class="btn btn-outline-yellow" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
+                        : tieneReg
+                            ? `<button class="btn btn-outline-yellow" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> Generar QR</button>`
+                            : `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
                     rowsH+=`<div class="list-item${qrOk?' generado':''}">
                         <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">FRAKCIO</span></div>
-                        <div class="guest-name guest-empty">—</div>
+                        <div class="${guestName?'guest-name':'guest-name guest-empty'}">${guestName||'—'}</div>
                         <div>${qrBtn}</div>
                         <div></div>
                     </div>`;
