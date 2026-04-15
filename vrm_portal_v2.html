@@ -2886,7 +2886,7 @@
                 fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?select=${fields}&fecha_entrada=gte.${desde}&fecha_entrada=lte.${hasta}&order=fecha_entrada.asc,created_at.desc`, {
                     headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
                 }),
-                fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?select=id,depto,fecha_entrada,nombre,frakcio_enviado,num_adultos&tipo_formato=eq.frakcio&fecha_entrada=gte.${desde}`, {
+                fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?select=id,depto,fecha_entrada,nombre,frakcio_enviado,num_adultos,frakcio_reservation_id&tipo_formato=eq.frakcio&fecha_entrada=gte.${desde}`, {
                     headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
                 }),
                 fetch(`${SUPABASE_URL}/rest/v1/frakcio_qr?select=id,depto,fecha,qr_enviado&fecha=gte.${desde}`, {
@@ -3590,8 +3590,11 @@
         if(!postRes.ok || result.status === false) {
             const msg = result.message || '';
             if(msg.toLowerCase().includes('conflicto') || msg.toLowerCase().includes('conflict')) {
-                // Ya existe — buscar el ID de la reserva existente para obtener el QR
-                reservationId = await buscarReservaExistente(housing.c, housing.h, fechaEntrada);
+                // Ya existe — usar reservation_id guardado en Supabase si está disponible
+                const checkinRec = (frakcioCheckins||[]).find(x =>
+                    x.depto&&x.depto.toUpperCase()===depto.toUpperCase()&&x.fecha_entrada===fechaEntrada
+                );
+                reservationId = checkinRec?.frakcio_reservation_id || await buscarReservaExistente(housing.c, housing.h, fechaEntrada);
             } else {
                 throw new Error(msg || postRes.status);
             }
