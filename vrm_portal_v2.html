@@ -3156,7 +3156,8 @@
             const _tieneCorreo = tieneCorreoConfigured(r.depto||'');
             accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button>${_tieneCorreo ? `<button class="btn btn-outline-yellow" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
         } else if(r.tipo_formato==="whatsapp") {
-            accion=`<button class="btn btn-outline-blue" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button>`;
+            const _tieneMsg = tieneCorreoMsg(r.depto||'');
+            accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-blue" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button>${_tieneMsg ? `<button class="btn btn-outline-yellow" onclick="enviarMsgPorCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
         } else if(r.tipo_formato==="gforms") {
             const gfRec = (gformsCheckins||[]).find(x =>
                 x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()&&x.fecha_entrada===(r.fecha_entrada||"")
@@ -3247,6 +3248,7 @@
                 ${r.tipo_formato==='pdf' ? `<button class="btn btn-outline-white" style="font-size:12px;padding:7px 14px;" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-arrows-clockwise"></i> Regenerar PDF</button>` : ''}
                 ${r.tipo_formato==='pdf' && tieneCorreoConfigured(r.depto||'') ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar por correo</button>` : ''}
                 ${r.tipo_formato==='whatsapp' ? `<button class="btn btn-outline-blue" style="font-size:12px;padding:7px 14px;" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-arrows-clockwise"></i> Reenviar mensaje</button>` : ''}
+                ${r.tipo_formato==='whatsapp' && tieneCorreoMsg(r.depto||'') ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="enviarMsgPorCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar por correo</button>` : ''}
                 ${r.tipo_formato==='frakcio' ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> Reenviar QR a Frakcio</button>` : ''}
                 ${r.tipo_formato==='correo' ? `<button class="btn btn-outline-green" style="font-size:12px;padding:7px 14px;" onclick="marcarCorreo('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-arrows-clockwise"></i> Reenviar correo</button>` : ''}
             </div>
@@ -3803,6 +3805,15 @@
       "PENINSULA 19E": { to: ["recepciontorre1@gmail.com","torre1.peninsula@gmail.com","jp.pena.ortiz@gmail.com"], subject: "19E TORRE 1" },
     };
 
+    // ── Correo para mensajes de texto (whatsapp templates) ──────────────
+    const CORREO_MSG_MAP = {
+      "ARCANO": { to: ["urban2admon@gmail.com"], subject: "Check-in Arcano 203" },
+    };
+
+    function tieneCorreoMsg(depto) {
+      return !!(CORREO_MSG_MAP[(depto||'').toUpperCase()] || CORREO_MSG_MAP[depto]);
+    }
+
     function tieneCorreoConfigured(depto) {
       const key = Object.keys(CORREO_PDF_MAP).find(k => depto.toUpperCase().includes(k.toUpperCase()) || k.toUpperCase().includes(depto.toUpperCase()));
       return !!key;
@@ -3921,6 +3932,69 @@
       if(!resp.ok) {
         const err = await resp.json();
         throw new Error(err.error?.message || "Error enviando correo");
+      }
+    }
+
+    async function enviarMsgPorCorreo(id) {
+      const r = todosRegistros.find(x=>x.id===id);
+      if(!r) return;
+
+      const config = CORREO_MSG_MAP[r.depto] || CORREO_MSG_MAP[(r.depto||'').toUpperCase()];
+      if(!config) { toast("❌ No hay correo configurado para " + r.depto); return; }
+
+      // Generar el texto igual que generarFormato
+      const ocupantes = Array.isArray(r.ocupantes)?r.ocupantes:[];
+      const datos = {
+        depto:r.depto, nombre:r.nombre, telefono:r.telefono, correo:r.email,
+        edad:r.edad||"", direccion:r.direccion||"",
+        entrada:r.fecha_entrada, salida:r.fecha_salida,
+        adultos:r.num_adultos, menores:r.num_menores, mascotas:r.num_mascotas,
+        vehiculo:r.vehiculo_modelo, placas:r.vehiculo_placas,
+        personas:(r.num_adultos||0)+(r.num_menores||0),
+        foto_id:r.foto_id||null,
+        recamaras:r.num_recamaras||r.recamaras||2,
+      };
+      r._idioma = "es"; datos._idioma = "es";
+
+      // Capturar el texto que genera mostrarTexto
+      // mostrarTexto usa window.prompt o muestra modal — necesitamos el texto directo de generarTextoMsg
+      let msgTexto;
+      try {
+        msgTexto = generarTextoMsg(r, datos, ocupantes);
+      } catch(e) {
+        toast("❌ Error generando mensaje: " + e.message); return;
+      }
+      if(!msgTexto) { toast("❌ No se pudo generar el mensaje"); return; }
+
+      toast("🔐 Autorizando con Google...");
+      try {
+        const accessToken = await getGmailToken();
+        toast("📧 Enviando correo...");
+
+        const emailLines = [
+          `To: ${config.to.join(", ")}`,
+          `Subject: ${config.subject}`,
+          `MIME-Version: 1.0`,
+          `Content-Type: text/plain; charset="UTF-8"`,
+          ``,
+          msgTexto
+        ].join("\r\n");
+
+        const raw = btoa(unescape(encodeURIComponent(emailLines)))
+          .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+        const resp = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ raw })
+        });
+        if(!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.error?.message || "Error enviando correo");
+        }
+        toast(`✅ Correo enviado a ${config.to.join(', ')}`);
+      } catch(e) {
+        toast("❌ " + e.message);
       }
     }
 
