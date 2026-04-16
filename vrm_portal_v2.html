@@ -4341,7 +4341,7 @@
             fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?activo=eq.true&select=*`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
             }),
-            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&select=*&order=fecha.desc`, {
+            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=in.(terminada,pagada)&select=*&order=fecha.desc`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             }),
             fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=eq.pendiente&select=*`, {
@@ -4503,7 +4503,7 @@
 
         // Contar limpiezas a liquidar
         const resCount = await fetch(
-            `${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&fecha=gte.${viernesISO}&fecha=lte.${juevesISO}&select=tarifa_aplicada`,
+            `${SUPABASE_URL}/rest/v1/limpiezas?estatus=in.(terminada,pagada)&fecha=gte.${viernesISO}&fecha=lte.${juevesISO}&select=tarifa_aplicada`,
             { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
         );
         const limp = await resCount.json();
