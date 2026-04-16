@@ -3152,7 +3152,8 @@
         if(r.pdf_generado) {
             accion=`<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Generado</button>`;
         } else if(r.tipo_formato==="pdf") {
-            accion=`<button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button>`;
+            const _tieneCorreo = tieneCorreoConfigured(r.depto||'');
+            accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button>${_tieneCorreo ? `<button class="btn btn-outline-yellow" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
         } else if(r.tipo_formato==="whatsapp") {
             accion=`<button class="btn btn-outline-blue" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button>`;
         } else if(r.tipo_formato==="gforms") {
@@ -3243,6 +3244,7 @@
             ${ocupantes.length ? `<div class="reg-field"><span class="reg-field-label">Ocupantes</span><div class="ocupantes-list">${ocupantesHTML}</div></div>` : ''}
             <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle);">
                 ${r.tipo_formato==='pdf' ? `<button class="btn btn-outline-white" style="font-size:12px;padding:7px 14px;" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-arrows-clockwise"></i> Regenerar PDF</button>` : ''}
+                ${r.tipo_formato==='pdf' && tieneCorreoConfigured(r.depto||'') ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar por correo</button>` : ''}
                 ${r.tipo_formato==='whatsapp' ? `<button class="btn btn-outline-blue" style="font-size:12px;padding:7px 14px;" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-arrows-clockwise"></i> Reenviar mensaje</button>` : ''}
                 ${r.tipo_formato==='frakcio' ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> Reenviar QR a Frakcio</button>` : ''}
                 ${r.tipo_formato==='correo' ? `<button class="btn btn-outline-green" style="font-size:12px;padding:7px 14px;" onclick="marcarCorreo('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-arrows-clockwise"></i> Reenviar correo</button>` : ''}
@@ -3776,6 +3778,95 @@
             toast("❌ Error: " + e.message);
             if(btn) { btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-paper-plane-tilt"></i> Enviar form'; }
         }
+    }
+
+
+    // ── Correo PDF — Mapa de destinatarios ────────────────────────────────
+    const CORREO_PDF_MAP = {
+      // VENETIAN — subject: "NUMERO TORRE 3000"
+      "VENETIAN T3 905":  { to: ["caseta@grandvenetian.mx"], subject: "905 TORRE 3000" },
+      "VENETIAN T3 906":  { to: ["caseta@grandvenetian.mx"], subject: "906 TORRE 3000" },
+      "VENETIAN T3 1010": { to: ["caseta@grandvenetian.mx"], subject: "1010 TORRE 3000" },
+      "VENETIAN T3 1903": { to: ["caseta@grandvenetian.mx"], subject: "1903 TORRE 3000" },
+      // GREEN DISTRICT
+      "GD 103A": { to: ["ackigreendistrict@gmail.com","rojinegro58@gmail.com"], subject: "103A" },
+      "GD 202B": { to: ["ackigreendistrict@gmail.com"], subject: "202B" },
+      "GD 303A": { to: ["ackigreendistrict@gmail.com"], subject: "303A" },
+      "GD 501B": { to: ["ackigreendistrict@gmail.com","saul63@hotmail.com"], subject: "501B" },
+      "GD 501E": { to: ["ackigreendistrict@gmail.com"], subject: "501E" },
+      // ALAMAR
+      "ALAMAR DELTA 2 101": { to: ["seguridad@alamar.com.mx"], subject: "DELTA 2 101" },
+      // XIKIRI
+      "XIKIRI 504": { to: ["mayra.arenablanca@gmail.com"], subject: "504" },
+      // PENINSULA
+      "PENINSULA 19E": { to: ["recepciontorre1@gmail.com","torre1.peninsula@gmail.com","jp.pena.ortiz@gmail.com"], subject: "19E TORRE 1" },
+    };
+
+    function tieneCorreoConfigured(depto) {
+      const key = Object.keys(CORREO_PDF_MAP).find(k => depto.toUpperCase().includes(k.toUpperCase()) || k.toUpperCase().includes(depto.toUpperCase()));
+      return !!key;
+    }
+
+    async function enviarPDFporCorreo(id) {
+      const r = todosRegistros.find(x=>x.id===id);
+      if(!r) return;
+
+      // Buscar config de correo
+      const deptoUp = (r.depto||'').toUpperCase();
+      const configKey = Object.keys(CORREO_PDF_MAP).find(k => deptoUp.includes(k.toUpperCase()) || k.toUpperCase().includes(deptoUp));
+      if(!configKey) { toast("❌ No hay correo configurado para " + r.depto); return; }
+      const config = CORREO_PDF_MAP[configKey];
+
+      toast("📄 Generando PDF...");
+
+      // Preparar datos igual que generarFormato
+      const ocupantes = Array.isArray(r.ocupantes)?r.ocupantes:[];
+      const datos = {
+        depto:r.depto, nombre:r.nombre, telefono:r.telefono, correo:r.email,
+        edad:r.edad||"", direccion:r.direccion||"",
+        entrada:r.fecha_entrada, salida:r.fecha_salida,
+        adultos:r.num_adultos, menores:r.num_menores, mascotas:r.num_mascotas,
+        vehiculo:r.vehiculo_modelo, placas:r.vehiculo_placas,
+        personas:(r.num_adultos||0)+(r.num_menores||0),
+        foto_id:r.foto_id||null,
+        recamaras:r.num_recamaras||r.recamaras||2,
+      };
+      r._idioma = "es"; datos._idioma = "es";
+
+      let pdfBase64;
+      try {
+        pdfBase64 = generarPDF(r, datos, ocupantes, id, { returnBase64: true });
+      } catch(e) {
+        toast("❌ Error generando PDF: " + e.message);
+        return;
+      }
+
+      if(!pdfBase64) { toast("❌ No se pudo obtener el PDF (template no soportado para envío)"); return; }
+
+      const pdfFilename = `Registro_${(r.depto||'').replace(/ /g,'_')}_${r.nombre?.split(' ')[0]||'huesped'}.pdf`;
+
+      toast("📧 Enviando correo...");
+      try {
+        const resp = await fetch("http://localhost:9999", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            depto: r.depto,
+            pdf_base64: pdfBase64,
+            pdf_filename: pdfFilename,
+            nombre: r.nombre || "Huésped",
+            fecha_entrada: r.fecha_entrada || ""
+          })
+        });
+        const data = await resp.json();
+        if(data.ok) {
+          toast(`✅ Correo enviado a ${data.to.join(', ')} — Asunto: ${data.subject}`);
+        } else {
+          toast("❌ Error: " + (data.error || "Error desconocido"));
+        }
+      } catch(e) {
+        toast("❌ Servidor de correo no disponible. ¿Está corriendo vrm_mailer.py?");
+      }
     }
 
     async function marcarQR(depto, fechaISO) {
