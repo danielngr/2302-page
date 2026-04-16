@@ -80,27 +80,34 @@ function pdfField(doc, y, label, value, x1=14, x2=60) {
   doc.text(value||"___",x2,y); return y+6;
 }
 
-function generarPDF(r, datos, ocupantes, _genId) {
-  console.log("[generarPDF] template:", r.template);
+function generarPDF(r, datos, ocupantes, _genId, opts) {
+  // opts = { returnBase64: true } para obtener base64 sin descargar
+  const returnB64 = opts && opts.returnBase64;
+  console.log("[generarPDF] template:", r.template, "returnBase64:", returnB64);
   const { jsPDF } = window.jspdf;
   let doc;
-  if(r.template === "flamingos") doc = pdfFlamingos(datos, ocupantes, _genId);
-  else if(r.template === "albatros") doc = pdfAlbatros(datos, ocupantes, _genId);
-  else if(r.template === "gd") doc = pdfGD(datos, ocupantes, _genId);
-  else if(r.template === "alamar") doc = pdfAlamar(datos, ocupantes, _genId);
-  else if(r.template === "venetian") doc = pdfVenetian(datos, ocupantes, _genId);
-  else if(r.template === "xikiri") doc = pdfXikiri(datos, ocupantes, _genId);
-  else if(r.template === "quiya") { pdfQuiya(datos, ocupantes, _genId); return; }
+  if(r.template === "flamingos") doc = pdfFlamingos(datos, ocupantes, _genId, returnB64);
+  else if(r.template === "albatros") doc = pdfAlbatros(datos, ocupantes, _genId, returnB64);
+  else if(r.template === "gd") doc = pdfGD(datos, ocupantes, _genId, returnB64);
+  else if(r.template === "alamar") doc = pdfAlamar(datos, ocupantes, _genId, returnB64);
+  else if(r.template === "venetian") doc = pdfVenetian(datos, ocupantes, _genId, returnB64);
+  else if(r.template === "xikiri") doc = pdfXikiri(datos, ocupantes, _genId, returnB64);
+  else if(r.template === "quiya") {
+    if(returnB64) return pdfQuiya(datos, ocupantes, _genId, true);
+    pdfQuiya(datos, ocupantes, _genId); return;
+  }
   else if(r.template === "peninsula") {
+    if(returnB64) return pdfPeninsulaES(datos, ocupantes, true);
     var idioma = r._idioma || "es";
     if(idioma === "es"){ pdfPeninsulaES(datos, ocupantes); setTimeout(function(){ leasePeninsulaES(datos); }, 800); }
     else { pdfPeninsula(datos, ocupantes); setTimeout(function(){ leasePeninsula(datos); }, 800); }
     return;
   }
-  else { mostrarTexto(r, datos, ocupantes); return; }
+  else { if(!returnB64) mostrarTexto(r, datos, ocupantes); return; }
+  if(returnB64 && doc) return doc.output("datauristring").split(",")[1];
 }
 
-function pdfFlamingos(datos, ocupantes, _genId) {
+function pdfFlamingos(datos, ocupantes, _genId, _returnB64) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const W = 612, ML = 36, MR = 36, CW = 540, RIGHT = 576;
@@ -231,10 +238,10 @@ function pdfFlamingos(datos, ocupantes, _genId) {
 
   const deptoNum=(datos.depto||"").replace("FLAMINGOS ","")|| "27";
   if(_genId) marcarGenerado(_genId);
-  doc.save(`Flamingos_${deptoNum}_${fc((datos.nombre||"huesped").split(" ")[0])}.pdf`);
+  if(_returnB64) return doc; doc.save(`Flamingos_${deptoNum}_${fc((datos.nombre||"huesped").split(" ")[0])}.pdf`);
 }
 
-function pdfAlbatros(datos, ocupantes, _genId) {
+function pdfAlbatros(datos, ocupantes, _genId, _returnB64) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const W = 612, H = 792, ML = 45, MR = 45;
@@ -402,10 +409,10 @@ function pdfAlbatros(datos, ocupantes, _genId) {
 
   const deptoCorto = depto.replace(/ /g,"");
   if(_genId) marcarGenerado(_genId);
-  doc.save(`Albatros_${deptoCorto}_registro.pdf`);
+  if(_returnB64) return doc; doc.save(`Albatros_${deptoCorto}_registro.pdf`);
 }
 
-function pdfGD(datos, ocupantes, _genId) {
+function pdfGD(datos, ocupantes, _genId, _returnB64) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:"pt", format:"letter"});
   const W = 612, H = 792;
@@ -551,11 +558,11 @@ function pdfGD(datos, ocupantes, _genId) {
   doc.rect(0, H-18, W, 18, "F");
 
   if(_genId) marcarGenerado(_genId);
-  doc.save(`GreenDistrict_${unidad}_${(datos.nombre||"huesped").split(" ")[0]}.pdf`);
+  if(_returnB64) return doc; doc.save(`GreenDistrict_${unidad}_${(datos.nombre||"huesped").split(" ")[0]}.pdf`);
 }
 
 
-function pdfAlamar(datos, ocupantes, _genId) {
+function pdfAlamar(datos, ocupantes, _genId, _returnB64) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const W = 612, H = 792;
@@ -1104,10 +1111,10 @@ function pdfAlamar(datos, ocupantes, _genId) {
 
   const filename = `ALAMAR_${fc(datos.depto.replace('ALAMAR ','').replace(/ /g,'_'))}_${lang.toUpperCase()}.pdf`;
   if(_genId) marcarGenerado(_genId);
-  doc.save(filename);
+  if(_returnB64) return doc; doc.save(filename);
 }
 
-function pdfVenetian(datos, ocupantes, _genId) {
+function pdfVenetian(datos, ocupantes, _genId, _returnB64) {
   var jsPDF = window.jspdf.jsPDF;
   var doc = new jsPDF({unit:"pt", format:"letter", putOnlyUsedFonts:true, floatPrecision:16});
   // Helper to fix special chars for jsPDF standard fonts
@@ -1486,7 +1493,7 @@ function pdfVenetian(datos, ocupantes, _genId) {
   y = jp(doc, "Así como de ser necesario, el consejo podrá evaluar cualquier controversia, para determinar su responsabilidad.", y, {font:"bold", gap:0});
 
   if(_genId) marcarGenerado(_genId);
-  doc.save("GrandVenetian_" + unidad + "_" + (datos.nombre||"huesped").split(" ")[0] + ".pdf");
+  if(_returnB64) return doc; doc.save("GrandVenetian_" + unidad + "_" + (datos.nombre||"huesped").split(" ")[0] + ".pdf");
 }
 
 
@@ -1496,7 +1503,7 @@ function pdfVenetian(datos, ocupantes, _genId) {
 
 
 
-function pdfQuiya(datos, ocupantes, _genId) {
+function pdfQuiya(datos, ocupantes, _genId, _returnB64) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:"pt", format:"letter"});
   const W = 612, H = 792;
@@ -1606,10 +1613,10 @@ function pdfQuiya(datos, ocupantes, _genId) {
   y = field("Fecha de salida:", fmtLong(datos.salida || datos.fecha_salida), y, 36);
 
   if(_genId) marcarGenerado(_genId);
-  doc.save(`Quiya_${villa.replace("VILLA ","")}_${(datos.nombre||"huesped").split(" ")[0]}.pdf`);
+  if(_returnB64) return doc; doc.save(`Quiya_${villa.replace("VILLA ","")}_${(datos.nombre||"huesped").split(" ")[0]}.pdf`);
 }
 
-function pdfXikiri(datos, ocupantes, _genId) {
+function pdfXikiri(datos, ocupantes, _genId, _returnB64) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:"mm",format:"letter"});
   const hoy = new Date();
@@ -1673,7 +1680,7 @@ function pdfXikiri(datos, ocupantes, _genId) {
   doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.text(fc("Pagina 1 de 1"),105,y+18,{align:"center"});
   const apellido=fc(datos.nombre||"huesped").split(" ").slice(-1)[0];
   if(_genId) marcarGenerado(_genId);
-  doc.save(`Xikiri_${apellido}.pdf`);
+  if(_returnB64) return doc; doc.save(`Xikiri_${apellido}.pdf`);
 }
 
 function pdfArenablanca(datos, ocupantes) {
@@ -2246,7 +2253,7 @@ function leasePeninsula(datos) {
   doc.save(fname);
 }
 
-function pdfPeninsulaES(datos, ocupantes) {
+function pdfPeninsulaES(datos, ocupantes, _returnB64) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:"pt", format:"letter"});
   const W=612, H=792, ML=64, MR=64, TW=W-ML-MR;
@@ -2503,6 +2510,7 @@ function pdfPeninsulaES(datos, ocupantes) {
   footer(pn);
 
   var fname="CheckIn_Peninsula19E_ES_"+fc(datos.nombre||"huesped").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
+  if(_returnB64) return doc;
   doc.save(fname);
 }
 
