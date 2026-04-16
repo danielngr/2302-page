@@ -2791,6 +2791,34 @@ ${numDepto}
   overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
   document.body.appendChild(overlay);
 }
+function generarTextoMsg(r, datos, ocupantes) {
+  // Misma lógica que mostrarTexto pero retorna el texto limpio (sin "📱 Enviar a: ...")
+  const _orig = mostrarTexto;
+  let _captured = null;
+  // Ejecutar mostrarTexto en modo captura parcheando document.body.appendChild temporalmente
+  // Alternativa más limpia: duplicar solo la lógica de texto
+  const lista = ocupantes.map((o,i)=>`${i+1}. ${o.nombre} — ${o.tipo||"Adulto"}`).join("\n");
+  let texto = "";
+  // Llamar mostrarTexto y capturar el texto del pre#modal-texto si existe
+  // Usamos un truco: parchear temporalmente el appendChild
+  const orig = document.body.appendChild.bind(document.body);
+  document.body.appendChild = function(el) {
+    // Capturar el texto del modal antes de que se agregue
+    const pre = el.querySelector && el.querySelector('#modal-texto');
+    if(pre) {
+      _captured = pre.textContent
+        .replace(/^.*Enviar a:[^\n]*\n?/,'')  // quitar línea "📱 Enviar a: ..."
+        .trim();
+    }
+    // No agregar al DOM realmente
+    document.body.appendChild = orig; // restaurar
+  };
+  try { mostrarTexto(r, datos, ocupantes); } catch(e) {}
+  document.body.appendChild = orig; // asegurar restauración
+  return _captured;
+}
+
+
 
 function enviarWA(btn) {
   const pre = document.getElementById('modal-texto');
