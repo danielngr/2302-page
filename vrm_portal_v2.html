@@ -4736,14 +4736,26 @@
         } catch(e) { console.log('Error cargando limpiezas RV:', e); }
     }
 
+    const DEPTO_ALIAS = {
+        'ALAMAR 101': 'ALAMAR DELTA 2 101',
+        'LA QUERENCIA': 'QUERENCIA',
+        'ARIA': null, 'BOLONGO': null, 'NAUTICO': null,
+        'RINCON': null, 'QUIYA': null, 'VENETIAN': null,
+    };
+    function normDepto(d) {
+        if(!d) return d;
+        return DEPTO_ALIAS.hasOwnProperty(d) ? DEPTO_ALIAS[d] : d;
+    }
     function getChicaForReview(depto, fecha) {
         if(!limpiezasRV.length) return null;
+        const deptoNorm = normDepto(depto);
+        if(!deptoNorm) return null;
         const fechaRv = new Date(fecha + 'T12:00:00');
         const match = limpiezasRV.find(l => {
-            if(l.depto_codigo !== depto) return false;
+            if(l.depto_codigo !== deptoNorm) return false;
             const fechaL = new Date(l.fecha + 'T12:00:00');
             const diff = (fechaRv - fechaL) / (1000*60*60*24);
-            return diff >= 0 && diff <= 3;
+            return diff >= -1 && diff <= 3;
         });
         return match ? (staffRVMap[match.staff_id] || null) : null;
     }
