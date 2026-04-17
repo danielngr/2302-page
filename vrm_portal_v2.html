@@ -4635,9 +4635,10 @@ id="mod-cierre-mensual" style="gap:20px;padding-bottom:40px;height:auto;min-heig
         box.innerHTML = statsHtml + tableHtml;
     }
 
-    // ── PORTFOLIO PERFORMANCE ─────────────────────────────────────────────────
-    let pfSortKey = 'revpar';
+    
 
+    
+    // ── PORTFOLIO PERFORMANCE ──────────────────────────────────────────────────
     function pfGetData(periodo) {
         if(typeof EARNINGS === 'undefined' || !EARNINGS.length) return [];
         const meses_2026 = ['2026-01','2026-02','2026-03'];
@@ -5159,52 +5160,6 @@ id="mod-cierre-mensual" style="gap:20px;padding-bottom:40px;height:auto;min-heig
         }).join('');
     }
 
-
-    function pfSortBy(key) {
-        pfSortKey = key;
-        // Update button opacity
-        ['revpar','neto','occ','adr'].forEach(k => {
-            const btn = document.getElementById('pf-sort-'+k);
-            if(btn) btn.style.opacity = k===key ? '1' : '.4';
-        });
-        const periodo = document.getElementById('pf-periodo')?.value || '2026-03';
-        const rows = pfGetData(periodo);
-        const deptos = pfAggByDepto(rows);
-        pfRenderRanking(deptos);
-    }
-
-    function pfRenderRanking(deptos) {
-        const sorted = [...deptos].sort((a,b) => b[pfSortKey] - a[pfSortKey]);
-        const fmt = n => '$' + Math.round(n).toLocaleString('es-MX');
-        const pct = n => n.toFixed(1)+'%';
-        const color = v => v>=70?'var(--status-green)':v>=50?'var(--status-yellow)':'var(--status-red)';
-
-        document.getElementById('pf-thead').innerHTML = `
-            <tr style="background:var(--bg-tertiary)">
-                <th style="padding:10px 16px;text-align:left;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px;white-space:nowrap">#</th>
-                <th style="padding:10px 16px;text-align:left;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px">Departamento</th>
-                <th style="padding:10px 12px;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase">Noches</th>
-                <th style="padding:10px 12px;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase">Occ%</th>
-                <th style="padding:10px 12px;text-align:right;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase">ADR</th>
-                <th style="padding:10px 12px;text-align:right;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;color:var(--accent)">RevPAR ▼</th>
-                <th style="padding:10px 16px;text-align:right;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase">Neto MXN</th>
-            </tr>`;
-
-        document.getElementById('pf-tbody').innerHTML = sorted.map((d,i) => `
-            <tr style="border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s"
-                onmouseover="this.style.background='rgba(255,255,255,.03)'"
-                onmouseout="this.style.background=''">
-                <td style="padding:10px 16px;font-family:var(--font-mono);font-size:11px;color:var(--text-tertiary)">${i+1}</td>
-                <td style="padding:10px 16px;font-weight:600">${d.depto}</td>
-                <td style="padding:10px 12px;text-align:center;font-family:var(--font-mono)">${d.noches}</td>
-                <td style="padding:10px 12px;text-align:center">
-                    <span style="background:${color(d.occ)}22;color:${color(d.occ)};padding:2px 8px;border-radius:20px;font-family:var(--font-mono);font-size:11px;font-weight:700">${pct(d.occ)}</span>
-                </td>
-                <td style="padding:10px 12px;text-align:right;font-family:var(--font-mono)">${fmt(d.adr)}</td>
-                <td style="padding:10px 12px;text-align:right;font-family:var(--font-mono);font-weight:700;color:var(--accent)">${fmt(d.revpar)}</td>
-                <td style="padding:10px 16px;text-align:right;font-family:var(--font-mono);color:var(--status-green)">${fmt(d.neto)}</td>
-            </tr>`).join('');
-    }
 
     // ── CIERRE MENSUAL ──────────────────────────────────────────────────────
     let cmMesOffset = 0; // 0 = mes actual, -1 = mes anterior, etc.
