@@ -80,8 +80,18 @@
     width: 100%; background: var(--bg); border: 1.5px solid var(--border);
     border-radius: 8px; color: var(--text); font-family: var(--sans);
     font-size: 15px; padding: 11px 14px; outline: none; transition: border-color .2s;
-    -webkit-appearance: none;
+    -webkit-appearance: none; box-sizing: border-box; min-height: 46px;
   }
+  input[type="date"] {
+    -webkit-appearance: none; appearance: none;
+    color: var(--text); min-height: 46px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%23999' viewBox='0 0 256 256'%3E%3Cpath d='M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 40px;
+  }
+  input[type="date"]:not([value=""])::-webkit-datetime-edit { color: var(--text); }
+  input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0; width: 40px; height: 40px; position: absolute; right: 0; cursor: pointer; }
   input:focus, select:focus { border-color: var(--accent); background: white; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
@@ -243,12 +253,13 @@
 
     <!-- Firma digital -->
     <div id="firma-section" style="display:none;margin-bottom:20px">
-      <p id="txt-firma-label" style="font-weight:600;font-size:14px;margin-bottom:8px;color:var(--text)">Firma del rentista</p>
-      <p id="txt-firma-hint" style="font-size:12px;color:var(--muted);margin-bottom:10px">Dibuja tu firma con el dedo o el mouse</p>
-      <div style="position:relative;border:2px solid var(--accent);border-radius:10px;overflow:hidden;background:#fff">
-        <canvas id="firma-canvas" width="380" height="160" style="display:block;width:100%;height:160px;touch-action:none;cursor:crosshair"></canvas>
-        <button onclick="limpiarFirma()" style="position:absolute;top:6px;right:8px;background:rgba(0,0,0,.1);border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">✕ Borrar</button>
+      <p style="font-weight:600;font-size:14px;margin-bottom:4px;color:var(--text)">✍️ Firma del rentista</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Dibuja tu firma aquí abajo con el dedo</p>
+      <div style="position:relative;background:#fff;border:2px solid #6ab0ab;border-radius:10px;overflow:hidden">
+        <canvas id="firma-canvas" style="display:block;width:100%;height:150px;cursor:crosshair;touch-action:none"></canvas>
+        <div style="position:absolute;bottom:8px;right:10px;font-size:10px;color:#bbb;pointer-events:none">firma aquí</div>
       </div>
+      <button onclick="limpiarFirma()" style="margin-top:8px;background:none;border:1px solid #ccc;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;color:#666">✕ Borrar y volver a firmar</button>
     </div>
 
     <div id="loading">Enviando registro...</div>
@@ -622,38 +633,49 @@ init();
   function initFirma() {
     firmaCanvas = document.getElementById('firma-canvas');
     if(!firmaCanvas) return;
-    
-    // Ajustar tamaño real del canvas al tamaño visual
-    function resizeCanvas() {
+    if(firmaCtx) return; // ya inicializado
+
+    // Esperar a que el canvas tenga dimensiones reales
+    setTimeout(() => {
+      const dpr = window.devicePixelRatio || 1;
       const rect = firmaCanvas.getBoundingClientRect();
-      if(rect.width === 0) return;
-      firmaCanvas.width = rect.width * window.devicePixelRatio;
-      firmaCanvas.height = rect.height * window.devicePixelRatio;
+      const W = rect.width || firmaCanvas.offsetWidth || 300;
+      const H = 150;
+
+      firmaCanvas.width = W * dpr;
+      firmaCanvas.height = H * dpr;
+
       firmaCtx = firmaCanvas.getContext('2d');
-      firmaCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
-      firmaCtx.strokeStyle = '#1a1a2e';
-      firmaCtx.lineWidth = 2.5;
+      firmaCtx.scale(dpr, dpr);
+      firmaCtx.strokeStyle = '#222';
+      firmaCtx.lineWidth = 2;
       firmaCtx.lineCap = 'round';
       firmaCtx.lineJoin = 'round';
-    }
-    resizeCanvas();
-    // Reintentar si canvas no tenía dimensiones aún
-    setTimeout(resizeCanvas, 100);
 
-    const getPos = (e) => {
-      const r = firmaCanvas.getBoundingClientRect();
-      const src = e.touches ? e.touches[0] : e;
-      return { x: src.clientX - r.left, y: src.clientY - r.top };
-    };
+      function pos(e) {
+        const r = firmaCanvas.getBoundingClientRect();
+        const t = e.touches ? e.touches[0] : e;
+        return { x: (t.clientX - r.left), y: (t.clientY - r.top) };
+      }
 
-    firmaCanvas.addEventListener('mousedown', e=>{ e.preventDefault(); firmaActiva=true; const p=getPos(e); firmaCtx.beginPath(); firmaCtx.moveTo(p.x,p.y); });
-    firmaCanvas.addEventListener('mousemove', e=>{ e.preventDefault(); if(!firmaActiva) return; const p=getPos(e); firmaCtx.lineTo(p.x,p.y); firmaCtx.stroke(); });
-    firmaCanvas.addEventListener('mouseup', ()=>firmaActiva=false);
-    firmaCanvas.addEventListener('mouseleave', ()=>firmaActiva=false);
-    firmaCanvas.addEventListener('touchstart', e=>{ e.preventDefault(); firmaActiva=true; const p=getPos(e); firmaCtx.beginPath(); firmaCtx.moveTo(p.x,p.y); }, {passive:false});
-    firmaCanvas.addEventListener('touchmove', e=>{ e.preventDefault(); if(!firmaActiva) return; const p=getPos(e); firmaCtx.lineTo(p.x,p.y); firmaCtx.stroke(); }, {passive:false});
-    firmaCanvas.addEventListener('touchend', ()=>{ firmaActiva=false; });
-    firmaCanvas.addEventListener('touchcancel', ()=>{ firmaActiva=false; });
+      firmaCanvas.addEventListener('pointerdown', e => {
+        firmaCanvas.setPointerCapture(e.pointerId);
+        firmaActiva = true;
+        const p = pos(e);
+        firmaCtx.beginPath();
+        firmaCtx.moveTo(p.x, p.y);
+      });
+      firmaCanvas.addEventListener('pointermove', e => {
+        if (!firmaActiva) return;
+        const p = pos(e);
+        firmaCtx.lineTo(p.x, p.y);
+        firmaCtx.stroke();
+        firmaCtx.beginPath();
+        firmaCtx.moveTo(p.x, p.y);
+      });
+      firmaCanvas.addEventListener('pointerup', () => firmaActiva = false);
+      firmaCanvas.addEventListener('pointercancel', () => firmaActiva = false);
+    }, 200);
   }
 
   function limpiarFirma() {
