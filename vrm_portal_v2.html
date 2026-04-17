@@ -4749,10 +4749,17 @@
     }
 
     const DEPTO_ALIAS = {
-        'ALAMAR 101': 'ALAMAR DELTA 2 101',
+        'ALAMAR 101': 'DELTA 2 101',        // en Supabase es DELTA 2 101
         'LA QUERENCIA': 'QUERENCIA',
-        'ARIA': null, 'BOLONGO': null, 'NAUTICO': null,
-        'RINCON': null, 'QUIYA': null, 'VENETIAN': null,
+        'BOLONGO': 'BOLONGO G13',            // reviews genéricas → G13
+        'NAUTICO': 'NAUTICO 1G',             // reviews genéricas → 1G
+        'NAUTICO NV': null,                  // múltiples deptos posibles
+        'ESTUDIO 10 PASOS': 'TULES 20-105', // mismo depto
+        'TORRE AMAPA': 'AMAPA',             // mismo depto
+        'RINCON': 'RINCON 403',             // duplicado del 403
+        'ARIA': null,                        // demasiado genérico — múltiples deptos
+        'QUIYA': null,                       // QUIYA 2705 ya no se administra
+        'VENETIAN': null,                    // demasiado genérico
     };
     function normDepto(d) {
         if(!d) return d;
@@ -4767,7 +4774,7 @@
             if(l.depto_codigo !== deptoNorm) return false;
             const fechaL = new Date(l.fecha + 'T12:00:00');
             const diff = (fechaRv - fechaL) / (1000*60*60*24);
-            return diff >= -1 && diff <= 3;
+            return diff >= -1 && diff <= 4;
         });
         return match ? (staffRVMap[match.staff_id] || null) : null;
     }
@@ -6549,7 +6556,7 @@ function updateNotifBadge(){
                 if(l.depto_codigo !== deptoNorm) return false;
                 const fechaL = new Date(l.fecha + 'T12:00:00');
                 const diff = (fechaRv - fechaL) / (1000*60*60*24);
-                return diff >= -1 && diff <= 3;
+                return diff >= -1 && diff <= 4;
             });
             if(!match) return;
             const sid = match.staff_id;
