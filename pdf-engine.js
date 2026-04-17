@@ -3000,10 +3000,10 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   doc.text("Placas",ML+162,y);if(pla){doc.setFont("helvetica","bold");doc.text(pla,ML+190,y);}
   ul(doc,ML+188,y,42);
   doc.setFont("helvetica","normal");
-  doc.text("MASCOTA (1 PERRO)  SI",ML+238,y);ul(doc,ML+324,y,18);
-  doc.text("NO",ML+348,y);doc.setFont("helvetica","bold");doc.text("X",ML+360,y);
-  ul(doc,ML+358,y,18);
-  doc.setFont("helvetica","normal");doc.text("TIPO:",ML+384,y);ul(doc,ML+406,y,36);y+=16;
+  doc.text("MASCOTA (1 PERRO)  SI",ML+238,y);ul(doc,ML+326,y,22);
+  doc.setFont("helvetica","normal");doc.text("NO",ML+354,y);ul(doc,ML+368,y,22);
+  doc.setFont("helvetica","bold");doc.text("X",ML+372,y);
+  doc.setFont("helvetica","normal");doc.text("TIPO:",ML+400,y);ul(doc,ML+420,y,28);y+=16;
 
   doc.setFont("helvetica","bold");
   doc.text("AUTORIZO QUE MI RENTISTA RECIBA VISITAS",ML+18,y);
@@ -3035,10 +3035,10 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   doc.setFont("helvetica","bold");doc.setFontSize(sz);
   doc.text("Propietario:",ML,y);
   doc.setFont("helvetica","normal");doc.text(PROP,ML+60,y);
-  ul(doc,ML+58,y,152);
-  doc.text("Fecha:",ML+224,y);
-  doc.setFont("helvetica","normal");doc.text(fmtES(datos.fecha_entrada),ML+252,y);
-  ul(doc,ML+250,y,RIGHT-ML-250);
+  ul(doc,ML+58,y,CW/2-58);
+  doc.setFont("helvetica","bold");doc.text("Fecha:",ML+CW/2+10,y);
+  doc.setFont("helvetica","normal");doc.text(fechaHoyES,ML+CW/2+38,y);
+  ul(doc,ML+CW/2+36,y,CW/2-36);
 
   // ══════════════ PÁGINA 3 ══════════════
   doc.addPage();logoCenter(doc);y=112;
@@ -3116,10 +3116,10 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   doc.setFont("helvetica","bold");doc.setFontSize(sz);
   doc.text("Owner:",ML,y);
   doc.setFont("helvetica","normal");doc.text(PROP,ML+40,y);
-  ul(doc,ML+38,y,150);
-  doc.text("Date:",ML+202,y);
-  doc.setFont("helvetica","normal");doc.text(fmtEN(datos.fecha_entrada),ML+226,y);
-  ul(doc,ML+224,y,RIGHT-ML-224);
+  ul(doc,ML+38,y,CW/2-38);
+  doc.setFont("helvetica","bold");doc.text("Date:",ML+CW/2+10,y);
+  doc.setFont("helvetica","normal");doc.text(fechaHoyEN,ML+CW/2+34,y);
+  ul(doc,ML+CW/2+32,y,CW/2-32);
 
   // ══════════════ PÁGINA 4 ══════════════
   doc.addPage();
