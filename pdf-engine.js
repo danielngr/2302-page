@@ -1933,8 +1933,13 @@ function pdfPeninsula(datos, ocupantes) {
   y+=10;
 
   // Signature line
+  const firma_pen_en = (datos.foto_id && String(datos.foto_id).startsWith('firma:'))
+    ? 'data:image/png;base64,' + datos.foto_id.replace('firma:','') : null;
   doc.text("Signature", W-MR-100, y+80);
-  uline(W-MR-140, y+82, W-MR);
+  if(firma_pen_en){
+    try{ doc.addImage(firma_pen_en,"PNG",W-MR-120,y+82,120,38); }catch(e){}
+  }
+  uline(W-MR-140, y+82+(firma_pen_en?40:0), W-MR);
 
   footer(pn);
 
@@ -2423,7 +2428,13 @@ function pdfPeninsulaES(datos, ocupantes, _returnB64) {
   y+=6;
 
   // Firma line
+  const firma_pen = (datos.foto_id && String(datos.foto_id).startsWith('firma:'))
+    ? 'data:image/png;base64,' + datos.foto_id.replace('firma:','') : null;
   doc.setFont("times","normal"); doc.text("Firma",W-MR-30,y); y+=4;
+  if(firma_pen){
+    try{ doc.addImage(firma_pen,"PNG",W-MR-120,y-2,120,38); }catch(e){}
+    y+=40;
+  }
   uline(W-MR-80,y,W-MR);
 
   footer(pn);
