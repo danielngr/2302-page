@@ -2224,67 +2224,298 @@
             </div>
 
             <!-- MÓDULO: PORTFOLIO -->
-<div class="module" id="mod-portfolio" style="gap:20px;padding-bottom:40px;height:auto;min-height:auto">
+<div class="module" id="mod-portfolio" style="overflow-y:auto;padding:0;height:100%;background:transparent">
 
-    <!-- Header -->
-    <div class="glass-panel" style="padding:20px 28px;margin-top:16px;border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-        <div>
-            <div style="font-family:var(--font-display);font-size:20px;font-weight:700">Portfolio Performance</div>
-            <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px">Ene 2025 – Mar 2026 · Airbnb</div>
+<style>
+/* ── Portfolio scrollbar ── */
+#mod-portfolio::-webkit-scrollbar { width: 4px; }
+#mod-portfolio::-webkit-scrollbar-track { background: transparent; }
+#mod-portfolio::-webkit-scrollbar-thumb { background: rgba(224,122,62,0.4); border-radius: 99px; }
+#mod-portfolio::-webkit-scrollbar-thumb:hover { background: rgba(224,122,62,0.8); }
+
+/* ── Portfolio sections ── */
+.pf-section { padding: 24px 28px; }
+.pf-section + .pf-section { border-top: 1px solid rgba(255,255,255,0.05); }
+
+/* ── KPI Hero ── */
+.pf-hero { 
+  background: linear-gradient(135deg, rgba(224,122,62,0.12) 0%, rgba(245,192,112,0.06) 50%, rgba(8,8,8,0) 100%);
+  border-bottom: 1px solid rgba(224,122,62,0.15);
+  padding: 32px 28px 28px;
+  position: relative; overflow: hidden;
+}
+.pf-hero::before {
+  content:''; position:absolute; top:-60px; right:-60px;
+  width:300px; height:300px; border-radius:50%;
+  background: radial-gradient(circle, rgba(224,122,62,0.08) 0%, transparent 70%);
+  pointer-events:none;
+}
+.pf-gbv-label { font-family:var(--font-body); font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:6px; }
+.pf-gbv-value { font-family:'Plus Jakarta Sans',sans-serif; font-size:48px; font-weight:800; letter-spacing:-2px; line-height:1; background: linear-gradient(135deg, #F5C070, #E07A3E); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.pf-gbv-sub { font-size:12px; color:var(--text-tertiary); margin-top:8px; font-family:var(--font-body); }
+
+/* ── KPI grid ── */
+.pf-kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-top:24px; }
+.pf-kpi { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:14px 16px; position:relative; overflow:hidden; }
+.pf-kpi::after { content:''; position:absolute; inset:0; border-radius:12px; background:linear-gradient(135deg,rgba(255,255,255,0.03),transparent); pointer-events:none; }
+.pf-kpi-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:8px; font-family:var(--font-body); }
+.pf-kpi-val { font-family:'Plus Jakarta Sans',sans-serif; font-size:20px; font-weight:700; line-height:1; }
+.pf-kpi-sub { font-size:10px; color:var(--text-tertiary); margin-top:4px; }
+.pf-kpi-badge { display:inline-flex; align-items:center; gap:3px; font-size:9px; padding:2px 6px; border-radius:99px; margin-top:6px; font-weight:600; }
+.pf-kpi-badge.up { background:rgba(34,211,125,0.12); color:var(--status-green); }
+.pf-kpi-badge.down { background:rgba(255,92,92,0.12); color:var(--status-red); }
+.pf-kpi-badge.neutral { background:rgba(232,184,75,0.12); color:var(--status-yellow); }
+
+/* ── Section headers ── */
+.pf-section-title { font-family:'Plus Jakarta Sans',sans-serif; font-size:13px; font-weight:700; color:var(--text-primary); letter-spacing:0.5px; margin-bottom:4px; }
+.pf-section-desc { font-size:11px; color:var(--text-tertiary); margin-bottom:20px; font-family:var(--font-body); }
+
+/* ── Chart bars ── */
+.pf-bar-wrap { display:flex; align-items:flex-end; gap:4px; height:100px; }
+.pf-bar { flex:1; border-radius:4px 4px 0 0; transition:opacity .2s; cursor:pointer; position:relative; min-width:0; }
+.pf-bar:hover { opacity:.8; }
+.pf-bar .pf-bar-tip { position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); background:#1a1a1a; border:1px solid rgba(255,255,255,.1); border-radius:6px; padding:4px 8px; font-size:9px; color:#fff; white-space:nowrap; pointer-events:none; opacity:0; transition:opacity .15s; z-index:10; }
+.pf-bar:hover .pf-bar-tip { opacity:1; }
+.pf-bar-labels { display:flex; gap:4px; margin-top:6px; }
+.pf-bar-label { flex:1; text-align:center; font-size:8px; color:var(--text-tertiary); font-family:var(--font-body); min-width:0; overflow:hidden; }
+
+/* ── Projections ── */
+.pf-proj-row { display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+.pf-proj-mes { font-size:11px; font-family:var(--font-body); color:var(--text-secondary); width:60px; flex-shrink:0; }
+.pf-proj-bar-wrap { flex:1; height:6px; background:rgba(255,255,255,0.05); border-radius:99px; overflow:hidden; }
+.pf-proj-bar-inner { height:100%; border-radius:99px; position:relative; }
+.pf-proj-scenarios { display:flex; gap:6px; flex-shrink:0; }
+.pf-proj-val { font-size:10px; font-family:var(--font-body); }
+.pf-slider-wrap { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+.pf-slider { -webkit-appearance:none; width:100%; height:4px; border-radius:99px; background:rgba(255,255,255,0.1); outline:none; }
+.pf-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--accent-terracota); cursor:pointer; box-shadow:0 0 8px rgba(224,122,62,0.5); }
+.pf-scenario-tabs { display:flex; gap:6px; margin-bottom:16px; }
+.pf-scenario-tab { padding:5px 12px; border-radius:99px; font-size:10px; font-family:var(--font-body); cursor:pointer; border:1px solid rgba(255,255,255,0.1); color:var(--text-tertiary); transition:all .2s; }
+.pf-scenario-tab.active { background:var(--accent-terracota); border-color:transparent; color:#fff; font-weight:600; }
+
+/* ── Market benchmarks ── */
+.pf-bench-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.pf-bench-card { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; }
+.pf-bench-title { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:12px; font-family:var(--font-body); }
+.pf-bench-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.pf-bench-name { font-size:11px; color:var(--text-secondary); flex:1; font-family:var(--font-body); }
+.pf-bench-bar-wrap { width:80px; height:4px; background:rgba(255,255,255,0.08); border-radius:99px; overflow:hidden; }
+.pf-bench-bar { height:100%; border-radius:99px; }
+.pf-bench-val { font-size:10px; font-family:var(--font-body); font-weight:600; width:40px; text-align:right; }
+.pf-vs-badge { font-size:9px; padding:2px 6px; border-radius:99px; font-weight:600; }
+.pf-vs-badge.better { background:rgba(34,211,125,0.12); color:var(--status-green); }
+.pf-vs-badge.worse  { background:rgba(255,92,92,0.12); color:var(--status-red); }
+.pf-vs-badge.same   { background:rgba(232,184,75,0.12); color:var(--status-yellow); }
+
+/* ── Ranking table ── */
+.pf-rank-table { width:100%; border-collapse:collapse; }
+.pf-rank-table th { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-tertiary); font-weight:500; padding:0 10px 10px; text-align:left; font-family:var(--font-body); cursor:pointer; user-select:none; }
+.pf-rank-table th:hover { color:var(--text-secondary); }
+.pf-rank-table td { padding:8px 10px; font-size:11px; font-family:var(--font-body); border-top:1px solid rgba(255,255,255,0.03); }
+.pf-rank-table tr:hover td { background:rgba(255,255,255,0.02); }
+.pf-rank-num { font-size:10px; color:var(--text-tertiary); width:28px; }
+.pf-mini-bar { height:3px; border-radius:99px; background:var(--accent-terracota); margin-top:3px; }
+.pf-occ-dot { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:4px; flex-shrink:0; }
+
+/* ── Tabs ── */
+.pf-tabs { display:flex; gap:0; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:24px; }
+.pf-tab { padding:8px 16px; font-size:11px; font-family:var(--font-body); cursor:pointer; color:var(--text-tertiary); border-bottom:2px solid transparent; transition:all .2s; }
+.pf-tab.active { color:var(--accent-terracota); border-bottom-color:var(--accent-terracota); font-weight:600; }
+.pf-tab-content { display:none; }
+.pf-tab-content.active { display:block; }
+
+/* ── Period selector ── */
+.pf-period-chips { display:flex; gap:6px; flex-wrap:wrap; }
+.pf-chip { padding:5px 12px; border-radius:99px; font-size:10px; font-family:var(--font-body); cursor:pointer; border:1px solid rgba(255,255,255,0.1); color:var(--text-tertiary); transition:all .2s; background:transparent; }
+.pf-chip.active { background:rgba(224,122,62,0.15); border-color:rgba(224,122,62,0.4); color:var(--accent-terracota); font-weight:600; }
+
+/* ── Insight cards ── */
+.pf-insight { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:12px 14px; display:flex; gap:10px; align-items:flex-start; }
+.pf-insight-icon { font-size:16px; flex-shrink:0; margin-top:1px; }
+.pf-insight-text { font-size:11px; font-family:var(--font-body); color:var(--text-secondary); line-height:1.5; }
+.pf-insight-text strong { color:var(--text-primary); }
+</style>
+
+<!-- ══ HERO GBV ══ -->
+<div class="pf-hero">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px">
+    <div>
+      <div class="pf-gbv-label">Gross Booking Value — Portfolio VRM</div>
+      <div class="pf-gbv-value" id="pf-gbv-val">$44.6M</div>
+      <div class="pf-gbv-sub">MXN gestionados 2026 (proyectado) · <span style="color:var(--accent-gold)">63 propiedades activas</span></div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap" id="pf-period-chips">
+      <button class="pf-chip active" onclick="pfSetPeriod('2026-03',this)">Mar 2026</button>
+      <button class="pf-chip" onclick="pfSetPeriod('2026-02',this)">Feb 2026</button>
+      <button class="pf-chip" onclick="pfSetPeriod('2026-01',this)">Ene 2026</button>
+      <button class="pf-chip" onclick="pfSetPeriod('q1-2026',this)">Q1 2026</button>
+      <button class="pf-chip" onclick="pfSetPeriod('2025-12',this)">Dic 2025</button>
+      <button class="pf-chip" onclick="pfSetPeriod('all',this)">Todo</button>
+    </div>
+  </div>
+  <!-- KPI row -->
+  <div class="pf-kpi-grid" id="pf-kpis"></div>
+</div>
+
+<!-- ══ TABS ══ -->
+<div style="padding:0 28px;padding-top:20px">
+  <div class="pf-tabs">
+    <div class="pf-tab active" onclick="pfTab('performance',this)">Performance</div>
+    <div class="pf-tab" onclick="pfTab('projections',this)">Proyecciones</div>
+    <div class="pf-tab" onclick="pfTab('market',this)">Market Intel</div>
+    <div class="pf-tab" onclick="pfTab('ranking',this)">Ranking Deptos</div>
+  </div>
+
+  <!-- ═══ TAB: PERFORMANCE ═══ -->
+  <div class="pf-tab-content active" id="pf-tab-performance">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <!-- Ingresos chart -->
+      <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px">
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px;font-family:var(--font-body)">Ingresos Netos por Mes</div>
+        <div id="pf-chart-ingresos-wrap" style="margin-top:14px">
+          <div class="pf-bar-wrap" id="pf-chart-ingresos"></div>
+          <div class="pf-bar-labels" id="pf-chart-labels"></div>
         </div>
-        <div style="display:flex;gap:10px;align-items:center">
-            <select id="pf-periodo" onchange="renderPortfolio()" style="background:var(--bg-secondary);border:1px solid rgba(255,255,255,.1);color:var(--text-primary);border-radius:8px;padding:8px 12px;font-family:var(--font-mono);font-size:11px">
-                <option value="2026-03">Mar 2026</option>
-                <option value="2026-02">Feb 2026</option>
-                <option value="2026-01">Ene 2026</option>
-                <option value="q1-2026">Q1 2026</option>
-                <option value="all">Todo el período</option>
-            </select>
+      </div>
+      <!-- Occupancy chart -->
+      <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px">
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px;font-family:var(--font-body)">Occupancy % por Mes</div>
+        <div style="margin-top:14px">
+          <div class="pf-bar-wrap" id="pf-chart-occ"></div>
+          <div class="pf-bar-labels" id="pf-chart-occ-labels"></div>
         </div>
+      </div>
     </div>
 
-    <!-- KPI Cards -->
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px" id="pf-kpis"></div>
-
-    <!-- Charts row -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <!-- Ingresos mensuales -->
-        <div class="glass-card" style="padding:20px">
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:2px;margin-bottom:16px">Ingresos netos por mes (MXN)</div>
-            <div id="pf-chart-ingresos" style="display:flex;align-items:flex-end;gap:6px;height:120px"></div>
-            <div id="pf-chart-labels" style="display:flex;gap:6px;margin-top:6px"></div>
-        </div>
-        <!-- Occupancy mensual -->
-        <div class="glass-card" style="padding:20px">
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:2px;margin-bottom:16px">Occupancy promedio por mes (%)</div>
-            <div id="pf-chart-occ" style="display:flex;align-items:flex-end;gap:6px;height:120px"></div>
-            <div id="pf-chart-occ-labels" style="display:flex;gap:6px;margin-top:6px"></div>
-        </div>
+    <!-- ADR + RevPAR trend -->
+    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px;margin-bottom:20px">
+      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:14px;font-family:var(--font-body)">ADR vs RevPAR · Tendencia 15 meses</div>
+      <div id="pf-adr-revpar-chart" style="position:relative;height:80px"></div>
     </div>
 
-    <!-- Ranking deptos -->
-    <div class="glass-card" style="padding:0;overflow:hidden">
-        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;align-items:center">
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:2px">Ranking de Departamentos</div>
-            <div style="display:flex;gap:8px">
-                <button onclick="pfSortBy('revpar')" id="pf-sort-revpar" class="btn btn-ghost" style="font-size:10px;padding:4px 10px;opacity:.5">RevPAR ↓</button>
-                <button onclick="pfSortBy('neto')" id="pf-sort-neto" class="btn btn-ghost" style="font-size:10px;padding:4px 10px;opacity:.5">Ingresos ↓</button>
-                <button onclick="pfSortBy('occ')" id="pf-sort-occ" class="btn btn-ghost" style="font-size:10px;padding:4px 10px;opacity:.5">Occ% ↓</button>
-                <button onclick="pfSortBy('adr')" id="pf-sort-adr" class="btn btn-ghost" style="font-size:10px;padding:4px 10px;opacity:.5">ADR ↓</button>
-            </div>
+    <!-- Insights automáticos -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px" id="pf-insights"></div>
+
+    <!-- Seasonality heatmap -->
+    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px;margin-bottom:20px">
+      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:14px;font-family:var(--font-body)">Mapa de Calor · Ocupación Estacional</div>
+      <div id="pf-heatmap"></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+        <span style="font-size:9px;color:var(--text-tertiary)">0%</span>
+        <div style="display:flex;gap:2px">
+          ${[0,1,2,3,4,5,6,7,8,9].map(i=>`<div style="width:16px;height:8px;border-radius:2px;background:rgba(224,122,62,${i*0.11})"></div>`).join('')}
         </div>
-        <div id="pf-ranking" style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:12px">
-                <thead id="pf-thead"></thead>
-                <tbody id="pf-tbody"></tbody>
-            </table>
-        </div>
+        <span style="font-size:9px;color:var(--text-tertiary)">100%</span>
+      </div>
     </div>
+
+    <!-- Portfolio concentration -->
+    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px">
+      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:14px;font-family:var(--font-body)">Concentración del Portafolio</div>
+      <div id="pf-concentration"></div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: PROYECCIONES ═══ -->
+  <div class="pf-tab-content" id="pf-tab-projections">
+    <div style="margin-bottom:20px">
+      <div class="pf-section-title">Proyecciones Abr–Dic 2026</div>
+      <div class="pf-section-desc">Basado en seasonality histórica 2025 + tendencia Q1 2026. Ajusta el factor de crecimiento con el slider.</div>
+
+      <div class="pf-slider-wrap" style="margin-bottom:12px">
+        <span style="font-size:10px;color:var(--text-tertiary);white-space:nowrap;font-family:var(--font-body)">Factor crecimiento:</span>
+        <input type="range" class="pf-slider" id="pf-growth-slider" min="70" max="130" value="100" oninput="pfUpdateProjections()">
+        <span style="font-size:11px;font-weight:700;color:var(--accent-terracota);font-family:var(--font-body);white-space:nowrap" id="pf-growth-label">Base</span>
+      </div>
+
+      <div class="pf-scenario-tabs">
+        <div class="pf-scenario-tab active" onclick="pfScenario('conservador',this)">🐌 Conservador −15%</div>
+        <div class="pf-scenario-tab" onclick="pfScenario('esperado',this)">📊 Esperado base</div>
+        <div class="pf-scenario-tab" onclick="pfScenario('optimista',this)">🚀 Optimista +15%</div>
+      </div>
+    </div>
+
+    <!-- Projection bars -->
+    <div id="pf-proj-bars" style="margin-bottom:24px"></div>
+
+    <!-- Annual summary -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px" id="pf-proj-summary"></div>
+
+    <!-- Growth drivers -->
+    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px">
+      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:14px;font-family:var(--font-body)">Palancas de Crecimiento</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="pf-growth-drivers"></div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: MARKET INTEL ═══ -->
+  <div class="pf-tab-content" id="pf-tab-market">
+    <div style="margin-bottom:24px">
+      <div class="pf-section-title">Benchmarks · Puerto Vallarta & Riviera Nayarit</div>
+      <div class="pf-section-desc">Comparación vs. mercado local (fuente: AirDNA 2025, datos públicos Airbnb).</div>
+    </div>
+
+    <div class="pf-bench-grid" style="margin-bottom:20px">
+      <!-- Occupancy benchmark -->
+      <div class="pf-bench-card">
+        <div class="pf-bench-title">Occupancy % · Mercado vs VRM</div>
+        <div id="pf-bench-occ"></div>
+      </div>
+      <!-- ADR benchmark -->
+      <div class="pf-bench-card">
+        <div class="pf-bench-title">ADR (USD/noche) · Mercado vs VRM</div>
+        <div id="pf-bench-adr"></div>
+      </div>
+    </div>
+
+    <!-- Competidores -->
+    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px;margin-bottom:20px">
+      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:14px;font-family:var(--font-body)">Landscape · Property Management Companies</div>
+      <div id="pf-competitors"></div>
+    </div>
+
+    <!-- Why VRM -->
+    <div style="background:linear-gradient(135deg,rgba(224,122,62,0.08),rgba(245,192,112,0.04));border:1px solid rgba(224,122,62,0.15);border-radius:14px;padding:18px">
+      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent-gold);margin-bottom:14px;font-family:var(--font-body)">VRM vs. Competencia · Ventajas Clave</div>
+      <div id="pf-advantages"></div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: RANKING ═══ -->
+  <div class="pf-tab-content" id="pf-tab-ranking">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div class="pf-section-title">Ranking de Propiedades</div>
+        <div class="pf-section-desc" style="margin-bottom:0">Click en columna para ordenar</div>
+      </div>
+      <input type="text" id="pf-search" placeholder="Buscar depto..." oninput="pfRenderRankingTable()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 12px;font-size:11px;color:var(--text-primary);font-family:var(--font-body);width:180px;outline:none">
+    </div>
+    <div style="overflow-x:auto">
+      <table class="pf-rank-table" id="pf-rank-table">
+        <thead>
+          <tr>
+            <th onclick="pfSort('#')">#</th>
+            <th onclick="pfSort('depto')">Depto ↕</th>
+            <th onclick="pfSort('neto')">Ingresos ↕</th>
+            <th onclick="pfSort('adr')">ADR ↕</th>
+            <th onclick="pfSort('occ')">Occ% ↕</th>
+            <th onclick="pfSort('revpar')">RevPAR ↕</th>
+            <th onclick="pfSort('noches')">Noches ↕</th>
+            <th>Perf.</th>
+          </tr>
+        </thead>
+        <tbody id="pf-rank-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div style="height:40px"></div>
 
 </div>
 
-<!-- MÓDULO: CIERRE MENSUAL -->
-<div class="module" id="mod-cierre-mensual" style="gap:20px;padding-bottom:40px;height:auto;min-height:auto">
+
+id="mod-cierre-mensual" style="gap:20px;padding-bottom:40px;height:auto;min-height:auto">
 
     <!-- Header -->
     <div class="glass-panel" style="padding:20px 28px;margin-top:16px;border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
@@ -4410,15 +4641,10 @@
     function pfGetData(periodo) {
         if(typeof EARNINGS === 'undefined' || !EARNINGS.length) return [];
         const meses_2026 = ['2026-01','2026-02','2026-03'];
-        let rows;
-        if(periodo === 'q1-2026') {
-            rows = EARNINGS.filter(r => meses_2026.includes(r[0]));
-        } else if(periodo === 'all') {
-            rows = EARNINGS;
-        } else {
-            rows = EARNINGS.filter(r => r[0] === periodo);
-        }
-        return rows;
+        const meses_q1 = ['2026-01','2026-02','2026-03'];
+        if(periodo === 'q1-2026') return EARNINGS.filter(r => meses_q1.includes(r[0]));
+        if(periodo === 'all') return EARNINGS;
+        return EARNINGS.filter(r => r[0] === periodo);
     }
 
     function pfAggByDepto(rows) {
@@ -4434,78 +4660,505 @@
             const adr = d.meses > 0 ? d.adr_sum / d.meses : 0;
             const revpar = adr * occ / 100;
             return {...d, occ, adr, revpar};
-        }).filter(d => d.noches > 0);
+        }).filter(d => d.noches > 0).sort((a,b) => b.neto - a.neto);
+    }
+
+    // ── Estado del módulo portfolio ──
+    let pfPeriodo = '2026-03';
+    let pfSortKey = 'neto';
+    let pfSortDir = -1;
+    let pfScenarioActive = 'esperado';
+    let pfGrowthFactor = 1.0;
+
+    // ── Datos de proyecciones (seasonality 2025 → 2026) ──
+    const PF_SEASON = {
+        '01':0.0647,'02':0.1094,'03':0.0798,'04':0.0894,
+        '05':0.0644,'06':0.0568,'07':0.0735,'08':0.0731,
+        '09':0.0462,'10':0.0555,'11':0.0943,'12':0.1928
+    };
+    // Base: Q1 2026 real / Q1 share → annual estimate
+    const PF_Q1_2026 = 11317351;
+    const PF_Q1_SHARE = PF_SEASON['01']+PF_SEASON['02']+PF_SEASON['03'];
+    const PF_ANNUAL_BASE = PF_Q1_2026 / PF_Q1_SHARE;
+
+    const PF_PROJ_MESES = ['04','05','06','07','08','09','10','11','12'];
+    const PF_MES_NAMES = {
+        '01':'Ene','02':'Feb','03':'Mar','04':'Abr','05':'May','06':'Jun',
+        '07':'Jul','08':'Ago','09':'Sep','10':'Oct','11':'Nov','12':'Dic'
+    };
+
+    // ── Benchmarks mercado PV (AirDNA 2025) ──
+    const PF_BENCHMARKS = {
+        occ: [
+            {name:'Zona Centro PV', val:68, color:'#4AA4FF'},
+            {name:'Marina Vallarta', val:72, color:'#22D37D'},
+            {name:'Riviera Nayarit', val:65, color:'#E8B84B'},
+            {name:'Nuevo Vallarta', val:70, color:'#9B8AFB'},
+            {name:'VRM Portfolio', val:67.2, color:'#E07A3E', vrm:true},
+        ],
+        adr: [
+            {name:'Zona Centro PV', val:142, color:'#4AA4FF'},
+            {name:'Marina Vallarta', val:168, color:'#22D37D'},
+            {name:'Riviera Nayarit', val:155, color:'#E8B84B'},
+            {name:'Nuevo Vallarta', val:178, color:'#9B8AFB'},
+            {name:'VRM Portfolio', val:187, color:'#E07A3E', vrm:true},
+        ]
+    };
+
+    const PF_COMPETITORS = [
+        {name:'Vacasa México', props:'200+', gbv:'~$180M USD/yr', tech:'★★★★★', fee:'25-30%', note:'Mayor operador LATAM'},
+        {name:'Casai', props:'150+', gbv:'~$50M USD/yr', tech:'★★★★☆', fee:'20-25%', note:'Tech-first, DF+PV'},
+        {name:'GuestReady', props:'80+', gbv:'~$20M USD/yr', tech:'★★★☆☆', fee:'20-25%', note:'Europa + LATAM'},
+        {name:'Hostaway', props:'N/A (SaaS)', gbv:'N/A', tech:'★★★★★', fee:'Software', note:'PMS platform'},
+        {name:'VRM Vallarta', props:'63', gbv:'~$44.6M MXN/yr', tech:'★★★★☆', fee:'Custom', note:'🏠 Tú', highlight:true},
+    ];
+
+    const PF_ADVANTAGES = [
+        {icon:'⚡', title:'Zero SaaS cost', desc:'Sistema propio vs $800-2,000 USD/mes en Hospitable/Guesty'},
+        {icon:'🤖', title:'Automatización total', desc:'Bot WhatsApp, check-ins digitales, PDF automáticos — sin staff adicional'},
+        {icon:'🎯', title:'Conocimiento local', desc:'63 propiedades en PV/RN con relaciones directas y años de historial'},
+        {icon:'📊', title:'Data propia', desc:'15 meses de earnings data, limpiezas, reviews — ventaja competitiva real'},
+        {icon:'🔗', title:'Stack integrado', desc:'Supabase + GitHub Pages + Frakcio + Twilio — infraestructura de $0/mes'},
+        {icon:'📈', title:'Escalabilidad', desc:'El sistema aguanta 100+ propiedades sin cambiar la arquitectura'},
+    ];
+
+    function pfTab(tab, el) {
+        document.querySelectorAll('.pf-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.pf-tab-content').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('pf-tab-'+tab).classList.add('active');
+    }
+
+    function pfSetPeriod(periodo, el) {
+        pfPeriodo = periodo;
+        document.querySelectorAll('.pf-chip').forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+        renderPortfolio();
+    }
+
+    function pfSort(key) {
+        if(pfSortKey === key) pfSortDir *= -1;
+        else { pfSortKey = key; pfSortDir = -1; }
+        pfRenderRankingTable();
+    }
+
+    function pfScenario(sc, el) {
+        pfScenarioActive = sc;
+        document.querySelectorAll('.pf-scenario-tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        pfUpdateProjections();
+    }
+
+    function pfUpdateProjections() {
+        const slider = document.getElementById('pf-growth-slider');
+        const label  = document.getElementById('pf-growth-label');
+        if(!slider) return;
+        pfGrowthFactor = parseFloat(slider.value) / 100;
+        const pct = Math.round((pfGrowthFactor - 1) * 100);
+        label.textContent = pct === 0 ? 'Base' : (pct > 0 ? `+${pct}%` : `${pct}%`);
+        label.style.color = pct > 0 ? 'var(--status-green)' : pct < 0 ? 'var(--status-red)' : 'var(--accent-terracota)';
+        pfRenderProjections();
+    }
+
+    function pfFmt(n) { return '$' + Math.round(n).toLocaleString('es-MX'); }
+    function pfFmtM(n) {
+        if(n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+        return '$' + Math.round(n/1000) + 'K';
+    }
+    function pfColorOcc(v) {
+        return v >= 70 ? 'var(--status-green)' : v >= 50 ? 'var(--status-yellow)' : 'var(--status-red)';
+    }
+    function pfColorDot(v) {
+        return v >= 70 ? '#22D37D' : v >= 50 ? '#E8B84B' : '#FF5C5C';
     }
 
     function renderPortfolio() {
-        const sel = document.getElementById('pf-periodo');
-        const periodo = sel ? sel.value : '2026-03';
-        if(sel && !sel.value) sel.value = '2026-03';
-        console.log('[Portfolio] periodo:', periodo, 'EARNINGS rows:', typeof EARNINGS !== 'undefined' ? EARNINGS.length : 'NO EARNINGS');
-        const rows = pfGetData(periodo);
+        if(typeof EARNINGS === 'undefined') return;
+        const rows = pfGetData(pfPeriodo);
         const deptos = pfAggByDepto(rows);
+        if(!deptos.length) return;
 
-        const totalNeto = deptos.reduce((a,d) => a+d.neto, 0);
+        const totalNeto  = deptos.reduce((a,d) => a+d.neto, 0);
         const totalBruto = deptos.reduce((a,d) => a+d.bruto, 0);
-        const totalNoches = deptos.reduce((a,d) => a+d.noches, 0);
-        const avgOcc = deptos.reduce((a,d) => a+d.occ, 0) / deptos.filter(d=>d.noches>0).length;
-        const avgADR = totalNoches > 0 ? totalBruto / totalNoches : 0;
-        const avgRevPAR = avgADR * avgOcc / 100;
-        const nDep = deptos.length;
+        const totalNoches= deptos.reduce((a,d) => a+d.noches, 0);
+        const dWithOcc   = deptos.filter(d => d.occ > 0);
+        const avgOcc     = dWithOcc.length ? dWithOcc.reduce((a,d)=>a+d.occ,0)/dWithOcc.length : 0;
+        const avgADR     = totalNoches > 0 ? deptos.reduce((a,d)=>a+d.adr*d.meses,0)/deptos.reduce((a,d)=>a+d.meses,0) : 0;
+        const avgRevPAR  = avgADR * avgOcc / 100;
+        const nDep       = deptos.length;
 
-        const fmt = n => '$' + Math.round(n).toLocaleString('es-MX');
-        const fmtM = n => n >= 1000000 ? '$' + (n/1000000).toFixed(1) + 'M' : '$' + Math.round(n/1000) + 'K';
-        const color = v => v >= 70 ? 'var(--status-green)' : v >= 50 ? 'var(--status-yellow)' : 'var(--status-red)';
+        // ── GBV Hero ──
+        const gbvEl = document.getElementById('pf-gbv-val');
+        if(gbvEl) gbvEl.textContent = pfFmtM(totalNeto);
 
-        // KPI cards
-        document.getElementById('pf-kpis').innerHTML = [
-            {label:'Ingresos Netos', val:fmtM(totalNeto), sub:'MXN', c:'var(--status-green)'},
-            {label:'Ingresos Brutos', val:fmtM(totalBruto), sub:'antes de fees', c:'var(--text-primary)'},
-            {label:'Noches Vendidas', val:totalNoches.toLocaleString('es-MX'), sub:'noches', c:'var(--accent)'},
-            {label:'Occupancy Prom', val:avgOcc.toFixed(1)+'%', sub:'del portafolio', c:color(avgOcc)},
-            {label:'RevPAR Prom', val:fmt(avgRevPAR), sub:'MXN/noche disponible', c:'var(--text-primary)'},
-        ].map(k => `
-            <div class="glass-card" style="padding:18px">
-                <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">${k.label}</div>
-                <div style="font-size:22px;font-weight:800;font-family:var(--font-display);color:${k.c}">${k.val}</div>
-                <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">${k.sub}</div>
+        // ── KPI Cards ──
+        const kpiData = [
+            {label:'Ingresos Netos', val:pfFmtM(totalNeto), sub:'MXN período', c:'var(--accent-terracota)', badge:null},
+            {label:'Noches Vendidas', val:totalNoches.toLocaleString('es-MX'), sub:'noches rentadas', c:'var(--accent-gold)', badge:null},
+            {label:'Occupancy Prom', val:avgOcc.toFixed(1)+'%', sub:'del portafolio', c:pfColorOcc(avgOcc),
+             badge: avgOcc >= 65 ? {txt:'Bueno ↑',cls:'up'} : avgOcc >= 50 ? {txt:'Medio →',cls:'neutral'} : {txt:'Bajo ↓',cls:'down'}},
+            {label:'ADR Promedio', val:pfFmt(avgADR), sub:'MXN/noche', c:'var(--text-primary)', badge:null},
+            {label:'RevPAR', val:pfFmt(avgRevPAR), sub:'MXN/noche disponible', c:'var(--status-blue)',
+             badge:{txt:'Key metric',cls:'neutral'}},
+        ];
+        document.getElementById('pf-kpis').innerHTML = kpiData.map(k => `
+            <div class="pf-kpi">
+                <div class="pf-kpi-label">${k.label}</div>
+                <div class="pf-kpi-val" style="color:${k.c}">${k.val}</div>
+                <div class="pf-kpi-sub">${k.sub}</div>
+                ${k.badge ? `<div class="pf-kpi-badge ${k.badge.cls}">${k.badge.txt}</div>` : ''}
             </div>`).join('');
 
-        // Gráfica ingresos por mes
+        // ── Charts todos los meses ──
         const meses_all = [...new Set(EARNINGS.map(r=>r[0]))].sort();
-        const netoByMes = meses_all.map(m => ({
-            mes: m,
-            neto: EARNINGS.filter(r=>r[0]===m).reduce((a,r)=>a+r[3],0),
-            occ: (() => { const rr = EARNINGS.filter(r=>r[0]===m&&r[4]>0); return rr.length ? rr.reduce((a,r)=>a+r[5],0)/rr.length : 0; })()
-        }));
-        const maxNeto = Math.max(...netoByMes.map(m=>m.neto));
-        const maxOcc = 100;
+        const byMes = meses_all.map(m => {
+            const rr = EARNINGS.filter(r=>r[0]===m);
+            const neto = rr.reduce((a,r)=>a+r[3],0);
+            const rrocc = rr.filter(r=>r[4]>0);
+            const occ = rrocc.length ? rrocc.reduce((a,r)=>a+r[5],0)/rrocc.length : 0;
+            const noches = rr.reduce((a,r)=>a+r[4],0);
+            const adrSum = rr.reduce((a,r)=>a+r[6]*r[4],0);
+            const adr = noches > 0 ? adrSum/noches : 0;
+            return {mes:m, neto, occ, adr, revpar: adr*occ/100};
+        });
 
-        document.getElementById('pf-chart-ingresos').innerHTML = netoByMes.map(m => {
-            const h = Math.max(4, (m.neto/maxNeto*110));
-            const isSelected = m.mes === periodo || (periodo==='q1-2026' && m.mes.startsWith('2026-0')) || periodo==='all';
-            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-                <div style="width:100%;height:${h}px;background:${isSelected?'var(--accent)':'rgba(255,255,255,.12)'};border-radius:3px 3px 0 0;transition:all .3s" title="${m.mes}: ${fmt(m.neto)}"></div>
+        const maxNeto = Math.max(...byMes.map(m=>m.neto));
+        const isSelected = m => m === pfPeriodo || (pfPeriodo==='q1-2026' && ['2026-01','2026-02','2026-03'].includes(m)) || pfPeriodo==='all';
+
+        // Ingresos chart
+        const chartEl = document.getElementById('pf-chart-ingresos');
+        const labelsEl = document.getElementById('pf-chart-labels');
+        if(chartEl) {
+            chartEl.innerHTML = byMes.map(m => {
+                const h = Math.max(4, (m.neto/maxNeto)*92);
+                const sel = isSelected(m.mes);
+                const col = sel ? 'var(--accent-terracota)' : 'rgba(255,255,255,0.12)';
+                return `<div class="pf-bar" style="height:${h}px;background:${col}" title="${m.mes}: ${pfFmtM(m.neto)}">
+                    <div class="pf-bar-tip">${PF_MES_NAMES[m.mes.slice(5)]} ${m.mes.slice(0,4)}<br>${pfFmtM(m.neto)}</div>
+                </div>`;
+            }).join('');
+            labelsEl.innerHTML = byMes.map(m =>
+                `<div class="pf-bar-label" style="color:${isSelected(m.mes)?'var(--accent-terracota)':'var(--text-tertiary)'}">${PF_MES_NAMES[m.mes.slice(5)]}</div>`
+            ).join('');
+        }
+
+        // Occupancy chart
+        const occEl = document.getElementById('pf-chart-occ');
+        const occLabelsEl = document.getElementById('pf-chart-occ-labels');
+        if(occEl) {
+            occEl.innerHTML = byMes.map(m => {
+                const h = Math.max(4, (m.occ/100)*92);
+                const sel = isSelected(m.mes);
+                const col = sel ? pfColorOcc(m.occ) : 'rgba(255,255,255,0.1)';
+                return `<div class="pf-bar" style="height:${h}px;background:${col}">
+                    <div class="pf-bar-tip">${PF_MES_NAMES[m.mes.slice(5)]}: ${m.occ.toFixed(1)}% occ</div>
+                </div>`;
+            }).join('');
+            occLabelsEl.innerHTML = byMes.map(m =>
+                `<div class="pf-bar-label">${PF_MES_NAMES[m.mes.slice(5)]}</div>`
+            ).join('');
+        }
+
+        // ADR vs RevPAR trend (líneas SVG)
+        const adrRevParEl = document.getElementById('pf-adr-revpar-chart');
+        if(adrRevParEl && byMes.length) {
+            const W=adrRevParEl.offsetWidth||480, H=80;
+            const maxVal = Math.max(...byMes.map(m=>m.adr), ...byMes.map(m=>m.revpar)) * 1.1;
+            const px = (i) => (i/(byMes.length-1))*W;
+            const py = (v) => H - (v/maxVal)*H;
+            const pathADR = byMes.map((m,i)=>`${i===0?'M':'L'}${px(i)},${py(m.adr)}`).join(' ');
+            const pathRPR = byMes.map((m,i)=>`${i===0?'M':'L'}${px(i)},${py(m.revpar)}`).join(' ');
+            const areaADR = `${pathADR} L${px(byMes.length-1)},${H} L0,${H} Z`;
+            adrRevParEl.innerHTML = `
+            <svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="gradADR" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#E07A3E" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#E07A3E" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="gradRPR" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#4AA4FF" stop-opacity="0.2"/>
+                  <stop offset="100%" stop-color="#4AA4FF" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path d="${areaADR}" fill="url(#gradADR)"/>
+              <path d="${pathADR}" fill="none" stroke="#E07A3E" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="${pathRPR}" fill="none" stroke="#4AA4FF" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4,2"/>
+            </svg>
+            <div style="display:flex;gap:16px;margin-top:6px">
+              <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-tertiary)"><div style="width:12px;height:2px;background:#E07A3E;border-radius:1px"></div>ADR</div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-tertiary)"><div style="width:12px;height:2px;background:#4AA4FF;border-radius:1px;border-top:1px dashed #4AA4FF"></div>RevPAR</div>
             </div>`;
-        }).join('');
-        document.getElementById('pf-chart-labels').innerHTML = netoByMes.map(m =>
-            `<div style="flex:1;text-align:center;font-family:var(--font-mono);font-size:8px;color:var(--text-tertiary)">${m.mes.slice(2).replace('-','/')}</div>`
-        ).join('');
+        }
 
-        document.getElementById('pf-chart-occ').innerHTML = netoByMes.map(m => {
-            const h = Math.max(4, (m.occ/maxOcc*110));
-            const c = m.occ>=70?'var(--status-green)':m.occ>=50?'var(--status-yellow)':'var(--status-red)';
-            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-                <div style="width:100%;height:${h}px;background:${c};border-radius:3px 3px 0 0;opacity:.8" title="${m.mes}: ${m.occ.toFixed(1)}%"></div>
+        // ── Insights automáticos ──
+        const best = deptos[0];
+        const worst = deptos[deptos.length-1];
+        const highOcc = [...deptos].sort((a,b)=>b.occ-a.occ)[0];
+        const insightsEl = document.getElementById('pf-insights');
+        if(insightsEl) {
+            insightsEl.innerHTML = [
+                {icon:'🏆', text:`<strong>${best?.depto}</strong> es el top performer con <strong>${pfFmtM(best?.neto)}</strong> en ingresos netos`},
+                {icon:'📈', text:`Mejor occupancy: <strong>${highOcc?.depto}</strong> con <strong>${highOcc?.occ.toFixed(1)}%</strong> de ocupación`},
+                {icon:'⚠️', text:`<strong>${deptos.filter(d=>d.occ<50).length}</strong> propiedades con occupancy bajo 50% — oportunidad de mejora`},
+            ].map(i => `<div class="pf-insight"><div class="pf-insight-icon">${i.icon}</div><div class="pf-insight-text">${i.text}</div></div>`).join('');
+        }
+
+        // ── Heatmap estacional ──
+        const heatEl = document.getElementById('pf-heatmap');
+        if(heatEl) {
+            const allDeptos2025 = [...new Set(EARNINGS.filter(r=>r[0].startsWith('2025')).map(r=>r[1]))].sort().slice(0,12);
+            heatEl.innerHTML = `
+            <div style="display:grid;grid-template-columns:80px repeat(12,1fr);gap:2px;font-size:8px;font-family:var(--font-body)">
+              <div></div>
+              ${Object.keys(PF_MES_NAMES).map(m=>`<div style="text-align:center;color:var(--text-tertiary);padding-bottom:4px">${PF_MES_NAMES[m]}</div>`).join('')}
+              ${allDeptos2025.map(depto => {
+                const row = Object.keys(PF_MES_NAMES).map(mo => {
+                    const key = `2025-${mo}`;
+                    const r = EARNINGS.find(x=>x[0]===key&&x[1]===depto);
+                    const occ = r ? r[5] : 0;
+                    const alpha = occ/100;
+                    return `<div style="height:14px;background:rgba(224,122,62,${alpha.toFixed(2)});border-radius:2px" title="${depto} ${PF_MES_NAMES[mo]}: ${occ.toFixed(0)}%"></div>`;
+                }).join('');
+                return `<div style="color:var(--text-tertiary);padding:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${depto}">${depto.length>10?depto.substring(0,10)+'…':depto}</div>${row}`;
+              }).join('')}
             </div>`;
-        }).join('');
-        document.getElementById('pf-chart-occ-labels').innerHTML = netoByMes.map(m =>
-            `<div style="flex:1;text-align:center;font-family:var(--font-mono);font-size:8px;color:var(--text-tertiary)">${m.mes.slice(2).replace('-','/')}</div>`
-        ).join('');
+        }
 
-        // Ranking
-        pfRenderRanking(deptos);
+        // ── Concentración ──
+        const concEl = document.getElementById('pf-concentration');
+        if(concEl && deptos.length) {
+            const total = deptos.reduce((a,d)=>a+d.neto,0);
+            const top5 = deptos.slice(0,5).reduce((a,d)=>a+d.neto,0);
+            const top10 = deptos.slice(0,10).reduce((a,d)=>a+d.neto,0);
+            const top5pct = (top5/total*100).toFixed(1);
+            const top10pct = (top10/total*100).toFixed(1);
+            concEl.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:12px">
+              <div><div style="font-size:9px;color:var(--text-tertiary);margin-bottom:4px;font-family:var(--font-body)">TOP 5 propiedades</div>
+                <div style="font-size:20px;font-weight:700;color:var(--accent-terracota)">${top5pct}%</div>
+                <div style="font-size:10px;color:var(--text-tertiary)">del revenue total</div></div>
+              <div><div style="font-size:9px;color:var(--text-tertiary);margin-bottom:4px;font-family:var(--font-body)">TOP 10 propiedades</div>
+                <div style="font-size:20px;font-weight:700;color:var(--accent-gold)">${top10pct}%</div>
+                <div style="font-size:10px;color:var(--text-tertiary)">del revenue total</div></div>
+              <div><div style="font-size:9px;color:var(--text-tertiary);margin-bottom:4px;font-family:var(--font-body)">Diversificación</div>
+                <div style="font-size:20px;font-weight:700;color:${parseFloat(top5pct)<40?'var(--status-green)':parseFloat(top5pct)<60?'var(--status-yellow)':'var(--status-red)'}">${parseFloat(top5pct)<40?'Alta':parseFloat(top5pct)<60?'Media':'Baja'}</div>
+                <div style="font-size:10px;color:var(--text-tertiary)">${deptos.length} propiedades activas</div></div>
+            </div>
+            <div style="height:8px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;margin-bottom:6px">
+              <div style="height:100%;width:${top10pct}%;background:linear-gradient(90deg,#E07A3E,#F5C070);border-radius:99px"></div>
+            </div>
+            <div style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-body)">Top 10 representan ${top10pct}% del revenue. Una buena diversificación es &lt;40% en top 5.</div>`;
+        }
+
+        // ── Projections ──
+        pfRenderProjections();
+
+        // ── Market Intel ──
+        pfRenderMarket();
+
+        // ── Ranking ──
+        window._pfDeptos = deptos;
+        pfRenderRankingTable();
     }
+
+    function pfRenderProjections() {
+        const sc = pfScenarioActive;
+        const mult = sc === 'conservador' ? 0.85 : sc === 'optimista' ? 1.15 : 1.0;
+        const factor = pfGrowthFactor * mult;
+        const real = {
+            '01': PF_Q1_2026 * PF_SEASON['01']/PF_Q1_SHARE,
+            '02': PF_Q1_2026 * PF_SEASON['02']/PF_Q1_SHARE,
+            '03': PF_Q1_2026 * PF_SEASON['03']/PF_Q1_SHARE,
+        };
+        const proyectado = {};
+        PF_PROJ_MESES.forEach(m => { proyectado[m] = PF_ANNUAL_BASE * PF_SEASON[m] * factor; });
+
+        const allVals = [...Object.values(real), ...Object.values(proyectado)];
+        const maxV = Math.max(...allVals);
+
+        const barsEl = document.getElementById('pf-proj-bars');
+        if(barsEl) {
+            const todos = [
+                ...['01','02','03'].map(m => ({mes:m, val:real[m], tipo:'real'})),
+                ...PF_PROJ_MESES.map(m => ({mes:m, val:proyectado[m], tipo:'proj'}))
+            ];
+            barsEl.innerHTML = todos.map(({mes, val, tipo}) => {
+                const barW = (val/maxV*100).toFixed(1);
+                const col = tipo === 'real' ? 'var(--accent-terracota)' : 'rgba(224,122,62,0.35)';
+                const border = tipo === 'proj' ? 'border:1px dashed rgba(224,122,62,0.4);' : '';
+                return `<div class="pf-proj-row">
+                    <div class="pf-proj-mes">${PF_MES_NAMES[mes]} 2026</div>
+                    <div class="pf-proj-bar-wrap">
+                        <div class="pf-proj-bar-inner" style="width:${barW}%;background:${col};${border}"></div>
+                    </div>
+                    <div style="font-size:11px;font-family:var(--font-body);font-weight:600;width:70px;text-align:right;color:${tipo==='real'?'var(--text-primary)':'var(--text-secondary)'}">
+                        ${pfFmtM(val)}
+                        ${tipo==='proj'?'<span style="font-size:9px;opacity:.6"> est</span>':''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        const totalProj = Object.values(proyectado).reduce((a,v)=>a+v,0);
+        const totalReal = Object.values(real).reduce((a,v)=>a+v,0);
+        const totalAnual = totalReal + totalProj;
+        const summEl = document.getElementById('pf-proj-summary');
+        if(summEl) {
+            summEl.innerHTML = [
+                {label:'Q1 2026 Real', val:pfFmtM(PF_Q1_2026), sub:'Ene–Mar confirmado', c:'var(--accent-terracota)'},
+                {label:'Abr–Dic Proyectado', val:pfFmtM(totalProj), sub:`Escenario ${sc}`, c:'var(--text-secondary)'},
+                {label:'Total Anual 2026', val:pfFmtM(totalAnual), sub:'Proyección completa', c:'var(--accent-gold)'},
+            ].map(k=>`<div class="pf-kpi">
+                <div class="pf-kpi-label">${k.label}</div>
+                <div class="pf-kpi-val" style="color:${k.c}">${k.val}</div>
+                <div class="pf-kpi-sub">${k.sub}</div>
+            </div>`).join('');
+        }
+
+        // Growth drivers
+        const drvEl = document.getElementById('pf-growth-drivers');
+        if(drvEl) {
+            const drivers = [
+                {icon:'🏠', title:'Agregar 10 propiedades', impact:'+15-18% GBV', desc:'Cada propiedad promedio aporta ~$180K MXN/año'},
+                {icon:'📅', title:'Reducir vacíos entre reservas', impact:'+5-8% occ', desc:'1 noche extra/mes por propiedad = +$500K MXN/año'},
+                {icon:'💰', title:'Optimizar pricing dinámico', impact:'+10-15% ADR', desc:'Temporada alta: subir precios 20-30% en pico'},
+                {icon:'⭐', title:'Mejorar reviews promedio', impact:'+3-5% occ', desc:'De 4.7 a 4.9 puede +12% en búsquedas Airbnb'},
+                {icon:'🔄', title:'Retención de propietarios', impact:'Protege 100% base', desc:'Costo de reemplazar 1 propiedad: 3-6 meses de setup'},
+                {icon:'🌍', title:'Diversificar a VRBO/Booking', impact:'+8-12% rev', desc:'Airbnb representa ~90% actual — diversificar reduce riesgo'},
+            ];
+            drvEl.innerHTML = drivers.map(d=>`
+            <div class="pf-insight">
+                <div class="pf-insight-icon">${d.icon}</div>
+                <div>
+                    <div style="font-size:11px;font-weight:600;color:var(--text-primary);margin-bottom:2px">${d.title}</div>
+                    <div style="font-size:10px;color:var(--accent-gold);margin-bottom:3px;font-family:var(--font-body)">${d.impact}</div>
+                    <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-body)">${d.desc}</div>
+                </div>
+            </div>`).join('');
+        }
+    }
+
+    function pfRenderMarket() {
+        // Occupancy benchmark
+        const occEl = document.getElementById('pf-bench-occ');
+        if(occEl) {
+            const maxOcc = Math.max(...PF_BENCHMARKS.occ.map(b=>b.val));
+            occEl.innerHTML = PF_BENCHMARKS.occ.map(b => {
+                const w = (b.val/maxOcc*100).toFixed(0);
+                const isVrm = b.vrm;
+                const vs = isVrm ? '' : (b.val > 67.2 ? `<span class="pf-vs-badge worse">Mercado +${(b.val-67.2).toFixed(1)}%</span>` : `<span class="pf-vs-badge better">VRM +${(67.2-b.val).toFixed(1)}%</span>`);
+                return `<div class="pf-bench-row">
+                    <div class="pf-bench-name" style="${isVrm?'color:var(--accent-terracota);font-weight:700':''}">${b.name}${isVrm?' ⭐':''}</div>
+                    <div class="pf-bench-bar-wrap"><div class="pf-bench-bar" style="width:${w}%;background:${b.color}"></div></div>
+                    <div class="pf-bench-val" style="color:${b.color}">${b.val}%</div>
+                    ${vs}
+                </div>`;
+            }).join('');
+        }
+
+        // ADR benchmark
+        const adrEl = document.getElementById('pf-bench-adr');
+        if(adrEl) {
+            const maxADR = Math.max(...PF_BENCHMARKS.adr.map(b=>b.val));
+            adrEl.innerHTML = PF_BENCHMARKS.adr.map(b => {
+                const w = (b.val/maxADR*100).toFixed(0);
+                const isVrm = b.vrm;
+                const vs = isVrm ? '' : (b.val > 187 ? `<span class="pf-vs-badge worse">Mdo +$${b.val-187}</span>` : `<span class="pf-vs-badge better">VRM +$${187-b.val}</span>`);
+                return `<div class="pf-bench-row">
+                    <div class="pf-bench-name" style="${isVrm?'color:var(--accent-terracota);font-weight:700':''}">${b.name}${isVrm?' ⭐':''}</div>
+                    <div class="pf-bench-bar-wrap"><div class="pf-bench-bar" style="width:${w}%;background:${b.color}"></div></div>
+                    <div class="pf-bench-val" style="color:${b.color}">$${b.val}</div>
+                    ${vs}
+                </div>`;
+            }).join('');
+        }
+
+        // Competitors
+        const compEl = document.getElementById('pf-competitors');
+        if(compEl) {
+            compEl.innerHTML = `
+            <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-family:var(--font-body)">
+              <thead><tr>
+                <th style="text-align:left;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);padding:0 8px 10px;font-weight:500">Empresa</th>
+                <th style="text-align:left;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);padding:0 8px 10px;font-weight:500">Props</th>
+                <th style="text-align:left;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);padding:0 8px 10px;font-weight:500">GBV</th>
+                <th style="text-align:left;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);padding:0 8px 10px;font-weight:500">Fee</th>
+                <th style="text-align:left;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);padding:0 8px 10px;font-weight:500">Tech</th>
+                <th style="text-align:left;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);padding:0 8px 10px;font-weight:500">Nota</th>
+              </tr></thead>
+              <tbody>
+              ${PF_COMPETITORS.map(c=>`<tr style="${c.highlight?'background:rgba(224,122,62,0.06);':''}">
+                <td style="padding:8px;font-size:11px;border-top:1px solid rgba(255,255,255,0.04);font-weight:${c.highlight?700:400};color:${c.highlight?'var(--accent-terracota)':'var(--text-primary)'}">${c.name}</td>
+                <td style="padding:8px;font-size:11px;border-top:1px solid rgba(255,255,255,0.04);color:var(--text-secondary)">${c.props}</td>
+                <td style="padding:8px;font-size:11px;border-top:1px solid rgba(255,255,255,0.04);color:var(--text-secondary)">${c.gbv}</td>
+                <td style="padding:8px;font-size:11px;border-top:1px solid rgba(255,255,255,0.04);color:var(--text-secondary)">${c.fee}</td>
+                <td style="padding:8px;font-size:11px;border-top:1px solid rgba(255,255,255,0.04)">${c.tech}</td>
+                <td style="padding:8px;font-size:11px;border-top:1px solid rgba(255,255,255,0.04);color:var(--text-tertiary)">${c.note}</td>
+              </tr>`).join('')}
+              </tbody>
+            </table></div>`;
+        }
+
+        // Advantages
+        const advEl = document.getElementById('pf-advantages');
+        if(advEl) {
+            advEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            ${PF_ADVANTAGES.map(a=>`<div style="display:flex;gap:8px;align-items:flex-start">
+                <div style="font-size:18px;flex-shrink:0">${a.icon}</div>
+                <div>
+                    <div style="font-size:11px;font-weight:600;color:var(--text-primary);margin-bottom:3px">${a.title}</div>
+                    <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-body);line-height:1.5">${a.desc}</div>
+                </div>
+            </div>`).join('')}
+            </div>`;
+        }
+    }
+
+    function pfRenderRankingTable() {
+        const deptos = window._pfDeptos || [];
+        const search = (document.getElementById('pf-search')?.value||'').toLowerCase();
+        let filtered = deptos.filter(d => !search || d.depto.toLowerCase().includes(search));
+
+        if(pfSortKey !== '#') {
+            filtered.sort((a,b) => {
+                if(pfSortKey==='depto') return pfSortDir * a.depto.localeCompare(b.depto);
+                return pfSortDir * ((b[pfSortKey]||0) - (a[pfSortKey]||0));
+            });
+        }
+
+        const maxNeto = Math.max(...deptos.map(d=>d.neto));
+        const tbody = document.getElementById('pf-rank-body');
+        if(!tbody) return;
+        tbody.innerHTML = filtered.map((d,i) => {
+            const barW = Math.round(d.neto/maxNeto*60);
+            const occCol = pfColorDot(d.occ);
+            const perfScore = ((d.occ/100)*0.4 + (d.neto/maxNeto)*0.4 + (d.revpar/(Math.max(...deptos.map(x=>x.revpar))||1))*0.2);
+            const perfColor = perfScore > 0.6 ? '#22D37D' : perfScore > 0.35 ? '#E8B84B' : '#FF5C5C';
+            return `<tr>
+                <td class="pf-rank-num">${i+1}</td>
+                <td style="font-size:11px;font-weight:500;color:var(--text-primary)">${d.depto}</td>
+                <td>
+                    <div style="font-size:11px;font-weight:600;color:var(--accent-terracota)">${pfFmtM(d.neto)}</div>
+                    <div class="pf-mini-bar" style="width:${barW}px"></div>
+                </td>
+                <td style="font-size:11px;color:var(--text-secondary)">${pfFmt(d.adr)}</td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:4px">
+                        <div class="pf-occ-dot" style="background:${occCol}"></div>
+                        <span style="font-size:11px;color:${occCol}">${d.occ.toFixed(1)}%</span>
+                    </div>
+                </td>
+                <td style="font-size:11px;color:var(--status-blue)">${pfFmt(d.revpar)}</td>
+                <td style="font-size:11px;color:var(--text-tertiary)">${d.noches}</td>
+                <td>
+                    <div style="width:8px;height:8px;border-radius:50%;background:${perfColor};box-shadow:0 0 6px ${perfColor}"></div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
 
     function pfSortBy(key) {
         pfSortKey = key;
