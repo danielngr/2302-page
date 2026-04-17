@@ -4314,30 +4314,6 @@
             </tr>
         `;
 
-        // Guardar para exportar
-        window._cmData = { mes: mes.iso, label: mes.label, rows, totNormal, totRefresh, totTotal };
-    }
-
-    async function cmExportarExcel() {
-        const d = window._cmData;
-        if (!d) { toast('Carga el mes primero'); return; }
-
-        // Generar CSV con formato similar al Cuadro Mensual del Drive
-        const lines = [
-            ['Mes', 'Departamento', 'Normal', 'Refresh', 'Total'].join('	'),
-            ...d.rows.map(r => [d.mes, r.depto, r.normal, r.refresh, r.total].join('	')),
-            ['', `TOTAL ${d.mes}`, d.totNormal, d.totRefresh, d.totTotal].join('	')
-        ];
-        const tsv = lines.join('
-');
-        const blob = new Blob(['﻿' + tsv], { type: 'text/tab-separated-values;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `cierre_${d.mes}.tsv`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast(`✓ Exportado: cierre_${d.mes}.tsv`);
     }
 
     // ── Marcar generado ─────────────────────────────────────────
