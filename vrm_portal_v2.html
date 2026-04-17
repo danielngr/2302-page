@@ -4887,81 +4887,75 @@ function renderDeptTable(){const ds={};filtered.forEach(r=>{if(!r.depto)return;i
         return deptSortDir*(b[deptSortKey]-a[deptSortKey]);
     });const f=v=>{const s=v>=4.5?'color:var(--green)':v>=4?'color:var(--gold)':v>=3.5?'':'color:var(--red)';return'<span style="'+s+'">'+v.toFixed(2)+'</span>'};document.querySelector('#deptTable tbody').innerHTML=rows.map(r=>'<tr><td style="padding:9px 16px"><strong>'+r.dept+'</strong></td><td style="padding:9px 16px">'+r.count+'</td><td>'+f(r.general)+'</td><td style="cursor:pointer" onclick="abrirDetalleDepto(\''+r.dept+'\')" title="Ver detalle">'+f(r.limpieza)+'</td><td>'+f(r.llegada)+'</td><td>'+f(r.comunicacion)+'</td><td>'+f(r.ubicacion)+'</td><td>'+f(r.veracidad)+'</td><td>'+f(r.calidad)+'</td></tr>').join('')}
 function abrirDetalleDepto(depto) {
-    // Recopilar reviews de ese depto
-    const rvs = filtered.filter(r => r.depto === depto).sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''));
+    const rvs = filtered.filter(r => r.depto === depto && r.limpieza).sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''));
     if(!rvs.length) return;
 
-    const avgs = {
-        general: avg(rvs.map(r=>r.general).filter(Boolean)),
-        limpieza: avg(rvs.map(r=>r.limpieza).filter(Boolean)),
-        llegada: avg(rvs.map(r=>r.llegada).filter(Boolean)),
-        comunicacion: avg(rvs.map(r=>r.comunicacion).filter(Boolean)),
-        ubicacion: avg(rvs.map(r=>r.ubicacion).filter(Boolean)),
-        veracidad: avg(rvs.map(r=>r.veracidad).filter(Boolean)),
-        calidad: avg(rvs.map(r=>r.calidad).filter(Boolean)),
-    };
+    // Separar reviews bajas (< 4) y todas
+    const bajas = rvs.filter(r => r.limpieza < 4);
+    const avg_limp = rvs.reduce((a,r) => a + r.limpieza, 0) / rvs.length;
+    const color = v => v >= 4.5 ? 'var(--status-green)' : v >= 4 ? 'var(--status-yellow)' : 'var(--status-red)';
 
-    const star = v => {
-        if(!v) return '—';
-        const c = v>=4.5?'var(--green)':v>=4?'var(--gold)':'var(--red)';
-        return '<span style="color:'+c+';font-weight:700">'+v.toFixed(2)+'</span> <span style="color:#888;font-size:11px">★</span>';
-    };
-
-    const cats = [
-        {k:'general',l:'General'},
-        {k:'limpieza',l:'Limpieza'},
-        {k:'llegada',l:'Llegada'},
-        {k:'comunicacion',l:'Comunicación'},
-        {k:'ubicacion',l:'Ubicación'},
-        {k:'veracidad',l:'Veracidad'},
-        {k:'calidad',l:'Calidad/precio'},
-    ];
-
-    // Reviews recientes con chica asignada
-    const rvRows = rvs.slice(0,8).map(r => {
+    const rvRow = (r) => {
         const chica = getChicaForReview(r.depto, r.fecha);
-        const limColor = r.limpieza >= 4.5 ? 'var(--green)' : r.limpieza >= 4 ? 'var(--gold)' : 'var(--red)';
-        return '<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:flex-start;gap:10px">'
-            +'<div style="flex:1">'
-            +'<div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)">'+r.fecha+' · '+r.huesped+'</div>'
-            +(r.comentario ? '<div style="font-size:12px;margin-top:3px;color:var(--text-secondary)">'+(r.comentario||'').substring(0,120)+'</div>' : '')
-            +'</div>'
-            +'<div style="text-align:right;flex-shrink:0">'
-            +'<div style="font-size:13px;font-weight:700;color:'+limColor+'">🧹 '+r.limpieza+'</div>'
-            +(chica ? '<div style="font-size:10px;color:var(--accent);font-family:var(--font-mono)">'+chica+'</div>' : '')
-            +'</div>'
-            +'</div>';
-    }).join('');
+        const limColor = color(r.limpieza);
+        const estrellas = '★'.repeat(r.limpieza) + '☆'.repeat(5 - r.limpieza);
+        return `<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:14px;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                <div>
+                    <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)">${r.fecha}</div>
+                    <div style="font-size:13px;font-weight:600;margin-top:2px">${r.huesped || '—'}</div>
+                </div>
+                <div style="text-align:right;flex-shrink:0">
+                    <div style="font-size:18px;color:${limColor}">${estrellas}</div>
+                    <div style="font-size:11px;font-weight:700;color:${limColor};font-family:var(--font-mono)">${r.limpieza} / 5</div>
+                </div>
+            </div>
+            ${r.comentario ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">"${r.comentario.substring(0,150)}${r.comentario.length > 150 ? '...' : ''}"</div>` : ''}
+            <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:8px;background:${chica ? 'rgba(0,200,150,.08)' : 'rgba(255,255,255,.04)'}">
+                <span style="font-size:16px">${chica ? '👩' : '❓'}</span>
+                <div>
+                    <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px">Limpieza a cargo de</div>
+                    <div style="font-size:13px;font-weight:700;color:${chica ? 'var(--status-green)' : 'var(--text-tertiary)'}">${chica || 'Sin registro en sistema'}</div>
+                </div>
+            </div>
+        </div>`;
+    };
 
-    const content = '<div style="padding:24px;display:flex;flex-direction:column;gap:20px;max-height:80vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent">'
-        +'<div style="display:flex;align-items:center;justify-content:space-between">'
-        +'<div style="font-family:var(--font-display);font-size:20px;font-weight:700">'+depto+'</div>'
-        +'<button onclick="cerrarDetalleDepto()" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:20px">×</button>'
-        +'</div>'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-        + cats.map(c => '<div style="background:rgba(255,255,255,.04);border-radius:10px;padding:12px 16px">'
-            +'<div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">'+c.l+'</div>'
-            +'<div style="font-size:18px">'+star(avgs[c.k])+'</div>'
-            +'</div>').join('')
-        +'</div>'
-        +'<div>'
-        +'<div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Últimas '+Math.min(rvs.length,8)+' reviews</div>'
-        + rvRows
-        +'</div>'
-        +'</div>';
+    const content = `<div style="padding:24px;display:flex;flex-direction:column;gap:16px;max-height:80vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+            <div>
+                <div style="font-family:var(--font-display);font-size:18px;font-weight:700">${depto}</div>
+                <div style="font-size:12px;color:var(--text-tertiary);margin-top:2px">${rvs.length} reviews · Limpieza promedio: <span style="color:${color(avg_limp)};font-weight:700">${avg_limp.toFixed(2)} ★</span></div>
+            </div>
+            <button onclick="cerrarDetalleDepto()" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:22px;padding:4px">×</button>
+        </div>
 
-    // Crear/reusar modal
+        ${bajas.length ? `
+        <div style="background:rgba(230,57,70,.08);border:1px solid rgba(230,57,70,.2);border-radius:12px;padding:14px">
+            <div style="font-size:10px;color:var(--status-red);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">⚠️ Reviews bajas de limpieza (${bajas.length})</div>
+            ${bajas.map(rvRow).join('')}
+        </div>` : `
+        <div style="background:rgba(0,200,150,.08);border:1px solid rgba(0,200,150,.2);border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:13px;color:var(--status-green)">✓ Sin reviews bajas de limpieza</div>
+        </div>`}
+
+        <div>
+            <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Todas las reviews de limpieza</div>
+            ${rvs.map(rvRow).join('')}
+        </div>
+    </div>`;
+
     let modal = document.getElementById('depto-detail-modal');
     if(!modal) {
         modal = document.createElement('div');
         modal.id = 'depto-detail-modal';
-        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)';
         modal.onclick = e => { if(e.target===modal) modal.remove(); };
         document.body.appendChild(modal);
     }
-    modal.innerHTML = '<div style="background:#141418;border:1px solid rgba(255,255,255,.15);border-radius:16px;width:100%;max-width:580px;box-shadow:0 24px 80px rgba(0,0,0,.8)">' + content + '</div>';
-    modal.style.display = 'flex';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)';
+    modal.innerHTML = `<div style="background:#141418;border:1px solid rgba(255,255,255,.15);border-radius:16px;width:100%;max-width:600px;box-shadow:0 24px 80px rgba(0,0,0,.8)">${content}</div>`;
 }
+
 
 function cerrarDetalleDepto() {
     const m = document.getElementById('depto-detail-modal');
