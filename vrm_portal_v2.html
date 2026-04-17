@@ -3334,7 +3334,17 @@
                 accion = `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
             }
         } else if(r.tipo_formato==="correo") {
-            accion=`<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Correo enviado</button>`;
+            // Algunos deptos tipo whatsapp tienen registros guardados como correo
+            const _tmpl = getTmpl(r.depto||'');
+            if(_tmpl.tipo === 'whatsapp') {
+              const _tieneMsg = tieneCorreoMsg(r.depto||'');
+              accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-blue" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button>${_tieneMsg ? `<button class="btn btn-outline-yellow" onclick="enviarMsgPorCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
+            } else if(r.pdf_generado) {
+              accion=`<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Correo enviado</button>`;
+            } else {
+              const _tieneCorreo2 = tieneCorreoConfigured(r.depto||'');
+              accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button>${_tieneCorreo2 ? `<button class="btn btn-outline-yellow" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
+            }
         } else if(r.tipo_formato==="frakcio") {
             const qrRecH = (frakcioQR||[]).find(x =>
                 x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()&&x.fecha===(r.fecha_entrada||"")
