@@ -485,6 +485,7 @@ function init() {
   const manana = new Date(hoy); manana.setDate(manana.getDate()+1);
   document.getElementById("fecha_salida").value = fmt(manana);
 
+  renderOcupantes(); // mostrar el primer input inmediatamente
   setTimeout(syncOcupantes, 50);
 }
 
@@ -687,7 +688,10 @@ init();
     const necesitaFirma = deptoUp.includes('MARALMA');
     const sec = document.getElementById('firma-section');
     if(sec) sec.style.display = necesitaFirma ? 'block' : 'none';
-    if(necesitaFirma && !firmaCtx) initFirma();
+    if(necesitaFirma && !firmaCtx) {
+      // Esperar a que el browser aplique display:block antes de leer dimensiones
+      setTimeout(initFirma, 50);
+    }
   }
 
 
