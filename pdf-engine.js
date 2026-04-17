@@ -2855,7 +2855,7 @@ function toggleDia(idx) {
 
 function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   const { jsPDF } = window.jspdf;
-  const W = 612, H = 792, ML = 72, MR = 72;
+  const W = 612, H = 792, ML = 60, MR = 60;
   const CW = W - ML - MR, RIGHT = W - MR;
   const TEAL = [106,176,171];
   const DARK = [20,20,20];
@@ -2867,18 +2867,17 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
 
   function fmtES(v){if(!v)return"___";const m=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];const[y,mo,d]=v.split("-");return`${parseInt(d)} de ${m[parseInt(mo)-1]} de ${y}`;}
   function fmtEN(v){if(!v)return"___";const m=["January","February","March","April","May","June","July","August","September","October","November","December"];const[y,mo,d]=v.split("-");return`${m[parseInt(mo)-1]} ${parseInt(d)}, ${y}`;}
-  function ul(doc,x,y,w){doc.setDrawColor(120);doc.setLineWidth(0.3);doc.line(x,y+3,x+w,y+3);}
+  function ul(doc,x,y,w){doc.setDrawColor(130);doc.setLineWidth(0.3);doc.line(x,y+3,x+w,y+3);}
   function tl(doc,x,y,w){doc.setDrawColor(160);doc.setLineWidth(0.35);doc.line(x,y,x+w,y);}
-  function logoCenter(doc){doc.addImage(LOGOS.maralma,"PNG",(W-logoW)/2,22,logoW,logoH,undefined,"FAST");}
+  function logoCenter(doc){doc.addImage(LOGOS.maralma,"PNG",(W-logoW)/2,20,logoW,logoH,undefined,"FAST");}
 
-  // Texto justificado
   function jtext(doc,text,x,y,maxW,lh){
     const words=text.split(' ');let line=[],curY=y;
     for(let i=0;i<words.length;i++){
       const test=[...line,words[i]].join(' ');
       if(doc.getTextWidth(test)>maxW&&line.length>0){
         if(line.length>1){const sw=(maxW-doc.getTextWidth(line.join('')))/(line.length-1);let cx=x;line.forEach(w=>{doc.text(w,cx,curY);cx+=doc.getTextWidth(w)+sw;});}
-        else doc.text(line.join(' '),x,curY);
+        else doc.text(line[0],x,curY);
         curY+=lh;line=[words[i]];
       }else line.push(words[i]);
     }
@@ -2891,65 +2890,75 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   let firma_img=datos._firma_img||null;
   if(!firma_img&&datos.foto_id&&String(datos.foto_id).startsWith('firma:'))
     firma_img='data:image/png;base64,'+datos.foto_id.replace('firma:','');
-
   const veh=datos.vehiculo_modelo||"", pla=datos.vehiculo_placas||"";
 
-  // ══════════════════════════════════════════════════════════
-  // PÁGINA 1
-  // ══════════════════════════════════════════════════════════
+  // ══════════════ PÁGINA 1 ══════════════
   const doc=new jsPDF({unit:"pt",format:"letter"});
-  logoCenter(doc); let y=82;
+  logoCenter(doc); let y=76;
   doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...DARK);
-  doc.text("PROCEDIMIENTO DE REGISTRO PARA RENTISTAS E INVITADOS",W/2,y,{align:"center"});y+=18;
+  doc.text("PROCEDIMIENTO DE REGISTRO PARA RENTISTAS E INVITADOS",W/2,y,{align:"center"});y+=16;
 
-  const sz=9.5,lh=13;
-  const parES=[
-    {b:true,t:"Estimados condóminos:"},
-    {t:"Reciban un cordial saludo."},[""],
-    {t:"Por medio de la presente, les compartimos el protocolo que se implementará para el registro de huéspedes e invitados."},[""],
-    {t:"Adjunto encontrarán el formulario de registro y el reglamento, los cuales deberán ser llenados, firmados y enviados a la administración vía correo electrónico con al menos 24 horas de anticipación."},[""],
-    {t:"Para registrar a los invitados de sus huéspedes, es necesario completar la sección correspondiente en el formulario, incluyendo los nombres de todas las personas autorizadas. Asimismo, será indispensable que la persona responsable presente una identificación oficial al momento de su arribo."},[""],
-    {t:"En caso de no completar y firmar este formulario por parte del invitado o inquilino, se podría generar una responsabilidad para la Asociación de Propietarios."},[""],
-    {t:"Adicionalmente, les recordamos que cualquier reporte de mantenimiento dentro de su unidad como bombillas fundidas, electrodomésticos defectuosos, llaves extraviadas o fallas en el aire acondicionado estos deberán ser atendido directamente por cada propietario y/o su administrador."},
-  ];
-  doc.setFontSize(sz);doc.setTextColor(...DARK);
-  for(const p of parES){
-    if(Array.isArray(p)){y+=5;continue;}
-    if(p.b){doc.setFont("helvetica","bold");doc.text(p.t,ML,y);y+=lh;}
-    else{doc.setFont("helvetica","normal");y=jtext(doc,p.t,ML,y,CW,lh);}
-  }
-  y+=12;tl(doc,ML,y,CW);y+=14;
+  const sz=9.5, lh=12.5;
+  doc.setFontSize(sz);
+  const blk=(b,t)=>{
+    if(b){doc.setFont("helvetica","bold");doc.text(t,ML,y);y+=lh;}
+    else{doc.setFont("helvetica","normal");y=jtext(doc,t,ML,y,CW,lh);}
+  };
+
+  blk(true,"Estimados condóminos:");
+  blk(false,"Reciban un cordial saludo.");
+  y+=5;
+  blk(false,"Por medio de la presente, les compartimos el protocolo que se implementará para el registro de huéspedes e invitados.");
+  y+=5;
+  blk(false,"Adjunto encontrarán el formulario de registro y el reglamento, los cuales deberán ser llenados, firmados y enviados a la administración vía correo electrónico con al menos 24 horas de anticipación.");
+  y+=5;
+  blk(false,"Para registrar a los invitados de sus huéspedes, es necesario completar la sección correspondiente en el formulario, incluyendo los nombres de todas las personas autorizadas. Asimismo, será indispensable que la persona responsable presente una identificación oficial al momento de su arribo.");
+  y+=5;
+  blk(false,"En caso de no completar y firmar este formulario por parte del invitado o inquilino, se podría generar una responsabilidad para la Asociación de Propietarios.");
+  y+=5;
+  blk(false,"Adicionalmente, les recordamos que cualquier reporte de mantenimiento dentro de su unidad como bombillas fundidas, electrodomésticos defectuosos, llaves extraviadas o fallas en el aire acondicionado estos deberán ser atendido directamente por cada propietario y/o su administrador.");
+
+  y+=10;tl(doc,ML,y,CW);y+=12;
 
   doc.setFont("helvetica","bold");doc.setFontSize(10);
-  doc.text("OWNER'S REGISTRATION PROCEDURE FOR RENTERS AND THEIR VISITORS",W/2,y,{align:"center"});y+=18;
-  doc.setFontSize(sz);doc.setFont("helvetica","bold");
-  doc.text("Dear Condominium Owners,",ML,y);y+=lh;
+  doc.text("OWNER'S REGISTRATION PROCEDURE FOR RENTERS AND THEIR VISITORS",W/2,y,{align:"center"});y+=16;
+  doc.setFontSize(sz);
+  doc.setFont("helvetica","bold");doc.text("Dear Condominium Owners,",ML,y);y+=lh;
   doc.setFont("helvetica","normal");doc.text("Warm regards.",ML,y);y+=lh+4;
   y=jtext(doc,"Through this notice, we would like to share the protocol that will be implemented for the registration of renters and their visitors. Attached you will find two forms:",ML,y,CW,lh);
-  y+=6;
+  y+=5;
 
-  // Item 1 con sangría exacta como el original
-  const ind=ML+30,indW=CW-30;
+  const ind=ML+26, indW=CW-26;
+  // Item 1
   doc.setFont("helvetica","normal");doc.setFontSize(sz);
   doc.text("1)",ML,y);
   const t1="Renter and Visitor Registration Form";
   const t1w=doc.getTextWidth(t1);
   doc.text(t1,ind,y);ul(doc,ind,y,t1w);
-  const r1=" – you must complete, sign and send this form to the administration via email at least 24 hours in advance. To register your renter's visitors, it is necessary to complete the corresponding section of the form, including the names of all authorized visitors. Additionally, visitors must present a valid ID upon arrival. Please note that owners are liable for all damages and infractions of their renters, and their renter's visitors.";
-  const rl1=doc.splitTextToSize(t1+r1,indW);
-  // Primera línea ya incluye el título, pintar sólo el resto
-  const restText=r1;
-  const restLines=doc.splitTextToSize(restText,indW-t1w);
-  // Continuación en misma línea
-  if(restLines[0]){
-    const fl=doc.splitTextToSize(t1+restLines[0],indW);
-    doc.text(restLines[0],ind+t1w,y);
+  // resto en misma línea
+  const rest1=" – you must complete, sign and send this form to the administration via email at least 24 hours in advance. To register your renter's visitors, it is necessary to complete the corresponding section of the form, including the names of all authorized visitors. Additionally, visitors must present a valid ID upon arrival. Please note that owners are liable for all damages and infractions of their renters, and their renter's visitors.";
+  const allText1=t1+rest1;
+  const lines1=doc.splitTextToSize(allText1,indW);
+  // Primera línea ya pintada (título), pintar el excedente
+  let usedW=t1w;
+  let firstExtra="";
+  // reconstruir lo que cabe en línea 1 después del título
+  const wordsR=rest1.trim().split(' ');let tmp="";
+  for(let wi=0;wi<wordsR.length;wi++){
+    const test=tmp+(tmp?" ":"")+wordsR[wi];
+    if(usedW+doc.getTextWidth(test)>indW) break;
+    tmp=test;
   }
+  if(tmp)doc.text(tmp,ind+t1w,y);
   y+=lh;
-  const moreLines=doc.splitTextToSize(restText.replace(restLines[0],'').trim(),indW);
-  for(const l of moreLines){if(l.trim())doc.text(l,ind,y),y+=lh;}
-  y+=6;
+  // Resto del texto después de lo que ya pintamos
+  const painted=t1+" "+tmp;
+  const remaining1=allText1.substring(painted.length).trim();
+  const remLines1=doc.splitTextToSize(remaining1,indW);
+  remLines1.forEach(l=>{if(l.trim()){doc.text(l,ind,y);y+=lh;}});
+  y+=5;
 
+  // Item 2
   doc.text("2)",ML,y);
   const t2="Maralma Rules Form";
   const t2w=doc.getTextWidth(t2);
@@ -2958,205 +2967,186 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   y+=lh+8;
 
   y=jtext(doc,"Additionally, please be reminded that any maintenance issues within your unit, such as burned-out light bulbs, defective appliances, lost keys, or air conditioning failures, must be handled directly by each owner and/or their property manager",ML,y,CW,lh);
-  y+=20;
+  y+=18;
   doc.setFont("helvetica","italic");doc.setFontSize(sz);
   doc.text("Atentamente/ Sincerely",W/2,y,{align:"center"});y+=lh;
   doc.text("La Administración / The Administration",W/2,y,{align:"center"});
 
-  // ══════════════════════════════════════════════════════════
-  // PÁGINA 2 — ES
-  // ══════════════════════════════════════════════════════════
-  doc.addPage();logoCenter(doc);y=82;
+  // ══════════════ PÁGINA 2 ══════════════
+  doc.addPage();logoCenter(doc);y=76;
   doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...DARK);
-  doc.text("Formato de registro de Rentistas y sus visitas.",ML,y);y+=16;
+  doc.text("Formato de registro de Rentistas y sus visitas.",ML,y);y+=15;
 
-  // "Le informamos que la unidad 501" en una línea
   doc.setFont("helvetica","normal");doc.setFontSize(sz);
   doc.text("Le informamos que la unidad",ML,y);
-  doc.setFont("helvetica","bold");doc.text(UNIDAD,ML+118,y);
-  ul(doc,ML+116,y,30);y+=lh;
-  // "ha sido alquilada..." + Del/Al en misma línea
+  doc.setFont("helvetica","bold");doc.text(UNIDAD,ML+118,y);ul(doc,ML+116,y,30);y+=lh;
   doc.setFont("helvetica","normal");
   doc.text("ha sido alquilada en las siguientes fechas:",ML,y);
-  doc.text("Del:",ML+196,y);
-  doc.setFont("helvetica","bold");doc.text(fmtES(datos.fecha_entrada),ML+214,y);
-  ul(doc,ML+212,y,120);
-  doc.setFont("helvetica","normal");doc.text("Al:",ML+338,y);
-  doc.setFont("helvetica","bold");doc.text(fmtES(datos.fecha_salida),ML+352,y);
-  ul(doc,ML+350,y,100);y+=20;
+  doc.text("Del:",ML+198,y);
+  doc.setFont("helvetica","bold");doc.text(fmtES(datos.fecha_entrada),ML+216,y);
+  ul(doc,ML+214,y,110);
+  doc.setFont("helvetica","normal");doc.text("Al:",ML+330,y);
+  doc.setFont("helvetica","bold");doc.text(fmtES(datos.fecha_salida),ML+344,y);
+  ul(doc,ML+342,y,CW-342+ML);y+=18;
 
   doc.setFont("helvetica","bold");doc.setFontSize(10);
-  doc.text("Nombres de los ocupantes:",ML,y);y+=18;
+  doc.text("Nombres de los ocupantes:",ML,y);y+=16;
 
-  // Ocupantes con más espacio vertical (como el original)
   const colO=(CW-20)/2;
   for(let i=0;i<4;i++){
-    const n1=gn(i),n2=gn(i+4);
-    const yr=y+i*22;
+    const n1=gn(i),n2=gn(i+4),yr=y+i*20;
     doc.setFont("helvetica","normal");doc.setFontSize(sz);
     doc.text(`${i+1}-`,ML,yr);
-    doc.setFont("helvetica","bold");if(n1)doc.text(n1,ML+14,yr);
+    if(n1){doc.setFont("helvetica","bold");doc.text(n1,ML+14,yr);}
     ul(doc,ML+12,yr,colO-12);
     doc.setFont("helvetica","normal");doc.text(`${i+5}-`,C2-2,yr);
-    doc.setFont("helvetica","bold");if(n2)doc.text(n2,C2+12,yr);
+    if(n2){doc.setFont("helvetica","bold");doc.text(n2,C2+12,yr);}
     ul(doc,C2+10,yr,colO-10);
   }
-  y+=4*22+16;
+  y+=4*20+14;
 
-  // Vehículo + Mascota
   doc.setFont("helvetica","normal");doc.setFontSize(sz);
-  doc.text("Vehículo",ML,y);doc.setFont("helvetica","bold");doc.text(veh,ML+42,y);
-  ul(doc,ML+40,y,52);
-  doc.setFont("helvetica","normal");doc.text("Color",ML+98,y);ul(doc,ML+120,y,38);
-  doc.text("Placas",ML+164,y);doc.setFont("helvetica","bold");doc.text(pla,ML+192,y);
-  ul(doc,ML+190,y,44);
+  doc.text("Vehículo",ML,y);if(veh){doc.setFont("helvetica","bold");doc.text(veh,ML+42,y);}
+  ul(doc,ML+40,y,50);
+  doc.setFont("helvetica","normal");doc.text("Color",ML+96,y);ul(doc,ML+118,y,36);
+  doc.text("Placas",ML+160,y);if(pla){doc.setFont("helvetica","bold");doc.text(pla,ML+188,y);}
+  ul(doc,ML+186,y,42);
   doc.setFont("helvetica","normal");
-  doc.text("MASCOTA (1 PERRO)  SI",ML+242,y);ul(doc,ML+332,y,20);
-  doc.text("NO",ML+358,y);doc.setFont("helvetica","bold");doc.text("X",ML+370,y);
-  ul(doc,ML+368,y,20);
-  doc.setFont("helvetica","normal");doc.text("TIPO:",ML+396,y);ul(doc,ML+418,y,38);
-  y+=16;
+  doc.text("MASCOTA (1 PERRO)  SI",ML+236,y);ul(doc,ML+322,y,18);
+  doc.text("NO",ML+346,y);doc.setFont("helvetica","bold");doc.text("X",ML+358,y);
+  ul(doc,ML+356,y,18);
+  doc.setFont("helvetica","normal");doc.text("TIPO:",ML+382,y);ul(doc,ML+404,y,36);y+=13;
 
   doc.setFont("helvetica","bold");
-  doc.text("AUTORIZO QUE MI RENTISTA RECIBA VISITAS",ML+20,y);
+  doc.text("AUTORIZO QUE MI RENTISTA RECIBA VISITAS",ML+16,y);
   doc.setFont("helvetica","normal");
-  doc.text("SI",ML+248,y);ul(doc,ML+260,y,20);
-  doc.text("NO",ML+286,y);doc.setFont("helvetica","bold");doc.text("X",ML+298,y);
-  ul(doc,ML+296,y,20);y+=18;
+  doc.text("SI",ML+240,y);ul(doc,ML+252,y,18);
+  doc.text("NO",ML+276,y);doc.setFont("helvetica","bold");doc.text("X",ML+288,y);
+  ul(doc,ML+286,y,18);y+=15;
 
   doc.setFont("helvetica","bold");doc.setFontSize(sz);
   doc.text("Capacidades permitidas por unidad.",ML,y);
-  doc.setFont("helvetica","italic");doc.text("(No incluye menores)",ML+170,y);y+=13;
+  doc.setFont("helvetica","italic");doc.text("(No incluye menores)",ML+170,y);y+=11;
   doc.setFont("helvetica","normal");
-  ["1 habitación: 4 adultos","2 habitaciones: 6 adultos","3 habitaciones: 8 adultos","4 habitaciones: 10 adultos"].forEach(t=>{doc.text(t,ML,y);y+=11;});
-  y+=10;
+  ["1 habitación: 4 adultos","2 habitaciones: 6 adultos","3 habitaciones: 8 adultos","4 habitaciones: 10 adultos"].forEach(t=>{doc.text(t,ML,y);y+=10;});
+  y+=8;
 
-  // Visitantes — formato del original: número, línea larga, FECHA DEL, línea, AL, línea
   for(let i=0;i<4;i++){
     doc.setFont("helvetica","normal");doc.setFontSize(sz);
-    doc.text(`${i+1}-`,ML,y);ul(doc,ML+14,y,100);
-    doc.text("FECHA DEL",ML+120,y);ul(doc,ML+164,y,80);
-    doc.text("AL",ML+250,y);ul(doc,ML+260,y,90);
-    y+=16;
+    doc.text(`${i+1}-`,ML,y);ul(doc,ML+14,y,96);
+    doc.text("FECHA DEL",ML+116,y);ul(doc,ML+160,y,80);
+    doc.text("AL",ML+246,y);ul(doc,ML+256,y,CW-256+ML);
+    y+=15;
   }
-  y+=12;
+  y+=10;
 
   doc.setFont("helvetica","normal");doc.setFontSize(8.5);
-  const lES=doc.splitTextToSize("El número de ocupantes cumple con el número máximo de personas permitido en mi unidad.\nEntiendo que mis inquilinos deben cumplir con las normas y reglamentos. En cualquier caso de mal comportamiento, el mal uso de las instalaciones, el ruido, la molestia para los demás, ya sea en áreas comunes o en la terraza de mi apartamento, puede resultar en ser escoltado desde la propiedad por seguridad.",CW);
-  doc.text(lES,ML,y);y+=lES.length*10+16;
+  const lES2=doc.splitTextToSize("El número de ocupantes cumple con el número máximo de personas permitido en mi unidad.\nEntiendo que mis inquilinos deben cumplir con las normas y reglamentos. En cualquier caso de mal comportamiento, el mal uso de las instalaciones, el ruido, la molestia para los demás, ya sea en áreas comunes o en la terraza de mi apartamento, puede resultar en ser escoltado desde la propiedad por seguridad.",CW);
+  doc.text(lES2,ML,y);y+=lES2.length*10+14;
 
   doc.setFont("helvetica","bold");doc.setFontSize(sz);
   doc.text("Propietario:",ML,y);
   doc.setFont("helvetica","normal");doc.text(PROP,ML+58,y);
-  ul(doc,ML+56,y,160);
-  doc.text("Fecha:",ML+230,y);
-  doc.setFont("helvetica","normal");doc.text(fmtES(datos.fecha_entrada),ML+258,y);
-  ul(doc,ML+256,y,CW-256);
+  ul(doc,ML+56,y,150);
+  doc.text("Fecha:",ML+220,y);
+  doc.setFont("helvetica","normal");doc.text(fmtES(datos.fecha_entrada),ML+248,y);
+  ul(doc,ML+246,y,CW-246+ML);
 
-  // ══════════════════════════════════════════════════════════
-  // PÁGINA 3 — EN
-  // ══════════════════════════════════════════════════════════
-  doc.addPage();logoCenter(doc);y=82;
+  // ══════════════ PÁGINA 3 ══════════════
+  doc.addPage();logoCenter(doc);y=76;
   doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...DARK);
   const tEN="Renter and Visitor Registration Form";
-  doc.text(tEN,ML,y);ul(doc,ML,y,doc.getTextWidth(tEN));y+=16;
+  doc.text(tEN,ML,y);ul(doc,ML,y,doc.getTextWidth(tEN));y+=15;
 
   doc.setFont("helvetica","normal");doc.setFontSize(sz);
   doc.text("Please be advised unit",ML,y);
-  doc.setFont("helvetica","bold");doc.text(UNIDAD,ML+92,y);
-  ul(doc,ML+90,y,30);
-  doc.setFont("helvetica","normal");doc.text("has been rented,",ML+126,y);y+=lh;
+  doc.setFont("helvetica","bold");doc.text(UNIDAD,ML+92,y);ul(doc,ML+90,y,28);
+  doc.setFont("helvetica","normal");doc.text("has been rented,",ML+124,y);y+=lh;
   doc.text("From:",ML,y);
   doc.setFont("helvetica","bold");doc.text(fmtEN(datos.fecha_entrada),ML+28,y);
-  ul(doc,ML+26,y,130);
-  doc.setFont("helvetica","normal");doc.text("To:",ML+162,y);
-  doc.setFont("helvetica","bold");doc.text(fmtEN(datos.fecha_salida),ML+176,y);
-  ul(doc,ML+174,y,130);y+=20;
+  ul(doc,ML+26,y,120);
+  doc.setFont("helvetica","normal");doc.text("To:",ML+152,y);
+  doc.setFont("helvetica","bold");doc.text(fmtEN(datos.fecha_salida),ML+166,y);
+  ul(doc,ML+164,y,CW-164+ML);y+=18;
 
   doc.setFont("helvetica","bold");doc.setFontSize(10);
-  doc.text("Names of occupants:",ML,y);y+=18;
+  doc.text("Names of occupants:",ML,y);y+=16;
 
   for(let i=0;i<4;i++){
-    const n1=gn(i),n2=gn(i+4);
-    const yr=y+i*22;
+    const n1=gn(i),n2=gn(i+4),yr=y+i*20;
     doc.setFont("helvetica","normal");doc.setFontSize(sz);
     doc.text(i===0?"1":`${i+1}-`,ML,yr);
-    doc.setFont("helvetica","bold");if(n1)doc.text(n1,ML+14,yr);
+    if(n1){doc.setFont("helvetica","bold");doc.text(n1,ML+14,yr);}
     ul(doc,ML+12,yr,colO-12);
     doc.setFont("helvetica","normal");doc.text(`${i+5}-`,C2-2,yr);
-    doc.setFont("helvetica","bold");if(n2)doc.text(n2,C2+12,yr);
+    if(n2){doc.setFont("helvetica","bold");doc.text(n2,C2+12,yr);}
     ul(doc,C2+10,yr,colO-10);
   }
-  y+=4*22+16;
+  y+=4*20+14;
 
   doc.setFont("helvetica","normal");doc.setFontSize(sz);
-  doc.text("Vehicle",ML,y);doc.setFont("helvetica","bold");doc.text(veh,ML+36,y);
-  ul(doc,ML+34,y,52);
-  doc.setFont("helvetica","normal");doc.text("Color",ML+92,y);ul(doc,ML+114,y,44);
-  doc.text("Plates",ML+164,y);doc.setFont("helvetica","bold");doc.text(pla,ML+190,y);
-  ul(doc,ML+188,y,44);
+  doc.text("Vehicle",ML,y);if(veh){doc.setFont("helvetica","bold");doc.text(veh,ML+36,y);}
+  ul(doc,ML+34,y,50);
+  doc.setFont("helvetica","normal");doc.text("Color",ML+90,y);ul(doc,ML+112,y,40);
+  doc.text("Plates",ML+158,y);if(pla){doc.setFont("helvetica","bold");doc.text(pla,ML+184,y);}
+  ul(doc,ML+182,y,42);
   doc.setFont("helvetica","normal");
-  doc.text("PET (1 DOG)  YES",ML+240,y);ul(doc,ML+310,y,20);
-  doc.text("NO",ML+336,y);doc.setFont("helvetica","bold");doc.text("X",ML+348,y);
-  ul(doc,ML+346,y,20);
-  doc.setFont("helvetica","normal");doc.text("TYPE",ML+374,y);ul(doc,ML+394,y,36);
-  y+=16;
+  doc.text("PET (1 DOG)  YES",ML+232,y);ul(doc,ML+300,y,18);
+  doc.text("NO",ML+324,y);doc.setFont("helvetica","bold");doc.text("X",ML+336,y);
+  ul(doc,ML+334,y,18);
+  doc.setFont("helvetica","normal");doc.text("TYPE",ML+360,y);ul(doc,ML+380,y,36);y+=13;
 
   doc.setFont("helvetica","bold");
-  doc.text("I AUTHORIZE MY RENTER TO RECEIVE VISITORS",ML+20,y);
+  doc.text("I AUTHORIZE MY RENTER TO RECEIVE VISITORS",ML+16,y);
   doc.setFont("helvetica","normal");
-  doc.text("YES",ML+252,y);ul(doc,ML+268,y,26);
-  doc.text("NO",ML+300,y);doc.setFont("helvetica","bold");doc.text("X",ML+312,y);
-  ul(doc,ML+310,y,26);y+=18;
+  doc.text("YES",ML+250,y);ul(doc,ML+266,y,24);
+  doc.text("NO",ML+296,y);doc.setFont("helvetica","bold");doc.text("X",ML+308,y);
+  ul(doc,ML+306,y,24);y+=15;
 
   doc.setFont("helvetica","bold");doc.setFontSize(sz);
   doc.text("Unit capacity.",ML,y);
-  doc.setFont("helvetica","italic");doc.text("(Not including minors)",ML+66,y);y+=13;
+  doc.setFont("helvetica","italic");doc.text("(Not including minors)",ML+66,y);y+=11;
   doc.setFont("helvetica","normal");
-  ["1 bedroom:  4 adults","2 bedrooms: 6 adults","3 bedrooms: 8 adults","4 bedrooms: 10 adults"].forEach(t=>{doc.text(t,ML,y);y+=11;});
-  y+=10;
+  ["1 bedroom:  4 adults","2 bedrooms: 6 adults","3 bedrooms: 8 adults","4 bedrooms: 10 adults"].forEach(t=>{doc.text(t,ML,y);y+=10;});
+  y+=8;
 
   for(let i=0;i<4;i++){
     doc.setFont("helvetica","normal");doc.setFontSize(sz);
-    doc.text(`${i+1}-`,ML,y);ul(doc,ML+14,y,100);
-    doc.text("DATE FROM:",ML+120,y);ul(doc,ML+168,y,80);
-    doc.text("TO:",ML+254,y);ul(doc,ML+268,y,80);
-    y+=16;
+    doc.text(`${i+1}-`,ML,y);ul(doc,ML+14,y,96);
+    doc.text("DATE FROM:",ML+116,y);ul(doc,ML+164,y,80);
+    doc.text("TO:",ML+250,y);ul(doc,ML+264,y,CW-264+ML);
+    y+=15;
   }
-  y+=12;
+  y+=10;
 
   doc.setFont("helvetica","normal");doc.setFontSize(8.5);
-  const lEN=doc.splitTextToSize("The number of occupants meets the maximum number of people allowed in my unit.\nI understand my renters and their visitors must comply with the rules and regulations. Bad behavior, misuse of facilities, noise, annoyance to others whether in common areas or on the terrace of my unit may result in renters/visitors being escorted from the property by security.",CW);
-  doc.text(lEN,ML,y);y+=lEN.length*10+16;
+  const lEN3=doc.splitTextToSize("The number of occupants meets the maximum number of people allowed in my unit.\nI understand my renters and their visitors must comply with the rules and regulations. Bad behavior, misuse of facilities, noise, annoyance to others whether in common areas or on the terrace of my unit may result in renters/visitors being escorted from the property by security.",CW);
+  doc.text(lEN3,ML,y);y+=lEN3.length*10+14;
 
   doc.setFont("helvetica","bold");doc.setFontSize(sz);
   doc.text("Owner:",ML,y);
   doc.setFont("helvetica","normal");doc.text(PROP,ML+38,y);
-  ul(doc,ML+36,y,160);
-  doc.text("Date:",ML+210,y);
-  doc.setFont("helvetica","normal");doc.text(fmtEN(datos.fecha_entrada),ML+234,y);
-  ul(doc,ML+232,y,CW-232);
+  ul(doc,ML+36,y,150);
+  doc.text("Date:",ML+200,y);
+  doc.setFont("helvetica","normal");doc.text(fmtEN(datos.fecha_entrada),ML+224,y);
+  ul(doc,ML+222,y,CW-222+ML);
 
-  // ══════════════════════════════════════════════════════════
-  // PÁGINA 4 — REGLAS (logo arriba derecha)
-  // ══════════════════════════════════════════════════════════
+  // ══════════════ PÁGINA 4 ══════════════
   doc.addPage();
-  // Logo arriba derecha (como el original)
-  doc.addImage(LOGOS.maralma,"PNG",RIGHT-logoW,14,logoW,logoH*0.75,undefined,"FAST");
-  y=30;
+  doc.addImage(LOGOS.maralma,"PNG",RIGHT-logoW,10,logoW,logoH*0.72,undefined,"FAST");
+  y=28;
   doc.setFont("helvetica","bold");doc.setFontSize(9.5);doc.setTextColor(...DARK);
-  doc.text("REGLAS GENERALES / GENERAL RULES.",ML,y);y+=22;
+  doc.text("REGLAS GENERALES / GENERAL RULES.",ML,y);y+=20;
 
-  const rulesES=[
-    {b:true,t:"Reglas Generales"},
+  const rES=[
+    {b:1,t:"Reglas Generales"},
     {t:"1. No jugar, correr o gritar en los pasillos de los edificios."},
     {t:"2. La hora de guardar silencio es a las 10:00 p.m."},
     {t:"3. Seguir las instrucciones en cada piso para el manejo de la basura."},
     {t:"4. Los inquilinos podrán recibir visitas en su unidad hasta el límite de esta Unidad. (sin incluir menores)."},
     {t:"1 habitación 4 adultos."},{t:"2 habitaciones 6 adultos"},{t:"3 habitaciones: 8 adultos"},{t:"4 habitaciones: 10 adultos"},
     {t:""},
-    {b:true,t:"Reglas del área de la alberca"},
-    {b:true,i:true,t:"ESTÁ PROHIBIDO:"},
+    {b:1,t:"Reglas del área de la alberca"},{b:1,i:1,t:"ESTÁ PROHIBIDO:"},
     {t:"1. El uso de la alberca sin la ropa adecuada."},
     {t:"2. Menores de 12 años sin la compañía de un adulto."},
     {t:"3. El uso de la alberca a personas que sufran de infecciones en la piel."},
@@ -3172,20 +3162,17 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
     {t:""},
     {t:"Entiendo que yo y mis compañeros debemos cumplir con las reglas establecidas en el Condominio. Entiendo que el incumplimiento puede resultar en que se le pida que abandone los Condominios."},
     {t:""},
-    {b:true,t:"Nombre y firma del rentista:"},
-    {firma:true},
+    {b:1,t:"Nombre y firma del rentista: __________________"},
   ];
-
-  const rulesEN=[
-    {b:true,t:"General rules"},
+  const rEN=[
+    {b:1,t:"General rules"},
     {t:"1. No playing, running or shouting in the corridors of the buildings."},
     {t:"2. Quiet time is 10:00 p.m."},
     {t:"3. Follow the instructions on each floor for waste management."},
     {t:"4. With approval from the owners, renters may receive visitors up to the Unit capacity (not including minors)"},
     {t:"1-bedroom apartment: 4 adults"},{t:"2-bedroom apartment: 6 adults"},{t:"3-bedroom apartment: 8 adults"},{t:"4-bedroom apartment: 10 adults"},
     {t:""},
-    {b:true,t:"Pool Area Rules"},
-    {b:true,i:true,t:"THE FOLLOWING ARE PROHIBITED:"},
+    {b:1,t:"Pool Area Rules"},{b:1,i:1,t:"THE FOLLOWING ARE PROHIBITED:"},
     {t:"1. The use of the pool without proper clothing."},
     {t:"2. Children under 12 years of age without the company of an adult."},
     {t:"3. The use of the pool for people who suffer from skin infections."},
@@ -3201,50 +3188,40 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
     {t:""},
     {t:"I understand that I and my companions must comply with the rules established in the Condominium. I understand that failure to comply may result in my being asked to vacate the Condominium."},
     {t:""},
-    {b:true,t:"Name and signature of the renter/visitor"},
-    {firma:true},
+    {b:1,t:"Name and signature of the renter/visitor"},
   ];
 
   let y1=y,y2=y;
-  for(let i=0;i<rulesES.length;i++){
+  for(let i=0;i<rES.length;i++){
     const rowY=Math.max(y1,y2);y1=rowY;y2=rowY;
-    const rES=rulesES[i]||{t:""},rEN=rulesEN[i]||{t:""};
-
-    if(rES.firma){
-      // Firma
-      const yF=rowY+4;
-      if(firma_img){try{doc.addImage(firma_img,"PNG",C1,yF,130,40);doc.addImage(firma_img,"PNG",C2,yF,130,40);}catch(e){}}
-      ul(doc,C1,yF+42,colW);
-      // EN: línea larga + Date debajo
-      ul(doc,C2,yF+42,colW);
-      doc.setFont("helvetica","normal");doc.setFontSize(8.5);
-      doc.text("Date",C2,yF+56);ul(doc,C2+22,yF+56,80);
-      y1=yF+62;y2=yF+62;
-      continue;
-    }
-
-    if(!rES.t&&!rEN.t){y1+=5;y2+=5;continue;}
-
-    const fES=rES.b&&rES.i?"bolditalic":rES.b?"bold":"normal";
-    const fEN=rEN.b&&rEN.i?"bolditalic":rEN.b?"bold":"normal";
-    const sz4=8.5;
-
-    doc.setFont("helvetica",fES);doc.setFontSize(sz4);doc.setTextColor(...DARK);
-    const lES=rES.t?doc.splitTextToSize(rES.t,colW):[""];
-    doc.setFont("helvetica",fEN);doc.setFontSize(sz4);
-    const lEN=rEN.t?doc.splitTextToSize(rEN.t,colW):[""];
-    const rowH=Math.max(lES.length,lEN.length)*10+1;
-
-    doc.setFont("helvetica",fES);doc.setFontSize(sz4);
-    if(rES.t)doc.text(lES,C1,y1);
-    doc.setFont("helvetica",fEN);
-    if(rEN.t)doc.text(lEN,C2,y2);
-    y1+=rowH;y2+=rowH;
+    const e=rES[i]||{t:""},n=rEN[i]||{t:""};
+    if(!e.t&&!n.t){y1+=4;y2+=4;continue;}
+    const fe=e.b&&e.i?"bolditalic":e.b?"bold":"normal";
+    const fn2=n.b&&n.i?"bolditalic":n.b?"bold":"normal";
+    doc.setFont("helvetica",fe);doc.setFontSize(8.5);doc.setTextColor(...DARK);
+    const le=e.t?doc.splitTextToSize(e.t,colW):[""];
+    doc.setFont("helvetica",fn2);doc.setFontSize(8.5);
+    const ln=n.t?doc.splitTextToSize(n.t,colW):[""];
+    const rh=Math.max(le.length,ln.length)*10+1;
+    doc.setFont("helvetica",fe);doc.setFontSize(8.5);
+    if(e.t)doc.text(le,C1,y1);
+    doc.setFont("helvetica",fn2);
+    if(n.t)doc.text(ln,C2,y2);
+    y1+=rh;y2+=rh;
   }
 
-  // Línea divisoria vertical pág 4
+  // Línea divisoria vertical
   doc.setDrawColor(...TEAL);doc.setLineWidth(0.4);
-  doc.line(C1+colW+7,y-4,C1+colW+7,Math.max(y1,y2)+4);
+  doc.line(C1+colW+7,y-4,C1+colW+7,Math.max(y1,y2)+20);
+
+  // Firma EN
+  const yF=Math.max(y1,y2)+4;
+  if(firma_img){
+    try{doc.addImage(firma_img,"PNG",C2,yF,120,38);}catch(e){}
+  }
+  ul(doc,C2,yF+42,colW);
+  doc.setFont("helvetica","normal");doc.setFontSize(8.5);
+  doc.text("Date",C2,yF+55);ul(doc,C2+22,yF+55,75);
 
   if(_returnB64)return doc.output("datauristring").split(",")[1];
   doc.save(`Maralma_${datos.nombre||"registro"}.pdf`);
