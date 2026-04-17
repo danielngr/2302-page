@@ -4722,19 +4722,29 @@
     async function cargarLimpiezasRV() {
         if(limpiezasRV.length > 0) return; // ya cargadas
         try {
-            const [rL, rS] = await Promise.all([
-                fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=in.(terminada,pagada)&select=staff_id,depto_codigo,fecha&limit=10000`, {
-                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Range":"0-9999","Prefer":"count=none"}
-                }),
-                fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?activo=eq.true&select=id,nombre`, {
-                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
-                })
-            ]);
-            limpiezasRV = await rL.json();
+            // Paginación — Supabase devuelve máx 1000 por request
+            const PAGE = 1000;
+            let offset = 0, todas = [];
+            while(true) {
+                const r = await fetch(
+                    `${SUPABASE_URL}/rest/v1/limpiezas?estatus=in.(terminada,pagada)&select=staff_id,depto_codigo,fecha&limit=${PAGE}&offset=${offset}`,
+                    { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
+                );
+                const batch = await r.json();
+                if(!batch.length) break;
+                todas = todas.concat(batch);
+                if(batch.length < PAGE) break;
+                offset += PAGE;
+            }
+            limpiezasRV = todas;
+
+            const rS = await fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?activo=eq.true&select=id,nombre`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            });
             const staff = await rS.json();
             staff.forEach(s => staffRVMap[s.id] = s.nombre);
             console.log('[RV] Limpiezas cargadas:', limpiezasRV.length, '| Staff:', Object.keys(staffRVMap).length);
-            renderAllTable(); // re-renderizar con datos de chica
+            renderAllTable();
         } catch(e) { console.error('Error cargando limpiezas RV:', e); }
     }
 
