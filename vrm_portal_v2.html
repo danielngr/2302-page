@@ -4928,7 +4928,7 @@ function abrirDetalleDepto(depto) {
             +'</div>';
     }).join('');
 
-    const content = '<div style="padding:24px;display:flex;flex-direction:column;gap:20px;max-height:80vh;overflow-y:auto">'
+    const content = '<div style="padding:24px;display:flex;flex-direction:column;gap:20px;max-height:80vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent">'
         +'<div style="display:flex;align-items:center;justify-content:space-between">'
         +'<div style="font-family:var(--font-display);font-size:20px;font-weight:700">'+depto+'</div>'
         +'<button onclick="cerrarDetalleDepto()" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:20px">×</button>'
@@ -6510,54 +6510,50 @@ function updateNotifBadge(){
         if(!container) return;
         container.innerHTML = '<div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px;text-align:center;padding:20px">Calculando...</div>';
 
-        // Asegurar que limpiezasRV estén cargadas
+        // Asegurar limpiezas cargadas
         await cargarLimpiezasRV();
 
-        // Cargar limpiezas y staff
-        const [resLimp, resStaff] = await Promise.all([
-            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=in.(terminada,pagada)&select=staff_id,depto_codigo,fecha`, {
-                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
-            }),
-            fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?activo=eq.true&select=id,nombre`, {
-                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
-            })
-        ]);
-        const limpiezas = await resLimp.json();
-        const staff = await resStaff.json();
-        const staffMap = {};
-        staff.forEach(s => staffMap[s.id] = s.nombre);
+        if(!limpiezasRV.length) {
+            container.innerHTML = '<div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px;text-align:center;padding:40px">Sin limpiezas en base de datos</div>';
+            return;
+        }
 
-        // Cruzar cada review con limpiezas del depto en los 3 días anteriores al checkout
-        const ranking = {}; // { staff_id: { nombre, ratings: [], count: 0 } }
+        // Usar DATA global de reviews
+        if(typeof DATA === 'undefined' || !DATA.length) {
+            container.innerHTML = '<div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px;text-align:center;padding:40px">Abre el módulo Reviews primero para cargar los datos</div>';
+            return;
+        }
+
+        const ranking = {};
 
         DATA.forEach(rv => {
             if(!rv.limpieza || !rv.fecha || !rv.depto) return;
+            const deptoNorm = normDepto(rv.depto);
+            if(!deptoNorm) return;
             const fechaRv = new Date(rv.fecha + 'T12:00:00');
-            // Buscar limpieza del mismo depto en los 3 días previos al checkout
-            const match = limpiezas.find(l => {
-                if(l.depto_codigo !== rv.depto) return false;
+            const match = limpiezasRV.find(l => {
+                if(l.depto_codigo !== deptoNorm) return false;
                 const fechaL = new Date(l.fecha + 'T12:00:00');
                 const diff = (fechaRv - fechaL) / (1000*60*60*24);
                 return diff >= -1 && diff <= 3;
             });
             if(!match) return;
             const sid = match.staff_id;
-            if(!ranking[sid]) ranking[sid] = { nombre: staffMap[sid] || sid.substring(0,8), ratings: [], deptos: [] };
+            const nombre = staffRVMap[sid] || sid.substring(0,8);
+            if(!ranking[sid]) ranking[sid] = { nombre, ratings: [] };
             ranking[sid].ratings.push(rv.limpieza);
-            ranking[sid].deptos.push(rv.depto);
         });
 
         const sorted = Object.entries(ranking)
             .map(([sid, d]) => ({
-                sid, nombre: d.nombre,
+                nombre: d.nombre,
                 promedio: d.ratings.reduce((a,b)=>a+b,0) / d.ratings.length,
-                count: d.ratings.length,
-                ratings: d.ratings
+                count: d.ratings.length
             }))
             .sort((a,b) => b.promedio - a.promedio);
 
         if(!sorted.length) {
-            container.innerHTML = '<div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px;text-align:center;padding:40px">Sin datos suficientes para calcular ranking</div>';
+            container.innerHTML = '<div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px;text-align:center;padding:40px">Sin datos suficientes — abre Reviews primero</div>';
             return;
         }
 
@@ -6586,6 +6582,7 @@ function updateNotifBadge(){
         `).join('');
     }
 
+    
     async function cargarLimpiezaStats() {
         const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
         const DIAS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
