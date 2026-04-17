@@ -2874,6 +2874,9 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
 
   function fmtES(v){if(!v)return"___";const[y,mo,d]=v.split("-");return`${parseInt(d)} de ${mesesES[parseInt(mo)-1]} de ${y}`;}
   function fmtEN(v){if(!v)return"___";const[y,mo,d]=v.split("-");return`${mesesEN[parseInt(mo)-1]} ${parseInt(d)}, ${y}`;}
+  // Compatibilidad: datos puede usar entrada/salida o fecha_entrada/fecha_salida
+  const fechaIn = datos.fecha_entrada || datos.entrada || "";
+  const fechaOut = datos.fecha_salida || datos.salida || "";
   function ul(doc,x,y,w){doc.setDrawColor(130);doc.setLineWidth(0.3);doc.line(x,y+3,x+w,y+3);}
   function tl(doc,x,y,w){doc.setDrawColor(160);doc.setLineWidth(0.35);doc.line(x,y,x+w,y);}
   function logoCenter(doc){doc.addImage(LOGOS.maralma,"PNG",(W-logoW)/2,52,logoW,logoH,undefined,"FAST");}
@@ -2971,10 +2974,10 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   doc.setFont("helvetica","normal");
   doc.text("ha sido alquilada en las siguientes fechas:",ML,y);
   doc.text("Del:",ML+202,y);
-  doc.setFont("helvetica","bold");doc.text(fmtES(datos.fecha_entrada),ML+220,y);
+  doc.setFont("helvetica","bold");doc.text(fmtES(fechaIn),ML+220,y);
   ul(doc,ML+218,y,108);
   doc.setFont("helvetica","normal");doc.text("Al:",ML+332,y);
-  doc.setFont("helvetica","bold");doc.text(fmtES(datos.fecha_salida),ML+346,y);
+  doc.setFont("helvetica","bold");doc.text(fmtES(fechaOut),ML+346,y);
   ul(doc,ML+344,y,RIGHT-ML-344);y+=20;
 
   doc.setFont("helvetica","bold");doc.setFontSize(10);
@@ -3056,10 +3059,10 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   ul(doc,ML+98,y,28);
   doc.setFont("helvetica","normal");doc.text("has been rented,",ML+132,y);y+=lh;
   doc.text("From:",ML,y);
-  doc.setFont("helvetica","bold");doc.text(fmtEN(datos.fecha_entrada),ML+30,y);
+  doc.setFont("helvetica","bold");doc.text(fmtEN(fechaIn),ML+30,y);
   ul(doc,ML+28,y,118);
   doc.setFont("helvetica","normal");doc.text("To:",ML+152,y);
-  doc.setFont("helvetica","bold");doc.text(fmtEN(datos.fecha_salida),ML+166,y);
+  doc.setFont("helvetica","bold");doc.text(fmtEN(fechaOut),ML+166,y);
   ul(doc,ML+164,y,RIGHT-ML-164);y+=20;
 
   doc.setFont("helvetica","bold");doc.setFontSize(10);
