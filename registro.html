@@ -204,14 +204,22 @@
     <!-- FECHAS -->
     <div class="card">
       <div class="card-title" id="txt-card-fechas">Fechas de estancia</div>
+      <div style="background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.4);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;gap:8px;align-items:flex-start">
+        <span style="font-size:16px;flex-shrink:0">⚠️</span>
+        <p id="txt-aviso-fechas" style="margin:0;font-size:12px;color:#555;line-height:1.5">
+          Ingresa las fechas <strong>exactamente como aparecen en tu reserva de Airbnb</strong>. Una fecha incorrecta puede impedir tu acceso al condominio.
+        </p>
+      </div>
       <div class="grid2">
         <div class="field">
           <label class="required" id="txt-label-entrada">Fecha de llegada</label>
-          <input type="date" id="fecha_entrada">
+          <p style="font-size:11px;color:#999;margin:0 0 4px">Toca el campo para seleccionar</p>
+          <input type="date" id="fecha_entrada" style="color:#888" onfocus="this.style.color='#222'" onblur="if(!this.value)this.style.color='#888'">
         </div>
         <div class="field">
           <label class="required" id="txt-label-salida">Fecha de salida</label>
-          <input type="date" id="fecha_salida">
+          <p style="font-size:11px;color:#999;margin:0 0 4px">Toca el campo para seleccionar</p>
+          <input type="date" id="fecha_salida" style="color:#888" onfocus="this.style.color='#222'" onblur="if(!this.value)this.style.color='#888'">
         </div>
       </div>
       <div class="grid3">
@@ -238,7 +246,7 @@
       <p id="txt-firma-label" style="font-weight:600;font-size:14px;margin-bottom:8px;color:var(--text)">Firma del rentista</p>
       <p id="txt-firma-hint" style="font-size:12px;color:var(--muted);margin-bottom:10px">Dibuja tu firma con el dedo o el mouse</p>
       <div style="position:relative;border:2px solid var(--accent);border-radius:10px;overflow:hidden;background:#fff">
-        <canvas id="firma-canvas" width="380" height="120" style="display:block;width:100%;touch-action:none;cursor:crosshair"></canvas>
+        <canvas id="firma-canvas" width="380" height="160" style="display:block;width:100%;height:160px;touch-action:none;cursor:crosshair"></canvas>
         <button onclick="limpiarFirma()" style="position:absolute;top:6px;right:8px;background:rgba(0,0,0,.1);border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">✕ Borrar</button>
       </div>
     </div>
@@ -614,27 +622,38 @@ init();
   function initFirma() {
     firmaCanvas = document.getElementById('firma-canvas');
     if(!firmaCanvas) return;
-    firmaCtx = firmaCanvas.getContext('2d');
-    firmaCtx.strokeStyle = '#1a1a2e';
-    firmaCtx.lineWidth = 2.5;
-    firmaCtx.lineCap = 'round';
-    firmaCtx.lineJoin = 'round';
+    
+    // Ajustar tamaño real del canvas al tamaño visual
+    function resizeCanvas() {
+      const rect = firmaCanvas.getBoundingClientRect();
+      if(rect.width === 0) return;
+      firmaCanvas.width = rect.width * window.devicePixelRatio;
+      firmaCanvas.height = rect.height * window.devicePixelRatio;
+      firmaCtx = firmaCanvas.getContext('2d');
+      firmaCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      firmaCtx.strokeStyle = '#1a1a2e';
+      firmaCtx.lineWidth = 2.5;
+      firmaCtx.lineCap = 'round';
+      firmaCtx.lineJoin = 'round';
+    }
+    resizeCanvas();
+    // Reintentar si canvas no tenía dimensiones aún
+    setTimeout(resizeCanvas, 100);
 
     const getPos = (e) => {
       const r = firmaCanvas.getBoundingClientRect();
-      const scaleX = firmaCanvas.width / r.width;
-      const scaleY = firmaCanvas.height / r.height;
       const src = e.touches ? e.touches[0] : e;
-      return { x:(src.clientX-r.left)*scaleX, y:(src.clientY-r.top)*scaleY };
+      return { x: src.clientX - r.left, y: src.clientY - r.top };
     };
 
-    firmaCanvas.addEventListener('mousedown', e=>{ firmaActiva=true; const p=getPos(e); firmaCtx.beginPath(); firmaCtx.moveTo(p.x,p.y); });
-    firmaCanvas.addEventListener('mousemove', e=>{ if(!firmaActiva) return; const p=getPos(e); firmaCtx.lineTo(p.x,p.y); firmaCtx.stroke(); });
+    firmaCanvas.addEventListener('mousedown', e=>{ e.preventDefault(); firmaActiva=true; const p=getPos(e); firmaCtx.beginPath(); firmaCtx.moveTo(p.x,p.y); });
+    firmaCanvas.addEventListener('mousemove', e=>{ e.preventDefault(); if(!firmaActiva) return; const p=getPos(e); firmaCtx.lineTo(p.x,p.y); firmaCtx.stroke(); });
     firmaCanvas.addEventListener('mouseup', ()=>firmaActiva=false);
     firmaCanvas.addEventListener('mouseleave', ()=>firmaActiva=false);
     firmaCanvas.addEventListener('touchstart', e=>{ e.preventDefault(); firmaActiva=true; const p=getPos(e); firmaCtx.beginPath(); firmaCtx.moveTo(p.x,p.y); }, {passive:false});
     firmaCanvas.addEventListener('touchmove', e=>{ e.preventDefault(); if(!firmaActiva) return; const p=getPos(e); firmaCtx.lineTo(p.x,p.y); firmaCtx.stroke(); }, {passive:false});
-    firmaCanvas.addEventListener('touchend', ()=>firmaActiva=false);
+    firmaCanvas.addEventListener('touchend', ()=>{ firmaActiva=false; });
+    firmaCanvas.addEventListener('touchcancel', ()=>{ firmaActiva=false; });
   }
 
   function limpiarFirma() {
@@ -642,17 +661,19 @@ init();
   }
 
   function getFirmaB64() {
-    if(!firmaCanvas) return null;
-    const ctx = firmaCtx;
-    const data = ctx.getImageData(0,0,firmaCanvas.width,firmaCanvas.height).data;
+    if(!firmaCanvas || !firmaCtx) return null;
+    const data = firmaCtx.getImageData(0,0,firmaCanvas.width,firmaCanvas.height).data;
     const hasDrawing = Array.from(data).some((v,i)=>i%4===3&&v>0);
     if(!hasDrawing) return null;
-    // Fondo blanco
+    // Exportar a tamaño visual (sin el devicePixelRatio)
+    const rect = firmaCanvas.getBoundingClientRect();
     const tmp = document.createElement('canvas');
-    tmp.width=firmaCanvas.width; tmp.height=firmaCanvas.height;
-    const tc=tmp.getContext('2d');
-    tc.fillStyle='#fff'; tc.fillRect(0,0,tmp.width,tmp.height);
-    tc.drawImage(firmaCanvas,0,0);
+    tmp.width = rect.width || 380;
+    tmp.height = rect.height || 120;
+    const tc = tmp.getContext('2d');
+    tc.fillStyle = '#fff';
+    tc.fillRect(0, 0, tmp.width, tmp.height);
+    tc.drawImage(firmaCanvas, 0, 0, tmp.width, tmp.height);
     return tmp.toDataURL('image/png').split(',')[1];
   }
 
