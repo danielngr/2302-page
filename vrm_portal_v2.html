@@ -2038,6 +2038,10 @@
 
             <div class="sidebar-section">
                 <div class="sidebar-title">Análisis</div>
+                <div class="nav-item" onclick="goTo('portfolio',this)">
+                    <i class="ph ph-chart-line-up"></i>
+                    Portfolio
+                </div>
                 <div class="nav-item" onclick="goTo('reviews',this)">
                     <i class="ph ph-star"></i>
                     Reviews
@@ -2219,7 +2223,67 @@
 
             </div>
 
-            <!-- MÓDULO: CIERRE MENSUAL -->
+            <!-- MÓDULO: PORTFOLIO -->
+<div class="module" id="mod-portfolio" style="gap:20px;padding-bottom:40px;height:auto;min-height:auto">
+
+    <!-- Header -->
+    <div class="glass-panel" style="padding:20px 28px;margin-top:16px;border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <div>
+            <div style="font-family:var(--font-display);font-size:20px;font-weight:700">Portfolio Performance</div>
+            <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px">Ene 2025 – Mar 2026 · Airbnb</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+            <select id="pf-periodo" onchange="renderPortfolio()" style="background:var(--bg-secondary);border:1px solid rgba(255,255,255,.1);color:var(--text-primary);border-radius:8px;padding:8px 12px;font-family:var(--font-mono);font-size:11px">
+                <option value="2026-03">Mar 2026</option>
+                <option value="2026-02">Feb 2026</option>
+                <option value="2026-01">Ene 2026</option>
+                <option value="q1-2026">Q1 2026</option>
+                <option value="all">Todo el período</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px" id="pf-kpis"></div>
+
+    <!-- Charts row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <!-- Ingresos mensuales -->
+        <div class="glass-card" style="padding:20px">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:2px;margin-bottom:16px">Ingresos netos por mes (MXN)</div>
+            <div id="pf-chart-ingresos" style="display:flex;align-items:flex-end;gap:6px;height:120px"></div>
+            <div id="pf-chart-labels" style="display:flex;gap:6px;margin-top:6px"></div>
+        </div>
+        <!-- Occupancy mensual -->
+        <div class="glass-card" style="padding:20px">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:2px;margin-bottom:16px">Occupancy promedio por mes (%)</div>
+            <div id="pf-chart-occ" style="display:flex;align-items:flex-end;gap:6px;height:120px"></div>
+            <div id="pf-chart-occ-labels" style="display:flex;gap:6px;margin-top:6px"></div>
+        </div>
+    </div>
+
+    <!-- Ranking deptos -->
+    <div class="glass-card" style="padding:0;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;align-items:center">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:2px">Ranking de Departamentos</div>
+            <div style="display:flex;gap:8px">
+                <button onclick="pfSortBy('revpar')" id="pf-sort-revpar" class="btn btn-ghost" style="font-size:10px;padding:4px 10px;opacity:.5">RevPAR ↓</button>
+                <button onclick="pfSortBy('neto')" id="pf-sort-neto" class="btn btn-ghost" style="font-size:10px;padding:4px 10px;opacity:.5">Ingresos ↓</button>
+                <button onclick="pfSortBy('occ')" id="pf-sort-occ" class="btn btn-ghost" style="font-size:10px;padding:4px 10px;opacity:.5">Occ% ↓</button>
+                <button onclick="pfSortBy('adr')" id="pf-sort-adr" class="btn btn-ghost" style="font-size:10px;padding:4px 10px;opacity:.5">ADR ↓</button>
+            </div>
+        </div>
+        <div id="pf-ranking" style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+                <thead id="pf-thead"></thead>
+                <tbody id="pf-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- MÓDULO: CIERRE MENSUAL -->
 <div class="module" id="mod-cierre-mensual" style="gap:20px;padding-bottom:40px;height:auto;min-height:auto">
 
     <!-- Header -->
@@ -2898,6 +2962,9 @@
             setTimeout(() => {
                 requestAnimationFrame(() => mapaInit());
             }, 100);
+        }
+        if(mod === 'portfolio') {
+            renderPortfolio();
         }
         if(mod === 'cierre-mensual') {
             cmMesOffset = 0;
@@ -4305,6 +4372,152 @@
             </table>`;
 
         box.innerHTML = statsHtml + tableHtml;
+    }
+
+    // ── PORTFOLIO PERFORMANCE ─────────────────────────────────────────────────
+    let pfSortKey = 'revpar';
+
+    function pfGetData(periodo) {
+        if(!window.EARNINGS) return [];
+        const meses_2026 = ['2026-01','2026-02','2026-03'];
+        let rows;
+        if(periodo === 'q1-2026') {
+            rows = EARNINGS.filter(r => meses_2026.includes(r[0]));
+        } else if(periodo === 'all') {
+            rows = EARNINGS;
+        } else {
+            rows = EARNINGS.filter(r => r[0] === periodo);
+        }
+        return rows;
+    }
+
+    function pfAggByDepto(rows) {
+        const agg = {};
+        rows.forEach(r => {
+            const d = r[1];
+            if(!agg[d]) agg[d] = {depto:d, bruto:0, neto:0, noches:0, occ_sum:0, adr_sum:0, meses:0};
+            agg[d].bruto += r[2]; agg[d].neto += r[3]; agg[d].noches += r[4];
+            if(r[4] > 0) { agg[d].occ_sum += r[5]; agg[d].adr_sum += r[6]; agg[d].meses++; }
+        });
+        return Object.values(agg).map(d => {
+            const occ = d.meses > 0 ? d.occ_sum / d.meses : 0;
+            const adr = d.meses > 0 ? d.adr_sum / d.meses : 0;
+            const revpar = adr * occ / 100;
+            return {...d, occ, adr, revpar};
+        }).filter(d => d.noches > 0);
+    }
+
+    function renderPortfolio() {
+        const periodo = document.getElementById('pf-periodo')?.value || '2026-03';
+        const rows = pfGetData(periodo);
+        const deptos = pfAggByDepto(rows);
+
+        const totalNeto = deptos.reduce((a,d) => a+d.neto, 0);
+        const totalBruto = deptos.reduce((a,d) => a+d.bruto, 0);
+        const totalNoches = deptos.reduce((a,d) => a+d.noches, 0);
+        const avgOcc = deptos.reduce((a,d) => a+d.occ, 0) / deptos.filter(d=>d.noches>0).length;
+        const avgADR = totalNoches > 0 ? totalBruto / totalNoches : 0;
+        const avgRevPAR = avgADR * avgOcc / 100;
+        const nDep = deptos.length;
+
+        const fmt = n => '$' + Math.round(n).toLocaleString('es-MX');
+        const fmtM = n => n >= 1000000 ? '$' + (n/1000000).toFixed(1) + 'M' : '$' + Math.round(n/1000) + 'K';
+        const color = v => v >= 70 ? 'var(--status-green)' : v >= 50 ? 'var(--status-yellow)' : 'var(--status-red)';
+
+        // KPI cards
+        document.getElementById('pf-kpis').innerHTML = [
+            {label:'Ingresos Netos', val:fmtM(totalNeto), sub:'MXN', c:'var(--status-green)'},
+            {label:'Ingresos Brutos', val:fmtM(totalBruto), sub:'antes de fees', c:'var(--text-primary)'},
+            {label:'Noches Vendidas', val:totalNoches.toLocaleString('es-MX'), sub:'noches', c:'var(--accent)'},
+            {label:'Occupancy Prom', val:avgOcc.toFixed(1)+'%', sub:'del portafolio', c:color(avgOcc)},
+            {label:'RevPAR Prom', val:fmt(avgRevPAR), sub:'MXN/noche disponible', c:'var(--text-primary)'},
+        ].map(k => `
+            <div class="glass-card" style="padding:18px">
+                <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">${k.label}</div>
+                <div style="font-size:22px;font-weight:800;font-family:var(--font-display);color:${k.c}">${k.val}</div>
+                <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">${k.sub}</div>
+            </div>`).join('');
+
+        // Gráfica ingresos por mes
+        const meses_all = [...new Set(EARNINGS.map(r=>r[0]))].sort();
+        const netoByMes = meses_all.map(m => ({
+            mes: m,
+            neto: EARNINGS.filter(r=>r[0]===m).reduce((a,r)=>a+r[3],0),
+            occ: (() => { const rr = EARNINGS.filter(r=>r[0]===m&&r[4]>0); return rr.length ? rr.reduce((a,r)=>a+r[5],0)/rr.length : 0; })()
+        }));
+        const maxNeto = Math.max(...netoByMes.map(m=>m.neto));
+        const maxOcc = 100;
+
+        document.getElementById('pf-chart-ingresos').innerHTML = netoByMes.map(m => {
+            const h = Math.max(4, (m.neto/maxNeto*110));
+            const isSelected = m.mes === periodo || (periodo==='q1-2026' && m.mes.startsWith('2026-0')) || periodo==='all';
+            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="width:100%;height:${h}px;background:${isSelected?'var(--accent)':'rgba(255,255,255,.12)'};border-radius:3px 3px 0 0;transition:all .3s" title="${m.mes}: ${fmt(m.neto)}"></div>
+            </div>`;
+        }).join('');
+        document.getElementById('pf-chart-labels').innerHTML = netoByMes.map(m =>
+            `<div style="flex:1;text-align:center;font-family:var(--font-mono);font-size:8px;color:var(--text-tertiary)">${m.mes.slice(2).replace('-','/')}</div>`
+        ).join('');
+
+        document.getElementById('pf-chart-occ').innerHTML = netoByMes.map(m => {
+            const h = Math.max(4, (m.occ/maxOcc*110));
+            const c = m.occ>=70?'var(--status-green)':m.occ>=50?'var(--status-yellow)':'var(--status-red)';
+            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="width:100%;height:${h}px;background:${c};border-radius:3px 3px 0 0;opacity:.8" title="${m.mes}: ${m.occ.toFixed(1)}%"></div>
+            </div>`;
+        }).join('');
+        document.getElementById('pf-chart-occ-labels').innerHTML = netoByMes.map(m =>
+            `<div style="flex:1;text-align:center;font-family:var(--font-mono);font-size:8px;color:var(--text-tertiary)">${m.mes.slice(2).replace('-','/')}</div>`
+        ).join('');
+
+        // Ranking
+        pfRenderRanking(deptos);
+    }
+
+    function pfSortBy(key) {
+        pfSortKey = key;
+        // Update button opacity
+        ['revpar','neto','occ','adr'].forEach(k => {
+            const btn = document.getElementById('pf-sort-'+k);
+            if(btn) btn.style.opacity = k===key ? '1' : '.4';
+        });
+        const periodo = document.getElementById('pf-periodo')?.value || '2026-03';
+        const rows = pfGetData(periodo);
+        const deptos = pfAggByDepto(rows);
+        pfRenderRanking(deptos);
+    }
+
+    function pfRenderRanking(deptos) {
+        const sorted = [...deptos].sort((a,b) => b[pfSortKey] - a[pfSortKey]);
+        const fmt = n => '$' + Math.round(n).toLocaleString('es-MX');
+        const pct = n => n.toFixed(1)+'%';
+        const color = v => v>=70?'var(--status-green)':v>=50?'var(--status-yellow)':'var(--status-red)';
+
+        document.getElementById('pf-thead').innerHTML = `
+            <tr style="background:var(--bg-tertiary)">
+                <th style="padding:10px 16px;text-align:left;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px;white-space:nowrap">#</th>
+                <th style="padding:10px 16px;text-align:left;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px">Departamento</th>
+                <th style="padding:10px 12px;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase">Noches</th>
+                <th style="padding:10px 12px;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase">Occ%</th>
+                <th style="padding:10px 12px;text-align:right;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase">ADR</th>
+                <th style="padding:10px 12px;text-align:right;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase;color:var(--accent)">RevPAR ▼</th>
+                <th style="padding:10px 16px;text-align:right;font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);text-transform:uppercase">Neto MXN</th>
+            </tr>`;
+
+        document.getElementById('pf-tbody').innerHTML = sorted.map((d,i) => `
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s"
+                onmouseover="this.style.background='rgba(255,255,255,.03)'"
+                onmouseout="this.style.background=''">
+                <td style="padding:10px 16px;font-family:var(--font-mono);font-size:11px;color:var(--text-tertiary)">${i+1}</td>
+                <td style="padding:10px 16px;font-weight:600">${d.depto}</td>
+                <td style="padding:10px 12px;text-align:center;font-family:var(--font-mono)">${d.noches}</td>
+                <td style="padding:10px 12px;text-align:center">
+                    <span style="background:${color(d.occ)}22;color:${color(d.occ)};padding:2px 8px;border-radius:20px;font-family:var(--font-mono);font-size:11px;font-weight:700">${pct(d.occ)}</span>
+                </td>
+                <td style="padding:10px 12px;text-align:right;font-family:var(--font-mono)">${fmt(d.adr)}</td>
+                <td style="padding:10px 12px;text-align:right;font-family:var(--font-mono);font-weight:700;color:var(--accent)">${fmt(d.revpar)}</td>
+                <td style="padding:10px 16px;text-align:right;font-family:var(--font-mono);color:var(--status-green)">${fmt(d.neto)}</td>
+            </tr>`).join('');
     }
 
     // ── CIERRE MENSUAL ──────────────────────────────────────────────────────
