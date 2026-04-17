@@ -3000,17 +3000,20 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   doc.text("Placas",ML+162,y);if(pla){doc.setFont("helvetica","bold");doc.text(pla,ML+190,y);}
   ul(doc,ML+188,y,42);
   doc.setFont("helvetica","normal");
-  doc.text("MASCOTA (1 PERRO)  SI",ML+238,y);ul(doc,ML+326,y,22);
-  doc.setFont("helvetica","normal");doc.text("NO",ML+354,y);ul(doc,ML+368,y,22);
-  doc.setFont("helvetica","bold");doc.text("X",ML+372,y);
-  doc.setFont("helvetica","normal");doc.text("TIPO:",ML+400,y);ul(doc,ML+420,y,28);y+=16;
+  doc.text("MASCOTA (1 PERRO)",ML+238,y);
+  doc.text("SI",ML+326,y); ul(doc,ML+338,y,26);
+  doc.text("NO",ML+370,y); ul(doc,ML+382,y,26);
+  doc.setFont("helvetica","bold"); doc.text("X",ML+388,y);
+  doc.setFont("helvetica","normal"); doc.text("TIPO:",ML+416,y); ul(doc,ML+432,y,22);
+  y+=16;
 
   doc.setFont("helvetica","bold");
   doc.text("AUTORIZO QUE MI RENTISTA RECIBA VISITAS",ML+18,y);
   doc.setFont("helvetica","normal");
-  doc.text("SI",ML+244,y);ul(doc,ML+256,y,18);
-  doc.text("NO",ML+280,y);doc.setFont("helvetica","bold");doc.text("X",ML+292,y);
-  ul(doc,ML+290,y,18);y+=18;
+  doc.text("SI",ML+250,y); ul(doc,ML+262,y,26);
+  doc.text("NO",ML+294,y); ul(doc,ML+306,y,26);
+  doc.setFont("helvetica","bold"); doc.text("X",ML+312,y);
+  doc.setFont("helvetica","normal"); y+=18;
 
   doc.setFont("helvetica","bold");doc.setFontSize(sz);
   doc.text("Capacidades permitidas por unidad.",ML,y);
@@ -3037,8 +3040,8 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   doc.setFont("helvetica","normal");doc.text(PROP,ML+60,y);
   ul(doc,ML+58,y,CW/2-58);
   doc.setFont("helvetica","bold");doc.text("Fecha:",ML+CW/2+10,y);
-  doc.setFont("helvetica","normal");doc.text(fechaHoyES,ML+CW/2+38,y);
-  ul(doc,ML+CW/2+36,y,CW/2-36);
+  doc.setFont("helvetica","normal");doc.text(fechaHoyES,ML+CW/2+46,y);
+  ul(doc,ML+CW/2+44,y,CW/2-44);
 
   // ══════════════ PÁGINA 3 ══════════════
   doc.addPage();logoCenter(doc);y=112;
@@ -3081,17 +3084,20 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   doc.text("Plates",ML+160,y);if(pla){doc.setFont("helvetica","bold");doc.text(pla,ML+186,y);}
   ul(doc,ML+184,y,42);
   doc.setFont("helvetica","normal");
-  doc.text("PET (1 DOG)  YES",ML+234,y);ul(doc,ML+302,y,18);
-  doc.text("NO",ML+326,y);doc.setFont("helvetica","bold");doc.text("X",ML+338,y);
-  ul(doc,ML+336,y,18);
-  doc.setFont("helvetica","normal");doc.text("TYPE",ML+362,y);ul(doc,ML+382,y,36);y+=16;
+  doc.text("PET (1 DOG)",ML+234,y);
+  doc.text("YES",ML+292,y); ul(doc,ML+308,y,26);
+  doc.text("NO",ML+340,y); ul(doc,ML+352,y,26);
+  doc.setFont("helvetica","bold"); doc.text("X",ML+358,y);
+  doc.setFont("helvetica","normal"); doc.text("TYPE",ML+384,y); ul(doc,ML+400,y,22);
+  y+=16;
 
   doc.setFont("helvetica","bold");
   doc.text("I AUTHORIZE MY RENTER TO RECEIVE VISITORS",ML+18,y);
   doc.setFont("helvetica","normal");
-  doc.text("YES",ML+252,y);ul(doc,ML+268,y,22);
-  doc.text("NO",ML+296,y);doc.setFont("helvetica","bold");doc.text("X",ML+308,y);
-  ul(doc,ML+306,y,22);y+=18;
+  doc.text("YES",ML+258,y); ul(doc,ML+274,y,26);
+  doc.text("NO",ML+306,y); ul(doc,ML+318,y,26);
+  doc.setFont("helvetica","bold"); doc.text("X",ML+324,y);
+  doc.setFont("helvetica","normal"); y+=18;
 
   doc.setFont("helvetica","bold");doc.setFontSize(sz);
   doc.text("Unit capacity.",ML,y);
@@ -3118,8 +3124,8 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   doc.setFont("helvetica","normal");doc.text(PROP,ML+40,y);
   ul(doc,ML+38,y,CW/2-38);
   doc.setFont("helvetica","bold");doc.text("Date:",ML+CW/2+10,y);
-  doc.setFont("helvetica","normal");doc.text(fechaHoyEN,ML+CW/2+34,y);
-  ul(doc,ML+CW/2+32,y,CW/2-32);
+  doc.setFont("helvetica","normal");doc.text(fechaHoyEN,ML+CW/2+40,y);
+  ul(doc,ML+CW/2+38,y,CW/2-38);
 
   // ══════════════ PÁGINA 4 ══════════════
   doc.addPage();
