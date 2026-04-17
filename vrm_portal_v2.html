@@ -3312,7 +3312,11 @@
             accion=`<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Generado</button>`;
         } else if(r.tipo_formato==="pdf") {
             const _tieneCorreo = tieneCorreoConfigured(r.depto||'');
-            accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button>${_tieneCorreo ? `<button class="btn btn-outline-yellow" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
+            if(r.pdf_generado) {
+              accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button><button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Enviado</button></div>`;
+            } else {
+              accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button>${_tieneCorreo ? `<button class="btn btn-outline-yellow" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
+            }
         } else if(r.tipo_formato==="whatsapp") {
             const _tieneMsg = tieneCorreoMsg(r.depto||'');
             accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-blue" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button>${_tieneMsg ? `<button class="btn btn-outline-yellow" onclick="enviarMsgPorCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
@@ -3960,7 +3964,7 @@
       // XIKIRI — nombre real en BD: "XIKIRI" (sin número)
       "XIKIRI": { to: ["mayra.arenablanca@gmail.com"], subject: "XIKIRI 504" },
       // MARALMA
-      "MARALMA 501": { to: ["joseluis@vinosamerica.com.mx","pablog.pv@vinosamerica.com.mx","maralmabucerias@gmail.com"], subject: "Registro Huésped Maralma 501" },
+      "MARALMA 501": { to: ["joseluis@vinosamerica.com.mx","pablog.pv@vinosamerica.com.mx","maralmabucerias@gmail.com"], subject: "Registro Huesped Maralma 501" },
       // PENINSULA
       "PENINSULA 19E": { to: ["recepciontorre1@gmail.com","torre1.peninsula@gmail.com","jp.pena.ortiz@gmail.com"], subject: "19E TORRE 1" },
     };
@@ -4022,6 +4026,17 @@
         toast("📧 Enviando correo...");
         await sendPDFviaGmailAPI(accessToken, config, pdfBase64, pdfFilename, nombre, fechaIn, r.depto);
         toast(`✅ Correo enviado a ${config.to.join(', ')} — Asunto: ${config.subject}`);
+        // Marcar como enviado en Supabase
+        try {
+          await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?id=eq.${id}`, {
+            method:'PATCH',
+            headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+            body: JSON.stringify({pdf_generado: true})
+          });
+          // Actualizar local y re-render
+          r.pdf_generado = true;
+          renderTodo();
+        } catch(e2) { console.warn('No se pudo marcar enviado:', e2); }
       } catch(e) {
         toast("❌ " + e.message);
       }
