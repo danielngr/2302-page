@@ -4733,8 +4733,9 @@
             limpiezasRV = await rL.json();
             const staff = await rS.json();
             staff.forEach(s => staffRVMap[s.id] = s.nombre);
+            console.log('[RV] Limpiezas cargadas:', limpiezasRV.length, '| Staff:', Object.keys(staffRVMap).length);
             renderAllTable(); // re-renderizar con datos de chica
-        } catch(e) { console.log('Error cargando limpiezas RV:', e); }
+        } catch(e) { console.error('Error cargando limpiezas RV:', e); }
     }
 
     const DEPTO_ALIAS = {
@@ -4886,7 +4887,10 @@ function renderDeptTable(){const ds={};filtered.forEach(r=>{if(!r.depto)return;i
         if(deptSortKey==='dept') return deptSortDir*a.dept.localeCompare(b.dept);
         return deptSortDir*(b[deptSortKey]-a[deptSortKey]);
     });const f=v=>{const s=v>=4.5?'color:var(--green)':v>=4?'color:var(--gold)':v>=3.5?'':'color:var(--red)';return'<span style="'+s+'">'+v.toFixed(2)+'</span>'};document.querySelector('#deptTable tbody').innerHTML=rows.map(r=>'<tr><td style="padding:9px 16px"><strong>'+r.dept+'</strong></td><td style="padding:9px 16px">'+r.count+'</td><td>'+f(r.general)+'</td><td style="cursor:pointer" onclick="abrirDetalleDepto(\''+r.dept+'\')" title="Ver detalle">'+f(r.limpieza)+'</td><td>'+f(r.llegada)+'</td><td>'+f(r.comunicacion)+'</td><td>'+f(r.ubicacion)+'</td><td>'+f(r.veracidad)+'</td><td>'+f(r.calidad)+'</td></tr>').join('')}
-function abrirDetalleDepto(depto) {
+async function abrirDetalleDepto(depto) {
+    // Asegurar limpiezas cargadas antes de mostrar el modal
+    await cargarLimpiezasRV();
+
     const rvs = filtered.filter(r => r.depto === depto && r.limpieza).sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''));
     if(!rvs.length) return;
 
