@@ -120,17 +120,6 @@
   .success-screen p { color: var(--muted); font-size: 14px; line-height: 1.6; }
 
   .error-msg { color: var(--error); font-size: 12px; margin-top: 4px; display: none; }
-
-  .date-locked {
-    background: var(--accent-light) !important;
-    border-color: var(--accent) !important;
-    color: var(--accent) !important;
-    font-weight: 600;
-    cursor: not-allowed;
-  }
-  .date-locked-hint {
-    font-size: 11px; color: var(--accent); margin-top: 4px;
-  }
   .required::after { content: " *"; color: var(--error); }
 
   #loading { display:none; text-align:center; padding:16px; color:var(--muted); font-size:14px; }
@@ -215,9 +204,6 @@
     <!-- FECHAS -->
     <div class="card">
       <div class="card-title" id="txt-card-fechas">Fechas de estancia</div>
-      <div id="fechas-warning" style="background:#fff8e1;border:1.5px solid #f9a825;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#5a3e00;line-height:1.5;">
-        ⚠️ <strong>Ingresa las fechas exactamente como aparecen en tu reserva de Airbnb.</strong> Una fecha incorrecta puede impedir tu acceso al condominio.
-      </div>
       <div class="grid2">
         <div class="field">
           <label class="required" id="txt-label-entrada">Fecha de llegada</label>
@@ -245,6 +231,16 @@
       <div class="card-title" id="txt-card-ocupantes">Lista de todos los huéspedes</div>
       <p id="txt-ocu-hint" style="font-size:13px; color:var(--muted); margin-bottom:14px;">Incluye a todos los que se hospedarán, incluyéndote a ti.</p>
       <div id="ocupantes-list"></div>
+    </div>
+
+    <!-- Firma digital -->
+    <div id="firma-section" style="display:none;margin-bottom:20px">
+      <p id="txt-firma-label" style="font-weight:600;font-size:14px;margin-bottom:8px;color:var(--text)">Firma del rentista</p>
+      <p id="txt-firma-hint" style="font-size:12px;color:var(--muted);margin-bottom:10px">Dibuja tu firma con el dedo o el mouse</p>
+      <div style="position:relative;border:2px solid var(--accent);border-radius:10px;overflow:hidden;background:#fff">
+        <canvas id="firma-canvas" width="380" height="120" style="display:block;width:100%;touch-action:none;cursor:crosshair"></canvas>
+        <button onclick="limpiarFirma()" style="position:absolute;top:6px;right:8px;background:rgba(0,0,0,.1);border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">✕ Borrar</button>
+      </div>
     </div>
 
     <div id="loading">Enviando registro...</div>
@@ -448,12 +444,7 @@ function init() {
     if(prefix) deptoInfo = DEPTO_MAP[prefix];
   }
   document.getElementById("depto-badge").textContent = deptoKey || "—";
-
-  // Fechas/ocupantes pre-llenados desde URL (Airbnb scheduled message variables)
-  const urlEntrada = params.get("entrada");
-  const urlSalida  = params.get("salida");
-  const urlAdultos = params.get("adultos");
-  const urlMenores = params.get("menores");
+  mostrarFirmaSegunDepto();
 
   // Auto-detect browser language
   const browserLang = (navigator.language || "es").startsWith("en") ? "en" : "es";
@@ -471,28 +462,9 @@ function init() {
 
   const hoy = new Date();
   const fmt = d => d.toISOString().split("T")[0];
-
-  if(urlEntrada && urlSalida) {
-    // Fechas bloqueadas — vienen de Airbnb vía URL, el huésped no puede cambiarlas
-    const fldEntrada = document.getElementById("fecha_entrada");
-    const fldSalida  = document.getElementById("fecha_salida");
-    fldEntrada.value = urlEntrada;
-    fldSalida.value  = urlSalida;
-    fldEntrada.readOnly = true;
-    fldSalida.readOnly  = true;
-    fldEntrada.classList.add("date-locked");
-    fldSalida.classList.add("date-locked");
-    fldEntrada.insertAdjacentHTML("afterend", '<p class="date-locked-hint">📅 Confirmada desde tu reserva</p>');
-    const warn = document.getElementById('fechas-warning'); if(warn) warn.style.display='none';
-    fldSalida.insertAdjacentHTML("afterend",  '<p class="date-locked-hint">📅 Confirmada desde tu reserva</p>');
-  } else {
-    document.getElementById("fecha_entrada").value = fmt(hoy);
-    const manana = new Date(hoy); manana.setDate(manana.getDate()+1);
-    document.getElementById("fecha_salida").value = fmt(manana);
-  }
-
-  if(urlAdultos) document.getElementById("num_adultos").value = parseInt(urlAdultos) || 1;
-  if(urlMenores) document.getElementById("num_menores").value = parseInt(urlMenores) || 0;
+  document.getElementById("fecha_entrada").value = fmt(hoy);
+  const manana = new Date(hoy); manana.setDate(manana.getDate()+1);
+  document.getElementById("fecha_salida").value = fmt(manana);
 
   setTimeout(syncOcupantes, 50);
 }
@@ -574,7 +546,11 @@ async function enviar() {
     num_menores: parseInt(document.getElementById("num_menores").value)||0,
     num_mascotas: 0,
     vehiculo_modelo: null,
-    foto_id: window._fotoIdB64 || null,
+    foto_id: (() => {
+      const f = getFirmaB64();
+      return f ? 'firma:' + f : (window._fotoIdB64 || null);
+    })(),
+
     ocupantes: ocupantes.filter(o=>o.nombre.trim()),
   };
 
@@ -631,6 +607,64 @@ function previewFotoId(input, which) {
 }
 
 init();
+  // ── Firma digital ─────────────────────────────────────────
+  let firmaActiva = false, firmaX = 0, firmaY = 0;
+  let firmaCanvas, firmaCtx;
+
+  function initFirma() {
+    firmaCanvas = document.getElementById('firma-canvas');
+    if(!firmaCanvas) return;
+    firmaCtx = firmaCanvas.getContext('2d');
+    firmaCtx.strokeStyle = '#1a1a2e';
+    firmaCtx.lineWidth = 2.5;
+    firmaCtx.lineCap = 'round';
+    firmaCtx.lineJoin = 'round';
+
+    const getPos = (e) => {
+      const r = firmaCanvas.getBoundingClientRect();
+      const scaleX = firmaCanvas.width / r.width;
+      const scaleY = firmaCanvas.height / r.height;
+      const src = e.touches ? e.touches[0] : e;
+      return { x:(src.clientX-r.left)*scaleX, y:(src.clientY-r.top)*scaleY };
+    };
+
+    firmaCanvas.addEventListener('mousedown', e=>{ firmaActiva=true; const p=getPos(e); firmaCtx.beginPath(); firmaCtx.moveTo(p.x,p.y); });
+    firmaCanvas.addEventListener('mousemove', e=>{ if(!firmaActiva) return; const p=getPos(e); firmaCtx.lineTo(p.x,p.y); firmaCtx.stroke(); });
+    firmaCanvas.addEventListener('mouseup', ()=>firmaActiva=false);
+    firmaCanvas.addEventListener('mouseleave', ()=>firmaActiva=false);
+    firmaCanvas.addEventListener('touchstart', e=>{ e.preventDefault(); firmaActiva=true; const p=getPos(e); firmaCtx.beginPath(); firmaCtx.moveTo(p.x,p.y); }, {passive:false});
+    firmaCanvas.addEventListener('touchmove', e=>{ e.preventDefault(); if(!firmaActiva) return; const p=getPos(e); firmaCtx.lineTo(p.x,p.y); firmaCtx.stroke(); }, {passive:false});
+    firmaCanvas.addEventListener('touchend', ()=>firmaActiva=false);
+  }
+
+  function limpiarFirma() {
+    if(firmaCtx) firmaCtx.clearRect(0,0,firmaCanvas.width,firmaCanvas.height);
+  }
+
+  function getFirmaB64() {
+    if(!firmaCanvas) return null;
+    const ctx = firmaCtx;
+    const data = ctx.getImageData(0,0,firmaCanvas.width,firmaCanvas.height).data;
+    const hasDrawing = Array.from(data).some((v,i)=>i%4===3&&v>0);
+    if(!hasDrawing) return null;
+    // Fondo blanco
+    const tmp = document.createElement('canvas');
+    tmp.width=firmaCanvas.width; tmp.height=firmaCanvas.height;
+    const tc=tmp.getContext('2d');
+    tc.fillStyle='#fff'; tc.fillRect(0,0,tmp.width,tmp.height);
+    tc.drawImage(firmaCanvas,0,0);
+    return tmp.toDataURL('image/png').split(',')[1];
+  }
+
+  function mostrarFirmaSegunDepto() {
+    const deptoUp = (deptoKey||'').toUpperCase();
+    const necesitaFirma = deptoUp.includes('MARALMA');
+    const sec = document.getElementById('firma-section');
+    if(sec) sec.style.display = necesitaFirma ? 'block' : 'none';
+    if(necesitaFirma && !firmaCtx) initFirma();
+  }
+
+
 </script>
 </body>
 </html>
