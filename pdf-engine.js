@@ -2876,7 +2876,7 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   function fmtEN(v){if(!v)return"___";const[y,mo,d]=v.split("-");return`${mesesEN[parseInt(mo)-1]} ${parseInt(d)}, ${y}`;}
   function ul(doc,x,y,w){doc.setDrawColor(130);doc.setLineWidth(0.3);doc.line(x,y+3,x+w,y+3);}
   function tl(doc,x,y,w){doc.setDrawColor(160);doc.setLineWidth(0.35);doc.line(x,y,x+w,y);}
-  function logoCenter(doc){doc.addImage(LOGOS.maralma,"PNG",(W-logoW)/2,20,logoW,logoH,undefined,"FAST");}
+  function logoCenter(doc){doc.addImage(LOGOS.maralma,"PNG",(W-logoW)/2,36,logoW,logoH,undefined,"FAST");}
 
   function jtext(doc,text,x,y,maxW,lh){
     const words=text.split(' ');let line=[],curY=y;
@@ -2901,7 +2901,7 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
 
   // ══════════════ PÁGINA 1 ══════════════
   const doc=new jsPDF({unit:"pt",format:"letter"});
-  logoCenter(doc); let y=78;
+  logoCenter(doc); let y=96;
   doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...DARK);
   doc.text("PROCEDIMIENTO DE REGISTRO PARA RENTISTAS E INVITADOS",W/2,y,{align:"center"});y+=20;
 
@@ -2957,7 +2957,7 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   doc.text("La Administración / The Administration",W/2,y,{align:"center"});
 
   // ══════════════ PÁGINA 2 ══════════════
-  doc.addPage();logoCenter(doc);y=78;
+  doc.addPage();logoCenter(doc);y=96;
   doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...DARK);
   doc.text("Formato de registro de Rentistas y sus visitas.",ML,y);y+=18;
 
@@ -3041,7 +3041,7 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   ul(doc,ML+250,y,RIGHT-ML-250);
 
   // ══════════════ PÁGINA 3 ══════════════
-  doc.addPage();logoCenter(doc);y=78;
+  doc.addPage();logoCenter(doc);y=96;
   doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...DARK);
   const tEN="Renter and Visitor Registration Form";
   doc.text(tEN,ML,y);ul(doc,ML,y,doc.getTextWidth(tEN));y+=18;
@@ -3123,8 +3123,8 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
 
   // ══════════════ PÁGINA 4 ══════════════
   doc.addPage();
-  doc.addImage(LOGOS.maralma,"PNG",RIGHT-logoW,10,logoW,logoH*0.72,undefined,"FAST");
-  y=28;
+  doc.addImage(LOGOS.maralma,"PNG",RIGHT-logoW,24,logoW,logoH*0.72,undefined,"FAST");
+  y=46;
   doc.setFont("helvetica","bold");doc.setFontSize(9.5);doc.setTextColor(...DARK);
   doc.text("REGLAS GENERALES / GENERAL RULES.",ML,y);y+=22;
 
