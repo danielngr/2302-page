@@ -4560,17 +4560,21 @@
         const body = document.getElementById('hist-body');
         body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando...</div>`;
 
-        // Traer limpiezas pagadas + staff
-        const [resLimp, resStaff] = await Promise.all([
+        // Traer limpiezas pagadas + ajustes + staff
+        const [resLimp, resStaff, resAj] = await Promise.all([
             fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.pagada&select=*&order=fecha.desc`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             }),
             fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?select=id,nombre`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=in.(pendiente,pagado)&select=*&order=fecha.desc`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             })
         ]);
         const limpiezas = await resLimp.json();
         const staff     = await resStaff.json();
+        const ajustes   = resAj.ok ? await resAj.json() : [];
 
         if(!limpiezas.length) {
             body.innerHTML = `<div style="padding:60px;text-align:center;color:var(--text-tertiary)">
@@ -4605,7 +4609,14 @@
             const viernesD = new Date(lunes + 'T12:00:00');
             const juevesD = new Date(viernesD); juevesD.setDate(viernesD.getDate()+6);
             const label = `${viernesD.getDate()} ${MESES_L[viernesD.getMonth()]} – ${juevesD.getDate()} ${MESES_L[juevesD.getMonth()]} ${juevesD.getFullYear()}`;
-            const totalCorte = items.reduce((acc,l) => acc+(parseFloat(l.tarifa_aplicada)||0), 0);
+            // Ajustes de esta semana
+            const ajustesSem = ajustes.filter(a => {
+                if(!a.fecha) return false;
+                const v = getViernes(a.fecha);
+                return v === lunes;
+            });
+            const totalAjSem = ajustesSem.reduce((acc,a) => acc+(parseFloat(a.monto)||0), 0);
+            const totalCorte = items.reduce((acc,l) => acc+(parseFloat(l.tarifa_aplicada)||0), 0) + totalAjSem;
 
             // Agrupar por staff dentro del corte
             const porStaff = {};
@@ -4617,12 +4628,21 @@
             const staffRows = Object.entries(porStaff).map(([staffId, limp], si) => {
                 const s = staff.find(x => x.id===staffId);
                 const nombre = s ? s.nombre : 'Desconocido';
-                const totalStaff = limp.reduce((acc,l) => acc+(parseFloat(l.tarifa_aplicada)||0), 0);
+                const misAj = ajustesSem.filter(a => a.staff_id===staffId);
+                const totalAjStaff = misAj.reduce((acc,a) => acc+(parseFloat(a.monto)||0), 0);
+                const totalStaff = limp.reduce((acc,l) => acc+(parseFloat(l.tarifa_aplicada)||0), 0) + totalAjStaff;
                 const limpRows = limp.map(l =>
                     `<div class="hist-limp-item">
                         <span>${l.depto_codigo}</span>
                         <span style="color:var(--text-tertiary)">${l.fecha}</span>
                         <span style="color:var(--status-green)">$${parseFloat(l.tarifa_aplicada||0).toFixed(0)}</span>
+                    </div>`
+                ).join('');
+                const ajRows = misAj.map(a =>
+                    `<div class="hist-limp-item">
+                        <span style="color:var(--text-tertiary)">${a.motivo||'Ajuste'}</span>
+                        <span style="color:var(--text-tertiary)">${a.fecha||''}</span>
+                        <span style="color:${parseFloat(a.monto)>=0?'var(--status-green)':'var(--status-red)'}">$${parseFloat(a.monto||0).toFixed(0)}</span>
                     </div>`
                 ).join('');
 
@@ -4633,7 +4653,7 @@
                         <span class="hist-staff-total">$${totalStaff.toFixed(0)}</span>
                         <i class="ph ph-caret-down" style="color:var(--text-tertiary);font-size:14px;transition:transform .25s" id="hsi-${gi}-${si}"></i>
                     </div>
-                    <div class="hist-limp-list" id="hsl-${gi}-${si}">${limpRows}</div>
+                    <div class="hist-limp-list" id="hsl-${gi}-${si}">${limpRows}${ajRows ? `<div style="border-top:1px solid var(--border-subtle);margin-top:4px;padding-top:4px">${ajRows}</div>` : ''}</div>
                 </div>`;
             }).join('');
 
