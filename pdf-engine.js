@@ -3000,11 +3000,11 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
   doc.text("Placas",ML+162,y);if(pla){doc.setFont("helvetica","bold");doc.text(pla,ML+190,y);}
   ul(doc,ML+188,y,42);
   doc.setFont("helvetica","normal");
-  doc.text("MASCOTA (1 PERRO)",ML+238,y);
-  doc.text("SI",ML+326,y); ul(doc,ML+338,y,26);
-  doc.text("NO",ML+370,y); ul(doc,ML+382,y,26);
-  doc.setFont("helvetica","bold"); doc.text("X",ML+388,y);
-  doc.setFont("helvetica","normal"); doc.text("TIPO:",ML+416,y); ul(doc,ML+432,y,22);
+  doc.text("MASCOTA (1 PERRO)",ML+236,y);
+  doc.text("SI",ML+338,y); ul(doc,ML+350,y,24);
+  doc.text("NO",ML+380,y); ul(doc,ML+392,y,24);
+  doc.setFont("helvetica","bold"); doc.text("X",ML+398,y);
+  doc.setFont("helvetica","normal"); doc.text("TIPO:",ML+424,y); ul(doc,ML+440,y,20);
   y+=16;
 
   doc.setFont("helvetica","bold");
