@@ -631,51 +631,37 @@ init();
   let firmaCanvas, firmaCtx;
 
   function initFirma() {
+    if(firmaCtx) return;
     firmaCanvas = document.getElementById('firma-canvas');
     if(!firmaCanvas) return;
-    if(firmaCtx) return; // ya inicializado
 
-    // Esperar a que el canvas tenga dimensiones reales
-    setTimeout(() => {
-      const dpr = window.devicePixelRatio || 1;
-      const rect = firmaCanvas.getBoundingClientRect();
-      const W = rect.width || firmaCanvas.offsetWidth || 300;
-      const H = 150;
+    // Fijar tamaño absoluto — no depender del layout
+    firmaCanvas.width = 600;
+    firmaCanvas.height = 200;
+    firmaCtx = firmaCanvas.getContext('2d');
+    firmaCtx.strokeStyle = '#111';
+    firmaCtx.lineWidth = 3;
+    firmaCtx.lineCap = 'round';
+    firmaCtx.lineJoin = 'round';
 
-      firmaCanvas.width = W * dpr;
-      firmaCanvas.height = H * dpr;
+    function getXY(e) {
+      const r = firmaCanvas.getBoundingClientRect();
+      const scaleX = 600 / r.width;
+      const scaleY = 200 / r.height;
+      const src = e.touches ? e.touches[0] : e;
+      return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
+    }
 
-      firmaCtx = firmaCanvas.getContext('2d');
-      firmaCtx.scale(dpr, dpr);
-      firmaCtx.strokeStyle = '#222';
-      firmaCtx.lineWidth = 2;
-      firmaCtx.lineCap = 'round';
-      firmaCtx.lineJoin = 'round';
+    // Mouse
+    firmaCanvas.addEventListener('mousedown', e => { firmaActiva=true; const p=getXY(e); firmaCtx.beginPath(); firmaCtx.moveTo(p.x,p.y); e.preventDefault(); });
+    firmaCanvas.addEventListener('mousemove', e => { if(!firmaActiva) return; const p=getXY(e); firmaCtx.lineTo(p.x,p.y); firmaCtx.stroke(); firmaCtx.beginPath(); firmaCtx.moveTo(p.x,p.y); });
+    firmaCanvas.addEventListener('mouseup', () => firmaActiva=false);
+    firmaCanvas.addEventListener('mouseleave', () => firmaActiva=false);
 
-      function pos(e) {
-        const r = firmaCanvas.getBoundingClientRect();
-        const t = e.touches ? e.touches[0] : e;
-        return { x: (t.clientX - r.left), y: (t.clientY - r.top) };
-      }
-
-      firmaCanvas.addEventListener('pointerdown', e => {
-        firmaCanvas.setPointerCapture(e.pointerId);
-        firmaActiva = true;
-        const p = pos(e);
-        firmaCtx.beginPath();
-        firmaCtx.moveTo(p.x, p.y);
-      });
-      firmaCanvas.addEventListener('pointermove', e => {
-        if (!firmaActiva) return;
-        const p = pos(e);
-        firmaCtx.lineTo(p.x, p.y);
-        firmaCtx.stroke();
-        firmaCtx.beginPath();
-        firmaCtx.moveTo(p.x, p.y);
-      });
-      firmaCanvas.addEventListener('pointerup', () => firmaActiva = false);
-      firmaCanvas.addEventListener('pointercancel', () => firmaActiva = false);
-    }, 200);
+    // Touch
+    firmaCanvas.addEventListener('touchstart', e => { e.preventDefault(); firmaActiva=true; const p=getXY(e); firmaCtx.beginPath(); firmaCtx.moveTo(p.x,p.y); }, {passive:false});
+    firmaCanvas.addEventListener('touchmove', e => { e.preventDefault(); if(!firmaActiva) return; const p=getXY(e); firmaCtx.lineTo(p.x,p.y); firmaCtx.stroke(); firmaCtx.beginPath(); firmaCtx.moveTo(p.x,p.y); }, {passive:false});
+    firmaCanvas.addEventListener('touchend', () => firmaActiva=false);
   }
 
   function limpiarFirma() {
@@ -687,15 +673,12 @@ init();
     const data = firmaCtx.getImageData(0,0,firmaCanvas.width,firmaCanvas.height).data;
     const hasDrawing = Array.from(data).some((v,i)=>i%4===3&&v>0);
     if(!hasDrawing) return null;
-    // Exportar a tamaño visual (sin el devicePixelRatio)
-    const rect = firmaCanvas.getBoundingClientRect();
     const tmp = document.createElement('canvas');
-    tmp.width = rect.width || 380;
-    tmp.height = rect.height || 120;
+    tmp.width = 600; tmp.height = 200;
     const tc = tmp.getContext('2d');
     tc.fillStyle = '#fff';
-    tc.fillRect(0, 0, tmp.width, tmp.height);
-    tc.drawImage(firmaCanvas, 0, 0, tmp.width, tmp.height);
+    tc.fillRect(0,0,600,200);
+    tc.drawImage(firmaCanvas,0,0);
     return tmp.toDataURL('image/png').split(',')[1];
   }
 
