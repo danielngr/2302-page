@@ -5141,7 +5141,17 @@
             occEl.innerHTML = PF_BENCHMARKS.occ.map(b => {
                 const w = (b.val/maxOcc*100).toFixed(0);
                 const isVrm = b.vrm;
-                const vs = isVrm ? '' : (b.val > 67.2 ? `<span class="pf-vs-badge worse">Mercado +${(b.val-67.2).toFixed(1)}%</span>` : `<span class="pf-vs-badge better">VRM +${(67.2-b.val).toFixed(1)}%</span>`);
+                let vs = '';
+                if(!isVrm) {
+                    const diff = (b.val - 67.2).toFixed(1);
+                    if(b.val > 67.2) {
+                        vs = `<span class="pf-vs-badge worse" title="${b.name} tiene mejor ocupación que tu portfolio">VRM −${diff}%</span>`;
+                    } else if(b.val < 67.2) {
+                        vs = `<span class="pf-vs-badge better" title="Tu portfolio supera al mercado de ${b.name}">VRM +${(67.2-b.val).toFixed(1)}%</span>`;
+                    } else {
+                        vs = `<span class="pf-vs-badge" style="background:rgba(255,255,255,0.08);color:var(--text-secondary)">= igual</span>`;
+                    }
+                }
                 return `<div class="pf-bench-row">
                     <div class="pf-bench-name" style="${isVrm?'color:var(--accent-terracota);font-weight:700':''}">${b.name}${isVrm?' ⭐':''}</div>
                     <div class="pf-bench-bar-wrap"><div class="pf-bench-bar" style="width:${w}%;background:${b.color}"></div></div>
@@ -5158,7 +5168,16 @@
             adrEl.innerHTML = PF_BENCHMARKS.adr.map(b => {
                 const w = (b.val/maxADR*100).toFixed(0);
                 const isVrm = b.vrm;
-                const vs = isVrm ? '' : (b.val > 187 ? `<span class="pf-vs-badge worse">Mdo +$${b.val-187}</span>` : `<span class="pf-vs-badge better">VRM +$${187-b.val}</span>`);
+                let vs = '';
+                if(!isVrm) {
+                    if(b.val > 187) {
+                        vs = `<span class="pf-vs-badge worse" title="${b.name} cobra más caro por noche que VRM">VRM −$${b.val-187}</span>`;
+                    } else if(b.val < 187) {
+                        vs = `<span class="pf-vs-badge better" title="VRM cobra más caro que el mercado de ${b.name}">VRM +$${187-b.val}</span>`;
+                    } else {
+                        vs = `<span class="pf-vs-badge" style="background:rgba(255,255,255,0.08);color:var(--text-secondary)">= igual</span>`;
+                    }
+                }
                 return `<div class="pf-bench-row">
                     <div class="pf-bench-name" style="${isVrm?'color:var(--accent-terracota);font-weight:700':''}">${b.name}${isVrm?' ⭐':''}</div>
                     <div class="pf-bench-bar-wrap"><div class="pf-bench-bar" style="width:${w}%;background:${b.color}"></div></div>
