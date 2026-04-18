@@ -4807,9 +4807,20 @@
         const avgRevPAR  = avgADR * avgOcc / 100;
         const nDep       = deptos.length;
 
-        // ── GBV Hero ──
+        // ── GBV Hero (FIJO — siempre muestra totales globales, no cambia por período) ──
         const gbvEl = document.getElementById('pf-gbv-val');
-        if(gbvEl) gbvEl.textContent = pfFmtM(totalNeto);
+        if(gbvEl && !gbvEl.dataset.locked) {
+            const totalGlobal = EARNINGS.reduce((a,r) => a+r[3], 0);
+            const total2026 = EARNINGS.filter(r=>r[0].startsWith('2026')).reduce((a,r)=>a+r[3],0);
+            const meses2025 = [...new Set(EARNINGS.filter(r=>r[0].startsWith('2025')).map(r=>r[0]))];
+            const total2025 = EARNINGS.filter(r=>r[0].startsWith('2025')).reduce((a,r)=>a+r[3],0);
+            const q1Share = total2025 > 0 ? (EARNINGS.filter(r=>['2025-01','2025-02','2025-03'].includes(r[0])).reduce((a,r)=>a+r[3],0) / total2025) : 0.264;
+            const proyeccion2026 = q1Share > 0 ? total2026 / q1Share : total2026 * 4;
+            gbvEl.textContent = pfFmtM(proyeccion2026);
+            const subEl = gbvEl.nextElementSibling;
+            if(subEl) subEl.innerHTML = `MXN proyectado 2026 · <span style="color:var(--accent-gold)">${pfFmtM(totalGlobal)} MXN gestionados 15 meses</span>`;
+            gbvEl.dataset.locked = '1';
+        }
 
         // ── KPI Cards ──
         const kpiData = [
