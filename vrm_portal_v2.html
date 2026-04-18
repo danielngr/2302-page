@@ -7890,6 +7890,20 @@ function updateNotifBadge(){
         lqRenderDeptos(); lqRenderChicas(); lqRenderMatriz(); lqRenderAlertas();
     }
 
+    // Toggle expandir/colapsar patrón en tab Alertas
+    window.lqTogglePatron = function(i) {
+        const detail = document.getElementById(`lq-patron-detail-${i}`);
+        const arrow = document.getElementById(`lq-patron-arrow-${i}`);
+        if(!detail) return;
+        if(detail.style.display === 'none' || !detail.style.display) {
+            detail.style.display = 'block';
+            if(arrow) arrow.style.transform = 'rotate(90deg)';
+        } else {
+            detail.style.display = 'none';
+            if(arrow) arrow.style.transform = 'rotate(0deg)';
+        }
+    };
+
     // ─── TAB: Deptos problema ────────────────────────────────────────────
     async function lqRenderDeptos() {
         const cont = document.getElementById('lq-deptos-content');
@@ -8225,7 +8239,8 @@ function updateNotifBadge(){
         };
         const patrones = {};
         Object.entries(keywords).forEach(([nombre, regex]) => {
-            patrones[nombre] = recientes.filter(r => regex.test(r.comentario) && r.limpieza < 5).length;
+            const matchReviews = recientes.filter(r => regex.test(r.comentario) && r.limpieza < 5);
+            patrones[nombre] = { regex: regex, reviews: matchReviews };
         });
 
         const malasHtml = malas.length ? `
@@ -8249,18 +8264,64 @@ function updateNotifBadge(){
             ${malas.length > 15 ? `<div style="text-align:center;color:var(--text-tertiary);font-size:10px;padding-top:8px">+${malas.length-15} más antiguas</div>` : ''}
         </div>` : '<div class="glass-card" style="padding:40px;text-align:center;margin-bottom:16px"><div style="font-size:36px;margin-bottom:12px">✓</div><div style="font-size:14px;color:var(--status-green);font-weight:600">Sin reviews malas en últimos 45 días</div></div>';
 
-        const patronesActivos = Object.entries(patrones).filter(([_,n]) => n > 0).sort((a,b)=>b[1]-a[1]);
+        const patronesActivos = Object.entries(patrones).filter(([_,d]) => d.reviews.length > 0).sort((a,b)=>b[1].reviews.length-a[1].reviews.length);
         const patronesHtml = patronesActivos.length ? `
         <div class="glass-card" style="padding:20px">
             <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">
                 Patrones en comentarios · últimos 90 días
             </div>
-            <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:14px">Reviews que mencionan estos temas Y dieron &lt;5 estrellas en limpieza. Alto conteo = problema sistémico, no de chicas.</div>
-            ${patronesActivos.map(([nombre, n]) => {
-                const pct = (n / recientes.length * 100).toFixed(1);
-                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-                    <span style="font-size:12px">${nombre}</span>
-                    <span style="font-size:12px;font-weight:600">${n} <span style="font-size:10px;color:var(--text-tertiary);font-weight:400">(${pct}%)</span></span>
+            <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:14px">Reviews que mencionan estos temas Y dieron &lt;5 estrellas en limpieza. Toca cada patrón para ver los deptos y comentarios específicos.</div>
+            ${patronesActivos.map(([nombre, d], i) => {
+                const pct = (d.reviews.length / recientes.length * 100).toFixed(1);
+                // Agrupar por depto para el detalle
+                const byDepto = {};
+                d.reviews.forEach(rv => {
+                    if(!byDepto[rv.depto]) byDepto[rv.depto] = [];
+                    byDepto[rv.depto].push(rv);
+                });
+                const deptosOrdenados = Object.entries(byDepto).sort((a,b)=>b[1].length-a[1].length);
+                return `<div style="border-bottom:1px solid rgba(255,255,255,0.04)">
+                    <div onclick="lqTogglePatron(${i})" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;cursor:pointer;user-select:none">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span id="lq-patron-arrow-${i}" style="font-size:10px;color:var(--text-tertiary);transition:transform 0.2s;display:inline-block;width:10px">▸</span>
+                            <span style="font-size:12px">${nombre}</span>
+                            <span style="font-size:10px;color:var(--text-tertiary)">${deptosOrdenados.length} depto${deptosOrdenados.length!==1?'s':''}</span>
+                        </div>
+                        <span style="font-size:12px;font-weight:600">${d.reviews.length} <span style="font-size:10px;color:var(--text-tertiary);font-weight:400">(${pct}%)</span></span>
+                    </div>
+                    <div id="lq-patron-detail-${i}" style="display:none;padding:0 0 16px 22px">
+                        ${deptosOrdenados.map(([depto, revs]) => `
+                            <div style="margin-bottom:12px">
+                                <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+                                    <strong style="font-size:12px">${depto}</strong>
+                                    <span style="font-size:10px;color:var(--text-tertiary)">${revs.length} review${revs.length!==1?'s':''}</span>
+                                </div>
+                                ${revs.map(rv => {
+                                    // Extraer fragmento cercano al keyword
+                                    const texto = rv.comentario || '';
+                                    const match = d.regex.exec(texto);
+                                    d.regex.lastIndex = 0;
+                                    let fragmento = texto;
+                                    if(match) {
+                                        const start = Math.max(0, match.index - 60);
+                                        const end = Math.min(texto.length, match.index + match[0].length + 100);
+                                        fragmento = (start>0?'…':'') + texto.substring(start, end) + (end<texto.length?'…':'');
+                                        // Resaltar el keyword
+                                        fragmento = fragmento.replace(d.regex, m => `<mark style="background:rgba(224,122,62,0.25);color:#F0CC6A;padding:0 3px;border-radius:3px">${m}</mark>`);
+                                    }
+                                    const ratingColor = rv.limpieza <= 2 ? '#FF5C5C' : rv.limpieza === 3 ? '#E8B84B' : '#B88A3A';
+                                    return `<div style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:6px;margin-bottom:6px;font-size:11px;line-height:1.5">
+                                        <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
+                                            <span style="background:${ratingColor};color:#000;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px">⭐ ${rv.limpieza}</span>
+                                            <span style="font-size:10px;color:var(--text-tertiary)">${rv.fecha} · ${rv.huesped}</span>
+                                            ${rv.chica?`<span style="font-size:10px;color:var(--text-secondary);background:rgba(255,255,255,0.04);padding:1px 6px;border-radius:99px">👷‍♀️ ${rv.chica}</span>`:''}
+                                        </div>
+                                        <div style="color:var(--text-secondary)">&ldquo;${fragmento}&rdquo;</div>
+                                    </div>`;
+                                }).join('')}
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>`;
             }).join('')}
         </div>` : '';
