@@ -7896,28 +7896,41 @@ function updateNotifBadge(){
         if(!cont) return;
         const reviews = await lqCruzarReviewsConChicas();
 
-        // Agrupar por depto con score limpieza
+        // Agrupar por depto con score limpieza y TODAS las reviews (para poder mostrar las más bajas)
         const byDepto = {};
         reviews.forEach(r => {
-            if(!byDepto[r.depto]) byDepto[r.depto] = { scores:[], chicas:new Set(), comentariosMalos:[] };
+            if(!byDepto[r.depto]) byDepto[r.depto] = { scores:[], chicas:new Set(), reviews:[] };
             byDepto[r.depto].scores.push(r.limpieza);
             if(r.chica) byDepto[r.depto].chicas.add(r.chica);
-            if(r.limpieza <= 3 && r.comentario) byDepto[r.depto].comentariosMalos.push({
-                fecha: r.fecha, huesped: r.huesped, chica: r.chica, rating: r.limpieza, texto: r.comentario
+            byDepto[r.depto].reviews.push({
+                fecha: r.fecha, huesped: r.huesped, chica: r.chica, rating: r.limpieza,
+                texto: r.comentario || ''
             });
         });
 
-        // Filtrar deptos con mín 3 reviews y promedio < 4.5
+        // Filtrar deptos con mín 3 reviews y promedio < 4.7
         const problemas = Object.entries(byDepto)
             .filter(([_, d]) => d.scores.length >= 3)
-            .map(([depto, d]) => ({
-                depto,
-                promedio: d.scores.reduce((a,b)=>a+b,0) / d.scores.length,
-                n: d.scores.length,
-                nChicasDistintas: d.chicas.size,
-                chicas: [...d.chicas],
-                comentariosMalos: d.comentariosMalos
-            }))
+            .map(([depto, d]) => {
+                const prom = d.scores.reduce((a,b)=>a+b,0) / d.scores.length;
+                // Ordenar reviews por rating asc, luego fecha desc (las peores primero, después las recientes)
+                const sortedReviews = [...d.reviews].sort((a,b) => {
+                    if(a.rating !== b.rating) return a.rating - b.rating;
+                    return new Date(b.fecha) - new Date(a.fecha);
+                });
+                // Separar las malas (≤3) de las demás
+                const malas = sortedReviews.filter(r => r.rating <= 3);
+                const medianas = sortedReviews.filter(r => r.rating === 4);
+                // Cantidad de reviews con comentario sustancial (>30 caracteres)
+                const conComentario = sortedReviews.filter(r => r.texto && r.texto.length > 30);
+                return {
+                    depto, promedio: prom, n: d.scores.length,
+                    nChicasDistintas: d.chicas.size, chicas: [...d.chicas],
+                    reviewsMalas: malas, reviewsMedianas: medianas,
+                    reviewsConTexto: conComentario,
+                    allReviews: sortedReviews
+                };
+            })
             .filter(d => d.promedio < 4.7)
             .sort((a,b) => a.promedio - b.promedio);
 
@@ -7928,30 +7941,91 @@ function updateNotifBadge(){
 
         cont.innerHTML = problemas.map(p => {
             const color = p.promedio < 3.5 ? '#FF5C5C' : p.promedio < 4.0 ? '#E8B84B' : '#B88A3A';
-            const diag = p.nChicasDistintas >= 2 && p.promedio < 4.0
-                ? '<div style="background:rgba(255,92,92,0.1);border:1px solid rgba(255,92,92,0.25);padding:10px 12px;border-radius:8px;margin-top:12px;font-size:11px;color:var(--status-red);line-height:1.5"><strong>Diagnóstico:</strong> '+p.nChicasDistintas+' chicas distintas lo han limpiado con promedio bajo. Problema es del depto, no de las chicas. Revisar: sábanas, sarro en regaderas, mantenimiento, olores.</div>'
-                : p.nChicasDistintas === 1 && p.promedio < 4.0
-                ? '<div style="background:rgba(232,184,75,0.1);border:1px solid rgba(232,184,75,0.25);padding:10px 12px;border-radius:8px;margin-top:12px;font-size:11px;color:var(--status-yellow);line-height:1.5"><strong>Diagnóstico:</strong> solo 1 chica lo limpia — podría ser la chica o el depto. Rota a otra chica para aislar la causa.</div>'
-                : '<div style="background:rgba(255,255,255,0.04);padding:10px 12px;border-radius:8px;margin-top:12px;font-size:11px;color:var(--text-secondary);line-height:1.5">Puntuación baja pero necesita más datos para diagnóstico.</div>';
-            const comsHtml = p.comentariosMalos.slice(0,3).map(c =>
-                `<div style="background:rgba(0,0,0,0.2);padding:10px 12px;border-radius:6px;margin-top:8px;font-size:11px;line-height:1.5">
-                    <div style="color:var(--text-tertiary);margin-bottom:4px">${c.fecha} · ${c.huesped} · ⭐ ${c.rating}${c.chica?' · limpió: <strong>'+c.chica+'</strong>':''}</div>
-                    <div style="color:var(--text-secondary)">&ldquo;${c.texto.substring(0,200)}${c.texto.length>200?'…':''}&rdquo;</div>
-                </div>`
-            ).join('');
-            return `<div class="glass-card" style="padding:18px;margin-bottom:12px">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                    <div>
-                        <div style="font-weight:700;font-size:15px">${p.depto}</div>
-                        <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">${p.n} reviews · ${p.nChicasDistintas} chica${p.nChicasDistintas!==1?'s':''} distinta${p.nChicasDistintas!==1?'s':''}: ${p.chicas.length?p.chicas.join(', '):'<em>sin data</em>'}</div>
+
+            // Lógica de diagnóstico mejorada (ya no depende de que haya chicas identificadas)
+            let diag;
+            if(p.nChicasDistintas >= 2 && p.promedio < 4.0) {
+                diag = {
+                    icon:'🔧', bg:'rgba(255,92,92,0.12)', border:'rgba(255,92,92,0.3)', color:'#FF8A8A',
+                    title:'Problema del depto, no de las chicas',
+                    body:p.nChicasDistintas+' chicas distintas lo han limpiado y el promedio sigue bajo. Revisar: sábanas/colchones viejos, sarro en regaderas, moho, olores persistentes, cocina con desgaste.'
+                };
+            } else if(p.nChicasDistintas === 1 && p.promedio < 4.0) {
+                diag = {
+                    icon:'🔄', bg:'rgba(232,184,75,0.12)', border:'rgba(232,184,75,0.3)', color:'#F0CC6A',
+                    title:'Rotar chica para aislar causa',
+                    body:'Solo 1 chica lo limpia. Podría ser la chica o el depto. Manda otra chica próxima salida para comparar.'
+                };
+            } else if(p.reviewsMalas.length >= 3) {
+                diag = {
+                    icon:'⚠️', bg:'rgba(255,92,92,0.12)', border:'rgba(255,92,92,0.3)', color:'#FF8A8A',
+                    title:p.reviewsMalas.length+' reviews con 3★ o menos',
+                    body:'Patrón recurrente de quejas de limpieza. Lee los comentarios abajo para identificar qué falla específicamente (textiles, baños, cocina).'
+                };
+            } else if(p.reviewsMalas.length >= 1) {
+                diag = {
+                    icon:'👀', bg:'rgba(232,184,75,0.12)', border:'rgba(232,184,75,0.3)', color:'#F0CC6A',
+                    title:p.reviewsMalas.length+' review'+(p.reviewsMalas.length>1?'s':'')+' baja'+(p.reviewsMalas.length>1?'s':'')+' · monitorear',
+                    body:'Puntuación general aceptable pero hay quejas puntuales. Ver comentario abajo para ver si es caso aislado.'
+                };
+            } else if(p.promedio < 4.5) {
+                diag = {
+                    icon:'📊', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.1)', color:'#C8C8C8',
+                    title:'Sin quejas fuertes, pero promedio &lt;4.5',
+                    body:'Todas las reviews son 4-5 pero no consistentemente 5. Detalles menores están restando puntos (toallas, polvo, sofá, accesorios). Afinar checklist.'
+                };
+            } else {
+                diag = {
+                    icon:'📊', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.1)', color:'#C8C8C8',
+                    title:'Promedio aceptable',
+                    body:'Score limpieza '+p.promedio.toFixed(2)+' · sin quejas fuertes recientes.'
+                };
+            }
+
+            const diagHtml = `<div style="background:${diag.bg};border:1px solid ${diag.border};padding:12px 14px;border-radius:8px;margin-top:14px;display:flex;gap:10px;align-items:flex-start">
+                <div style="font-size:18px;flex-shrink:0">${diag.icon}</div>
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:700;font-size:12px;color:${diag.color};margin-bottom:4px">${diag.title}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);line-height:1.55">${diag.body}</div>
+                </div>
+            </div>`;
+
+            // Mostrar hasta 4 reviews: priorizar las malas con texto, luego las medianas con texto
+            const candidatas = [
+                ...p.reviewsMalas.filter(r => r.texto && r.texto.length > 20),
+                ...p.reviewsMedianas.filter(r => r.texto && r.texto.length > 50),
+                ...p.reviewsMalas.filter(r => !r.texto || r.texto.length <= 20)
+            ];
+            const mostrar = candidatas.slice(0, 4);
+
+            const ratingColor = (rating) => rating <= 2 ? '#FF5C5C' : rating === 3 ? '#E8B84B' : rating === 4 ? '#B88A3A' : '#22D37D';
+
+            const comsHtml = mostrar.length ? mostrar.map(c => `
+                <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:12px 14px;border-radius:8px;margin-top:8px;font-size:11px;line-height:1.55">
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+                        <span style="background:${ratingColor(c.rating)};color:#000;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px">⭐ ${c.rating}</span>
+                        <span style="color:var(--text-tertiary);font-size:10px">${c.fecha} · ${c.huesped}</span>
+                        ${c.chica ? `<span style="color:var(--text-secondary);font-size:10px;background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:99px">👷‍♀️ ${c.chica}</span>` : ''}
                     </div>
-                    <div style="text-align:right">
-                        <div style="font-size:28px;font-weight:700;color:${color};font-family:'Plus Jakarta Sans',sans-serif;line-height:1">${p.promedio.toFixed(2)}</div>
-                        <div style="font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1.5px">Score limpieza</div>
+                    ${c.texto ? `<div style="color:var(--text-primary);opacity:0.92">&ldquo;${c.texto.substring(0,280)}${c.texto.length>280?'…':''}&rdquo;</div>` : '<div style="color:var(--text-tertiary);font-style:italic">Sin comentario textual — solo rating</div>'}
+                </div>
+            `).join('') : '';
+
+            return `<div class="glass-card" style="padding:20px;margin-bottom:14px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div style="flex:1;min-width:0">
+                        <div style="font-weight:700;font-size:16px">${p.depto}</div>
+                        <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;line-height:1.5">
+                            ${p.n} reviews totales · <strong style="color:var(--text-secondary)">${p.reviewsMalas.length} con ≤3★</strong> · ${p.nChicasDistintas} chica${p.nChicasDistintas!==1?'s':''} identificada${p.nChicasDistintas!==1?'s':''}${p.chicas.length?': '+p.chicas.join(', '):''}
+                        </div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0">
+                        <div style="font-size:32px;font-weight:700;color:${color};font-family:'Plus Jakarta Sans',sans-serif;line-height:1">${p.promedio.toFixed(2)}</div>
+                        <div style="font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1.5px;margin-top:2px">Score limpieza</div>
                     </div>
                 </div>
-                ${diag}
-                ${comsHtml?`<div style="margin-top:12px"><div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Reviews recientes (${Math.min(3,p.comentariosMalos.length)} de ${p.comentariosMalos.length})</div>${comsHtml}</div>`:''}
+                ${diagHtml}
+                ${comsHtml ? `<div style="margin-top:14px"><div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px">Reviews relevantes (${mostrar.length} de ${p.n})</div>${comsHtml}</div>` : ''}
             </div>`;
         }).join('');
     }
