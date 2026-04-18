@@ -2930,7 +2930,7 @@
                                 <div style="font-size:20px">👷‍♀️</div>
                                 <div>
                                     <div style="font-weight:600;font-size:13px;margin-bottom:6px">Qué te dice esta vista</div>
-                                    <div style="font-size:12px;color:var(--text-secondary);line-height:1.6">Score promedio de limpieza por chica con varianza. Alta varianza = inconsistente. Mínimo 5 reviews para ser estadísticamente real — antes de eso está en "zona de duda". Las que aparecen en rojo necesitan capacitación o reasignación; las verdes son tus benchmarks internos.</div>
+                                    <div style="font-size:12px;color:var(--text-secondary);line-height:1.6">Calificación promedio de limpieza de cada chica según las reviews de los huéspedes que ella limpió. Las de arriba son tus mejores chicas, las de abajo las que necesitan atención. Si tiene menos de 5 reviews, todavía no hay suficientes datos para juzgarla bien (sale como "Sin suficiente info"). La varianza (σ) mide qué tan parejo es su trabajo: σ bajo = siempre entrega igual; σ alto = a veces muy bien, a veces mal.</div>
                                 </div>
                             </div>
                         </div>
@@ -8069,12 +8069,12 @@ function updateNotifBadge(){
 
         const html = chicas.map(c => {
             const confiable = c.n >= 5;
-            const estado = !confiable ? {label:'Zona duda', color:'#9AA4AD', desc:'Necesita más reviews para diagnóstico'} :
-                c.promedio >= 4.7 ? {label:'Benchmark', color:'#22D37D', desc:'Tu estándar de oro'} :
-                c.promedio >= 4.3 ? {label:'Correcto', color:'#6FB77A', desc:'Rendimiento aceptable'} :
-                c.promedio >= 3.8 ? {label:'A mejorar', color:'#E8B84B', desc:'Necesita capacitación específica'} :
-                {label:'Crítico', color:'#FF5C5C', desc:'Revisar o reasignar'};
-            const varDesc = c.varianza < 0.5 ? 'Muy consistente' : c.varianza < 1 ? 'Consistente' : c.varianza < 1.5 ? 'Variable' : 'Muy inconsistente';
+            const estado = !confiable ? {label:'Sin suficiente info', color:'#9AA4AD', desc:'Necesita más reviews para juzgar — mínimo 5'} :
+                c.promedio >= 4.7 ? {label:'Excelente', color:'#22D37D', desc:'Tu mejor calidad — úsala como referencia'} :
+                c.promedio >= 4.3 ? {label:'Bien', color:'#6FB77A', desc:'Trabajo aceptable'} :
+                c.promedio >= 3.8 ? {label:'A mejorar', color:'#E8B84B', desc:'Necesita capacitación o ajuste'} :
+                {label:'Crítica', color:'#FF5C5C', desc:'Revisar o reasignar'};
+            const varDesc = c.varianza < 0.5 ? 'Muy parejo' : c.varianza < 1 ? 'Parejo' : c.varianza < 1.5 ? 'Variable' : 'Muy inconsistente';
             const stars = '⭐'.repeat(Math.round(c.promedio));
             return `<div class="glass-card" style="padding:16px 18px;margin-bottom:10px">
                 <div style="display:flex;align-items:center;gap:16px">
