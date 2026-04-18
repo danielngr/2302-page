@@ -2021,15 +2021,25 @@
 
 /* ── KPI grid ── */
 .pf-kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-top:24px; }
-.pf-kpi { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:14px 16px; position:relative; overflow:hidden; }
+.pf-kpi { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:14px 16px; position:relative; overflow:visible; }
 .pf-kpi::after { content:''; position:absolute; inset:0; border-radius:12px; background:linear-gradient(135deg,rgba(255,255,255,0.03),transparent); pointer-events:none; }
-.pf-kpi-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:8px; font-family:var(--font-body); }
+.pf-kpi-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:8px; font-family:var(--font-body); display:flex; align-items:center; justify-content:space-between; gap:6px; }
+.pf-kpi-help { display:inline-flex; width:14px; height:14px; border-radius:50%; border:1px solid rgba(255,255,255,0.2); color:var(--text-tertiary); font-size:9px; font-weight:600; align-items:center; justify-content:center; cursor:help; flex-shrink:0; position:relative; letter-spacing:0; text-transform:none; background:rgba(255,255,255,0.02); transition:all 0.2s; }
+.pf-kpi-help:hover { border-color:var(--accent-terracota); color:var(--accent-terracota); background:rgba(224,122,62,0.1); }
+.pf-kpi-help[data-tip]:hover::after { content:attr(data-tip); position:absolute; top:calc(100% + 8px); right:-8px; min-width:220px; max-width:280px; padding:10px 12px; background:#1a1a1a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; font-size:11px; font-weight:400; color:var(--text-primary); letter-spacing:normal; text-transform:none; line-height:1.5; white-space:normal; z-index:1000; box-shadow:0 8px 24px rgba(0,0,0,0.4); pointer-events:none; text-align:left; }
 .pf-kpi-val { font-family:'Plus Jakarta Sans',sans-serif; font-size:20px; font-weight:700; line-height:1; }
 .pf-kpi-sub { font-size:10px; color:var(--text-tertiary); margin-top:4px; }
 .pf-kpi-badge { display:inline-flex; align-items:center; gap:3px; font-size:9px; padding:2px 6px; border-radius:99px; margin-top:6px; font-weight:600; }
 .pf-kpi-badge.up { background:rgba(34,211,125,0.12); color:var(--status-green); }
 .pf-kpi-badge.down { background:rgba(255,92,92,0.12); color:var(--status-red); }
 .pf-kpi-badge.neutral { background:rgba(232,184,75,0.12); color:var(--status-yellow); }
+.pf-kpi-status { margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.05); font-size:10px; line-height:1.4; }
+.pf-kpi-status-label { display:inline-block; padding:1px 6px; border-radius:4px; font-size:9px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; margin-right:4px; }
+.pf-kpi-status-good { background:rgba(34,211,125,0.15); color:var(--status-green); }
+.pf-kpi-status-warn { background:rgba(232,184,75,0.15); color:var(--status-yellow); }
+.pf-kpi-status-bad  { background:rgba(255,92,92,0.15); color:var(--status-red); }
+.pf-kpi-status-info { background:rgba(74,164,255,0.15); color:var(--status-blue); }
+.pf-kpi-status-text { color:var(--text-secondary); font-size:10px; }
 
 /* ── Section headers ── */
 .pf-section-title { font-family:'Plus Jakarta Sans',sans-serif; font-size:13px; font-weight:700; color:var(--text-primary); letter-spacing:0.5px; margin-bottom:4px; }
@@ -2352,7 +2362,7 @@
 <div class="pf-hero">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px">
     <div>
-      <div class="pf-gbv-label">Gross Booking Value — Portfolio VRM</div>
+      <div class="pf-gbv-label" style="display:flex;align-items:center;gap:8px">Gross Booking Value — Portfolio VRM <span class="pf-kpi-help" style="position:relative;top:-1px" data-tip="Dos números independientes que NO cambian con los filtros de período. El grande ($42.8M) es una proyección de cuánto cerrarías 2026 si mantienes el ritmo actual de Q1. El dorado ($47.6M) es lo realmente cobrado desde enero 2025 hasta hoy.">?</span></div>
       <div class="pf-gbv-value" id="pf-gbv-val">$42.8M</div>
       <div class="pf-gbv-sub">MXN proyectado 2026 · <span style="color:var(--accent-gold)">$47.6M MXN gestionados 15 meses</span></div>
     </div>
@@ -2383,7 +2393,7 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
       <!-- Ingresos chart -->
       <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px">
-        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px;font-family:var(--font-body)">Ingresos Netos por Mes</div>
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px;font-family:var(--font-body);display:flex;align-items:center;gap:8px">Ingresos Netos por Mes <span class="pf-kpi-help" data-tip="Cada barra es el dinero neto cobrado ese mes (suma de todos los deptos). Verde = mejor mes, rojo = peor. Útil para identificar temporada alta/baja y crecimiento año-con-año.">?</span></div>
         <div id="pf-chart-ingresos-wrap" style="margin-top:14px">
           <div class="pf-bar-wrap" id="pf-chart-ingresos"></div>
           <div class="pf-bar-labels" id="pf-chart-labels"></div>
@@ -2391,7 +2401,7 @@
       </div>
       <!-- Occupancy chart -->
       <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px">
-        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px;font-family:var(--font-body)">Occupancy % por Mes</div>
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px;font-family:var(--font-body);display:flex;align-items:center;gap:8px">Occupancy % por Mes <span class="pf-kpi-help" data-tip="% promedio de noches ocupadas sobre noches disponibles. Un mes con más deptos agregados puede tener occupancy más baja aunque ingresos sean más altos — ambos van juntos para la historia completa.">?</span></div>
         <div style="margin-top:14px">
           <div class="pf-bar-wrap" id="pf-chart-occ"></div>
           <div class="pf-bar-labels" id="pf-chart-occ-labels"></div>
@@ -2401,7 +2411,7 @@
 
     <!-- ADR + RevPAR trend -->
     <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px;margin-bottom:20px">
-      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:14px;font-family:var(--font-body)">ADR vs RevPAR · Tendencia 15 meses</div>
+      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:14px;font-family:var(--font-body);display:flex;align-items:center;gap:8px">ADR vs RevPAR · Tendencia 15 meses <span class="pf-kpi-help" data-tip="ADR es el precio promedio por noche. RevPAR es ADR × ocupación. Si ADR sube pero RevPAR no, estás subiendo precios pero perdiendo días rentados. Ambas líneas deben subir juntas para crecimiento saludable.">?</span></div>
       <div id="pf-adr-revpar-chart" style="position:relative;height:80px"></div>
     </div>
 
@@ -2410,7 +2420,7 @@
 
     <!-- Seasonality heatmap -->
     <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px;margin-bottom:20px">
-      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:14px;font-family:var(--font-body)">Mapa de Calor · Ocupación Estacional</div>
+      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:14px;font-family:var(--font-body);display:flex;align-items:center;gap:8px">Mapa de Calor · Ocupación Estacional <span class="pf-kpi-help" data-tip="Cada fila es un depto, cada columna un mes de 2025. Naranja oscuro = alta ocupación, claro = baja. Ordenado por revenue total descendente (los más productivos arriba). Sirve para detectar patrones estacionales y deptos crónicamente vacíos.">?</span></div>
       <div id="pf-heatmap"></div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
         <span style="font-size:9px;color:var(--text-tertiary)">0%</span>
@@ -2423,7 +2433,7 @@
 
     <!-- Portfolio concentration -->
     <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px">
-      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:14px;font-family:var(--font-body)">Concentración del Portafolio</div>
+      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:14px;font-family:var(--font-body);display:flex;align-items:center;gap:8px">Concentración del Portafolio <span class="pf-kpi-help" data-tip="Qué % del revenue viene de tus top 5 y top 10 deptos. Si tus 5 mejores generan >60% del total, tienes alto riesgo: perder 1 propietario te impacta mucho. Idealmente diversificado entre muchos.">?</span></div>
       <div id="pf-concentration"></div>
     </div>
   </div>
@@ -4822,22 +4832,56 @@
             gbvEl.dataset.locked = '1';
         }
 
-        // ── KPI Cards ──
+        // ── KPI Cards con tooltips y status ──
+        // Calcular métricas del periodo ANTERIOR para comparación
+        let prevPeriodo = null;
+        if(pfPeriodo.match(/^\d{4}-\d{2}$/)) {
+            const [y,m] = pfPeriodo.split('-').map(Number);
+            const pm = m === 1 ? 12 : m - 1;
+            const py = m === 1 ? y - 1 : y;
+            prevPeriodo = `${py}-${String(pm).padStart(2,'0')}`;
+        }
+        let prevNeto = null, prevOcc = null, prevAdr = null, prevRevpar = null, prevNoches = null;
+        if(prevPeriodo) {
+            const prevRows = EARNINGS.filter(r => r[0] === prevPeriodo);
+            if(prevRows.length) {
+                prevNeto = prevRows.reduce((a,r)=>a+r[3],0);
+                prevNoches = prevRows.reduce((a,r)=>a+r[4],0);
+                const pwo = prevRows.filter(r=>r[5]>0);
+                prevOcc = pwo.length ? pwo.reduce((a,r)=>a+r[5],0)/pwo.length : 0;
+                prevAdr = prevNoches > 0 ? prevRows.reduce((a,r)=>a+r[6]*r[4],0)/prevNoches : 0;
+                prevRevpar = prevAdr * prevOcc / 100;
+            }
+        }
+        // Helper para calcular delta %
+        const deltaPct = (cur, prev) => (prev && prev > 0) ? ((cur - prev) / prev * 100) : null;
+        const statusBadge = (delta, goodIfUp=true) => {
+            if(delta === null) return {cls:'info', txt:'Sin comparable'};
+            const rounded = Math.round(delta*10)/10;
+            if(Math.abs(rounded) < 2) return {cls:'info', txt:`${rounded>=0?'+':''}${rounded}% vs mes ant.`};
+            const isGood = goodIfUp ? rounded > 0 : rounded < 0;
+            return {cls: isGood ? 'good' : 'bad', txt:`${rounded>=0?'+':''}${rounded}% vs mes ant.`};
+        };
+        const occStatus = avgOcc >= 70 ? {cls:'good',txt:'Saludable'} : avgOcc >= 50 ? {cls:'warn',txt:'A mejorar'} : {cls:'bad',txt:'Crítico'};
+
         const kpiData = [
-            {label:'Ingresos Netos', val:pfFmtM(totalNeto), sub:'MXN período', c:'var(--accent-terracota)', badge:null},
-            {label:'Noches Vendidas', val:totalNoches.toLocaleString('es-MX'), sub:'noches rentadas', c:'var(--accent-gold)', badge:null},
-            {label:'Occupancy Prom', val:avgOcc.toFixed(1)+'%', sub:'del portafolio', c:pfColorOcc(avgOcc),
-             badge: avgOcc >= 65 ? {txt:'Bueno ↑',cls:'up'} : avgOcc >= 50 ? {txt:'Medio →',cls:'neutral'} : {txt:'Bajo ↓',cls:'down'}},
-            {label:'ADR Promedio', val:pfFmt(avgADR), sub:'MXN/noche', c:'var(--text-primary)', badge:null},
-            {label:'RevPAR', val:pfFmt(avgRevPAR), sub:'MXN/noche disponible', c:'var(--status-blue)',
-             badge:{txt:'Key metric',cls:'neutral'}},
+            {label:'Ingresos netos', help:'Lo que Airbnb te depositó neto (después de su comisión de ~3.5%). Es dinero cobrado en el banco.', val:pfFmtM(totalNeto), sub:'MXN período', c:'var(--accent-terracota)',
+             status: prevNeto ? statusBadge(deltaPct(totalNeto, prevNeto)) : null},
+            {label:'Noches vendidas', help:'Total de noches ocupadas en todo el portfolio durante el período. Indicador de volumen bruto.', val:totalNoches.toLocaleString('es-MX'), sub:'noches rentadas', c:'var(--accent-gold)',
+             status: prevNoches ? statusBadge(deltaPct(totalNoches, prevNoches)) : null},
+            {label:'Occupancy prom.', help:'% del tiempo que tus deptos estuvieron rentados. Saludable >70%, a mejorar 50-70%, crítico <50%.', val:avgOcc.toFixed(1)+'%', sub:'del portafolio', c:pfColorOcc(avgOcc),
+             status: occStatus},
+            {label:'ADR promedio', help:'Average Daily Rate — precio promedio cobrado por noche. Mide qué tan caro estás vendiendo.', val:pfFmt(avgADR), sub:'MXN/noche', c:'var(--text-primary)',
+             status: prevAdr ? statusBadge(deltaPct(avgADR, prevAdr)) : null},
+            {label:'RevPAR', help:'RevPAR = ADR × Occupancy. El KPI clave: cuánto factura cada noche disponible (ocupada o no). Si sube, estás mejorando aunque cambien precio u ocupación.', val:pfFmt(avgRevPAR), sub:'MXN/noche disponible', c:'var(--status-blue)',
+             status: prevRevpar ? statusBadge(deltaPct(avgRevPAR, prevRevpar)) : {cls:'info',txt:'Métrica clave'}},
         ];
         document.getElementById('pf-kpis').innerHTML = kpiData.map(k => `
             <div class="pf-kpi">
-                <div class="pf-kpi-label">${k.label}</div>
+                <div class="pf-kpi-label"><span>${k.label}</span><span class="pf-kpi-help" data-tip="${k.help.replace(/"/g,'&quot;')}">?</span></div>
                 <div class="pf-kpi-val" style="color:${k.c}">${k.val}</div>
                 <div class="pf-kpi-sub">${k.sub}</div>
-                ${k.badge ? `<div class="pf-kpi-badge ${k.badge.cls}">${k.badge.txt}</div>` : ''}
+                ${k.status ? `<div class="pf-kpi-status"><span class="pf-kpi-status-label pf-kpi-status-${k.status.cls}">${k.status.cls==='good'?'✓':k.status.cls==='bad'?'↓':k.status.cls==='warn'?'!':'●'}</span><span class="pf-kpi-status-text">${k.status.txt}</span></div>` : ''}
             </div>`).join('');
 
         // ── Charts todos los meses ──
@@ -4938,9 +4982,14 @@
         // ── Heatmap estacional ──
         const heatEl = document.getElementById('pf-heatmap');
         if(heatEl) {
-            const allDeptos2025 = [...new Set(EARNINGS.filter(r=>r[0].startsWith('2025')).map(r=>r[1]))].sort().slice(0,12);
+            // Todos los deptos 2025 ordenados por revenue total (mayor primero)
+            const deptosRev2025 = {};
+            EARNINGS.filter(r=>r[0].startsWith('2025')).forEach(r=>{
+                deptosRev2025[r[1]] = (deptosRev2025[r[1]]||0) + r[3];
+            });
+            const allDeptos2025 = Object.keys(deptosRev2025).sort((a,b)=>deptosRev2025[b]-deptosRev2025[a]);
             heatEl.innerHTML = `
-            <div style="display:grid;grid-template-columns:80px repeat(12,1fr);gap:2px;font-size:8px;font-family:var(--font-body)">
+            <div style="display:grid;grid-template-columns:100px repeat(12,1fr);gap:2px;font-size:9px;font-family:var(--font-body)">
               <div></div>
               ${Object.keys(PF_MES_NAMES).map(m=>`<div style="text-align:center;color:var(--text-tertiary);padding-bottom:4px">${PF_MES_NAMES[m]}</div>`).join('')}
               ${allDeptos2025.map(depto => {
@@ -4949,9 +4998,9 @@
                     const r = EARNINGS.find(x=>x[0]===key&&x[1]===depto);
                     const occ = r ? r[5] : 0;
                     const alpha = occ/100;
-                    return `<div style="height:14px;background:rgba(224,122,62,${alpha.toFixed(2)});border-radius:2px" title="${depto} ${PF_MES_NAMES[mo]}: ${occ.toFixed(0)}%"></div>`;
+                    return `<div style="height:14px;background:rgba(224,122,62,${alpha.toFixed(2)});border-radius:2px" title="${depto} ${PF_MES_NAMES[mo]} 2025: ${occ.toFixed(0)}% occ"></div>`;
                 }).join('');
-                return `<div style="color:var(--text-tertiary);padding:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${depto}">${depto.length>10?depto.substring(0,10)+'…':depto}</div>${row}`;
+                return `<div style="color:var(--text-tertiary);padding:2px 6px 2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px" title="${depto}">${depto.length>13?depto.substring(0,13)+'…':depto}</div>${row}`;
               }).join('')}
             </div>`;
         }
@@ -4997,11 +5046,14 @@
         const sc = pfScenarioActive;
         const mult = sc === 'conservador' ? 0.85 : sc === 'optimista' ? 1.15 : 1.0;
         const factor = pfGrowthFactor * mult;
-        const real = {
-            '01': PF_Q1_2026 * PF_SEASON['01']/PF_Q1_SHARE,
-            '02': PF_Q1_2026 * PF_SEASON['02']/PF_Q1_SHARE,
-            '03': PF_Q1_2026 * PF_SEASON['03']/PF_Q1_SHARE,
-        };
+        // Ene/Feb/Mar = datos REALES del array EARNINGS (no cambian con slider)
+        const realFromData = {};
+        ['01','02','03'].forEach(m => {
+            const key = `2026-${m}`;
+            realFromData[m] = EARNINGS.filter(r => r[0] === key).reduce((a,r) => a+r[3], 0);
+        });
+        const real = realFromData;
+        // Abr-Dic: proyección (SÍ se mueve con slider y escenario)
         const proyectado = {};
         PF_PROJ_MESES.forEach(m => { proyectado[m] = PF_ANNUAL_BASE * PF_SEASON[m] * factor; });
 
