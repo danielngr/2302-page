@@ -1979,6 +1979,119 @@
     font-family:var(--font-mono);letter-spacing:1px;
   }
 
+
+
+<style>
+/* ── Portfolio scrollbar ── */
+#mod-portfolio { display:none; overflow-y:auto; height:100%; }
+#mod-portfolio.active { display:block !important; }
+#mod-portfolio::-webkit-scrollbar { width: 4px; }
+#mod-portfolio::-webkit-scrollbar-track { background: transparent; }
+#mod-portfolio::-webkit-scrollbar-thumb { background: rgba(224,122,62,0.4); border-radius: 99px; }
+#mod-portfolio::-webkit-scrollbar-thumb:hover { background: rgba(224,122,62,0.8); }
+
+/* ── Portfolio sections ── */
+.pf-section { padding: 24px 28px; }
+.pf-section + .pf-section { border-top: 1px solid rgba(255,255,255,0.05); }
+
+/* ── KPI Hero ── */
+.pf-hero { 
+  background: linear-gradient(135deg, rgba(224,122,62,0.12) 0%, rgba(245,192,112,0.06) 50%, rgba(8,8,8,0) 100%);
+  border-bottom: 1px solid rgba(224,122,62,0.15);
+  padding: 32px 28px 28px;
+  position: relative; overflow: hidden;
+}
+.pf-hero::before {
+  content:''; position:absolute; top:-60px; right:-60px;
+  width:300px; height:300px; border-radius:50%;
+  background: radial-gradient(circle, rgba(224,122,62,0.08) 0%, transparent 70%);
+  pointer-events:none;
+}
+.pf-gbv-label { font-family:var(--font-body); font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:6px; }
+.pf-gbv-value { font-family:'Plus Jakarta Sans',sans-serif; font-size:48px; font-weight:800; letter-spacing:-2px; line-height:1; background: linear-gradient(135deg, #F5C070, #E07A3E); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.pf-gbv-sub { font-size:12px; color:var(--text-tertiary); margin-top:8px; font-family:var(--font-body); }
+
+/* ── KPI grid ── */
+.pf-kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-top:24px; }
+.pf-kpi { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:14px 16px; position:relative; overflow:hidden; }
+.pf-kpi::after { content:''; position:absolute; inset:0; border-radius:12px; background:linear-gradient(135deg,rgba(255,255,255,0.03),transparent); pointer-events:none; }
+.pf-kpi-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:8px; font-family:var(--font-body); }
+.pf-kpi-val { font-family:'Plus Jakarta Sans',sans-serif; font-size:20px; font-weight:700; line-height:1; }
+.pf-kpi-sub { font-size:10px; color:var(--text-tertiary); margin-top:4px; }
+.pf-kpi-badge { display:inline-flex; align-items:center; gap:3px; font-size:9px; padding:2px 6px; border-radius:99px; margin-top:6px; font-weight:600; }
+.pf-kpi-badge.up { background:rgba(34,211,125,0.12); color:var(--status-green); }
+.pf-kpi-badge.down { background:rgba(255,92,92,0.12); color:var(--status-red); }
+.pf-kpi-badge.neutral { background:rgba(232,184,75,0.12); color:var(--status-yellow); }
+
+/* ── Section headers ── */
+.pf-section-title { font-family:'Plus Jakarta Sans',sans-serif; font-size:13px; font-weight:700; color:var(--text-primary); letter-spacing:0.5px; margin-bottom:4px; }
+.pf-section-desc { font-size:11px; color:var(--text-tertiary); margin-bottom:20px; font-family:var(--font-body); }
+
+/* ── Chart bars ── */
+.pf-bar-wrap { display:flex; align-items:flex-end; gap:4px; height:100px; }
+.pf-bar { flex:1; border-radius:4px 4px 0 0; transition:opacity .2s; cursor:pointer; position:relative; min-width:0; }
+.pf-bar:hover { opacity:.8; }
+.pf-bar .pf-bar-tip { position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); background:#1a1a1a; border:1px solid rgba(255,255,255,.1); border-radius:6px; padding:4px 8px; font-size:9px; color:#fff; white-space:nowrap; pointer-events:none; opacity:0; transition:opacity .15s; z-index:10; }
+.pf-bar:hover .pf-bar-tip { opacity:1; }
+.pf-bar-labels { display:flex; gap:4px; margin-top:6px; }
+.pf-bar-label { flex:1; text-align:center; font-size:8px; color:var(--text-tertiary); font-family:var(--font-body); min-width:0; overflow:hidden; }
+
+/* ── Projections ── */
+.pf-proj-row { display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+.pf-proj-mes { font-size:11px; font-family:var(--font-body); color:var(--text-secondary); width:60px; flex-shrink:0; }
+.pf-proj-bar-wrap { flex:1; height:6px; background:rgba(255,255,255,0.05); border-radius:99px; overflow:hidden; }
+.pf-proj-bar-inner { height:100%; border-radius:99px; position:relative; }
+.pf-proj-scenarios { display:flex; gap:6px; flex-shrink:0; }
+.pf-proj-val { font-size:10px; font-family:var(--font-body); }
+.pf-slider-wrap { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+.pf-slider { -webkit-appearance:none; width:100%; height:4px; border-radius:99px; background:rgba(255,255,255,0.1); outline:none; }
+.pf-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--accent-terracota); cursor:pointer; box-shadow:0 0 8px rgba(224,122,62,0.5); }
+.pf-scenario-tabs { display:flex; gap:6px; margin-bottom:16px; }
+.pf-scenario-tab { padding:5px 12px; border-radius:99px; font-size:10px; font-family:var(--font-body); cursor:pointer; border:1px solid rgba(255,255,255,0.1); color:var(--text-tertiary); transition:all .2s; }
+.pf-scenario-tab.active { background:var(--accent-terracota); border-color:transparent; color:#fff; font-weight:600; }
+
+/* ── Market benchmarks ── */
+.pf-bench-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.pf-bench-card { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; }
+.pf-bench-title { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:12px; font-family:var(--font-body); }
+.pf-bench-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.pf-bench-name { font-size:11px; color:var(--text-secondary); flex:1; font-family:var(--font-body); }
+.pf-bench-bar-wrap { width:80px; height:4px; background:rgba(255,255,255,0.08); border-radius:99px; overflow:hidden; }
+.pf-bench-bar { height:100%; border-radius:99px; }
+.pf-bench-val { font-size:10px; font-family:var(--font-body); font-weight:600; width:40px; text-align:right; }
+.pf-vs-badge { font-size:9px; padding:2px 6px; border-radius:99px; font-weight:600; }
+.pf-vs-badge.better { background:rgba(34,211,125,0.12); color:var(--status-green); }
+.pf-vs-badge.worse  { background:rgba(255,92,92,0.12); color:var(--status-red); }
+.pf-vs-badge.same   { background:rgba(232,184,75,0.12); color:var(--status-yellow); }
+
+/* ── Ranking table ── */
+.pf-rank-table { width:100%; border-collapse:collapse; }
+.pf-rank-table th { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-tertiary); font-weight:500; padding:0 10px 10px; text-align:left; font-family:var(--font-body); cursor:pointer; user-select:none; }
+.pf-rank-table th:hover { color:var(--text-secondary); }
+.pf-rank-table td { padding:8px 10px; font-size:11px; font-family:var(--font-body); border-top:1px solid rgba(255,255,255,0.03); }
+.pf-rank-table tr:hover td { background:rgba(255,255,255,0.02); }
+.pf-rank-num { font-size:10px; color:var(--text-tertiary); width:28px; }
+.pf-mini-bar { height:3px; border-radius:99px; background:var(--accent-terracota); margin-top:3px; }
+.pf-occ-dot { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:4px; flex-shrink:0; }
+
+/* ── Tabs ── */
+.pf-tabs { display:flex; gap:0; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:24px; }
+.pf-tab { padding:8px 16px; font-size:11px; font-family:var(--font-body); cursor:pointer; color:var(--text-tertiary); border-bottom:2px solid transparent; transition:all .2s; }
+.pf-tab.active { color:var(--accent-terracota); border-bottom-color:var(--accent-terracota); font-weight:600; }
+.pf-tab-content { display:none; }
+.pf-tab-content.active { display:block; }
+
+/* ── Period selector ── */
+.pf-period-chips { display:flex; gap:6px; flex-wrap:wrap; }
+.pf-chip { padding:5px 12px; border-radius:99px; font-size:10px; font-family:var(--font-body); cursor:pointer; border:1px solid rgba(255,255,255,0.1); color:var(--text-tertiary); transition:all .2s; background:transparent; }
+.pf-chip.active { background:rgba(224,122,62,0.15); border-color:rgba(224,122,62,0.4); color:var(--accent-terracota); font-weight:600; }
+
+/* ── Insight cards ── */
+.pf-insight { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:12px 14px; display:flex; gap:10px; align-items:flex-start; }
+.pf-insight-icon { font-size:16px; flex-shrink:0; margin-top:1px; }
+.pf-insight-text { font-size:11px; font-family:var(--font-body); color:var(--text-secondary); line-height:1.5; }
+.pf-insight-text strong { color:var(--text-primary); }
+</style>
 </style>
 </head>
 <body>
@@ -2226,117 +2339,7 @@
             <!-- MÓDULO: PORTFOLIO -->
 <div class="module" id="mod-portfolio" style="display:none;overflow-y:auto;padding:0;height:100%;background:transparent;flex-direction:column">
 
-<style>
-/* ── Portfolio scrollbar ── */
-#mod-portfolio { display:none; overflow-y:auto; height:100%; }
-#mod-portfolio.active { display:block !important; }
-#mod-portfolio::-webkit-scrollbar { width: 4px; }
-#mod-portfolio::-webkit-scrollbar-track { background: transparent; }
-#mod-portfolio::-webkit-scrollbar-thumb { background: rgba(224,122,62,0.4); border-radius: 99px; }
-#mod-portfolio::-webkit-scrollbar-thumb:hover { background: rgba(224,122,62,0.8); }
 
-/* ── Portfolio sections ── */
-.pf-section { padding: 24px 28px; }
-.pf-section + .pf-section { border-top: 1px solid rgba(255,255,255,0.05); }
-
-/* ── KPI Hero ── */
-.pf-hero { 
-  background: linear-gradient(135deg, rgba(224,122,62,0.12) 0%, rgba(245,192,112,0.06) 50%, rgba(8,8,8,0) 100%);
-  border-bottom: 1px solid rgba(224,122,62,0.15);
-  padding: 32px 28px 28px;
-  position: relative; overflow: hidden;
-}
-.pf-hero::before {
-  content:''; position:absolute; top:-60px; right:-60px;
-  width:300px; height:300px; border-radius:50%;
-  background: radial-gradient(circle, rgba(224,122,62,0.08) 0%, transparent 70%);
-  pointer-events:none;
-}
-.pf-gbv-label { font-family:var(--font-body); font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:6px; }
-.pf-gbv-value { font-family:'Plus Jakarta Sans',sans-serif; font-size:48px; font-weight:800; letter-spacing:-2px; line-height:1; background: linear-gradient(135deg, #F5C070, #E07A3E); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-.pf-gbv-sub { font-size:12px; color:var(--text-tertiary); margin-top:8px; font-family:var(--font-body); }
-
-/* ── KPI grid ── */
-.pf-kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-top:24px; }
-.pf-kpi { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:14px 16px; position:relative; overflow:hidden; }
-.pf-kpi::after { content:''; position:absolute; inset:0; border-radius:12px; background:linear-gradient(135deg,rgba(255,255,255,0.03),transparent); pointer-events:none; }
-.pf-kpi-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:8px; font-family:var(--font-body); }
-.pf-kpi-val { font-family:'Plus Jakarta Sans',sans-serif; font-size:20px; font-weight:700; line-height:1; }
-.pf-kpi-sub { font-size:10px; color:var(--text-tertiary); margin-top:4px; }
-.pf-kpi-badge { display:inline-flex; align-items:center; gap:3px; font-size:9px; padding:2px 6px; border-radius:99px; margin-top:6px; font-weight:600; }
-.pf-kpi-badge.up { background:rgba(34,211,125,0.12); color:var(--status-green); }
-.pf-kpi-badge.down { background:rgba(255,92,92,0.12); color:var(--status-red); }
-.pf-kpi-badge.neutral { background:rgba(232,184,75,0.12); color:var(--status-yellow); }
-
-/* ── Section headers ── */
-.pf-section-title { font-family:'Plus Jakarta Sans',sans-serif; font-size:13px; font-weight:700; color:var(--text-primary); letter-spacing:0.5px; margin-bottom:4px; }
-.pf-section-desc { font-size:11px; color:var(--text-tertiary); margin-bottom:20px; font-family:var(--font-body); }
-
-/* ── Chart bars ── */
-.pf-bar-wrap { display:flex; align-items:flex-end; gap:4px; height:100px; }
-.pf-bar { flex:1; border-radius:4px 4px 0 0; transition:opacity .2s; cursor:pointer; position:relative; min-width:0; }
-.pf-bar:hover { opacity:.8; }
-.pf-bar .pf-bar-tip { position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); background:#1a1a1a; border:1px solid rgba(255,255,255,.1); border-radius:6px; padding:4px 8px; font-size:9px; color:#fff; white-space:nowrap; pointer-events:none; opacity:0; transition:opacity .15s; z-index:10; }
-.pf-bar:hover .pf-bar-tip { opacity:1; }
-.pf-bar-labels { display:flex; gap:4px; margin-top:6px; }
-.pf-bar-label { flex:1; text-align:center; font-size:8px; color:var(--text-tertiary); font-family:var(--font-body); min-width:0; overflow:hidden; }
-
-/* ── Projections ── */
-.pf-proj-row { display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
-.pf-proj-mes { font-size:11px; font-family:var(--font-body); color:var(--text-secondary); width:60px; flex-shrink:0; }
-.pf-proj-bar-wrap { flex:1; height:6px; background:rgba(255,255,255,0.05); border-radius:99px; overflow:hidden; }
-.pf-proj-bar-inner { height:100%; border-radius:99px; position:relative; }
-.pf-proj-scenarios { display:flex; gap:6px; flex-shrink:0; }
-.pf-proj-val { font-size:10px; font-family:var(--font-body); }
-.pf-slider-wrap { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
-.pf-slider { -webkit-appearance:none; width:100%; height:4px; border-radius:99px; background:rgba(255,255,255,0.1); outline:none; }
-.pf-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--accent-terracota); cursor:pointer; box-shadow:0 0 8px rgba(224,122,62,0.5); }
-.pf-scenario-tabs { display:flex; gap:6px; margin-bottom:16px; }
-.pf-scenario-tab { padding:5px 12px; border-radius:99px; font-size:10px; font-family:var(--font-body); cursor:pointer; border:1px solid rgba(255,255,255,0.1); color:var(--text-tertiary); transition:all .2s; }
-.pf-scenario-tab.active { background:var(--accent-terracota); border-color:transparent; color:#fff; font-weight:600; }
-
-/* ── Market benchmarks ── */
-.pf-bench-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.pf-bench-card { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; }
-.pf-bench-title { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:12px; font-family:var(--font-body); }
-.pf-bench-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-.pf-bench-name { font-size:11px; color:var(--text-secondary); flex:1; font-family:var(--font-body); }
-.pf-bench-bar-wrap { width:80px; height:4px; background:rgba(255,255,255,0.08); border-radius:99px; overflow:hidden; }
-.pf-bench-bar { height:100%; border-radius:99px; }
-.pf-bench-val { font-size:10px; font-family:var(--font-body); font-weight:600; width:40px; text-align:right; }
-.pf-vs-badge { font-size:9px; padding:2px 6px; border-radius:99px; font-weight:600; }
-.pf-vs-badge.better { background:rgba(34,211,125,0.12); color:var(--status-green); }
-.pf-vs-badge.worse  { background:rgba(255,92,92,0.12); color:var(--status-red); }
-.pf-vs-badge.same   { background:rgba(232,184,75,0.12); color:var(--status-yellow); }
-
-/* ── Ranking table ── */
-.pf-rank-table { width:100%; border-collapse:collapse; }
-.pf-rank-table th { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-tertiary); font-weight:500; padding:0 10px 10px; text-align:left; font-family:var(--font-body); cursor:pointer; user-select:none; }
-.pf-rank-table th:hover { color:var(--text-secondary); }
-.pf-rank-table td { padding:8px 10px; font-size:11px; font-family:var(--font-body); border-top:1px solid rgba(255,255,255,0.03); }
-.pf-rank-table tr:hover td { background:rgba(255,255,255,0.02); }
-.pf-rank-num { font-size:10px; color:var(--text-tertiary); width:28px; }
-.pf-mini-bar { height:3px; border-radius:99px; background:var(--accent-terracota); margin-top:3px; }
-.pf-occ-dot { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:4px; flex-shrink:0; }
-
-/* ── Tabs ── */
-.pf-tabs { display:flex; gap:0; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:24px; }
-.pf-tab { padding:8px 16px; font-size:11px; font-family:var(--font-body); cursor:pointer; color:var(--text-tertiary); border-bottom:2px solid transparent; transition:all .2s; }
-.pf-tab.active { color:var(--accent-terracota); border-bottom-color:var(--accent-terracota); font-weight:600; }
-.pf-tab-content { display:none; }
-.pf-tab-content.active { display:block; }
-
-/* ── Period selector ── */
-.pf-period-chips { display:flex; gap:6px; flex-wrap:wrap; }
-.pf-chip { padding:5px 12px; border-radius:99px; font-size:10px; font-family:var(--font-body); cursor:pointer; border:1px solid rgba(255,255,255,0.1); color:var(--text-tertiary); transition:all .2s; background:transparent; }
-.pf-chip.active { background:rgba(224,122,62,0.15); border-color:rgba(224,122,62,0.4); color:var(--accent-terracota); font-weight:600; }
-
-/* ── Insight cards ── */
-.pf-insight { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:12px 14px; display:flex; gap:10px; align-items:flex-start; }
-.pf-insight-icon { font-size:16px; flex-shrink:0; margin-top:1px; }
-.pf-insight-text { font-size:11px; font-family:var(--font-body); color:var(--text-secondary); line-height:1.5; }
-.pf-insight-text strong { color:var(--text-primary); }
-</style>
 
 <!-- ══ HERO GBV ══ -->
 <div class="pf-hero">
@@ -2514,7 +2517,6 @@
 
 <div style="height:40px"></div>
 
-</div>
 
 
 id="mod-cierre-mensual" style="gap:20px;padding-bottom:40px;height:auto;min-height:auto">
