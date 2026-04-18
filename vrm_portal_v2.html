@@ -4776,6 +4776,11 @@
         pfScenarioActive = sc;
         document.querySelectorAll('.pf-scenario-tab').forEach(t => t.classList.remove('active'));
         el.classList.add('active');
+        // Sincronizar slider con el escenario para que la posición visual coincida
+        const slider = document.getElementById('pf-growth-slider');
+        if(slider) {
+            slider.value = sc === 'conservador' ? 85 : sc === 'optimista' ? 115 : 100;
+        }
         pfUpdateProjections();
     }
 
@@ -5057,8 +5062,12 @@
         const proyectado = {};
         PF_PROJ_MESES.forEach(m => { proyectado[m] = PF_ANNUAL_BASE * PF_SEASON[m] * factor; });
 
-        const allVals = [...Object.values(real), ...Object.values(proyectado)];
-        const maxV = Math.max(...allVals);
+        // Escala FIJA para que las barras reales (ene/feb/mar) nunca cambien visualmente cuando muevas slider
+        // Usamos como tope el máximo entre: (a) valores reales, (b) proyección optimista +30% escenario
+        const realVals = Object.values(real);
+        const maxReal = Math.max(...realVals);
+        const maxProjOptimista = Math.max(...PF_PROJ_MESES.map(m => PF_ANNUAL_BASE * PF_SEASON[m] * 1.30 * 1.15));
+        const maxV = Math.max(maxReal, maxProjOptimista);
 
         const barsEl = document.getElementById('pf-proj-bars');
         if(barsEl) {
@@ -5066,18 +5075,20 @@
                 ...['01','02','03'].map(m => ({mes:m, val:real[m], tipo:'real'})),
                 ...PF_PROJ_MESES.map(m => ({mes:m, val:proyectado[m], tipo:'proj'}))
             ];
-            barsEl.innerHTML = todos.map(({mes, val, tipo}) => {
+            barsEl.innerHTML = todos.map(({mes, val, tipo}, idx) => {
                 const barW = (val/maxV*100).toFixed(1);
                 const col = tipo === 'real' ? 'var(--accent-terracota)' : 'rgba(224,122,62,0.35)';
                 const border = tipo === 'proj' ? 'border:1px dashed rgba(224,122,62,0.4);' : '';
-                return `<div class="pf-proj-row">
-                    <div class="pf-proj-mes">${PF_MES_NAMES[mes]} 2026</div>
+                const separator = (idx === 3) ? 'border-top:1px dashed rgba(255,255,255,0.12);margin-top:8px;padding-top:12px;' : '';
+                const tagBg = tipo === 'real' ? 'background:rgba(224,122,62,0.15);color:var(--accent-terracota)' : 'background:rgba(255,255,255,0.05);color:var(--text-tertiary)';
+                const tag = `<span style="font-size:8px;font-weight:600;letter-spacing:0.5px;padding:1px 5px;border-radius:3px;${tagBg};margin-left:6px">${tipo==='real'?'REAL':'EST'}</span>`;
+                return `<div class="pf-proj-row" style="${separator}">
+                    <div class="pf-proj-mes">${PF_MES_NAMES[mes]} 2026${tag}</div>
                     <div class="pf-proj-bar-wrap">
                         <div class="pf-proj-bar-inner" style="width:${barW}%;background:${col};${border}"></div>
                     </div>
                     <div style="font-size:11px;font-family:var(--font-body);font-weight:600;width:70px;text-align:right;color:${tipo==='real'?'var(--text-primary)':'var(--text-secondary)'}">
                         ${pfFmtM(val)}
-                        ${tipo==='proj'?'<span style="font-size:9px;opacity:.6"> est</span>':''}
                     </div>
                 </div>`;
             }).join('');
