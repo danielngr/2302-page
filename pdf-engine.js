@@ -35,6 +35,31 @@ function fc(s) {
     .replace(/ñ/g,'n').replace(/Ñ/g,'N');
 }
 
+// Helper: extrae firma del huesped como dataURL PNG
+// Prioriza el campo nuevo "firma"; cae a "foto_id" viejo con prefijo "firma:" por compatibilidad
+function getFirmaDataURL(datos) {
+  if(!datos) return null;
+  if(datos.firma){
+    var s = String(datos.firma);
+    if(s.startsWith('firma:')) return 'data:image/png;base64,' + s.replace('firma:','');
+    if(s.startsWith('data:image/')) return s;
+    return 'data:image/png;base64,' + s;
+  }
+  // Compatibilidad con registros viejos donde la firma se guardaba en foto_id
+  if(datos.foto_id && String(datos.foto_id).startsWith('firma:'))
+    return 'data:image/png;base64,' + datos.foto_id.replace('firma:','');
+  return null;
+}
+
+// Helper: extrae foto de INE como dataURL
+// Solo regresa si foto_id NO es una firma (registros viejos)
+function getInEDataURL(datos) {
+  if(!datos || !datos.foto_id) return null;
+  var s = String(datos.foto_id);
+  if(s.startsWith('firma:')) return null; // registro viejo: foto_id era la firma, no hay INE
+  return s;
+}
+
 function generarFormato(id) {
   const r = todosRegistros.find(x => x.id === id);
   if(!r) return;
@@ -47,6 +72,7 @@ function generarFormato(id) {
     vehiculo: r.vehiculo_modelo, placas: r.vehiculo_placas,
     personas: r.num_adultos + r.num_menores,
     foto_id: r.foto_id || null,
+    firma: r.firma || null,
   };
   const ocupantesArr = Array.isArray(r.ocupantes) ? r.ocupantes : [];
 
@@ -1933,8 +1959,7 @@ function pdfPeninsula(datos, ocupantes) {
   y+=10;
 
   // Signature line
-  const firma_pen_en = (datos.foto_id && String(datos.foto_id).startsWith('firma:'))
-    ? 'data:image/png;base64,' + datos.foto_id.replace('firma:','') : null;
+  const firma_pen_en = getFirmaDataURL(datos);
   doc.text("Signature", W-MR-100, y+80);
   if(firma_pen_en){
     try{ doc.addImage(firma_pen_en,"PNG",W-MR-120,y+82,120,38); }catch(e){}
@@ -2011,10 +2036,11 @@ function pdfPeninsula(datos, ocupantes) {
 
   // ID Photo box
   var PX=54, PY=605, PW=190, PH=150;
-  if(datos.foto_id){
+  var ine_pen_en = getInEDataURL(datos);
+  if(ine_pen_en){
     try{
-      var fmt=datos.foto_id.indexOf("image/png")>-1?"PNG":"JPEG";
-      doc.addImage(datos.foto_id, fmt, PX, PY, PW, PH);
+      var fmt=ine_pen_en.indexOf("image/png")>-1?"PNG":"JPEG";
+      doc.addImage(ine_pen_en, fmt, PX, PY, PW, PH);
     }catch(e){
       doc.setDrawColor(150,150,150); doc.setLineWidth(0.5); doc.rect(PX,PY,PW,PH,"S");
     }
@@ -2243,7 +2269,14 @@ function leasePeninsula(datos) {
   doc.text("Name: ", ML, y);
   var nlw=doc.getTextWidth("Name: ");
   doc.setFont("helvetica","bold"); doc.text(fc(tenant), ML+nlw, y); y+=LH;
-  doc.setFont("helvetica","normal"); doc.text("Signature:", ML, y); y+=70;
+  doc.setFont("helvetica","normal"); doc.text("Signature:", ML, y); y+=8;
+
+  // Tenant signature (if provided)
+  var firma_tenant_en = getFirmaDataURL(datos);
+  if(firma_tenant_en){
+    try{ doc.addImage(firma_tenant_en,"PNG",ML,y,120,38); }catch(e){}
+  }
+  y += 62;
 
   // Separator line
   doc.setLineWidth(0.5); doc.setDrawColor(180,180,180);
@@ -2428,8 +2461,7 @@ function pdfPeninsulaES(datos, ocupantes, _returnB64) {
   y+=6;
 
   // Firma line
-  const firma_pen = (datos.foto_id && String(datos.foto_id).startsWith('firma:'))
-    ? 'data:image/png;base64,' + datos.foto_id.replace('firma:','') : null;
+  const firma_pen = getFirmaDataURL(datos);
   doc.setFont("times","normal"); doc.text("Firma",W-MR-30,y); y+=4;
   if(firma_pen){
     try{ doc.addImage(firma_pen,"PNG",W-MR-120,y-2,120,38); }catch(e){}
@@ -2507,10 +2539,11 @@ function pdfPeninsulaES(datos, ocupantes, _returnB64) {
 
   // ID Photo — original: Rect(36,613,287,761) → x=36,y=613,w=251,h=148
   var PX=36, PY=613, PW=195, PH=148;
-  if(datos.foto_id){
+  var ine_pen_es = getInEDataURL(datos);
+  if(ine_pen_es){
     try{
-      var fmt=datos.foto_id.indexOf("image/png")>-1?"PNG":"JPEG";
-      doc.addImage(datos.foto_id,fmt,PX,PY,PW,PH);
+      var fmt=ine_pen_es.indexOf("image/png")>-1?"PNG":"JPEG";
+      doc.addImage(ine_pen_es,fmt,PX,PY,PW,PH);
     }catch(e){
       doc.setDrawColor(150,150,150); doc.setLineWidth(0.5); doc.rect(PX,PY,PW,PH,"S");
     }
@@ -2661,7 +2694,15 @@ function leasePeninsulaES(datos) {
   var nlw=doc.getTextWidth('Nombre: ');
   doc.text('Nombre: ', ML, y);
   doc.setFont('helvetica','bold'); doc.text(tenant, ML+nlw, y); y+=LH;
-  doc.setFont('helvetica','normal'); doc.text('Firma:', ML, y); y+=70;
+  doc.setFont('helvetica','normal'); doc.text('Firma:', ML, y); y+=8;
+
+  // Firma del huesped (si existe)
+  var firma_tenant_es = getFirmaDataURL(datos);
+  if(firma_tenant_es){
+    try{ doc.addImage(firma_tenant_es,'PNG',ML,y,120,38); }catch(e){}
+  }
+  y += 62;
+
   doc.setLineWidth(0.5); doc.setDrawColor(180,180,180);
   doc.line(ML, y, W-MR, y); y+=20;
   doc.setFont('helvetica','bold'); doc.text('EL ARRENDADOR', ML, y); y+=LH+4;
@@ -2908,9 +2949,7 @@ function pdfMaralma(datos, ocupantes, _genId, _returnB64) {
 
   const ocups=Array.isArray(ocupantes)&&ocupantes.length?ocupantes:Array.isArray(datos.ocupantes)?datos.ocupantes:[];
   const gn=i=>{const o=ocups[i];return o?(o.nombre||String(o)||""):""};
-  let firma_img=datos._firma_img||null;
-  if(!firma_img&&datos.foto_id&&String(datos.foto_id).startsWith('firma:'))
-    firma_img='data:image/png;base64,'+datos.foto_id.replace('firma:','');
+  let firma_img=datos._firma_img||getFirmaDataURL(datos);
   const veh=datos.vehiculo_modelo||"", pla=datos.vehiculo_placas||"";
 
   // ══════════════ PÁGINA 1 ══════════════
