@@ -3690,9 +3690,9 @@
             if(gfOk) {
                 accion = `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Form enviado</button>`;
             } else if(tieneRegGF) {
-                accion = `<button class="btn btn-outline-yellow" onclick="enviarGoogleForm('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-paper-plane-tilt"></i> Enviar form</button>`;
+                accion = `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-yellow" onclick="enviarGoogleForm('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-paper-plane-tilt"></i> Enviar form</button><button class="btn btn-link" onclick="copiarLink('${r.depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button></div>`;
             } else {
-                accion = `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
+                accion = `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-red" onclick="copiarLink('${r.depto}')"><i class="ph-bold ph-prohibit"></i> Sin registro</button><button class="btn btn-link" onclick="copiarLink('${r.depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button></div>`;
             }
         } else if(r.tipo_formato==="correo") {
             // Algunos deptos tipo whatsapp tienen registros guardados como correo
@@ -3893,12 +3893,13 @@
                         ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Form enviado</button>`
                         : tieneRegGF
                             ? `<button class="btn btn-outline-yellow" onclick="enviarGoogleForm('${depto}','${fiso}')"><i class="ph-bold ph-paper-plane-tilt"></i> Enviar form</button>`
-                            : `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
+                            : `<button class="btn btn-outline-red" onclick="copiarLink('${depto}')"><i class="ph-bold ph-prohibit"></i> Sin registro</button>`;
+                    const gfLinkBtn = gfOk ? '' : `<button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>`;
                     rowsH+=`<div class="list-item${gfOk?' generado':''}">
                         <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">GFORMS</span></div>
                         <div class="${guestNameGF?'guest-name':'guest-name guest-empty'}">${guestNameGF||'—'}</div>
                         <div>${gfBtn}</div>
-                        <div></div>
+                        <div>${gfLinkBtn}</div>
                     </div>`;
                     if(!gfOk){ pend++; totalPend++; }
                 } else if(tipo==="frakcio"){
