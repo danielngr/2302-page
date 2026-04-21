@@ -128,8 +128,31 @@ function generarPDF(r, datos, ocupantes, _genId, opts) {
     pdfMaralma(datos, ocupantes, _genId); return;
   }
   else if(r.template === "peninsula") {
-    if(returnB64) return pdfPeninsulaES(datos, ocupantes, true);
     var idioma = r._idioma || "es";
+    if(returnB64) {
+      // Generar AMBOS PDFs y devolver objeto con base64 de cada uno
+      var checkinDoc, leaseDoc, checkinName, leaseName;
+      var tenantName = fc(datos.nombre||"huesped").replace(/ /g,"_");
+      var entradaFmt = (datos.entrada||"").replace(/ /g,"");
+      if(idioma === "es"){
+        checkinDoc = pdfPeninsulaES(datos, ocupantes, true);
+        leaseDoc = leasePeninsulaES(datos, true);
+        checkinName = "CheckIn_Peninsula19E_ES_"+tenantName+"_"+entradaFmt+".pdf";
+        leaseName = "ContratoArrendamiento_Peninsula19E_"+tenantName+"_"+entradaFmt+".pdf";
+      } else {
+        checkinDoc = pdfPeninsula(datos, ocupantes, _genId, true);
+        leaseDoc = leasePeninsula(datos, true);
+        checkinName = "Peninsula19E_"+tenantName+"_"+entradaFmt+".pdf";
+        leaseName = "LeaseAgreement_Peninsula19E_"+tenantName+"_"+entradaFmt+".pdf";
+      }
+      return {
+        multi: true,
+        attachments: [
+          { base64: checkinDoc.output("datauristring").split(",")[1], filename: checkinName },
+          { base64: leaseDoc.output("datauristring").split(",")[1], filename: leaseName }
+        ]
+      };
+    }
     if(idioma === "es"){ pdfPeninsulaES(datos, ocupantes); setTimeout(function(){ leasePeninsulaES(datos); }, 800); }
     else { pdfPeninsula(datos, ocupantes); setTimeout(function(){ leasePeninsula(datos); }, 800); }
     return;
@@ -1769,7 +1792,7 @@ function pdfArenablanca(datos, ocupantes) {
 
 
 // ── PENÍNSULA 19-E ────────────────────────────────────────────────────────────
-function pdfPeninsula(datos, ocupantes) {
+function pdfPeninsula(datos, ocupantes, _genId, _returnB64) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:"pt", format:"letter"});
   // jsPDF: y=0 top, y=792 bottom. All coords are TOP-DOWN.
@@ -2058,10 +2081,11 @@ function pdfPeninsula(datos, ocupantes) {
   footer(pn);
 
   var fname="Peninsula19E_"+fc(datos.nombre||"huesped").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
+  if(_returnB64) return doc;
   doc.save(fname);
 }
 
-function leasePeninsula(datos) {
+function leasePeninsula(datos, _returnB64) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:"pt", format:"letter"});
   const W=612, H=792, ML=72, MR=72, TW=W-ML-MR;
@@ -2293,6 +2317,7 @@ function leasePeninsula(datos) {
   doc.addImage("data:image/png;base64,"+SIG, "PNG", ML, y, 70, 73);
 
   var fname="LeaseAgreement_Peninsula19E_"+fc(datos.nombre||"tenant").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
+  if(_returnB64) return doc;
   doc.save(fname);
 }
 
@@ -2564,7 +2589,7 @@ function pdfPeninsulaES(datos, ocupantes, _returnB64) {
 }
 
 
-function leasePeninsulaES(datos) {
+function leasePeninsulaES(datos, _returnB64) {
   var jsPDF = window.jspdf.jsPDF;
   var doc = new jsPDF({unit:'pt', format:'letter'});
   var W=612, ML=72, MR=72, TW=W-ML-MR;
@@ -2712,6 +2737,7 @@ function leasePeninsulaES(datos) {
   doc.addImage('data:image/png;base64,'+SIG,'PNG',ML,y,70,73);
 
   var fname='ContratoArrendamiento_Peninsula19E_'+fc(tenant).replace(/ /g,'_')+'_'+(datos.entrada||'').replace(/ /g,'')+'.pdf';
+  if(_returnB64) return doc;
   doc.save(fname);
 }
 
