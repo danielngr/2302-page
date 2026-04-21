@@ -3239,6 +3239,37 @@
     let dispSemanaOffset = 0; // 0=semana actual
     let sheetHoy = 0;
 
+    // ── Idioma por registro (persistente) ──────────────────────────────
+    // Storage: localStorage 'pdf_idioma_map' = {id: 'es'|'en'}
+    function getIdiomaRegistro(id) {
+      try {
+        const map = JSON.parse(localStorage.getItem('pdf_idioma_map') || '{}');
+        return map[id] || 'es';
+      } catch(e) { return 'es'; }
+    }
+    function setIdiomaRegistro(id, idioma) {
+      try {
+        const map = JSON.parse(localStorage.getItem('pdf_idioma_map') || '{}');
+        map[id] = idioma;
+        localStorage.setItem('pdf_idioma_map', JSON.stringify(map));
+      } catch(e) {}
+    }
+    function toggleIdioma(id) {
+      const actual = getIdiomaRegistro(id);
+      const nuevo = actual === 'es' ? 'en' : 'es';
+      setIdiomaRegistro(id, nuevo);
+      // Actualizar UI del botón
+      const btns = document.querySelectorAll(`[data-idioma-btn="${id}"]`);
+      btns.forEach(btn => {
+        btn.textContent = nuevo.toUpperCase();
+        btn.title = nuevo === 'es' ? 'Idioma: Español (click para EN)' : 'Language: English (click for ES)';
+      });
+    }
+    // Detectar si un registro necesita selector de idioma
+    function necesitaSelectorIdioma(r) {
+      return r && (r.template === 'peninsula' || r.template === 'alamar');
+    }
+
     // ── Navegación ──────────────────────────────────────────────
     function toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
@@ -3634,14 +3665,18 @@
 
     function itemHTML(r) {
         let accion="";
+        // Selector de idioma para templates peninsula/alamar (se inserta al inicio de las acciones)
+        const idiomaBtn = necesitaSelectorIdioma(r)
+          ? `<button class="btn btn-outline-white" data-idioma-btn="${r.id}" onclick="event.stopPropagation();toggleIdioma('${r.id}')" title="${getIdiomaRegistro(r.id)==='es'?'Idioma: Español (click para EN)':'Language: English (click for ES)'}" style="min-width:44px;font-weight:600;font-size:11px;padding:6px 10px"><i class="ph-bold ph-translate"></i> ${getIdiomaRegistro(r.id).toUpperCase()}</button>`
+          : '';
         if(r.pdf_generado) {
-            accion=`<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Generado</button>`;
+            accion=`<div style="display:flex;gap:6px;flex-wrap:wrap">${idiomaBtn}<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Generado</button></div>`;
         } else if(r.tipo_formato==="pdf") {
             const _tieneCorreo = tieneCorreoConfigured(r.depto||'');
             if(r.pdf_generado) {
-              accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button><button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Enviado</button></div>`;
+              accion=`<div style="display:flex;gap:6px;flex-wrap:wrap">${idiomaBtn}<button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button><button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Enviado</button></div>`;
             } else {
-              accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button>${_tieneCorreo ? `<button class="btn btn-outline-yellow" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
+              accion=`<div style="display:flex;gap:6px;flex-wrap:wrap">${idiomaBtn}<button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button>${_tieneCorreo ? `<button class="btn btn-outline-yellow" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
             }
         } else if(r.tipo_formato==="whatsapp") {
             const _tieneMsg = tieneCorreoMsg(r.depto||'');
@@ -4333,6 +4368,7 @@
       toast("📄 Generando PDF...");
 
       const ocupantes = Array.isArray(r.ocupantes)?r.ocupantes:[];
+      const idioma = getIdiomaRegistro(id);
       const datos = {
         depto:r.depto, nombre:r.nombre, telefono:r.telefono, correo:r.email,
         edad:r.edad||"", direccion:r.direccion||"",
@@ -4344,17 +4380,27 @@
         firma:r.firma||null,
         recamaras:r.num_recamaras||r.recamaras||2,
       };
-      r._idioma = "es"; datos._idioma = "es";
+      r._idioma = idioma; datos._idioma = idioma;
 
-      let pdfBase64;
+      let pdfResult;
       try {
-        pdfBase64 = generarPDF(r, datos, ocupantes, id, { returnBase64: true });
+        pdfResult = generarPDF(r, datos, ocupantes, id, { returnBase64: true });
       } catch(e) {
         toast("❌ Error generando PDF: " + e.message); return;
       }
-      if(!pdfBase64) { toast("❌ Template no soporta envío directo"); return; }
+      if(!pdfResult) { toast("❌ Template no soporta envío directo"); return; }
 
-      const pdfFilename = `Registro_${(r.depto||'').replace(/ /g,'_')}_${r.nombre?.split(' ')[0]||'huesped'}.pdf`;
+      // Normalizar: siempre trabajar con array de adjuntos
+      let attachments;
+      if(pdfResult && typeof pdfResult === 'object' && pdfResult.multi) {
+        // Peninsula u otro template multi-PDF
+        attachments = pdfResult.attachments;
+      } else {
+        // Template simple: 1 solo PDF
+        const pdfFilename = `Registro_${(r.depto||'').replace(/ /g,'_')}_${r.nombre?.split(' ')[0]||'huesped'}.pdf`;
+        attachments = [{ base64: pdfResult, filename: pdfFilename }];
+      }
+
       const nombre = r.nombre || "Huésped";
       const fechaIn = r.fecha_entrada || "";
 
@@ -4363,8 +4409,9 @@
       try {
         const accessToken = await getGmailToken();
         toast("📧 Enviando correo...");
-        await sendPDFviaGmailAPI(accessToken, config, pdfBase64, pdfFilename, nombre, fechaIn, r.depto);
-        toast(`✅ Correo enviado a ${config.to.join(', ')} — Asunto: ${config.subject}`);
+        await sendPDFviaGmailAPI(accessToken, config, attachments, nombre, fechaIn, r.depto);
+        const fnames = attachments.map(a=>a.filename).join(', ');
+        toast(`✅ Correo enviado a ${config.to.join(', ')} — ${attachments.length} adjunto(s)`);
         // Marcar como enviado en Supabase
         try {
           await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?id=eq.${id}`, {
@@ -4406,12 +4453,13 @@
       });
     }
 
-    async function sendPDFviaGmailAPI(token, config, pdfBase64, filename, nombre, fechaIn, depto) {
+    async function sendPDFviaGmailAPI(token, config, attachments, nombre, fechaIn, depto) {
+      // attachments: array de {base64, filename}
       // Construir email multipart/mixed en base64
       const boundary = "vrm_boundary_" + Date.now();
-      const body = `Check-in: ${nombre}\nLlegada: ${fechaIn}\nDepto: ${depto}\n\nSe adjunta el registro de check-in.`;
+      const body = `Check-in: ${nombre}\nLlegada: ${fechaIn}\nDepto: ${depto}\n\nSe adjunta${attachments.length>1?'n los documentos':' el registro'} de check-in.`;
 
-      const emailLines = [
+      const parts = [
         `To: ${config.to.join(", ")}`,
         `Subject: ${config.subject}`,
         `MIME-Version: 1.0`,
@@ -4421,16 +4469,24 @@
         `Content-Type: text/plain; charset="UTF-8"`,
         ``,
         body,
-        ``,
-        `--${boundary}`,
-        `Content-Type: application/pdf; name="${filename}"`,
-        `Content-Transfer-Encoding: base64`,
-        `Content-Disposition: attachment; filename="${filename}"`,
-        ``,
-        pdfBase64,
-        ``,
-        `--${boundary}--`
-      ].join("\r\n");
+        ``
+      ];
+
+      // Agregar cada adjunto
+      attachments.forEach(att => {
+        parts.push(
+          `--${boundary}`,
+          `Content-Type: application/pdf; name="${att.filename}"`,
+          `Content-Transfer-Encoding: base64`,
+          `Content-Disposition: attachment; filename="${att.filename}"`,
+          ``,
+          att.base64,
+          ``
+        );
+      });
+
+      parts.push(`--${boundary}--`);
+      const emailLines = parts.join("\r\n");
 
       const raw = btoa(unescape(encodeURIComponent(emailLines)))
         .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -4458,6 +4514,7 @@
 
       // Generar el texto igual que generarFormato
       const ocupantes = Array.isArray(r.ocupantes)?r.ocupantes:[];
+      const idioma = getIdiomaRegistro(id);
       const datos = {
         depto:r.depto, nombre:r.nombre, telefono:r.telefono, correo:r.email,
         edad:r.edad||"", direccion:r.direccion||"",
@@ -4469,7 +4526,7 @@
         firma:r.firma||null,
         recamaras:r.num_recamaras||r.recamaras||2,
       };
-      r._idioma = "es"; datos._idioma = "es";
+      r._idioma = idioma; datos._idioma = idioma;
 
       // Capturar el texto que genera mostrarTexto
       // mostrarTexto usa window.prompt o muestra modal — necesitamos el texto directo de generarTextoMsg
@@ -4635,6 +4692,7 @@
         const r = todosRegistros.find(x=>x.id===id);
         if(!r) return;
         const ocupantes = Array.isArray(r.ocupantes)?r.ocupantes:[];
+        const idioma = getIdiomaRegistro(id);
         const datos = {
             depto:r.depto, nombre:r.nombre, telefono:r.telefono, correo:r.email,
             edad:r.edad||"", direccion:r.direccion||"",
@@ -4646,7 +4704,7 @@
             firma:r.firma||null,
             recamaras:r.num_recamaras||r.recamaras||2,
         };
-        r._idioma = "es"; datos._idioma = "es";
+        r._idioma = idioma; datos._idioma = idioma;
 
         if(r.tipo_formato==="pdf") {
             try { generarPDF(r, datos, ocupantes, id); }
