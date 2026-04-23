@@ -9180,7 +9180,19 @@ function updateNotifBadge(){
                 <span style="font-family:var(--font-mono);font-size:11px;color:var(--accent-terracota)">+ PERSONA EXTRA</span>
                 <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()" style="padding:4px 8px"><i class="ph ph-x"></i></button>
             </div>
-            <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
+
+            <!-- Tabs -->
+            <div style="display:flex;border-bottom:1px solid rgba(255,255,255,.08);padding:0 20px">
+                <button id="tab-nuevo" class="tab-btn tab-active" onclick="dispTabExtra('nuevo')" style="background:none;border:none;color:var(--text-primary);padding:12px 16px;cursor:pointer;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid var(--accent-terracota);margin-bottom:-1px">
+                    <i class="ph ph-plus"></i> Nuevo
+                </button>
+                <button id="tab-historial" class="tab-btn" onclick="dispTabExtra('historial')" style="background:none;border:none;color:var(--text-tertiary);padding:12px 16px;cursor:pointer;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid transparent;margin-bottom:-1px">
+                    <i class="ph ph-clock-counter-clockwise"></i> Historial
+                </button>
+            </div>
+
+            <!-- Panel NUEVO -->
+            <div id="panel-nuevo" style="padding:20px;display:flex;flex-direction:column;gap:12px">
                 <div style="display:flex;flex-direction:column;gap:4px">
                     <label style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase">Nombre completo *</label>
                     <input id="extra-nombre" type="text" placeholder="Ej: Lorena Alatorre Chavez" class="ajuste-input">
@@ -9198,9 +9210,110 @@ function updateNotifBadge(){
                     <i class="ph-bold ph-plus"></i> Agregar
                 </button>
             </div>
+
+            <!-- Panel HISTORIAL -->
+            <div id="panel-historial" style="display:none;padding:16px 20px 20px">
+                <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-bottom:12px;text-align:center">Personas extras agregadas anteriormente. Toca una para reusarla.</div>
+                <div id="historial-list" style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto">
+                    <div style="padding:30px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px"><i class="ph ph-spinner" style="font-size:20px;opacity:.4"></i><br>Cargando historial...</div>
+                </div>
+            </div>
         </div>`;
         overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
         document.body.appendChild(overlay);
+
+        // Cargar historial en background
+        dispCargarHistorialExtras();
+    }
+
+    function dispTabExtra(tab) {
+        const panelNuevo = document.getElementById('panel-nuevo');
+        const panelHist = document.getElementById('panel-historial');
+        const btnNuevo = document.getElementById('tab-nuevo');
+        const btnHist = document.getElementById('tab-historial');
+        if (tab === 'nuevo') {
+            panelNuevo.style.display = 'flex';
+            panelHist.style.display = 'none';
+            btnNuevo.style.color = 'var(--text-primary)';
+            btnNuevo.style.borderBottomColor = 'var(--accent-terracota)';
+            btnHist.style.color = 'var(--text-tertiary)';
+            btnHist.style.borderBottomColor = 'transparent';
+        } else {
+            panelNuevo.style.display = 'none';
+            panelHist.style.display = 'block';
+            btnHist.style.color = 'var(--text-primary)';
+            btnHist.style.borderBottomColor = 'var(--accent-terracota)';
+            btnNuevo.style.color = 'var(--text-tertiary)';
+            btnNuevo.style.borderBottomColor = 'transparent';
+        }
+    }
+
+    async function dispCargarHistorialExtras() {
+        try {
+            // Traer todos los extras históricos agrupados por persona única (nombre+cuenta)
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/dispersion_extras?select=nombre_completo,cuenta_bancaria,monto,semana_inicio&order=semana_inicio.desc&limit=500`, {
+                headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`}
+            });
+            const data = await res.json();
+
+            // Agrupar por cuenta_bancaria para eliminar duplicados (cada persona única)
+            const unicos = {};
+            for (const row of data) {
+                const key = row.cuenta_bancaria;
+                if (!unicos[key]) {
+                    unicos[key] = {
+                        nombre: row.nombre_completo,
+                        cuenta: row.cuenta_bancaria,
+                        ultimoMonto: row.monto,
+                        ultimaSemana: row.semana_inicio,
+                        vecesUsada: 1
+                    };
+                } else {
+                    unicos[key].vecesUsada++;
+                }
+            }
+            const lista = Object.values(unicos).sort((a,b) => b.vecesUsada - a.vecesUsada);
+
+            const contenedor = document.getElementById('historial-list');
+            if (!contenedor) return;
+
+            if (!lista.length) {
+                contenedor.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px">Aún no hay historial de extras</div>`;
+                return;
+            }
+
+            contenedor.innerHTML = lista.map(p => `
+                <div onclick="dispUsarHistorial('${p.nombre.replace(/'/g,"\\'")}','${p.cuenta}','${p.ultimoMonto}')"
+                    style="padding:12px 14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;transition:all .15s"
+                    onmouseover="this.style.background='rgba(255,255,255,.06)';this.style.borderColor='rgba(255,255,255,.14)'"
+                    onmouseout="this.style.background='rgba(255,255,255,.03)';this.style.borderColor='rgba(255,255,255,.06)'">
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.nombre}</div>
+                        <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px">${p.cuenta} · ${dispGetBanco(p.cuenta)}</div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0">
+                        <div style="font-size:12px;font-family:var(--font-mono);color:var(--status-green);font-weight:700">$${parseFloat(p.ultimoMonto).toLocaleString('es-MX')}</div>
+                        <div style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px">${p.vecesUsada}× usada</div>
+                    </div>
+                </div>
+            `).join('');
+        } catch(e) {
+            console.error('Historial error:', e);
+            const contenedor = document.getElementById('historial-list');
+            if (contenedor) contenedor.innerHTML = `<div style="padding:20px;text-align:center;color:var(--status-red);font-family:var(--font-mono);font-size:11px">Error cargando historial</div>`;
+        }
+    }
+
+    function dispUsarHistorial(nombre, cuenta, montoAnterior) {
+        // Cambia al tab Nuevo y prellena los campos
+        dispTabExtra('nuevo');
+        document.getElementById('extra-nombre').value = nombre;
+        document.getElementById('extra-cuenta').value = cuenta;
+        document.getElementById('extra-banco').textContent = dispGetBanco(cuenta);
+        // Monto vacío para que el usuario ponga el nuevo (pero hint con el último)
+        document.getElementById('extra-monto').placeholder = `Anterior: $${montoAnterior}`;
+        document.getElementById('extra-monto').focus();
+        toast(`✓ ${nombre.split(' ')[0]} precargada · ingresa monto`);
     }
 
     async function dispConfirmarExtra() {
