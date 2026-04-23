@@ -5644,7 +5644,7 @@
         }
 
         // Limpiezas ya asignadas para esta fecha (solo la fecha exacta)
-        const res2 = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=eq.${fiso}&select=id,depto_codigo,staff_id,estatus,tarifa_aplicada,tipo`, {
+        const res2 = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=eq.${fiso}&select=id,depto_codigo,staff_id,estatus,tarifa_aplicada,tipo,hora_inicio,hora_fin`, {
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
         });
         const limpiezas = await res2.json();
@@ -8627,10 +8627,12 @@ function updateNotifBadge(){
         const hoy = new Date().toISOString().split('T')[0];
 
         const [limp, enProceso] = await Promise.all([
+            // Terminadas (con ambas horas para calcular duración)
             fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=gte.${desde}&hora_inicio=not.is.null&hora_fin=not.is.null&select=staff_id,depto_codigo,fecha,hora_inicio,hora_fin,tipo,estatus`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             }).then(r=>r.json()),
-            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=eq.${hoy}&estatus=eq.en_proceso&select=staff_id,depto_codigo,hora_inicio`, {
+            // En proceso = llegó (hora_inicio) pero no ha terminado (hora_fin vacío)
+            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=eq.${hoy}&hora_inicio=not.is.null&hora_fin=is.null&select=staff_id,depto_codigo,hora_inicio`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             }).then(r=>r.json())
         ]);
@@ -8686,7 +8688,9 @@ function updateNotifBadge(){
 
         // Stats rápidos
         const hoyLimp = (limp||[]).filter(l => l.fecha === hoy);
-        document.getElementById('ls-hoy').textContent = hoyLimp.length || '0';
+        // Limpiezas hoy = terminadas hoy + las que están en proceso hoy
+        const totalHoy = hoyLimp.length + (enProceso||[]).length;
+        document.getElementById('ls-hoy').textContent = totalHoy || '0';
         document.getElementById('ls-en-proceso').textContent = (enProceso||[]).length || '0';
 
         // Tiempo promedio global
