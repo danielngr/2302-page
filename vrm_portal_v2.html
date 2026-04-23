@@ -5697,13 +5697,27 @@
                 body:JSON.stringify({staff_id:staffId})
             });
         } else {
+            // Jalar tarifa de precios_limpiezas
+            let tarifa = 500;
+            try {
+                const precioRes = await fetch(
+                    `${SUPABASE_URL}/rest/v1/precios_limpiezas?depto_codigo=eq.${encodeURIComponent(depto)}&select=precio_normal`,
+                    { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
+                );
+                const precioData = await precioRes.json();
+                if (precioData.length && precioData[0].precio_normal) {
+                    tarifa = parseFloat(precioData[0].precio_normal);
+                }
+            } catch(e) {}
+
             await fetch(`${SUPABASE_URL}/rest/v1/limpiezas`, {
                 method:"POST", keepalive:true,
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-                body:JSON.stringify({depto_codigo:depto, staff_id:staffId, fecha:fiso, estatus:"pendiente"})
+                body:JSON.stringify({depto_codigo:depto, staff_id:staffId, fecha:fiso, estatus:"pendiente", tarifa_aplicada:tarifa})
             });
         }
         toast(`✓ ${depto} asignada`);
+        cargarHousekeeping();
     }
 
     async function hkMarcarListo(depto, fiso) {
@@ -5711,8 +5725,22 @@
         const staffId = document.getElementById(selId)?.value;
         if(!staffId) { toast("⚠️ Selecciona una chica primero"); return; }
 
-        // Buscar tarifa del depto en registros o usar default
-        const tarifa = 200; // default — se puede configurar por depto
+        // Jalar tarifa real de precios_limpiezas
+        let tarifa = 500; // fallback si depto no existe en catálogo
+        try {
+            const precioRes = await fetch(
+                `${SUPABASE_URL}/rest/v1/precios_limpiezas?depto_codigo=eq.${encodeURIComponent(depto)}&select=precio_normal`,
+                { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
+            );
+            const precioData = await precioRes.json();
+            if (precioData.length && precioData[0].precio_normal) {
+                tarifa = parseFloat(precioData[0].precio_normal);
+            } else {
+                toast(`⚠️ ${depto} sin precio en catálogo, usando $500 default`);
+            }
+        } catch(e) {
+            console.warn('[hkMarcarListo] error leyendo precio:', e);
+        }
 
         // Upsert en limpiezas
         const existing = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?depto_codigo=eq.${encodeURIComponent(depto)}&fecha=eq.${fiso}`, {
@@ -5732,7 +5760,27 @@
                 body:JSON.stringify({depto_codigo:depto, staff_id:staffId, fecha:fiso, estatus:"terminada", tarifa_aplicada:tarifa})
             });
         }
-        toast("✓ Limpieza marcada como terminada");
+
+        // Marcar depto como limpio en el semáforo
+        try {
+            await fetch(`${SUPABASE_URL}/rest/v1/depto_status?on_conflict=depto_codigo`, {
+                method:"POST",
+                headers:{
+                    "apikey":SUPABASE_KEY,
+                    "Authorization":`Bearer ${SUPABASE_KEY}`,
+                    "Content-Type":"application/json",
+                    "Prefer":"resolution=merge-duplicates,return=minimal"
+                },
+                body:JSON.stringify({
+                    depto_codigo: depto,
+                    status: "limpio",
+                    actualizado_por: "portal_manual",
+                    fecha: fiso
+                })
+            });
+        } catch(e) { console.warn('[depto_status] error:', e); }
+
+        toast(`✓ ${depto} terminada · $${tarifa}`);
         cargarHousekeeping();
     }
 
