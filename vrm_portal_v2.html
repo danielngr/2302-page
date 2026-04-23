@@ -5580,6 +5580,62 @@
             return fecha===fs && salida;
         }).map(r => (r[3]||'').trim().replace(/"/g,''));
 
+        // ── SYNC checkouts → depto_status (solo si es hoy y son >= 11 AM México) ──
+        // Regla: checkout hoy → marcar 'sucio', pero NO tocar si ya está 'limpio' con fecha=hoy
+        try {
+            const ahoraMX = new Date(new Date().toLocaleString('en-US', {timeZone: 'America/Mexico_City'}));
+            const hoyMX = `${ahoraMX.getFullYear()}-${String(ahoraMX.getMonth()+1).padStart(2,'0')}-${String(ahoraMX.getDate()).padStart(2,'0')}`;
+            const esHoy = (fiso === hoyMX);
+            const esDespues11 = ahoraMX.getHours() >= 11;
+
+            if (esHoy && esDespues11 && checkouts.length) {
+                // Leer estado actual de esos deptos en una sola query
+                const inList = checkouts.map(d => `"${d}"`).join(',');
+                const statusRes = await fetch(
+                    `${SUPABASE_URL}/rest/v1/depto_status?depto_codigo=in.(${encodeURIComponent(inList)})&select=depto_codigo,status,fecha`,
+                    {headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}}
+                );
+                const actuales = await statusRes.json();
+                const mapaActual = {};
+                actuales.forEach(r => { mapaActual[r.depto_codigo] = r; });
+
+                // Filtrar los que necesitan ser marcados sucio
+                const paraMarcarSucio = checkouts.filter(d => {
+                    const curr = mapaActual[d];
+                    // Si no existe la fila → crear como sucio
+                    if (!curr) return true;
+                    // Si ya está limpio del checkout de hoy → no tocar
+                    if (curr.status === 'limpio' && curr.fecha === hoyMX) return false;
+                    // Si ya está sucio o en_proceso → no re-tocar (evita updates innecesarios)
+                    if ((curr.status === 'sucio' || curr.status === 'en_proceso') && curr.fecha === hoyMX) return false;
+                    // Si tiene fecha vieja → marcar sucio (nuevo checkout)
+                    return true;
+                });
+
+                if (paraMarcarSucio.length) {
+                    const payload = paraMarcarSucio.map(d => ({
+                        depto_codigo: d,
+                        status: 'sucio',
+                        actualizado_por: 'portal_auto',
+                        fecha: hoyMX
+                    }));
+                    await fetch(`${SUPABASE_URL}/rest/v1/depto_status?on_conflict=depto_codigo`, {
+                        method: 'POST',
+                        headers: {
+                            "apikey": SUPABASE_KEY,
+                            "Authorization": `Bearer ${SUPABASE_KEY}`,
+                            "Content-Type": "application/json",
+                            "Prefer": "resolution=merge-duplicates,return=minimal"
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    console.log(`[depto_status sync] ${paraMarcarSucio.length} deptos marcados sucio:`, paraMarcarSucio);
+                }
+            }
+        } catch(e) {
+            console.warn('[depto_status sync] error:', e);
+        }
+
         // Limpiezas ya asignadas para esta fecha (solo la fecha exacta)
         const res2 = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=eq.${fiso}&select=id,depto_codigo,staff_id,estatus,tarifa_aplicada`, {
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
