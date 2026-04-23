@@ -5654,6 +5654,7 @@
             const limp = limpiezas.find(l => l.depto_codigo===depto);
             const done = limp && limp.estatus !== 'pendiente';
             const staffSelected = limp?.staff_id || '';
+            const tipoSelected = limp?.tipo || 'completa';
             const monto = limp?.tarifa_aplicada ? `$${parseFloat(limp.tarifa_aplicada).toFixed(0)}` : '';
 
             return `<div class="hk-row${done?' done':''}" id="hk-row-${depto.replace(/\s/g,'_')}">
@@ -5661,6 +5662,14 @@
                     <div class="hk-depto">${depto}</div>
                     <div class="hk-sub">CHECKOUT · ${fiso}</div>
                 </div>
+                <select class="hk-select" id="hk-tipo-${depto.replace(/\s/g,'_')}"
+                    onchange="hkCambiarTipo('${depto}','${fiso}',this.value)"
+                    style="max-width:110px;font-size:11px">
+                    <option value="completa" ${tipoSelected==='completa'?'selected':''}>Completa</option>
+                    <option value="refresh" ${tipoSelected==='refresh'?'selected':''}>Refresh</option>
+                    <option value="midstay" ${tipoSelected==='midstay'?'selected':''}>Midstay</option>
+                    <option value="profunda" ${tipoSelected==='profunda'?'selected':''}>Profunda</option>
+                </select>
                 <select class="hk-select" id="hk-sel-${depto.replace(/\s/g,'_')}"
                     onchange="hkAsignarStaff('${depto}','${fiso}',this.value)">
                     <option value="">— Asignar chica —</option>
@@ -5683,8 +5692,50 @@
     }
 
 
+    // Helper: calcula tarifa según tipo (misma lógica que el bot)
+    async function getTarifa(depto, tipo) {
+        try {
+            const r = await fetch(
+                `${SUPABASE_URL}/rest/v1/precios_limpiezas?depto_codigo=eq.${encodeURIComponent(depto)}&select=precio_normal,precio_refresh,precio_midstay,precio_profunda`,
+                { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
+            );
+            const data = await r.json();
+            if (!data.length) return 500;
+            const p = data[0];
+            const normal = parseFloat(p.precio_normal) || 500;
+            if (tipo === 'refresh')  return parseFloat(p.precio_refresh)  || normal/2;
+            if (tipo === 'midstay')  return parseFloat(p.precio_midstay)  || normal/2;
+            if (tipo === 'profunda') return parseFloat(p.precio_profunda) || normal*1.5;
+            return normal;
+        } catch(e) { return 500; }
+    }
+
+    async function hkCambiarTipo(depto, fiso, tipo) {
+        const tarifa = await getTarifa(depto, tipo);
+
+        // Buscar limpieza existente
+        const existing = await fetch(
+            `${SUPABASE_URL}/rest/v1/limpiezas?depto_codigo=eq.${encodeURIComponent(depto)}&fecha=eq.${fiso}&select=id`,
+            { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
+        ).then(r=>r.json());
+
+        if (existing.length) {
+            await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${existing[0].id}`, {
+                method:"PATCH", keepalive:true,
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                body:JSON.stringify({tipo:tipo, tarifa_aplicada:tarifa})
+            });
+            toast(`✓ ${depto} · ${tipo} · $${tarifa}`);
+            cargarHousekeeping();
+        } else {
+            // No hay fila aún, solo muestra el cambio; se guardará al asignar chica
+            toast(`Tipo: ${tipo} · $${tarifa} (asigna chica para guardar)`);
+        }
+    }
+
     async function hkAsignarStaff(depto, fiso, staffId) {
         if(!staffId) return;
+        const tipoSel = document.getElementById(`hk-tipo-${depto.replace(/\s/g,'_')}`)?.value || 'completa';
         const existing = await fetch(
             `${SUPABASE_URL}/rest/v1/limpiezas?depto_codigo=eq.${encodeURIComponent(depto)}&fecha=eq.${fiso}&select=id`,
             { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
@@ -5697,23 +5748,11 @@
                 body:JSON.stringify({staff_id:staffId})
             });
         } else {
-            // Jalar tarifa de precios_limpiezas
-            let tarifa = 500;
-            try {
-                const precioRes = await fetch(
-                    `${SUPABASE_URL}/rest/v1/precios_limpiezas?depto_codigo=eq.${encodeURIComponent(depto)}&select=precio_normal`,
-                    { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
-                );
-                const precioData = await precioRes.json();
-                if (precioData.length && precioData[0].precio_normal) {
-                    tarifa = parseFloat(precioData[0].precio_normal);
-                }
-            } catch(e) {}
-
+            const tarifa = await getTarifa(depto, tipoSel);
             await fetch(`${SUPABASE_URL}/rest/v1/limpiezas`, {
                 method:"POST", keepalive:true,
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-                body:JSON.stringify({depto_codigo:depto, staff_id:staffId, fecha:fiso, estatus:"pendiente", tarifa_aplicada:tarifa})
+                body:JSON.stringify({depto_codigo:depto, staff_id:staffId, fecha:fiso, estatus:"pendiente", tipo:tipoSel, tarifa_aplicada:tarifa})
             });
         }
         toast(`✓ ${depto} asignada`);
@@ -5725,22 +5764,8 @@
         const staffId = document.getElementById(selId)?.value;
         if(!staffId) { toast("⚠️ Selecciona una chica primero"); return; }
 
-        // Jalar tarifa real de precios_limpiezas
-        let tarifa = 500; // fallback si depto no existe en catálogo
-        try {
-            const precioRes = await fetch(
-                `${SUPABASE_URL}/rest/v1/precios_limpiezas?depto_codigo=eq.${encodeURIComponent(depto)}&select=precio_normal`,
-                { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
-            );
-            const precioData = await precioRes.json();
-            if (precioData.length && precioData[0].precio_normal) {
-                tarifa = parseFloat(precioData[0].precio_normal);
-            } else {
-                toast(`⚠️ ${depto} sin precio en catálogo, usando $500 default`);
-            }
-        } catch(e) {
-            console.warn('[hkMarcarListo] error leyendo precio:', e);
-        }
+        const tipoSel = document.getElementById(`hk-tipo-${depto.replace(/\s/g,'_')}`)?.value || 'completa';
+        const tarifa = await getTarifa(depto, tipoSel);
 
         // Upsert en limpiezas
         const existing = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?depto_codigo=eq.${encodeURIComponent(depto)}&fecha=eq.${fiso}`, {
@@ -5751,13 +5776,13 @@
             await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${existing[0].id}`, {
                 method:"PATCH", keepalive:true,
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-                body:JSON.stringify({staff_id:staffId, estatus:"terminada", tarifa_aplicada:tarifa})
+                body:JSON.stringify({staff_id:staffId, estatus:"terminada", tipo:tipoSel, tarifa_aplicada:tarifa})
             });
         } else {
             await fetch(`${SUPABASE_URL}/rest/v1/limpiezas`, {
                 method:"POST", keepalive:true,
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-                body:JSON.stringify({depto_codigo:depto, staff_id:staffId, fecha:fiso, estatus:"terminada", tarifa_aplicada:tarifa})
+                body:JSON.stringify({depto_codigo:depto, staff_id:staffId, fecha:fiso, estatus:"terminada", tipo:tipoSel, tarifa_aplicada:tarifa})
             });
         }
 
@@ -5780,7 +5805,7 @@
             });
         } catch(e) { console.warn('[depto_status] error:', e); }
 
-        toast(`✓ ${depto} terminada · $${tarifa}`);
+        toast(`✓ ${depto} · ${tipoSel} · $${tarifa}`);
         cargarHousekeeping();
     }
 
