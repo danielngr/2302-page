@@ -5644,7 +5644,7 @@
         }
 
         // Limpiezas ya asignadas para esta fecha (solo la fecha exacta)
-        const res2 = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=eq.${fiso}&select=id,depto_codigo,staff_id,estatus,tarifa_aplicada`, {
+        const res2 = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=eq.${fiso}&select=id,depto_codigo,staff_id,estatus,tarifa_aplicada,tipo`, {
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
         });
         const limpiezas = await res2.json();
@@ -5756,21 +5756,26 @@
         ).then(r=>r.json());
 
         if(existing.length) {
-            // Siempre actualizar staff + tipo + tarifa para mantener consistencia
-            await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${existing[0].id}`, {
-                method:"PATCH", keepalive:true,
-                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+            // Espera completa del PATCH antes de recargar (sin keepalive para garantizar orden)
+            const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${existing[0].id}`, {
+                method:"PATCH",
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=representation"},
                 body:JSON.stringify({staff_id:staffId, tipo:tipoSel, tarifa_aplicada:tarifa})
             });
+            const updated = await patchRes.json();
+            console.log('[hkAsignarStaff] PATCH result:', updated);
         } else {
-            await fetch(`${SUPABASE_URL}/rest/v1/limpiezas`, {
-                method:"POST", keepalive:true,
-                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+            const postRes = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas`, {
+                method:"POST",
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=representation"},
                 body:JSON.stringify({depto_codigo:depto, staff_id:staffId, fecha:fiso, estatus:"pendiente", tipo:tipoSel, tarifa_aplicada:tarifa})
             });
+            const created = await postRes.json();
+            console.log('[hkAsignarStaff] POST result:', created);
         }
         toast(`✓ ${depto} · ${tipoSel} · $${tarifa}`);
-        cargarHousekeeping();
+        // Pequeño delay para dar tiempo a la DB a propagar antes del GET de recarga
+        setTimeout(() => cargarHousekeeping(), 300);
     }
 
     async function hkMarcarListo(depto, fiso) {
