@@ -8494,13 +8494,46 @@ function updateNotifBadge(){
         const staffMap = {};
         (staff||[]).forEach(s => staffMap[s.id] = s.nombre);
 
-        // Calcular duración en minutos
+        // Calcular duración en minutos (acepta timestamps ISO 8601 o "HH:MM:SS")
         const calcMin = (ini, fin) => {
             if(!ini||!fin) return null;
+            // Si viene como timestamp ISO (tiene T o espacio o guión de fecha), parsear como Date
+            const iniDate = (ini.includes('T') || ini.includes(' ')) ? new Date(ini) : null;
+            const finDate = (fin.includes('T') || fin.includes(' ')) ? new Date(fin) : null;
+            if(iniDate && finDate && !isNaN(iniDate) && !isNaN(finDate)) {
+                const mins = Math.round((finDate - iniDate) / 60000);
+                return mins > 0 && mins < 480 ? mins : null;
+            }
+            // Formato viejo "HH:MM" o "HH:MM:SS"
             const [ih,im] = ini.split(':').map(Number);
             const [fh,fm] = fin.split(':').map(Number);
+            if(isNaN(ih)||isNaN(fh)) return null;
             const mins = (fh*60+fm) - (ih*60+im);
-            return mins > 0 && mins < 480 ? mins : null; // max 8h
+            return mins > 0 && mins < 480 ? mins : null;
+        };
+
+        // Helper para parsear hora de inicio a Date (acepta ISO o "HH:MM")
+        const parseHoraInicio = (ini) => {
+            if(!ini) return null;
+            if(ini.includes('T') || ini.includes(' ')) {
+                const d = new Date(ini);
+                return isNaN(d) ? null : d;
+            }
+            const [h,m] = ini.split(':').map(Number);
+            if(isNaN(h)) return null;
+            const d = new Date(); d.setHours(h,m,0,0);
+            return d;
+        };
+
+        // Helper para mostrar hora en formato HH:MM (acepta ISO o "HH:MM")
+        const fmtHora = (ini) => {
+            if(!ini) return '—';
+            if(ini.includes('T') || ini.includes(' ')) {
+                const d = new Date(ini);
+                if(isNaN(d)) return '—';
+                return d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Mexico_City'});
+            }
+            return ini.slice(0,5);
         };
 
         // Stats rápidos
@@ -8516,10 +8549,9 @@ function updateNotifBadge(){
         // Alertas — en proceso más de 3 horas
         const ahora = new Date();
         const alertas = (enProceso||[]).filter(l => {
-            if(!l.hora_inicio) return false;
-            const [h,m] = l.hora_inicio.split(':').map(Number);
-            const inicioMs = new Date(); inicioMs.setHours(h,m,0,0);
-            return (ahora - inicioMs) > 3*60*60*1000;
+            const inicio = parseHoraInicio(l.hora_inicio);
+            if(!inicio) return false;
+            return (ahora - inicio) > 3*60*60*1000;
         });
         document.getElementById('ls-alertas').textContent = alertas.length || '0';
 
@@ -8605,13 +8637,12 @@ function updateNotifBadge(){
         if(alertas.length) {
             listaAlertas.innerHTML = alertas.map(a => {
                 const nom = staffMap[a.staff_id] || 'Desconocida';
-                const [h,m] = a.hora_inicio.split(':').map(Number);
-                const ini = new Date(); ini.setHours(h,m,0,0);
-                const mins = Math.round((ahora - ini) / 60000);
+                const ini = parseHoraInicio(a.hora_inicio);
+                const mins = ini ? Math.round((ahora - ini) / 60000) : 0;
                 return `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
                     <div>
                         <div style="font-size:13px;font-weight:600;color:var(--status-red)">${a.depto_codigo}</div>
-                        <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)">${nom} · desde ${a.hora_inicio}</div>
+                        <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)">${nom} · desde ${fmtHora(a.hora_inicio)}</div>
                     </div>
                     <div style="font-family:var(--font-mono);font-size:13px;color:var(--status-red)">${mins} min</div>
                 </div>`;
