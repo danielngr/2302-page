@@ -111,19 +111,8 @@ body.sucio .chapa-reflection{background:radial-gradient(ellipse,rgba(240,90,70,.
 body.limpio .chapa-reflection{background:radial-gradient(ellipse,rgba(100,200,140,.65),transparent 70%);opacity:.75}
 
 .chapa-glow{
-  position:absolute;
-  top:50%;left:50%;
-  width:240px;height:260px;
-  transform:translate(-50%,-50%);
-  border-radius:50% / 45%;
-  filter:blur(35px);
-  opacity:0;
-  transition:background 1.8s ease,opacity 1.8s ease;
-  animation:pulseGlow 4s ease-in-out infinite;
-  z-index:2;
+  display:none;
 }
-body.sucio .chapa-glow{background:radial-gradient(circle,rgba(240,90,70,.6) 0%,transparent 65%);opacity:.75}
-body.limpio .chapa-glow{background:radial-gradient(circle,rgba(100,200,140,.6) 0%,transparent 65%);opacity:.75}
 
 @keyframes pulseGlow{
   0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.75}
@@ -135,6 +124,16 @@ body.limpio .chapa-glow{background:radial-gradient(circle,rgba(100,200,140,.6) 0
   width:200px;height:240px;
   border-radius:50% / 45%;
   overflow:hidden;
+  animation:floatChapa 6s ease-in-out infinite;
+}
+
+.chapa.has-image{
+  background:transparent;
+  box-shadow:0 25px 60px rgba(0,0,0,.5), 0 8px 20px rgba(0,0,0,.35);
+  overflow:visible;
+}
+
+.chapa:not(.has-image){
   background:linear-gradient(145deg,#d9b178 0%,#a0764a 45%,#6a4826 100%);
   box-shadow:
     0 0 0 3px rgba(70,45,25,.8),
@@ -144,7 +143,6 @@ body.limpio .chapa-glow{background:radial-gradient(circle,rgba(100,200,140,.6) 0
     0 8px 20px rgba(0,0,0,.5),
     inset 0 2px 4px rgba(255,230,180,.5),
     inset 0 -4px 8px rgba(40,25,10,.5);
-  animation:floatChapa 6s ease-in-out infinite;
 }
 
 @keyframes floatChapa{
@@ -152,7 +150,7 @@ body.limpio .chapa-glow{background:radial-gradient(circle,rgba(100,200,140,.6) 0
   50%{transform:translateY(-4px)}
 }
 
-.chapa::before{
+.chapa:not(.has-image)::before{
   content:'';
   position:absolute;
   top:3%;left:10%;right:10%;height:25%;
@@ -164,7 +162,7 @@ body.limpio .chapa-glow{background:radial-gradient(circle,rgba(100,200,140,.6) 0
 
 .chapa img{
   width:100%;height:100%;
-  object-fit:cover;
+  object-fit:contain;
   display:block;
   position:relative;
   z-index:1;
@@ -343,7 +341,7 @@ function cargar(){
           '<div class="waves-back"><canvas id="waterCanvasBack" width="700" height="700"></canvas></div>'+
           '<div class="chapa-reflection"></div>'+
           '<div class="chapa-glow"></div>'+
-          '<div class="chapa">'+
+          '<div class="chapa'+(imgUrl ? ' has-image' : '')+'" '+(imgUrl ? 'style="width:260px;height:320px"' : '')+'>'+
             (imgUrl 
               ? '<img id="chapaImg" src="'+imgUrl+'" alt="" crossorigin="anonymous">' 
               : '<div class="chapa-fallback">'+depto.replace(/\s+/g,'<br>')+'</div>')+
