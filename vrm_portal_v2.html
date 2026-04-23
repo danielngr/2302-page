@@ -8966,10 +8966,11 @@ function updateNotifBadge(){
                     <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-secondary)">${p.cuenta||'—'}</div>
                     <div style="font-size:10px;color:var(--text-tertiary);margin-top:1px">${p.banco||dispGetBanco(p.cuenta)}</div>
                 </div>
-                <input type="number" value="${p.monto}" step="0.01"
-                    onchange="dispPersonas[${idx}].monto=parseFloat(this.value)||0; dispActualizarTotal();"
-                    style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text-primary);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:6px 10px;outline:none;text-align:right;width:100%">
-                <button onclick="dispEliminar(${idx})" style="background:rgba(255,92,92,.08);border:1px solid rgba(255,92,92,.2);border-radius:8px;color:var(--status-red);cursor:pointer;padding:6px 10px;font-size:13px" onmouseover="this.style.background='rgba(255,92,92,.15)'" onmouseout="this.style.background='rgba(255,92,92,.08)'">
+                <input type="number" value="${p.monto}" step="0.01" min="0"
+                    onchange="dispCambiarMonto(${idx}, this.value)"
+                    onclick="this.select()"
+                    style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text-primary);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:8px 12px;outline:none;text-align:right;width:100%;position:relative;z-index:2;cursor:text">
+                <button onclick="dispEliminar(${idx})" style="background:rgba(255,92,92,.08);border:1px solid rgba(255,92,92,.2);border-radius:8px;color:var(--status-red);cursor:pointer;padding:6px 10px;font-size:13px;position:relative;z-index:2" onmouseover="this.style.background='rgba(255,92,92,.15)'" onmouseout="this.style.background='rgba(255,92,92,.08)'">
                     <i class="ph ph-trash"></i>
                 </button>
             </div>`;
@@ -8993,6 +8994,43 @@ function updateNotifBadge(){
     function dispActualizarTotal() {
         const total = dispPersonas.reduce((a,p) => a+p.monto, 0);
         document.getElementById('disp-total').textContent = '$' + total.toLocaleString('es-MX',{minimumFractionDigits:2});
+    }
+
+    async function dispCambiarMonto(idx, nuevoValor) {
+        const persona = dispPersonas[idx];
+        if (!persona) return;
+        const monto = parseFloat(nuevoValor) || 0;
+        persona.monto = monto;
+        dispActualizarTotal();
+
+        // Si es FIJO: persistir en staff_limpieza.monto_fijo
+        if (persona.es_fijo && persona.id) {
+            try {
+                await fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?id=eq.${persona.id}`, {
+                    method:"PATCH",
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                    body:JSON.stringify({monto_fijo: monto})
+                });
+                toast(`✓ ${persona.apodo} · $${monto.toLocaleString('es-MX')}`);
+            } catch(e) {
+                toast(`⚠️ Error guardando ${persona.apodo}`);
+                console.error(e);
+            }
+        }
+        // Si es EXTRA: persistir en dispersion_extras.monto
+        else if (persona.es_extra && persona.id) {
+            try {
+                await fetch(`${SUPABASE_URL}/rest/v1/dispersion_extras?id=eq.${persona.id}`, {
+                    method:"PATCH",
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                    body:JSON.stringify({monto: monto})
+                });
+                toast(`✓ ${persona.apodo} · $${monto.toLocaleString('es-MX')}`);
+            } catch(e) {
+                toast(`⚠️ Error guardando ${persona.apodo}`);
+                console.error(e);
+            }
+        }
     }
 
     async function dispEliminar(i) {
