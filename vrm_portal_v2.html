@@ -5685,7 +5685,7 @@
                     <option value="">— Asignar chica —</option>
                     ${hkStaff.map(s=>`<option value="${s.id}" ${s.id===staffSelected?'selected':''}>${s.nombre}</option>`).join('')}
                 </select>
-                <div style="font-family:var(--font-mono);font-size:12px;color:var(--status-green)">${monto}</div>
+                <div data-hk-monto style="font-family:var(--font-mono);font-size:12px;color:var(--status-green)">${monto}</div>
                 ${done
                     ? `<button class="btn btn-outline-green solid" style="pointer-events:none"><i class="ph-bold ph-check"></i> Terminada</button>`
                     : `<button class="btn btn-ghost" onclick="hkMarcarListo('${depto}','${fiso}')" title="Opcional" style="font-size:11px;opacity:.55"><i class="ph ph-check"></i></button>`
@@ -5735,12 +5735,14 @@
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
                 body:JSON.stringify({tipo:tipo, tarifa_aplicada:tarifa})
             });
-            toast(`✓ ${depto} · ${tipo} · $${tarifa}`);
-            cargarHousekeeping();
-        } else {
-            // No hay fila aún, solo muestra el cambio; se guardará al asignar chica
-            toast(`Tipo: ${tipo} · $${tarifa} (asigna chica para guardar)`);
         }
+        // Actualiza el monto inline SIN recargar (para no perder selecciones de chica)
+        const rowEl = document.getElementById(`hk-row-${depto.replace(/\s/g,'_')}`);
+        if (rowEl) {
+            const montoEl = rowEl.querySelector('[data-hk-monto]');
+            if (montoEl) montoEl.textContent = `$${tarifa}`;
+        }
+        toast(`${depto} · ${tipo} · $${tarifa}`);
     }
 
     async function hkAsignarStaff(depto, fiso, staffId) {
