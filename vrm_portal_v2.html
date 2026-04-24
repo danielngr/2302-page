@@ -4547,7 +4547,8 @@
       const r = todosRegistros.find(x=>x.id===id);
       if(!r) return;
 
-      const config = CORREO_MSG_MAP[r.depto] || CORREO_MSG_MAP[(r.depto||'').toUpperCase()];
+      const deptoKey = (r.depto||'').toUpperCase().trim();
+      const config = CORREO_MSG_MAP[deptoKey] || CORREO_MSG_MAP[r.depto];
       if(!config) { toast("❌ No hay correo configurado para " + r.depto); return; }
 
       // Generar el texto igual que generarFormato
@@ -4603,6 +4604,7 @@
           throw new Error(err.error?.message || "Error enviando correo");
         }
         toast(`✅ Correo enviado a ${config.to.join(', ')}`);
+        marcarGenerado(id);
       } catch(e) {
         toast("❌ " + e.message);
       }
@@ -4744,14 +4746,19 @@
         };
         r._idioma = idioma; datos._idioma = idioma;
 
-        if(r.tipo_formato==="pdf") {
+        // EXACT override: ignorar tipo_formato de DB si el depto está en EXACT
+        const deptoUp = (r.depto||'').toUpperCase().trim();
+        const esExact = !!EXACT[deptoUp];
+        const tipoReal = esExact ? EXACT[deptoUp].tipo : r.tipo_formato;
+
+        if(tipoReal==="pdf") {
             try { generarPDF(r, datos, ocupantes, id); }
             catch(e) { console.error("PDF error:", e); toast("❌ Error: " + e.message); }
-        } else if(r.tipo_formato==="whatsapp") {
+        } else if(tipoReal==="whatsapp") {
             mostrarTexto(r, datos, ocupantes);
             marcarGenerado(id);
         } else {
-            toast("Formato: " + r.tipo_formato);
+            toast("Formato: " + tipoReal);
         }
     }
 
