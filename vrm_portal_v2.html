@@ -3922,9 +3922,13 @@
                     const qrOk = qrRec && qrRec.qr_enviado;
                     let qrBtn, guestName = null;
                     if(esFrakcioReal(depto)) {
-                        const checkinFrak = (frakcioCheckins||[]).find(x =>
-                            x.depto&&x.depto.toUpperCase()===depto.toUpperCase()&&x.fecha_entrada===fiso
-                        );
+                        // Match flexible: iCal puede decir "BVG" pero DB tener "BVG 505"
+                        const d = depto.toUpperCase().trim();
+                        const checkinFrak = (frakcioCheckins||[]).find(x => {
+                            if(!x.depto || x.fecha_entrada!==fiso) return false;
+                            const xd = x.depto.toUpperCase().trim();
+                            return xd===d || xd.startsWith(d+' ') || d.startsWith(xd+' ') || xd.includes(d) || d.includes(xd);
+                        });
                         const tieneReg = checkinFrak && checkinFrak.nombre;
                         guestName = tieneReg ? checkinFrak.nombre : null;
                         qrBtn = qrOk
@@ -4152,9 +4156,10 @@
     }
 
     async function enviarFrakcio(depto, fechaEntrada, fechaSalida) {
-        // Buscar datos del huésped en registros_checkin
+        // Buscar datos del huésped en registros_checkin (query con wildcards para matchear "BVG" vs "BVG 505")
+        const deptoQuery = `*${depto}*`;
         const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/registros_checkin?depto=ilike.${encodeURIComponent(depto)}&fecha_entrada=eq.${fechaEntrada}&select=id,nombre,fecha_entrada,fecha_salida,num_adultos,num_menores,ocupantes&order=created_at.desc&limit=1`,
+            `${SUPABASE_URL}/rest/v1/registros_checkin?depto=ilike.${encodeURIComponent(deptoQuery)}&fecha_entrada=eq.${fechaEntrada}&select=id,nombre,fecha_entrada,fecha_salida,num_adultos,num_menores,ocupantes&order=created_at.desc&limit=1`,
             {headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}}
         );
         const data = await res.json();
