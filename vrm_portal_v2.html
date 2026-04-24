@@ -2618,7 +2618,12 @@
                         <div style="font-family:var(--font-display);font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:8px">VRM Reviews Dashboard</div>
                         <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)" id="dateRange"></div>
                     </div>
-                    <div id="headerStats" style="display:flex;gap:16px;align-items:center"></div>
+                    <div style="display:flex;gap:12px;align-items:center">
+                        <button onclick="actualizarReviews()" style="padding:10px 16px;border-radius:10px;background:linear-gradient(135deg,var(--accent-terracota),#ff9858);color:#fff;border:none;font-family:var(--font-display);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap">
+                            <i class="ph-bold ph-arrow-clockwise"></i> Actualizar reviews
+                        </button>
+                        <div id="headerStats" style="display:flex;gap:16px;align-items:center"></div>
+                    </div>
                 </div>
 
                 <!-- Filtros -->
@@ -6517,6 +6522,233 @@ function runSim(){
 }
 
 // ======== MAIN DASHBOARD ========
+
+// Scraper de Airbnb como string (se copia al portapapeles)
+const VRM_SCRAPER_JS = `(async function VRM_Scraper() {
+  'use strict';
+  console.clear();
+  console.log('%c🏨 VRM Scraper v3', 'font-size:16px;font-weight:bold;color:#C8A96E');
+  const SLEEP = ms => new Promise(r => setTimeout(r, ms));
+  const all = [];
+  const vistos = new Set();
+  let pag = 1;
+
+  function btnsDetalles() {
+    return [...document.querySelectorAll('button')]
+      .filter(b => b.textContent.trim() === 'Ver detalles' && b.offsetParent !== null);
+  }
+  function btnSiguiente() {
+    return [...document.querySelectorAll('button,a,[role="button"]')].find(b => {
+      const lbl = (b.getAttribute('aria-label') || '').toLowerCase();
+      return lbl.includes('siguiente') || lbl.includes('next');
+    });
+  }
+
+  function extract() {
+    const data = {huesped:null,depto:null,fecha:null,general:null,comentario:null,
+      limpieza:null,veracidad:null,llegada:null,comunicacion:null,ubicacion:null,calidad:null};
+    const h1 = document.querySelector('h1.hpipapi, h1[class*="hpipapi"]');
+    if (h1) data.huesped = h1.textContent.trim();
+    const subLabels = {limpieza:['limpieza'],veracidad:['veracidad','exactitud'],
+      llegada:['llegada','check'],comunicacion:['comunicación','comunicacion'],
+      ubicacion:['ubicación','ubicacion'],calidad:['valor','calidad']};
+    const rows = document.querySelectorAll('[class*="hszkmuf"], [class*="rr863"], li, div');
+    rows.forEach(row => {
+      const txt = (row.textContent || '').toLowerCase().trim();
+      if (txt.length > 200) return;
+      for (const [key, kws] of Object.entries(subLabels)) {
+        if (data[key] !== null) continue;
+        if (kws.some(k => txt.startsWith(k) || txt.includes(k+':') || txt.includes(k+' '))) {
+          const m = txt.match(/(\\d[,.]?\\d*)\\s*(?:\\/\\s*5|de\\s*5|estrellas?|★)?\\s*$/);
+          if (m) { const n = parseFloat(m[1].replace(',','.')); if (n>=1 && n<=5) data[key]=n; }
+        }
+      }
+    });
+    const ps = [...document.querySelectorAll('p, div')]
+      .map(el => ({el, txt:(el.textContent||'').trim()}))
+      .filter(x => x.txt.length > 30 && x.txt.length < 3000)
+      .filter(x => !x.el.querySelector('button'));
+    if (ps.length) { ps.sort((a,b) => b.txt.length - a.txt.length); data.comentario = ps[0].txt; }
+    const gs = [...document.querySelectorAll('span, div')]
+      .filter(el => {const t=(el.textContent||'').trim(); return /^[1-5](?:[,.]\\d)?$/.test(t) && t.length<=3;});
+    if (gs.length) { const n = parseFloat(gs[0].textContent.replace(',','.')); if (n>=1 && n<=5) data.general=n; }
+    const fm = document.body.innerText.match(/(\\d{1,2}\\s+de\\s+\\w+\\s+de\\s+\\d{4})/);
+    if (fm) data.fecha = fm[1];
+    return data;
+  }
+
+  while (pag <= 60) {
+    const btns = btnsDetalles();
+    console.log(\`→ Página \${pag}: \${btns.length} reviews\`);
+    for (let i = 0; i < btns.length; i++) {
+      const card = btns[i].closest('section, article, div') || btns[i].parentElement;
+      const cardTxt = card ? card.innerText : '';
+      btns[i].click();
+      await SLEEP(1400);
+      const d = extract();
+      if (!d.huesped || !d.fecha) {
+        const lines = cardTxt.split('\\n').map(s=>s.trim()).filter(Boolean);
+        if (!d.huesped && lines[0]) d.huesped = lines[0];
+        if (!d.fecha) {
+          const fm = cardTxt.match(/(\\d{1,2}\\s+\\w+\\s+\\d{4}|\\d{4}-\\d{2}-\\d{2})/);
+          if (fm) d.fecha = fm[1];
+        }
+        if (!d.depto) {
+          const dm = cardTxt.match(/(?:QUIYA|RINCON|ARIA|BOLONGO|ZOHO|ZANTAMAR|COBALTO|AMOARA|MARALMA|XIKIRI|ALAMAR|GD|BVG|PUERTARENA|ARCANO|MARSALA|PLAYA|MARINA|PALMARES|ALBATROS|AMAPA|QUERENCIA|FLAMINGOS|NAUTICO|MARITIMA|VENETIAN|TULES|DELTA|PENINSULA|ISLA|MIO|SUITE|MASCOTA)[^\\n]*/i);
+          if (dm) d.depto = dm[0].trim();
+        }
+      }
+      const key = \`\${d.huesped||''}|\${d.fecha||''}|\${d.depto||''}\`.toLowerCase();
+      if (!vistos.has(key) && d.huesped) { vistos.add(key); all.push(d); }
+      document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',which:27,keyCode:27}));
+      await SLEEP(600);
+      console.log(\`  ✓ \${d.huesped||'???'} — \${d.fecha||'??'} — \${d.general||'?'}★\`);
+    }
+    const next = btnSiguiente();
+    if (!next || next.disabled || next.getAttribute('aria-disabled') === 'true') break;
+    next.scrollIntoView({block:'center'});
+    await SLEEP(400);
+    next.click();
+    pag++;
+    await SLEEP(2500);
+  }
+
+  console.log(\`%c📊 Total: \${all.length}\`, 'font-size:14px;font-weight:bold;color:#22D37D');
+  const json = JSON.stringify(all, null, 2);
+  const fecha = new Date().toISOString().slice(0, 10);
+  const blob = new Blob([json], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = \`vrm_reviews_\${fecha}.json\`;
+  a.click();
+  window.__vrm_reviews = all;
+  console.log('💾 Descargado. También en window.__vrm_reviews');
+})();`;
+
+async function actualizarReviews() {
+    // Calcular última fecha en DATA
+    const fechas = DATA.map(r => r.fecha).filter(Boolean).sort();
+    const ultima = fechas[fechas.length - 1] || '2026-04-06';
+    const hoy = new Date().toISOString().slice(0, 10);
+    const diasDiff = Math.ceil((new Date(hoy) - new Date(ultima)) / (1000*60*60*24));
+    const diasScrape = diasDiff + 2; // buffer
+
+    // Copiar scraper al portapapeles
+    try {
+        await navigator.clipboard.writeText(VRM_SCRAPER_JS);
+    } catch(e) { console.warn('Clipboard failed', e); }
+
+    const airbnbUrl = `https://www.airbnb.mx/performance/quality/overall/reviews?ds-start=-${diasScrape}&ds-end=0`;
+
+    // Modal con instrucciones
+    const prev = document.getElementById('modal-scraper');
+    if (prev) prev.remove();
+    const modal = document.createElement('div');
+    modal.id = 'modal-scraper';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9998;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);padding:20px';
+    modal.innerHTML = `
+      <div style="background:#121212;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:28px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.8)">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:32px;margin-bottom:8px">🔄</div>
+          <h3 style="font-family:var(--font-display);font-size:17px;font-weight:600;color:#fff;margin-bottom:4px">Actualizar reviews desde Airbnb</h3>
+          <p style="font-size:12px;color:var(--text-tertiary)">Últimos ${diasScrape} días · Desde ${ultima} hasta ${hoy}</p>
+        </div>
+
+        <div style="background:rgba(34,211,125,.1);border:1px solid rgba(34,211,125,.3);border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:#22D37D">
+          ✓ Scraper copiado al portapapeles
+        </div>
+
+        <ol style="padding-left:20px;font-size:13px;line-height:1.7;color:var(--text-secondary);margin-bottom:20px">
+          <li>Clic en <b>"Abrir Airbnb"</b> abajo</li>
+          <li>Cuando cargue la página, presiona <b>F12</b> → pestaña <b>Console</b></li>
+          <li><b>Pega</b> (Ctrl+V) y <b>Enter</b></li>
+          <li>Deja correr ~2-5 min sin tocar la pestaña</li>
+          <li>Se descargará <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;font-size:11px">vrm_reviews_${hoy}.json</code></li>
+          <li>Vuelve aquí y clic en <b>"Importar JSON"</b></li>
+        </ol>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button onclick="window.open('${airbnbUrl}','_blank');" style="flex:1;min-width:140px;padding:12px;border-radius:10px;background:linear-gradient(135deg,var(--accent-terracota),#ff9858);color:#fff;border:none;font-family:var(--font-display);font-size:13px;font-weight:600;cursor:pointer">
+            <i class="ph-bold ph-arrow-square-out"></i> Abrir Airbnb
+          </button>
+          <button onclick="importarReviewsJSON()" style="flex:1;min-width:140px;padding:12px;border-radius:10px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.15);font-family:var(--font-display);font-size:13px;font-weight:600;cursor:pointer">
+            <i class="ph-bold ph-upload"></i> Importar JSON
+          </button>
+        </div>
+        <button onclick="document.getElementById('modal-scraper').remove()" style="width:100%;margin-top:10px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:none;color:var(--text-tertiary);font-size:13px;cursor:pointer">Cerrar</button>
+
+        <details style="margin-top:16px;font-size:11px;color:var(--text-tertiary)">
+          <summary style="cursor:pointer;user-select:none">¿No se copió? Copiar scraper manualmente</summary>
+          <textarea readonly onclick="this.select()" style="width:100%;margin-top:8px;height:120px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px;color:#ccc;font-family:var(--font-mono);font-size:10px;resize:none">${VRM_SCRAPER_JS.replace(/</g,'&lt;')}</textarea>
+        </details>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+async function importarReviewsJSON() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            const text = await file.text();
+            const nuevas = JSON.parse(text);
+            if (!Array.isArray(nuevas)) { alert('El archivo no es un array válido'); return; }
+
+            // Normalizar fechas del formato "10 de abril de 2026" → "2026-04-10"
+            const MESES = {enero:'01',febrero:'02',marzo:'03',abril:'04',mayo:'05',junio:'06',julio:'07',agosto:'08',septiembre:'09',octubre:'10',noviembre:'11',diciembre:'12'};
+            nuevas.forEach(r => {
+                if (r.fecha && /de/.test(r.fecha)) {
+                    const m = r.fecha.toLowerCase().match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/);
+                    if (m && MESES[m[2]]) r.fecha = `${m[3]}-${MESES[m[2]]}-${m[1].padStart(2,'0')}`;
+                }
+                // Normalizar "valor" → "calidad" por si el scraper viejo lo nombraba distinto
+                if (r.valor !== undefined && r.calidad === undefined) { r.calidad = r.valor; delete r.valor; }
+                // Alias amenidades → calidad si venía así
+                if (r.amenidades !== undefined && r.calidad === undefined) { r.calidad = r.amenidades; delete r.amenidades; }
+            });
+
+            // Dedup: key = huesped|fecha|depto
+            const existentes = new Set(DATA.map(r => `${(r.huesped||'').toLowerCase()}|${r.fecha||''}|${(r.depto||'').toUpperCase()}`));
+            const aAgregar = nuevas.filter(r => {
+                const k = `${(r.huesped||'').toLowerCase()}|${r.fecha||''}|${(r.depto||'').toUpperCase()}`;
+                return !existentes.has(k) && r.huesped;
+            });
+
+            if (aAgregar.length === 0) {
+                alert(`Ya están todas las reviews del archivo en el dashboard. (${nuevas.length} leídas, 0 nuevas)`);
+                return;
+            }
+
+            // Agregar al inicio del DATA (más recientes primero)
+            aAgregar.sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''));
+            DATA.unshift(...aAgregar);
+
+            // Re-render
+            filtered = DATA.slice();
+            if (typeof render === 'function') render();
+
+            // Cerrar modal y toast
+            const modal = document.getElementById('modal-scraper');
+            if (modal) modal.remove();
+
+            alert(`✅ ${aAgregar.length} reviews nuevas agregadas (${nuevas.length - aAgregar.length} duplicadas ignoradas)\n\n⚠️ Cambios sólo en memoria: copia el bloque DATA actualizado desde la consola y súbelo a GitHub para que persista.`);
+
+            // Imprimir el DATA actualizado para copiar
+            console.log('%c📋 DATA actualizado (copiar y reemplazar en portal):', 'font-size:14px;font-weight:bold;color:#C8A96E');
+            console.log('const DATA=' + JSON.stringify(DATA) + ';');
+        } catch (e) {
+            alert('Error al importar: ' + e.message);
+            console.error(e);
+        }
+    };
+    input.click();
+}
+
 function initFilters(){const ms=new Set(),ds=new Set();DATA.forEach(r=>{if(r.fecha)ms.add(r.fecha.substring(0,7));if(r.depto)ds.add(r.depto)});const fM=document.getElementById('fMonth');[...ms].sort().forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;fM.appendChild(o)});const fD=document.getElementById('fDept');[...ds].sort().forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;fD.appendChild(o)})}
 function applyFilters(){const m=document.getElementById('fMonth').value,d=document.getElementById('fDept').value,s=document.getElementById('fStars').value,q=document.getElementById('fSearch').value.toLowerCase();filtered=DATA.filter(r=>{if(m&&(!r.fecha||!r.fecha.startsWith(m)))return false;if(d&&r.depto!==d)return false;if(s&&r.general!=parseInt(s))return false;if(q&&!((r.huesped||'').toLowerCase().includes(q)||(r.depto||'').toLowerCase().includes(q)||(r.comentario||'').toLowerCase().includes(q)))return false;return true});render()}
 function render(){renderHeader();renderKPIs();renderTrend();renderStars();renderCatBars();renderRadar();renderDeptTable();renderAlerts();renderAllTable();renderSuperhost()}
