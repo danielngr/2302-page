@@ -3872,7 +3872,13 @@
             ents.forEach(row=>{
                 const depto=(row[2]||'').trim().replace(/"/g,'');
                 const reg=matchReg(depto);
-                const tipo = reg ? (reg.tipo_formato || getTmpl(depto).tipo) : getTmpl(depto).tipo;
+                // EXACT override: si el depto está en EXACT (whatsapp, frakcio), prioriza ese tipo
+                // sobre reg.tipo_formato que puede estar mal guardado en DB
+                const tmplTipo = getTmpl(depto).tipo;
+                const esExact = !!(EXACT[(depto||'').toUpperCase().trim()]);
+                const tipo = esExact
+                    ? tmplTipo
+                    : (reg ? (reg.tipo_formato || tmplTipo) : tmplTipo);
 
                 if(tipo==="correo"){
                     const correoRec = (correosEnviados||[]).find(x =>
