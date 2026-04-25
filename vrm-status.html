@@ -244,21 +244,13 @@ body.limpio .title{color:#bce6c7}
 
 .depto{
   font-family:'Playfair Display',Georgia,serif;
-  font-weight:600;
-  font-size:18px;
-  letter-spacing:1px;
-  color:rgba(232,223,210,.85);
-  margin-top:8px;
-  animation:fadeIn 1.2s ease 1.1s both;
-}
-
-.cplx{
-  font-family:'DM Mono',monospace;
-  font-size:9px;letter-spacing:2.5px;
-  color:rgba(232,223,210,.35);
+  font-weight:500;
+  font-size:17px;
+  letter-spacing:2px;
+  color:rgba(232,223,210,.78);
+  margin-top:14px;
   text-transform:uppercase;
-  margin-top:4px;
-  animation:fadeIn 1.2s ease 1.2s both;
+  animation:fadeIn 1.2s ease 1.1s both;
 }
 
 /* ───── INFO BLOCK (acceso / horarios) ───── */
@@ -568,8 +560,7 @@ body.limpio .info-divider-dot{
   }
   .title{font-size:28px;letter-spacing:.5px}
   .sub{font-size:12px;max-width:300px;line-height:1.5;padding:0 12px}
-  .depto{font-size:16px;margin-top:10px}
-  .cplx{font-size:8px;letter-spacing:2px}
+  .depto{font-size:15px;letter-spacing:1.5px;margin-top:12px}
   .dot-row{margin-top:12px}
   
   .faq-section{
@@ -756,10 +747,10 @@ var SB_KEY='sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm';
 // ───── Config de acceso por depto ─────
 // Aquí defines el código/método de acceso de cada depto. Lo que NO esté aquí no muestra código.
 var DEPTO_CONFIG = {
-  "ZOHO": { acceso: { tipo: "cajita", codigo: "9854" } },
+  "ZOHO": { numUnidad: "204", acceso: { tipo: "cajita", codigo: "9854" } },
   // Agrega más deptos aquí cuando los tengas listos:
-  // "QUIYA 2403": { acceso: { tipo: "cajita", codigo: "1234" } },
-  // "BVG 505":    { acceso: { tipo: "concierge", texto: "Recoge la llave en recepción con tu nombre" } },
+  // "QUIYA 2403": { numUnidad: "2403", acceso: { tipo: "cajita", codigo: "1234" } },
+  // "BVG 505":    { numUnidad: "505", acceso: { tipo: "concierge", texto: "Recoge la llave en recepción con tu nombre" } },
 };
 
 // WhatsApp para el botón "Necesito ayuda"
@@ -810,7 +801,10 @@ function cargar(){
     if (imgUrl && !imgUrl.includes('?')) imgUrl += '?t=' + Date.now();
     var complejo=((info&&info.complejo)||'').trim();
     var ubicacion=((info&&info.ubicacion)||'').trim();
-    var cplxText=complejo + (ubicacion ? ' · '+ubicacion : '');
+    // Construir texto único depto + #unidad: "ZOHO · #204"
+    var cfgDepto = DEPTO_CONFIG[depto] || {};
+    var numUnidad = cfgDepto.numUnidad || (info && info.num_unidad) || '';
+    var deptoLine = depto + (numUnidad ? ' · #' + numUnidad : '');
     
     if(!stageRendered){
       document.getElementById('stage').innerHTML=
@@ -826,8 +820,7 @@ function cargar(){
         '<div class="dot-row"><div class="dot"></div><div class="dot-label">Estado del departamento</div></div>'+
         '<div class="title" id="vrmTitle">'+s.label+'</div>'+
         '<div class="sub" id="vrmSub">'+s.sub+'</div>'+
-        '<div class="depto">'+depto+'</div>'+
-        (cplxText ? '<div class="cplx">'+cplxText+'</div>' : '')+
+        '<div class="depto">'+deptoLine+'</div>'+
         '<div id="infoBlock">'+renderInfoBlock(depto, key)+'</div>'+
         renderFaqs()+
         renderHelpButton(depto);
@@ -835,12 +828,17 @@ function cargar(){
       document.getElementById('footer').textContent='Actualizado · '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
       
       stageRendered=true;
+      window.__lastState = key;
       initCanvas();
     } else {
       document.getElementById('vrmTitle').textContent=s.label;
       document.getElementById('vrmSub').textContent=s.sub;
-      var ib=document.getElementById('infoBlock');
-      if(ib) ib.innerHTML=renderInfoBlock(depto, key);
+      // Solo re-renderizar el infoBlock si cambió el estado (evita flicker cada 30s)
+      if(window.__lastState !== key){
+        var ib=document.getElementById('infoBlock');
+        if(ib) ib.innerHTML=renderInfoBlock(depto, key);
+        window.__lastState = key;
+      }
       document.getElementById('footer').textContent='Actualizado · '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
     }
     
