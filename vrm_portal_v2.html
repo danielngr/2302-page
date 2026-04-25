@@ -3796,6 +3796,7 @@
                 ${r.tipo_formato==='whatsapp' && tieneCorreoMsg(r.depto||'') ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="enviarMsgPorCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar por correo</button>` : ''}
                 ${r.tipo_formato==='frakcio' ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> Reenviar QR a Frakcio</button>` : ''}
                 ${r.tipo_formato==='correo' ? `<button class="btn btn-outline-green" style="font-size:12px;padding:7px 14px;" onclick="marcarCorreo('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-arrows-clockwise"></i> Reenviar correo</button>` : ''}
+                <button class="btn btn-outline-white" style="font-size:12px;padding:7px 14px;opacity:.7" onclick="editarFechasRegistro('${r.id}')"><i class="ph-bold ph-pencil-simple"></i> Editar fechas</button>
             </div>
         </div>`;
 
@@ -4089,6 +4090,94 @@
         const pc=lista.filter(r=>!r.pdf_generado).length;
         const pb=document.getElementById('badge-pendientes-hdr');
         if(pc>0){pb.textContent=pc+" pendientes";pb.style.display="";}else pb.style.display="none";
+    }
+
+    // ── Editar fechas de un registro ────────────────────────────
+    async function editarFechasRegistro(id) {
+        const r = todosRegistros.find(x => x.id === id);
+        if (!r) { toast('Registro no encontrado'); return; }
+
+        const prev = document.getElementById('modal-editar-fechas');
+        if (prev) prev.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'modal-editar-fechas';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9998;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);padding:20px';
+        modal.innerHTML = `
+          <div style="background:#121212;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:28px;max-width:420px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.8)">
+            <div style="text-align:center;margin-bottom:20px">
+              <div style="font-size:32px;margin-bottom:8px">📅</div>
+              <h3 style="font-family:var(--font-display);font-size:17px;font-weight:600;color:#fff;margin-bottom:4px">Editar fechas — ${r.depto}</h3>
+              <p style="font-size:12px;color:var(--text-tertiary)">${r.nombre || '—'}</p>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:20px">
+              <div>
+                <label style="display:block;font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Check-in</label>
+                <input id="edit-fecha-entrada" type="date" value="${r.fecha_entrada || ''}"
+                  style="width:100%;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#fff;font-family:var(--font-mono);font-size:14px">
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Check-out</label>
+                <input id="edit-fecha-salida" type="date" value="${r.fecha_salida || ''}"
+                  style="width:100%;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#fff;font-family:var(--font-mono);font-size:14px">
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px">
+              <button onclick="document.getElementById('modal-editar-fechas').remove()"
+                style="flex:1;padding:11px;border-radius:10px;background:rgba(255,255,255,.06);color:var(--text-secondary);border:1px solid rgba(255,255,255,.1);font-family:var(--font-display);font-size:13px;font-weight:600;cursor:pointer">
+                Cancelar
+              </button>
+              <button id="btn-guardar-fechas" onclick="guardarFechasRegistro('${r.id}')"
+                style="flex:1;padding:11px;border-radius:10px;background:linear-gradient(135deg,var(--accent-terracota),#ff9858);color:#fff;border:none;font-family:var(--font-display);font-size:13px;font-weight:600;cursor:pointer">
+                <i class="ph-bold ph-check"></i> Guardar
+              </button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    }
+
+    async function guardarFechasRegistro(id) {
+        const entrada = document.getElementById('edit-fecha-entrada')?.value;
+        const salida = document.getElementById('edit-fecha-salida')?.value;
+
+        if (!entrada || !salida) { toast('⚠️ Faltan fechas'); return; }
+        if (entrada >= salida) { toast('⚠️ Check-out debe ser posterior a check-in'); return; }
+
+        const btn = document.getElementById('btn-guardar-fechas');
+        if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Guardando...'; }
+
+        try {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?id=eq.${id}`, {
+                method: 'PATCH',
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=minimal'
+                },
+                body: JSON.stringify({ fecha_entrada: entrada, fecha_salida: salida })
+            });
+
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            // Actualizar local
+            const r = todosRegistros.find(x => x.id === id);
+            if (r) { r.fecha_entrada = entrada; r.fecha_salida = salida; }
+
+            toast('✅ Fechas actualizadas');
+            document.getElementById('modal-editar-fechas')?.remove();
+
+            // Re-render
+            if (typeof renderRegistros === 'function') renderRegistros();
+            else if (typeof renderHoy === 'function') renderHoy();
+        } catch(e) {
+            toast('❌ Error: ' + e.message);
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph-bold ph-check"></i> Guardar'; }
+        }
     }
 
     // ── Marcar QR enviado ───────────────────────────────────────
@@ -6527,18 +6616,17 @@ function runSim(){
 const VRM_SCRAPER_JS = `(async function VRM_Scraper() {
   'use strict';
   console.clear();
-  console.log('%c🏨 VRM Scraper v3', 'font-size:16px;font-weight:bold;color:#C8A96E');
+  console.log('%c🏨 VRM Scraper v4 (fetch mode)', 'font-size:16px;font-weight:bold;color:#C8A96E');
   const SLEEP = ms => new Promise(r => setTimeout(r, ms));
   const all = [];
   const vistos = new Set();
   let pag = 1;
 
-  function btnsDetalles() {
-    return [...document.querySelectorAll('button')]
-      .filter(b => b.textContent.trim() === 'Ver detalles');
-  }
+  // En la página de lista, cada review tiene un contenedor con el botón "Ver detalles".
+  // Ese botón NO tiene href. Pero el review tiene un ID interno. Lo extraemos monitoreando clicks.
+  // Mejor: en vez de clickear, buscamos el ID embebido en el DOM.
+
   async function scrollearYEsperar() {
-    // Scroll a fondo + back to top para forzar render de todos los botones "Ver detalles"
     const h = document.documentElement.scrollHeight;
     for (let y = 0; y <= h; y += 400) {
       window.scrollTo(0, y);
@@ -6547,83 +6635,158 @@ const VRM_SCRAPER_JS = `(async function VRM_Scraper() {
     window.scrollTo(0, 0);
     await SLEEP(600);
   }
+
   function btnSiguiente() {
     return [...document.querySelectorAll('button,a,[role="button"]')].find(b => {
       const lbl = (b.getAttribute('aria-label') || '').toLowerCase();
-      return lbl.includes('siguiente') || lbl.includes('next');
+      return (lbl.includes('siguiente') || lbl.includes('next')) && !b.disabled;
     });
   }
 
-  function extract() {
-    const data = {huesped:null,depto:null,fecha:null,general:null,comentario:null,
-      limpieza:null,veracidad:null,llegada:null,comunicacion:null,ubicacion:null,calidad:null};
-    const h1 = document.querySelector('h1.hpipapi, h1[class*="hpipapi"]');
-    if (h1) data.huesped = h1.textContent.trim();
-    const subLabels = {limpieza:['limpieza'],veracidad:['veracidad','exactitud'],
-      llegada:['llegada','check'],comunicacion:['comunicación','comunicacion'],
-      ubicacion:['ubicación','ubicacion'],calidad:['valor','calidad']};
-    const rows = document.querySelectorAll('[class*="hszkmuf"], [class*="rr863"], li, div');
-    rows.forEach(row => {
-      const txt = (row.textContent || '').toLowerCase().trim();
-      if (txt.length > 200) return;
-      for (const [key, kws] of Object.entries(subLabels)) {
-        if (data[key] !== null) continue;
-        if (kws.some(k => txt.startsWith(k) || txt.includes(k+':') || txt.includes(k+' '))) {
-          const m = txt.match(/(\\d[,.]?\\d*)\\s*(?:\\/\\s*5|de\\s*5|estrellas?|★)?\\s*$/);
-          if (m) { const n = parseFloat(m[1].replace(',','.')); if (n>=1 && n<=5) data[key]=n; }
-        }
+  // Captura los datos visibles en la card (sin abrir detalle)
+  function extractCards() {
+    // Cada review está en un contenedor. Los encuentro buscando el botón "Ver detalles"
+    // y subiendo al contenedor que contiene todos los datos visibles.
+    const btns = [...document.querySelectorAll('button')]
+      .filter(b => b.textContent.trim() === 'Ver detalles');
+
+    return btns.map(btn => {
+      // Subir hasta encontrar el contenedor de la review completa
+      let card = btn;
+      for (let i = 0; i < 8; i++) {
+        if (card.parentElement) card = card.parentElement;
+        const txt = card.innerText || '';
+        if (txt.includes('Calidad general') && txt.length > 100 && txt.length < 3000) break;
       }
+      return { btn, card };
     });
-    const ps = [...document.querySelectorAll('p, div')]
-      .map(el => ({el, txt:(el.textContent||'').trim()}))
-      .filter(x => x.txt.length > 30 && x.txt.length < 3000)
-      .filter(x => !x.el.querySelector('button'));
-    if (ps.length) { ps.sort((a,b) => b.txt.length - a.txt.length); data.comentario = ps[0].txt; }
-    const gs = [...document.querySelectorAll('span, div')]
-      .filter(el => {const t=(el.textContent||'').trim(); return /^[1-5](?:[,.]\\d)?$/.test(t) && t.length<=3;});
-    if (gs.length) { const n = parseFloat(gs[0].textContent.replace(',','.')); if (n>=1 && n<=5) data.general=n; }
-    const fm = document.body.innerText.match(/(\\d{1,2}\\s+de\\s+\\w+\\s+de\\s+\\d{4})/);
-    if (fm) data.fecha = fm[1];
+  }
+
+  // Extrae huésped, fecha, depto, comentario y general★ de la card
+  function parseCard(cardEl) {
+    const txt = (cardEl.innerText || '').trim();
+    const lines = txt.split('\\n').map(s => s.trim()).filter(Boolean);
+    const data = { huesped:null, depto:null, fecha:null, general:null, comentario:null };
+
+    // Línea 0 suele ser el nombre
+    if (lines[0] && lines[0].length < 60 && !/\\d/.test(lines[0])) data.huesped = lines[0];
+
+    // Fecha: "20–23 de abr de 2026" → tomamos la segunda fecha (checkout)
+    const fm = txt.match(/(\\d{1,2})\\s*[–-]\\s*(\\d{1,2})\\s+de\\s+(\\w+)\\s+de\\s+(\\d{4})/);
+    if (fm) {
+      const MESES = {ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12'};
+      const mes = MESES[fm[3].slice(0,3).toLowerCase()];
+      if (mes) data.fecha = \`\${fm[4]}-\${mes}-\${fm[2].padStart(2,'0')}\`;
+    }
+
+    // Depto: viene después de "•" en la línea de fechas
+    const dm = txt.match(/•\\s*([^\\n]+)/);
+    if (dm) data.depto = dm[1].trim();
+
+    // General rating: buscar "Calidad general ★ N"
+    const gm = txt.match(/Calidad general\\s*★?\\s*(\\d)/i);
+    if (gm) data.general = parseInt(gm[1]);
+
+    // Comentario: líneas posteriores (más largas)
+    const textoLargo = lines.filter(l => l.length > 40 && !l.startsWith('Calidad') && !l.includes('Ver detalles'));
+    if (textoLargo.length) data.comentario = textoLargo.join(' ').trim();
+
     return data;
   }
 
-  while (pag <= 60) {
-    await scrollearYEsperar();
-    const btns = btnsDetalles();
-    console.log(\`→ Página \${pag}: \${btns.length} reviews\`);
-    for (let i = 0; i < btns.length; i++) {
-      const card = btns[i].closest('section, article, div') || btns[i].parentElement;
-      const cardTxt = card ? card.innerText : '';
-      btns[i].scrollIntoView({block:'center', behavior:'instant'});
-      await SLEEP(200);
-      btns[i].click();
-      await SLEEP(1400);
-      const d = extract();
-      if (!d.huesped || !d.fecha) {
-        const lines = cardTxt.split('\\n').map(s=>s.trim()).filter(Boolean);
-        if (!d.huesped && lines[0]) d.huesped = lines[0];
-        if (!d.fecha) {
-          const fm = cardTxt.match(/(\\d{1,2}\\s+\\w+\\s+\\d{4}|\\d{4}-\\d{2}-\\d{2})/);
-          if (fm) d.fecha = fm[1];
-        }
-        if (!d.depto) {
-          const dm = cardTxt.match(/(?:QUIYA|RINCON|ARIA|BOLONGO|ZOHO|ZANTAMAR|COBALTO|AMOARA|MARALMA|XIKIRI|ALAMAR|GD|BVG|PUERTARENA|ARCANO|MARSALA|PLAYA|MARINA|PALMARES|ALBATROS|AMAPA|QUERENCIA|FLAMINGOS|NAUTICO|MARITIMA|VENETIAN|TULES|DELTA|PENINSULA|ISLA|MIO|SUITE|MASCOTA)[^\\n]*/i);
-          if (dm) d.depto = dm[0].trim();
-        }
-      }
-      const key = \`\${d.huesped||''}|\${d.fecha||''}|\${d.depto||''}\`.toLowerCase();
-      if (!vistos.has(key) && d.huesped) { vistos.add(key); all.push(d); }
-      document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',which:27,keyCode:27}));
-      await SLEEP(600);
-      console.log(\`  ✓ \${d.huesped||'???'} — \${d.fecha||'??'} — \${d.general||'?'}★\`);
+  // Abre el detalle, extrae subcategorías, y vuelve
+  async function extractDetalle(btn, cardData) {
+    btn.scrollIntoView({block:'center', behavior:'instant'});
+    await SLEEP(200);
+    const urlAntes = location.href;
+    btn.click();
+    await SLEEP(1800);
+
+    const data = { ...cardData,
+      limpieza:null, veracidad:null, llegada:null,
+      comunicacion:null, ubicacion:null, calidad:null };
+
+    // Ahora buscamos las subcategorías en la nueva vista (detalle)
+    const pageTxt = document.body.innerText;
+    const subLabels = {
+      limpieza: /Limpieza\\s*★?\\s*(\\d)/i,
+      veracidad: /(?:Veracidad|Exactitud)\\s*★?\\s*(\\d)/i,
+      llegada: /Llegada\\s*★?\\s*(\\d)/i,
+      comunicacion: /Comunicaci[óo]n\\s*★?\\s*(\\d)/i,
+      ubicacion: /Ubicaci[óo]n\\s*★?\\s*(\\d)/i,
+      calidad: /(?:Valor|Calidad-precio|Calidad)\\s*★?\\s*(\\d)/i,
+    };
+    for (const [k, re] of Object.entries(subLabels)) {
+      const m = pageTxt.match(re);
+      if (m) { const n = parseInt(m[1]); if (n>=1 && n<=5) data[k] = n; }
     }
+
+    // General de la página de detalle (por si no se capturó de la card)
+    if (!data.general) {
+      const gm = pageTxt.match(/Calidad general\\s*★?\\s*(\\d)/i);
+      if (gm) data.general = parseInt(gm[1]);
+    }
+
+    // Comentario completo del detalle
+    const comentarioEl = document.body.innerText.match(/Evaluaci[óo]n p[úu]blica[\\s\\S]*?★?\\s*\\d?\\s*\\n([\\s\\S]+?)(?=Escribe una respuesta|Nota de|Revisa los detalles|$)/);
+    if (comentarioEl && comentarioEl[1]) data.comentario = comentarioEl[1].trim().slice(0, 2000);
+
+    // Cerrar el detalle: back en el historial O clic en botón "Cerrar"/flecha
+    const cerrarBtn = [...document.querySelectorAll('button')].find(b => {
+      const lbl = (b.getAttribute('aria-label') || '').toLowerCase();
+      return lbl === 'cerrar' || lbl === 'close' || b.textContent.trim() === '×';
+    });
+    if (cerrarBtn) {
+      cerrarBtn.click();
+    } else if (location.href !== urlAntes) {
+      history.back();
+    } else {
+      document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',which:27,keyCode:27}));
+    }
+    await SLEEP(1400);
+    return data;
+  }
+
+  while (pag <= 80) {
+    await scrollearYEsperar();
+    const cards = extractCards();
+    console.log(\`→ Página \${pag}: \${cards.length} reviews encontradas\`);
+
+    if (cards.length === 0) {
+      console.warn('Sin reviews en esta página, deteniendo');
+      break;
+    }
+
+    for (let i = 0; i < cards.length; i++) {
+      const cardData = parseCard(cards[i].card);
+      // Si no se pudo abrir el detalle, usamos solo los datos de la card
+      let full;
+      try {
+        full = await extractDetalle(cards[i].btn, cardData);
+      } catch(e) {
+        console.warn('Error en detalle:', e);
+        full = cardData;
+      }
+
+      const key = \`\${full.huesped||''}|\${full.fecha||''}|\${full.depto||''}\`.toLowerCase();
+      if (!vistos.has(key) && full.huesped) {
+        vistos.add(key);
+        all.push(full);
+        console.log(\`  ✓ \${full.huesped} — \${full.fecha||'??'} — \${full.general||'?'}★ \${full.limpieza?'| L'+full.limpieza:''}\`);
+      } else {
+        console.log(\`  ~ duplicado ignorado: \${full.huesped||'???'}\`);
+      }
+    }
+
+    // Avanzar a la siguiente página (puede que después de back() el botón haya cambiado)
+    await SLEEP(800);
     const next = btnSiguiente();
-    if (!next || next.disabled || next.getAttribute('aria-disabled') === 'true') break;
+    if (!next) { console.log('✅ No hay más páginas'); break; }
     next.scrollIntoView({block:'center'});
-    await SLEEP(400);
+    await SLEEP(300);
     next.click();
     pag++;
-    await SLEEP(2500);
+    await SLEEP(2800);
   }
 
   console.log(\`%c📊 Total: \${all.length}\`, 'font-size:14px;font-weight:bold;color:#22D37D');
