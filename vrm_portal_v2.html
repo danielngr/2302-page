@@ -4560,16 +4560,32 @@
     }
 
     function tieneCorreoConfigured(depto) {
-      const key = Object.keys(CORREO_PDF_MAP).find(k => depto.toUpperCase().includes(k.toUpperCase()) || k.toUpperCase().includes(depto.toUpperCase()));
+      const deptoNorm = normalizarDepto(depto);
+      const key = Object.keys(CORREO_PDF_MAP).find(k => {
+        const kNorm = normalizarDepto(k);
+        return deptoNorm.includes(kNorm) || kNorm.includes(deptoNorm);
+      });
       return !!key;
+    }
+
+    // Normaliza variantes de Venetian: "VENETIAN 905 T3" / "VENETIAN T3 905" → "VENETIAN T3 905"
+    function normalizarDepto(d) {
+      if (!d) return '';
+      let s = d.toUpperCase().trim();
+      // VENETIAN NNN T3 → VENETIAN T3 NNN
+      s = s.replace(/^VENETIAN\s+(\d+)\s+T(\d+)$/, 'VENETIAN T$2 $1');
+      return s;
     }
 
     async function enviarPDFporCorreo(id) {
       const r = todosRegistros.find(x=>x.id===id);
       if(!r) return;
 
-      const deptoUp = (r.depto||'').toUpperCase();
-      const configKey = Object.keys(CORREO_PDF_MAP).find(k => deptoUp.includes(k.toUpperCase()) || k.toUpperCase().includes(deptoUp));
+      const deptoUp = normalizarDepto(r.depto||'');
+      const configKey = Object.keys(CORREO_PDF_MAP).find(k => {
+        const kNorm = normalizarDepto(k);
+        return deptoUp.includes(kNorm) || kNorm.includes(deptoUp);
+      });
       if(!configKey) { toast("❌ No hay correo configurado para " + r.depto); return; }
       const config = CORREO_PDF_MAP[configKey];
 
