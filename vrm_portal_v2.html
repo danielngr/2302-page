@@ -4324,8 +4324,8 @@
     // Helper: crea una reserva en Frakcio y retorna URL del QR (o true si no hay URL)
     async function crearReservaFrakcio(housing, fechaEntrada, fSalida, nombre, guests, adultos, menores, reg, depto) {
         const payload = {
-            dateStart: `${fechaEntrada} 00:00:00`,
-            dateEnd:   `${fSalida} 23:59:00`,
+            dateStart: `${fechaEntrada} 13:00:00`,
+            dateEnd:   `${fSalida} 11:00:00`,
             adults:    adultos,
             children:  menores,
             responsibleName: nombre,
@@ -4806,8 +4806,10 @@
                 mostrarModalQRSplit(depto, qrSplit.urls);
             } else if(qrUrl) {
                 mostrarModalQR(depto, qrUrl);
+            } else if(esFrakcioReal(depto)) {
+                toast("⚠️ Reserva enviada a Frakcio pero no se obtuvo URL del QR. Verifica en Frakcio.");
             } else {
-                toast(esFrakcioReal(depto) ? "✅ QR registrado en Frakcio" : "✓ QR marcado como enviado");
+                toast("✓ QR marcado como enviado");
             }
 
         } catch(e) {
