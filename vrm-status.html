@@ -261,6 +261,124 @@ body.limpio .title{color:#bce6c7}
   animation:fadeIn 1.2s ease 1.2s both;
 }
 
+/* ───── INFO BLOCK (acceso / horarios) ───── */
+.info-block{
+  margin:24px auto 0;
+  max-width:340px;
+  padding:18px 22px;
+  border-radius:14px;
+  background:linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.012));
+  border:1px solid rgba(232,223,210,.10);
+  text-align:center;
+  animation:fadeIn 1.2s ease 1.3s both;
+  backdrop-filter:blur(6px);
+}
+body.limpio .info-block{
+  border-color:rgba(180,225,180,.18);
+  background:linear-gradient(180deg, rgba(143,188,143,.06), rgba(143,188,143,.015));
+}
+.info-label{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:2.5px;
+  text-transform:uppercase;
+  color:rgba(232,223,210,.45);
+  margin-bottom:10px;
+}
+.info-codigo{
+  font-family:'Playfair Display',Georgia,serif;
+  font-weight:700;
+  font-size:42px;
+  letter-spacing:8px;
+  color:#e8dfd2;
+  margin-bottom:4px;
+  text-shadow:0 0 24px rgba(188,230,199,.35);
+}
+body.limpio .info-codigo{
+  color:#cdf2d4;
+}
+.info-hint{
+  font-family:'DM Mono',monospace;
+  font-size:10px;letter-spacing:1px;
+  color:rgba(232,223,210,.5);
+  margin-bottom:14px;
+}
+.info-text{
+  font-family:'Inter',sans-serif;
+  font-size:13px;line-height:1.5;
+  color:rgba(232,223,210,.8);
+  padding:6px 0;
+}
+.info-actions{
+  display:flex;justify-content:center;gap:8px;
+  flex-wrap:wrap;
+}
+.info-btn{
+  font-family:'Inter',sans-serif;
+  font-size:11px;font-weight:500;
+  padding:8px 14px;
+  border-radius:10px;
+  cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;
+  transition:all .2s ease;
+  border:1px solid rgba(232,223,210,.18);
+  background:rgba(232,223,210,.05);
+  color:rgba(232,223,210,.85);
+}
+.info-btn:hover{
+  background:rgba(232,223,210,.10);
+  border-color:rgba(232,223,210,.3);
+}
+.info-btn-ghost{}
+.info-block-times .info-time-row{
+  display:flex;align-items:center;justify-content:center;gap:24px;
+}
+.info-time-col{
+  display:flex;flex-direction:column;align-items:center;
+  min-width:90px;
+}
+.info-time-label{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:2px;
+  text-transform:uppercase;
+  color:rgba(232,223,210,.45);
+  margin-bottom:6px;
+}
+.info-time-val{
+  font-family:'Playfair Display',Georgia,serif;
+  font-weight:600;
+  font-size:20px;letter-spacing:.5px;
+  color:rgba(232,223,210,.92);
+}
+.info-time-divider{
+  width:1px;height:36px;
+  background:linear-gradient(180deg, transparent, rgba(232,223,210,.2), transparent);
+}
+
+/* ───── HELP BUTTON ───── */
+.help-btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin:28px auto 32px;
+  max-width:280px;
+  padding:13px 20px;
+  border-radius:12px;
+  background:linear-gradient(135deg, rgba(37,211,102,.18), rgba(37,211,102,.08));
+  border:1px solid rgba(37,211,102,.28);
+  color:#9be7b1;
+  font-family:'Inter',sans-serif;
+  font-size:13px;font-weight:600;
+  text-decoration:none;
+  cursor:pointer;
+  transition:all .2s ease;
+  animation:fadeIn 1.2s ease 1.5s both;
+  backdrop-filter:blur(6px);
+}
+.help-btn:hover{
+  background:linear-gradient(135deg, rgba(37,211,102,.28), rgba(37,211,102,.14));
+  border-color:rgba(37,211,102,.42);
+  transform:translateY(-1px);
+}
+.help-btn-icon{font-size:16px}
+
 /* ───── FAQ SECTION ───── */
 .faq-section{
   margin-top:32px;
@@ -501,7 +619,7 @@ var FAQS=[
   ["¿Puedo dejar mis maletas antes?","Si hay disponibilidad en el edificio, puedes dejarlas en la recepción. Escríbenos con anticipación para coordinarlo."],
   ["¿Cómo accedo al departamento?","Te enviaremos un mensaje con las instrucciones de acceso el día de tu llegada, incluyendo códigos y llaves."],
   ["¿Hay estacionamiento?","Sí, la mayoría cuenta con cajón de estacionamiento asignado dentro del edificio. Confirma con nosotros si es esencial."],
-  ["¿A qué hora es mi check-out?","Check-out a las 11:00 am. Si necesitas salida tardía, consulta según disponibilidad."],
+  ["¿Puedo salir más tarde?","Solicítanos una salida tardía con anticipación y la coordinamos según disponibilidad. Pronto podrás reservarla directamente desde aquí."],
   ["¿Tengo WiFi?","Sí, todos los departamentos cuentan con WiFi. La red y contraseña se incluyen en las instrucciones de llegada."],
   ["¿Acepta mascotas?","Solo algunos departamentos permiten mascotas. Si viajas con una, avísanos antes de reservar para confirmar."]
 ];
@@ -533,7 +651,75 @@ function closeFaq(e){
     document.getElementById('faqModal').classList.remove('open');
   }
 }
+
+// ───── Render bloque de info según estado ─────
+function renderInfoBlock(depto, estado){
+  if(estado === 'limpio') {
+    // Listo: mostrar código de acceso prominente
+    var cfg = DEPTO_CONFIG[depto];
+    if(!cfg || !cfg.acceso) return ''; // si no hay config, no mostramos nada (no inventamos código)
+
+    var ac = cfg.acceso;
+    if(ac.tipo === 'cajita' && ac.codigo) {
+      return '<div class="info-block">'+
+        '<div class="info-label">Código de acceso</div>'+
+        '<div class="info-codigo">'+ac.codigo+'</div>'+
+        '<div class="info-hint">En la cajita de llaves</div>'+
+        '<div class="info-actions">'+
+          '<button class="info-btn info-btn-ghost" onclick="alert(\'Tutorial próximamente\')">'+
+            '<span>📖</span> Cómo abrir la cajita'+
+          '</button>'+
+        '</div>'+
+      '</div>';
+    }
+    if(ac.tipo === 'concierge' && ac.texto) {
+      return '<div class="info-block">'+
+        '<div class="info-label">Acceso</div>'+
+        '<div class="info-text">'+ac.texto+'</div>'+
+      '</div>';
+    }
+    return '';
+  } else {
+    // No listo aún: mostrar horarios
+    return '<div class="info-block info-block-times">'+
+      '<div class="info-time-row">'+
+        '<div class="info-time-col">'+
+          '<div class="info-time-label">Check-in</div>'+
+          '<div class="info-time-val">3:00 pm</div>'+
+        '</div>'+
+        '<div class="info-time-divider"></div>'+
+        '<div class="info-time-col">'+
+          '<div class="info-time-label">Check-out</div>'+
+          '<div class="info-time-val">11:00 am</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }
+}
+
+// ───── Botón ayuda WhatsApp ─────
+function renderHelpButton(depto){
+  var msg = encodeURIComponent('Hola '+SUPPORT_NOMBRE+', soy huésped de '+depto+' y necesito ayuda');
+  var url = 'https://wa.me/'+SUPPORT_WHATSAPP+'?text='+msg;
+  return '<a class="help-btn" href="'+url+'" target="_blank" rel="noopener">'+
+    '<span class="help-btn-icon">💬</span>'+
+    '<span class="help-btn-text">Necesito ayuda</span>'+
+  '</a>';
+}
 var SB_KEY='sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm';
+
+// ───── Config de acceso por depto ─────
+// Aquí defines el código/método de acceso de cada depto. Lo que NO esté aquí no muestra código.
+var DEPTO_CONFIG = {
+  "ZOHO": { acceso: { tipo: "cajita", codigo: "9854" } },
+  // Agrega más deptos aquí cuando los tengas listos:
+  // "QUIYA 2403": { acceso: { tipo: "cajita", codigo: "1234" } },
+  // "BVG 505":    { acceso: { tipo: "concierge", texto: "Recoge la llave en recepción con tu nombre" } },
+};
+
+// WhatsApp para el botón "Necesito ayuda"
+var SUPPORT_WHATSAPP = "5213222440051"; // sin + ni espacios
+var SUPPORT_NOMBRE   = "Daniel";
 
 function getDepto(){
   return (new URLSearchParams(location.search).get('depto')||'').toUpperCase().trim();
@@ -597,7 +783,9 @@ function cargar(){
         '<div class="sub" id="vrmSub">'+s.sub+'</div>'+
         '<div class="depto">'+depto+'</div>'+
         (cplxText ? '<div class="cplx">'+cplxText+'</div>' : '')+
-        renderFaqs();
+        '<div id="infoBlock">'+renderInfoBlock(depto, key)+'</div>'+
+        renderFaqs()+
+        renderHelpButton(depto);
       
       document.getElementById('footer').textContent='Actualizado · '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
       
@@ -606,6 +794,8 @@ function cargar(){
     } else {
       document.getElementById('vrmTitle').textContent=s.label;
       document.getElementById('vrmSub').textContent=s.sub;
+      var ib=document.getElementById('infoBlock');
+      if(ib) ib.innerHTML=renderInfoBlock(depto, key);
       document.getElementById('footer').textContent='Actualizado · '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
     }
     
