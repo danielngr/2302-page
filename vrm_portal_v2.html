@@ -2851,6 +2851,7 @@
                         <button class="lq-tab" data-tab="chicas" onclick="lqSwitchTab('chicas')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent">Chicas</button>
                         <button class="lq-tab" data-tab="matriz" onclick="lqSwitchTab('matriz')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent">Matriz chica × depto</button>
                         <button class="lq-tab" data-tab="alertas" onclick="lqSwitchTab('alertas')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent">Alertas accionables</button>
+                        <button class="lq-tab" data-tab="videos" onclick="lqSwitchTab('videos')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent">Videos</button>
                     </div>
 
                     <!-- TAB: Operación (lo que ya existía) -->
@@ -2980,6 +2981,22 @@
                         </div>
                         <div id="lq-alertas-content">
                             <div style="color:var(--text-tertiary);text-align:center;padding:40px;font-family:var(--font-mono);font-size:11px">Cargando alertas...</div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Videos (calendario) -->
+                    <div id="lq-tab-videos" class="lq-tab-content" style="display:none">
+                        <div class="glass-card" style="padding:20px;margin-bottom:16px;background:rgba(74,164,255,0.04);border:1px solid rgba(74,164,255,0.12)">
+                            <div style="display:flex;align-items:flex-start;gap:12px">
+                                <div style="font-size:20px">🎥</div>
+                                <div>
+                                    <div style="font-weight:600;font-size:13px;margin-bottom:6px">Archivo de videos de limpieza</div>
+                                    <div style="font-size:12px;color:var(--text-secondary);line-height:1.6">Cada video que las chicas mandan al bot al terminar se guarda en Cloudflare R2 y se asocia con su limpieza. Aquí se agrupa por día, con duración, depto y chica. Click en el botón para ver el video.</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="lq-videos-timeline">
+                            <div style="color:var(--text-tertiary);text-align:center;padding:40px;font-family:var(--font-mono);font-size:11px">Cargando videos...</div>
                         </div>
                     </div>
 
@@ -8685,6 +8702,7 @@ function updateNotifBadge(){
         if(tab === 'chicas') lqRenderChicas();
         if(tab === 'matriz') lqRenderMatriz();
         if(tab === 'alertas') lqRenderAlertas();
+        if(tab === 'videos') lqRenderVideos();
     }
 
     function lqRender() {
@@ -9129,6 +9147,137 @@ function updateNotifBadge(){
         </div>` : '';
 
         cont.innerHTML = malasHtml + patronesHtml;
+    }
+
+    // ── Calendario de videos de limpieza ───────────────────────────────────
+    async function lqRenderVideos() {
+        const cont = document.getElementById('lq-videos-timeline');
+        if(!cont) return;
+        cont.innerHTML = '<div style="color:var(--text-tertiary);text-align:center;padding:40px;font-family:var(--font-mono);font-size:11px">Cargando videos...</div>';
+
+        try {
+            // Traer limpiezas con video de los últimos 90 días
+            const desde = new Date(Date.now() - 90*24*60*60*1000).toISOString().slice(0, 10);
+            const res = await fetch(
+                `${SUPABASE_URL}/rest/v1/limpiezas?fecha=gte.${desde}&video_url=not.is.null&select=id,fecha,depto_codigo,staff_id,hora_inicio,hora_fin,video_url,tipo,estatus&order=fecha.desc,hora_fin.desc`,
+                { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+            );
+            const limpiezas = await res.json();
+
+            // Cargar staff para resolver nombre por staff_id
+            const staffMap = {};
+            try {
+                const sres = await fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?select=id,nombre,nombre_completo`, {
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                const staff = await sres.json();
+                staff.forEach(s => { staffMap[s.id] = s.nombre || s.nombre_completo; });
+            } catch(e) { console.warn('No se pudo cargar staff:', e); }
+
+            if(!limpiezas.length) {
+                cont.innerHTML = `<div style="color:var(--text-tertiary);text-align:center;padding:60px 20px;font-family:var(--font-mono);font-size:12px">
+                    <div style="font-size:32px;margin-bottom:12px;opacity:.4">🎥</div>
+                    <div>Aún no hay videos archivados</div>
+                    <div style="font-size:10px;margin-top:6px;opacity:.6">Los videos aparecerán aquí cuando las chicas terminen una limpieza</div>
+                </div>`;
+                return;
+            }
+
+            // Agrupar por fecha
+            const porFecha = {};
+            limpiezas.forEach(l => {
+                if(!porFecha[l.fecha]) porFecha[l.fecha] = [];
+                porFecha[l.fecha].push(l);
+            });
+
+            // Función helper para formato hora "HH:MM"
+            const fmtHora = (ts) => {
+                if(!ts) return '—';
+                const d = new Date(ts);
+                return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+            };
+
+            // Función helper para duración entre 2 timestamps en minutos
+            const calcDuracion = (inicio, fin) => {
+                if(!inicio || !fin) return null;
+                const ms = new Date(fin) - new Date(inicio);
+                if(ms < 0 || ms > 12*60*60*1000) return null; // ignorar > 12h
+                return Math.round(ms / 60000);
+            };
+
+            // Función helper para fecha legible
+            const fmtFechaLegible = (iso) => {
+                const d = new Date(iso + 'T12:00:00');
+                const hoy = new Date(); hoy.setHours(0,0,0,0);
+                const ayer = new Date(hoy.getTime() - 24*60*60*1000);
+                const t = new Date(iso + 'T00:00:00');
+                if(t.getTime() === hoy.getTime()) return 'Hoy';
+                if(t.getTime() === ayer.getTime()) return 'Ayer';
+                return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' });
+            };
+
+            // Render
+            const fechasOrdenadas = Object.keys(porFecha).sort().reverse();
+            let html = '';
+
+            fechasOrdenadas.forEach(fecha => {
+                const items = porFecha[fecha];
+                const totalDuracion = items.reduce((s, l) => s + (calcDuracion(l.hora_inicio, l.hora_fin) || 0), 0);
+
+                html += `<div class="lq-video-day" style="margin-bottom:24px">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                        <div>
+                            <div style="font-family:var(--font-display);font-size:14px;font-weight:600;color:var(--text-primary);text-transform:capitalize">${fmtFechaLegible(fecha)}</div>
+                            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);margin-top:2px">${fecha}</div>
+                        </div>
+                        <div style="display:flex;gap:14px;align-items:baseline;font-family:var(--font-mono);font-size:11px;color:var(--text-tertiary)">
+                            <span><span style="color:var(--accent-terracota);font-weight:600">${items.length}</span> limpieza${items.length !== 1 ? 's' : ''}</span>
+                            ${totalDuracion > 0 ? `<span><span style="color:#4AA4FF;font-weight:600">${Math.floor(totalDuracion/60)}h ${totalDuracion%60}m</span> total</span>` : ''}
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">`;
+
+                items.forEach(l => {
+                    const nombre = staffMap[l.staff_id] || '???';
+                    const inicio = fmtHora(l.hora_inicio);
+                    const fin = fmtHora(l.hora_fin);
+                    const dur = calcDuracion(l.hora_inicio, l.hora_fin);
+                    const durStr = dur ? `${dur} min` : '—';
+                    const tipoLbl = (l.tipo || 'completa').toLowerCase();
+                    const tipoColor = tipoLbl === 'refresh' ? '#4AA4FF' : tipoLbl === 'midstay' ? '#FFB04A' : '#22D37D';
+                    const isR2 = (l.video_url || '').includes('r2.dev') || (l.video_url || '').includes('r2.cloudflarestorage.com');
+                    const linkBtn = isR2
+                        ? `<a href="${l.video_url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:linear-gradient(135deg,var(--accent-terracota),#ff9858);color:#fff;border-radius:8px;font-family:var(--font-display);font-size:11px;font-weight:600;text-decoration:none">
+                            <i class="ph-bold ph-play-circle"></i> Ver video
+                          </a>`
+                        : `<a href="${l.video_url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,176,74,0.15);color:#FFB04A;border:1px solid rgba(255,176,74,0.3);border-radius:8px;font-family:var(--font-display);font-size:11px;font-weight:600;text-decoration:none" title="URL temporal de Twilio (puede haber expirado)">
+                            <i class="ph-bold ph-warning-circle"></i> Video (Twilio)
+                          </a>`;
+
+                    html += `<div class="lq-video-card" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;transition:all .15s ease" onmouseover="this.style.background='rgba(255,255,255,0.05)';this.style.borderColor='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)';this.style.borderColor='rgba(255,255,255,0.06)'">
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px">
+                            <div style="flex:1;min-width:0">
+                                <div style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.depto_codigo || '???'}</div>
+                                <div style="font-size:11px;color:var(--text-secondary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nombre}</div>
+                            </div>
+                            <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:${tipoColor};padding:2px 8px;background:${tipoColor}15;border-radius:4px;flex-shrink:0">${tipoLbl}</div>
+                        </div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);margin-bottom:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.04)">
+                            <span><i class="ph ph-clock" style="vertical-align:-2px"></i> ${inicio} → ${fin}</span>
+                            <span style="color:var(--text-secondary);font-weight:600">${durStr}</span>
+                        </div>
+                        <div>${linkBtn}</div>
+                    </div>`;
+                });
+
+                html += `</div></div>`;
+            });
+
+            cont.innerHTML = html;
+        } catch(e) {
+            console.error('Error cargando videos:', e);
+            cont.innerHTML = `<div style="color:#ff6e6e;text-align:center;padding:40px;font-family:var(--font-mono);font-size:11px">Error: ${e.message}</div>`;
+        }
     }
 
     async function cargarRankingReviews() {
