@@ -857,13 +857,33 @@ const urlCanal = params.get('canal');
 
 // Si vino por URL (huésped real) ocultar el dev panel y ajustar padding
 if(urlDept){
-  document.getElementById('dev-panel').style.display = 'none';
-  document.querySelector('.app').style.paddingTop = '0';
+  const devPanel = document.getElementById('dev-panel');
+  if(devPanel) devPanel.style.display = 'none';
+  const app = document.querySelector('.app');
+  if(app) app.style.paddingTop = '0';
 }
 
 // ═══════════════════════════════════════════════════════════════
 // CARGAR LISTA DE DEPTOS EN EL DEV PANEL
 // ═══════════════════════════════════════════════════════════════
+
+async function loadDeptDirect(dept){
+  const { data, error } = await sb
+    .from('propiedades_config')
+    .select('*')
+    .eq('dept', dept)
+    .single();
+  
+  if(error){
+    console.error('Error cargando depto:', error);
+    showToast('Error: depto no encontrado', 'error');
+    return;
+  }
+  
+  currentDept = data;
+  updateUI();
+}
+
 async function initDevPanel(){
   const { data, error } = await sb
     .from('propiedades_config')
@@ -1152,7 +1172,13 @@ function showToast(msg, type){
 // ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
-initDevPanel();
+// Si hay URL params, cargar directo. Si no, mostrar dev panel.
+if(urlDept){
+  currentCanal = urlCanal || 'airbnb';
+  loadDeptDirect(urlDept);
+} else {
+  initDevPanel();
+}
 </script>
 </body>
 </html>
