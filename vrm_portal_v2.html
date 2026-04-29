@@ -2200,6 +2200,33 @@
 .srv-h-tag.completed{background:var(--status-blue-bg);color:var(--status-blue)}
 .srv-h-tag.rejected{background:var(--status-red-bg);color:var(--status-red)}
 
+/* ─── Calendario semanal ─── */
+.srv-cal-controls{display:flex;align-items:center;gap:10px}
+.srv-cal-nav{width:30px;height:30px;border-radius:var(--radius-sm);background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--text-primary);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:var(--transition-smooth);font-size:14px}
+.srv-cal-nav:hover{background:var(--glass-bg-hover);border-color:var(--text-tertiary)}
+.srv-cal-label{font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);letter-spacing:0.05em;min-width:180px;text-align:center;font-feature-settings:'tnum'}
+.srv-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--glass-border);border:1px solid var(--glass-border);border-radius:var(--radius-md);overflow:hidden}
+.srv-cal-day{background:var(--glass-bg);min-height:160px;padding:12px 10px;display:flex;flex-direction:column}
+.srv-cal-day.today{background:rgba(224,122,62,0.04)}
+.srv-cal-day-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)}
+.srv-cal-day-name{font-family:var(--font-mono);font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-tertiary)}
+.srv-cal-day-num{font-family:var(--font-display);font-size:18px;font-weight:600;font-feature-settings:'tnum';color:var(--text-primary)}
+.srv-cal-day.today .srv-cal-day-num{color:var(--accent-terracota)}
+.srv-cal-event{padding:6px 8px;border-radius:6px;font-size:11px;line-height:1.3;margin-bottom:5px;border-left:2px solid;background:rgba(255,255,255,0.03)}
+.srv-cal-event strong{display:block;font-family:var(--font-display);font-size:11px;font-weight:600;color:var(--text-primary);margin-bottom:2px}
+.srv-cal-event small{font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);letter-spacing:0.05em}
+.srv-cal-event.cleaning{border-color:var(--accent-terracota);background:rgba(224,122,62,0.08)}
+.srv-cal-event.crib{border-color:var(--status-green);background:var(--status-green-bg)}
+.srv-cal-event.late_checkout,.srv-cal-event.early_checkin{border-color:var(--status-yellow);background:var(--status-yellow-bg)}
+.srv-cal-event.pending{opacity:0.6;border-style:dashed}
+.srv-cal-empty{font-size:10px;color:var(--text-tertiary);font-style:italic;font-family:var(--font-body);text-align:center;padding:8px 0;opacity:0.5}
+
+@media (max-width:900px){
+.srv-cal-grid{grid-template-columns:1fr;gap:8px}
+.srv-cal-day{min-height:auto}
+.srv-cal-controls{flex-wrap:wrap}
+}
+
 .srv-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120%);background:var(--bg-base);border:1px solid var(--glass-border);color:var(--text-primary);padding:14px 22px;border-radius:var(--radius-md);font-size:13px;font-weight:500;display:flex;align-items:center;gap:10px;z-index:9999;box-shadow:var(--shadow-premium);transition:transform 0.4s cubic-bezier(0.2,0.85,0.25,1);font-family:var(--font-body)}
 .srv-toast.show{transform:translateX(-50%) translateY(0)}
 .srv-toast .check{width:20px;height:20px;border-radius:50%;background:var(--status-green);display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff}
@@ -2464,6 +2491,21 @@
                     </div>
                     <div id="srv-pendientes-list">
                         <div class="srv-loading">Cargando solicitudes…</div>
+                    </div>
+                </div>
+
+                <!-- CALENDARIO SEMANAL -->
+                <div class="srv-section">
+                    <div class="srv-section-h">
+                        <h2><span class="srv-dot" style="background:var(--accent-gold);box-shadow:0 0 10px var(--accent-gold)"></span>Esta semana</h2>
+                        <div class="srv-cal-controls">
+                            <button class="srv-cal-nav" onclick="srvNavWeek(-1)"><i class="ph ph-caret-left"></i></button>
+                            <span class="srv-cal-label" id="srv-cal-label">—</span>
+                            <button class="srv-cal-nav" onclick="srvNavWeek(1)"><i class="ph ph-caret-right"></i></button>
+                        </div>
+                    </div>
+                    <div class="srv-cal-grid" id="srv-cal-grid">
+                        <div class="srv-loading">Cargando calendario…</div>
                     </div>
                 </div>
 
@@ -10614,6 +10656,7 @@ function updateNotifBadge(){
     
     let propiedadesMap = {};
     let solicitudesData = [];
+    let calWeekOffset = 0;
     
     async function srvLoad(){
         try {
@@ -10626,6 +10669,7 @@ function updateNotifBadge(){
             solicitudesData = await reqRes.json();
             
             srvRenderPendientes();
+            srvRenderCalendar();
             srvRenderHistorico();
             srvUpdateStats();
             srvUpdateBadge();
@@ -10751,7 +10795,94 @@ function updateNotifBadge(){
         list.innerHTML = html;
     }
     
-    function srvUpdateStats(){
+    // ─── CALENDARIO SEMANAL ───
+    function srvWeekStart(offset){
+        const d = new Date();
+        d.setHours(0,0,0,0);
+        const day = d.getDay(); // 0=dom
+        // queremos lunes como primer día
+        const diff = day === 0 ? -6 : 1 - day;
+        d.setDate(d.getDate() + diff + (offset * 7));
+        return d;
+    }
+    
+    function srvRenderCalendar(){
+        const grid = document.getElementById('srv-cal-grid');
+        const label = document.getElementById('srv-cal-label');
+        if(!grid) return;
+        
+        const start = srvWeekStart(calWeekOffset);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+        
+        const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+        if(label){
+            label.textContent = `${start.getDate()} ${meses[start.getMonth()]} — ${end.getDate()} ${meses[end.getMonth()]}`;
+        }
+        
+        const dayNames = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        
+        let html = '';
+        for(let i = 0; i < 7; i++){
+            const dayDate = new Date(start);
+            dayDate.setDate(dayDate.getDate() + i);
+            const isToday = dayDate.getTime() === today.getTime();
+            const dayStr = dayDate.toISOString().split('T')[0];
+            
+            // Eventos de este día
+            const events = solicitudesData.filter(s => {
+                if(s.status === 'rechazada' || s.status === 'cancelada') return false;
+                // limpieza/late/early/checkin: fecha_servicio == dayStr
+                // cuna/silla: dayStr en rango fecha_servicio..fecha_fin (o entrega/recoge)
+                if(s.tipo === 'cuna' || s.tipo === 'silla_alta'){
+                    if(!s.fecha_fin) return s.fecha_servicio === dayStr;
+                    return dayStr >= s.fecha_servicio && dayStr <= s.fecha_fin;
+                }
+                return s.fecha_servicio === dayStr;
+            });
+            
+            let eventsHTML = '';
+            if(events.length === 0){
+                eventsHTML = `<div class="srv-cal-empty">—</div>`;
+            } else {
+                eventsHTML = events.map(s => {
+                    const tipoCls = (s.tipo === 'cuna' || s.tipo === 'silla_alta') ? 'crib' : 
+                                    (s.tipo === 'limpieza') ? 'cleaning' : s.tipo;
+                    const isPending = s.status === 'pendiente_revision';
+                    let title = TIPO_LABELS[s.tipo] || s.tipo;
+                    let detail = `${s.dept}`;
+                    if(s.horario) detail += ' · ' + (s.horario === 'manana' ? 'AM' : 'PM');
+                    if(s.hora_exacta) detail += ' · ' + s.hora_exacta.substring(0,5);
+                    if(s.tipo === 'cuna' || s.tipo === 'silla_alta'){
+                        if(dayStr === s.fecha_servicio) title += ' · entrega';
+                        else if(dayStr === s.fecha_fin) title += ' · recoge';
+                    }
+                    if(isPending) title += ' (pend.)';
+                    return `<div class="srv-cal-event ${tipoCls}${isPending?' pending':''}">
+                        <strong>${title}</strong>
+                        <small>${detail}</small>
+                    </div>`;
+                }).join('');
+            }
+            
+            html += `<div class="srv-cal-day${isToday?' today':''}">
+                <div class="srv-cal-day-h">
+                    <span class="srv-cal-day-name">${dayNames[i]}</span>
+                    <span class="srv-cal-day-num">${dayDate.getDate()}</span>
+                </div>
+                ${eventsHTML}
+            </div>`;
+        }
+        
+        grid.innerHTML = html;
+    }
+    
+    window.srvNavWeek = function(delta){
+        calWeekOffset += delta;
+        srvRenderCalendar();
+    };
         const pendientes = solicitudesData.filter(s => s.status === 'pendiente_revision').length;
         const confirmadas = solicitudesData.filter(s => s.status === 'confirmada' || s.status === 'pago_solicitado').length;
         const hoy = new Date().toISOString().split('T')[0];
@@ -10832,6 +10963,7 @@ function updateNotifBadge(){
             
             setTimeout(() => {
                 srvRenderPendientes();
+                srvRenderCalendar();
                 srvRenderHistorico();
             }, 2500);
         } catch(err){
@@ -10855,6 +10987,7 @@ function updateNotifBadge(){
             const sol = solicitudesData.find(s => s.id === id);
             if(sol) sol.status = 'rechazada';
             srvRenderPendientes();
+            srvRenderCalendar();
             srvRenderHistorico();
             srvUpdateStats();
             srvUpdateBadge();
