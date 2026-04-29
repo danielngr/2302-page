@@ -660,6 +660,119 @@ body{
   line-height:1.5;
 }
 
+
+/* ════════════ DATE PICKER CUSTOM ════════════ */
+.date-picker{
+  position:relative;
+}
+.date-display{
+  width:100%;padding:14px 16px;
+  background:rgba(20,12,28,0.4);
+  border:1px solid rgba(245,234,216,0.18);
+  border-radius:12px;
+  color:var(--bone);
+  font-family:'Fraunces',serif;font-style:italic;
+  font-size:16px;font-weight:400;
+  cursor:pointer;
+  display:flex;justify-content:space-between;align-items:center;
+  transition:all 0.2s;
+}
+.date-display:hover{
+  background:rgba(20,12,28,0.55);
+  border-color:rgba(245,234,216,0.3);
+}
+.date-display.open{
+  border-color:var(--terra-soft);
+  border-bottom-left-radius:0;
+  border-bottom-right-radius:0;
+}
+.date-display .icon{
+  font-size:14px;opacity:0.6;
+  transition:transform 0.2s;
+}
+.date-display.open .icon{transform:rotate(180deg)}
+
+.calendar{
+  position:absolute;top:100%;left:0;right:0;z-index:10;
+  background:linear-gradient(180deg,rgba(50,32,42,0.96) 0%,rgba(36,28,40,0.98) 100%);
+  backdrop-filter:blur(28px) saturate(1.3);
+  -webkit-backdrop-filter:blur(28px) saturate(1.3);
+  border:1px solid var(--terra-soft);
+  border-top:none;
+  border-radius:0 0 14px 14px;
+  padding:18px 14px 14px;
+  display:none;
+  box-shadow:0 12px 32px rgba(20,12,28,0.5);
+}
+.calendar.open{display:block}
+
+.cal-head{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:14px;
+  padding:0 6px;
+}
+.cal-month{
+  font-family:'Fraunces',serif;font-style:italic;font-weight:400;
+  font-size:17px;color:var(--bone);letter-spacing:-0.01em;
+}
+.cal-nav{
+  background:rgba(245,234,216,0.06);
+  border:1px solid rgba(245,234,216,0.14);
+  width:30px;height:30px;
+  border-radius:50%;
+  color:var(--bone);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;
+  transition:all 0.15s;
+  font-family:inherit;
+}
+.cal-nav:hover{background:rgba(245,234,216,0.14);border-color:rgba(245,234,216,0.3)}
+.cal-nav:disabled{opacity:0.25;cursor:not-allowed}
+
+.cal-weekdays{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:4px;
+  margin-bottom:8px;
+}
+.cal-wd{
+  text-align:center;font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:0.15em;text-transform:uppercase;
+  color:var(--bone-soft);font-weight:500;
+  padding:4px 0;
+}
+
+.cal-grid{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:4px;
+}
+.cal-day{
+  aspect-ratio:1;
+  display:flex;align-items:center;justify-content:center;
+  background:transparent;border:none;
+  font-family:'Fraunces',serif;font-weight:400;
+  font-size:15px;color:var(--bone);
+  border-radius:8px;cursor:pointer;
+  transition:all 0.12s;
+}
+.cal-day.empty{cursor:default;pointer-events:none}
+.cal-day.disabled{opacity:0.2;cursor:not-allowed;pointer-events:none}
+.cal-day:hover:not(.disabled):not(.empty):not(.selected){
+  background:rgba(245,234,216,0.1);
+}
+.cal-day.today{
+  font-weight:500;
+  color:var(--terra-soft);
+}
+.cal-day.today::after{
+  content:"";position:absolute;
+  width:3px;height:3px;background:var(--terra-soft);
+  border-radius:50%;margin-top:18px;
+}
+.cal-day.selected{
+  background:var(--terra);color:var(--bone);
+  font-weight:500;
+  box-shadow:0 4px 14px rgba(212,121,58,0.4);
+}
+.cal-day{position:relative}
+
 /* Toast de error */
 .toast.error .check{background:var(--accent)}
 .toast.error .check::after{content:"!";color:var(--bone);font-style:normal}
@@ -797,7 +910,26 @@ body{
 
   <div class="field">
     <label>Fecha</label>
-    <input type="date" id="sh-date" value="2026-04-26">
+    <div class="date-picker">
+      <div class="date-display" id="date-display" onclick="toggleCalendar()">
+        <span id="date-display-text">Selecciona una fecha</span>
+        <span class="icon">▾</span>
+      </div>
+      <div class="calendar" id="calendar">
+        <div class="cal-head">
+          <button class="cal-nav" id="cal-prev" onclick="navMonth(-1)">‹</button>
+          <span class="cal-month" id="cal-month"></span>
+          <button class="cal-nav" id="cal-next" onclick="navMonth(1)">›</button>
+        </div>
+        <div class="cal-weekdays">
+          <div class="cal-wd">D</div><div class="cal-wd">L</div><div class="cal-wd">M</div>
+          <div class="cal-wd">M</div><div class="cal-wd">J</div><div class="cal-wd">V</div>
+          <div class="cal-wd">S</div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+    </div>
+    <input type="hidden" id="sh-date">
   </div>
 
   <div class="field">
@@ -876,6 +1008,142 @@ if(urlDept){
 // ═══════════════════════════════════════════════════════════════
 // CARGAR LISTA DE DEPTOS EN EL DEV PANEL
 // ═══════════════════════════════════════════════════════════════
+
+
+// ═══════════════════════════════════════════════════════════════
+// CALENDARIO CUSTOM
+// ═══════════════════════════════════════════════════════════════
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+               'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+let calCurrentDate = new Date();      // mes que se muestra
+let calSelectedDate = null;            // fecha seleccionada
+let calMinDate = null;                 // fecha mínima (mañana = 24hr)
+
+function initCalendar(){
+  // Mínimo 24hr de anticipación → mañana
+  const tom = new Date();
+  tom.setDate(tom.getDate() + 1);
+  tom.setHours(0,0,0,0);
+  calMinDate = tom;
+  
+  calCurrentDate = new Date(tom);
+  calSelectedDate = new Date(tom);
+  
+  updateHiddenInput();
+  updateDateDisplay();
+  renderCalendar();
+}
+
+function toggleCalendar(){
+  const cal = document.getElementById('calendar');
+  const disp = document.getElementById('date-display');
+  cal.classList.toggle('open');
+  disp.classList.toggle('open');
+}
+
+function closeCalendar(){
+  document.getElementById('calendar').classList.remove('open');
+  document.getElementById('date-display').classList.remove('open');
+}
+
+function navMonth(delta){
+  calCurrentDate.setMonth(calCurrentDate.getMonth() + delta);
+  renderCalendar();
+}
+
+function pickDay(date){
+  calSelectedDate = new Date(date);
+  updateHiddenInput();
+  updateDateDisplay();
+  renderCalendar();
+  closeCalendar();
+}
+
+function updateHiddenInput(){
+  if(!calSelectedDate) return;
+  const y = calSelectedDate.getFullYear();
+  const m = String(calSelectedDate.getMonth()+1).padStart(2,'0');
+  const d = String(calSelectedDate.getDate()).padStart(2,'0');
+  document.getElementById('sh-date').value = `${y}-${m}-${d}`;
+}
+
+function updateDateDisplay(){
+  if(!calSelectedDate){
+    document.getElementById('date-display-text').textContent = 'Selecciona una fecha';
+    return;
+  }
+  const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const txt = `${dias[calSelectedDate.getDay()]} ${calSelectedDate.getDate()} de ${MESES[calSelectedDate.getMonth()]}`;
+  document.getElementById('date-display-text').textContent = txt;
+}
+
+function renderCalendar(){
+  const year = calCurrentDate.getFullYear();
+  const month = calCurrentDate.getMonth();
+  
+  document.getElementById('cal-month').textContent = `${MESES[month]} ${year}`;
+  
+  // Disable prev si vamos al pasado del mínimo
+  const prevBtn = document.getElementById('cal-prev');
+  const monthStart = new Date(year, month, 1);
+  const minMonthStart = new Date(calMinDate.getFullYear(), calMinDate.getMonth(), 1);
+  prevBtn.disabled = monthStart <= minMonthStart;
+  
+  const firstDay = new Date(year, month, 1).getDay();  // 0=domingo
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+  
+  // Espacios vacíos al inicio
+  for(let i = 0; i < firstDay; i++){
+    const empty = document.createElement('div');
+    empty.className = 'cal-day empty';
+    grid.appendChild(empty);
+  }
+  
+  // Días del mes
+  for(let day = 1; day <= daysInMonth; day++){
+    const date = new Date(year, month, day);
+    const btn = document.createElement('button');
+    btn.className = 'cal-day';
+    btn.textContent = day;
+    
+    // Disabled si es antes del mínimo
+    if(date < calMinDate){
+      btn.classList.add('disabled');
+    } else {
+      btn.onclick = () => pickDay(date);
+    }
+    
+    // Today indicator
+    if(date.getTime() === today.getTime()){
+      btn.classList.add('today');
+    }
+    
+    // Selected
+    if(calSelectedDate && date.getTime() === new Date(
+      calSelectedDate.getFullYear(),
+      calSelectedDate.getMonth(),
+      calSelectedDate.getDate()
+    ).getTime()){
+      btn.classList.add('selected');
+    }
+    
+    grid.appendChild(btn);
+  }
+}
+
+// Cerrar calendario al click fuera
+document.addEventListener('click', (e) => {
+  const picker = document.querySelector('.date-picker');
+  if(picker && !picker.contains(e.target)){
+    closeCalendar();
+  }
+});
+
 
 async function loadDeptDirect(dept){
   const { data, error } = await sb
@@ -1038,13 +1306,8 @@ function open_sheet(type){
   document.getElementById('sh-title').innerHTML = cfg.title;
   document.getElementById('sh-sub').textContent = cfg.sub;
   
-  // Setear fecha mínima a mañana (24h de anticipación)
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().split('T')[0];
-  const dateInput = document.getElementById('sh-date');
-  dateInput.min = minDate;
-  dateInput.value = minDate;
+  // Inicializar calendario custom
+  initCalendar();
   
   // Mostrar aviso de cajita si aplica
   const cajitaAviso = document.getElementById('cajita-aviso');
