@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#3a2840">
+<title>VRM · Servicios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300;1,9..144,400;1,9..144,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sky-1:#3a2840;
+  --sky-2:#5a3a4a;
+  --sky-3:#9a6850;
+  --gold-1:#c89968;
+  --gold-2:#a47850;
+  --water-1:#9a5840;
+  --water-2:#5c3a3a;
+  --water-3:#2a2030;
+  --bone:#f5ead8;
+  --bone-mute:rgba(245,234,216,0.72);
+  --bone-soft:rgba(245,234,216,0.45);
+  --terra:#d4793a;
+  --terra-soft:#e8a070;
+  --jade:#7ba88a;
+  --sun:#e8c074;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{overscroll-behavior:none;-webkit-overflow-scrolling:touch}
+
+body{
+  font-family:'DM Sans',sans-serif;
+  color:var(--bone);
+  font-size:15px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  background:var(--water-3);
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+
+/* ════════════ ATMOSFERA ════════════ */
+.atmosphere{
+  position:fixed;inset:0;z-index:-3;
+  background:
+    linear-gradient(180deg,
+      var(--sky-1) 0%,
+      var(--sky-2) 22%,
+      var(--sky-3) 38%,
+      var(--gold-1) 46%,
+      var(--gold-2) 52%,
+      var(--water-1) 58%,
+      var(--water-2) 75%,
+      var(--water-3) 100%
+    );
+}
+
+/* sol al atardecer */
+.atmosphere::before{
+  content:"";position:absolute;
+  top:48%;left:50%;
+  width:480px;height:200px;
+  transform:translate(-50%,-50%);
+  background:radial-gradient(ellipse at center,rgba(232,160,112,0.45) 0%,rgba(232,160,112,0.2) 35%,transparent 70%);
+  filter:blur(28px);
+  border-radius:50%;
+}
+
+/* grano sutil */
+.atmosphere::after{
+  content:"";position:absolute;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+  opacity:0.45;mix-blend-mode:overlay;pointer-events:none;
+}
+
+
+
+/* reflejo del agua */
+.water-shimmer{
+  position:fixed;left:0;right:0;top:50%;bottom:0;z-index:-2;
+  pointer-events:none;
+  background-image:repeating-linear-gradient(
+    180deg,transparent 0,transparent 2px,
+    rgba(245,234,216,0.04) 2px,rgba(245,234,216,0.04) 3px
+  );
+  opacity:0.5;
+  mask-image:linear-gradient(180deg,transparent 0%,black 8%,black 100%);
+  -webkit-mask-image:linear-gradient(180deg,transparent 0%,black 8%,black 100%);
+}
+
+/* ════════════ APP ════════════ */
+.app{
+  position:relative;z-index:1;
+  max-width:480px;margin:0 auto;
+  min-height:100vh;
+  padding:60px 0 60px;
+}
+
+/* ─── BARRA SUPERIOR ─── */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:18px 22px;
+  font-family:'Fraunces',serif;
+  font-style:italic;font-size:13px;font-weight:300;
+  color:var(--bone-mute);
+  background:linear-gradient(180deg,rgba(58,40,64,0.5) 0%,transparent 100%);
+}
+.topbar .mark{
+  font-style:normal;font-weight:500;
+  letter-spacing:0.4em;font-size:11px;
+  text-transform:uppercase;color:var(--bone);
+}
+.topbar .mark::before{
+  content:"—  ";opacity:0.6;
+}
+
+/* ─── HERO ─── */
+.hero{padding:50px 24px 24px}
+.hero-eyebrow{
+  font-family:'DM Mono',monospace;
+  font-size:10px;letter-spacing:0.35em;text-transform:uppercase;
+  color:var(--bone-mute);
+  margin-bottom:18px;
+  display:flex;align-items:center;gap:10px;
+  text-shadow:0 1px 8px rgba(20,12,28,0.5);
+}
+.hero-eyebrow::before{
+  content:"";width:24px;height:1px;background:var(--bone-soft);
+}
+
+.greet{
+  font-family:'Fraunces',serif;
+  font-weight:300;font-size:54px;
+  line-height:0.95;letter-spacing:-0.025em;
+  margin-bottom:18px;
+  text-shadow:0 2px 24px rgba(20,12,28,0.45);
+}
+.greet em{
+  font-style:italic;font-weight:300;
+  color:var(--terra-soft);
+}
+.greet-sub{
+  font-family:'Fraunces',serif;
+  font-style:italic;font-weight:300;
+  font-size:16px;line-height:1.45;
+  color:var(--bone);
+  max-width:320px;
+  text-shadow:0 1px 12px rgba(20,12,28,0.55);
+}
+
+/* ════════════ LIQUID GLASS — base reutilizable ════════════
+   Apple iOS 26 liquid glass usa multiples capas:
+   1. tinte de fondo translúcido oscuro (lectura)
+   2. blur fuerte
+   3. borde superior brillante
+   4. specular highlight diagonal
+   5. inset shadow para profundidad
+*/
+.lg{
+  position:relative;
+  background:
+    /* tinte oscuro para legibilidad */
+    linear-gradient(180deg,rgba(20,12,28,0.28) 0%,rgba(20,12,28,0.42) 100%),
+    /* tinte translúcido cálido */
+    rgba(245,234,216,0.06);
+  backdrop-filter:blur(28px) saturate(1.4);
+  -webkit-backdrop-filter:blur(28px) saturate(1.4);
+  border:1px solid rgba(245,234,216,0.18);
+  border-top-color:rgba(245,234,216,0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.18),
+    inset 0 -1px 0 rgba(0,0,0,0.15),
+    0 8px 32px rgba(20,12,28,0.35);
+  overflow:hidden;
+}
+/* specular highlight (brillo diagonal) */
+.lg::before{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(255,255,255,0.12) 18%,
+    rgba(255,255,255,0.04) 30%,
+    transparent 55%
+  );
+  pointer-events:none;
+  border-radius:inherit;
+}
+
+/* ─── STAY BAR ─── */
+.stay-bar{
+  margin:32px 24px 0;
+  border-radius:18px;
+  padding:14px 18px;
+  display:grid;
+  grid-template-columns:1fr auto 1fr auto 1fr;
+  gap:14px;align-items:center;
+}
+.stay-cell{display:flex;flex-direction:column;gap:3px;min-width:0}
+.stay-cell label{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--bone-mute);
+  font-weight:500;
+}
+.stay-cell strong{
+  font-family:'Fraunces',serif;
+  font-style:italic;font-weight:500;font-size:15px;
+  color:var(--bone);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  letter-spacing:-0.005em;
+}
+.stay-divider{width:1px;height:28px;background:rgba(245,234,216,0.2)}
+
+/* ─── SECTION HEADER ─── */
+.section-h{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:48px 24px 22px;
+}
+.section-h h2{
+  font-family:'Fraunces',serif;
+  font-style:italic;font-weight:400;
+  font-size:13px;letter-spacing:0.32em;
+  text-transform:uppercase;
+  color:var(--bone);
+  display:flex;align-items:center;gap:12px;
+  text-shadow:0 1px 8px rgba(20,12,28,0.5);
+}
+.section-h h2::before{
+  content:"";width:6px;height:6px;border-radius:50%;
+  background:var(--terra);box-shadow:0 0 12px var(--terra);
+}
+.section-h .count{
+  font-family:'DM Mono',monospace;font-size:11px;
+  color:var(--bone-mute);letter-spacing:0.05em;
+}
+
+/* ════════════ SERVICE CARDS ════════════ */
+.svc-stack{display:flex;flex-direction:column;gap:12px;padding:0 24px}
+
+.svc{
+  border-radius:20px;
+  padding:22px 22px 0 26px;
+  cursor:pointer;
+  transition:transform 0.35s cubic-bezier(0.2,0.85,0.25,1),background 0.35s,border-color 0.35s;
+}
+/* línea de acento vertical */
+.svc-accent-line{
+  position:absolute;left:0;top:18px;bottom:18px;
+  width:2px;border-radius:0 2px 2px 0;
+  background:var(--accent);
+  box-shadow:0 0 12px var(--accent);
+  z-index:2;
+}
+.svc.cleaning{--accent:var(--terra)}
+.svc.crib{--accent:var(--jade)}
+.svc.checkin{--accent:var(--sun)}
+
+.svc:hover{
+  transform:translateY(-2px);
+  border-color:rgba(245,234,216,0.32);
+}
+.svc:active{transform:translateY(0) scale(0.99)}
+
+.svc-row{
+  display:grid;grid-template-columns:1fr auto;
+  gap:16px;align-items:flex-end;
+  position:relative;z-index:1;
+}
+.svc-num{
+  font-family:'Fraunces',serif;
+  font-style:italic;font-weight:400;font-size:13px;
+  color:var(--accent);
+  letter-spacing:0.05em;
+  margin-bottom:8px;
+  display:block;
+  filter:drop-shadow(0 0 6px rgba(0,0,0,0.3));
+}
+.svc-name{
+  font-family:'Fraunces',serif;
+  font-weight:500;font-size:26px;
+  letter-spacing:-0.015em;
+  line-height:1.05;
+  margin-bottom:8px;
+  color:var(--bone);
+}
+.svc-name em{font-style:italic;font-weight:400}
+.svc-desc{
+  font-size:13px;line-height:1.45;
+  color:var(--bone-mute);
+  max-width:260px;
+  font-weight:400;
+}
+
+.svc-meta{text-align:right;white-space:nowrap}
+.svc-meta-label{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--bone-mute);margin-bottom:4px;
+}
+.svc-meta-val{
+  font-family:'Fraunces',serif;font-style:italic;
+  font-weight:500;font-size:18px;
+  color:var(--bone);
+}
+.svc-meta-val.free{color:var(--jade)}
+.svc-meta-val.quote{color:var(--sun)}
+
+.svc-arrow{
+  margin-top:18px;
+  padding:14px 0;
+  border-top:1px solid rgba(245,234,216,0.16);
+  display:flex;justify-content:space-between;align-items:center;
+  font-family:'DM Mono',monospace;
+  font-size:10px;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--bone-mute);
+  font-weight:500;
+  position:relative;z-index:1;
+}
+.svc:hover .svc-arrow{color:var(--bone)}
+.svc-arrow .ar{
+  font-family:'Fraunces',serif;font-style:italic;font-size:16px;
+  transition:transform 0.3s;
+}
+.svc:hover .svc-arrow .ar{transform:translateX(4px)}
+
+/* ════════════ HISTORY ════════════ */
+.history-stack{
+  margin:0 24px;
+  border-radius:18px;
+  overflow:hidden;
+}
+.his{
+  padding:16px 18px;
+  display:grid;grid-template-columns:auto 1fr auto;
+  gap:14px;align-items:center;
+  border-bottom:1px solid rgba(245,234,216,0.1);
+  position:relative;z-index:1;
+}
+.his:last-child{border-bottom:none}
+.his-dot{width:7px;height:7px;border-radius:50%}
+.his-dot.pending{background:var(--sun);box-shadow:0 0 10px rgba(232,192,116,0.7)}
+.his-dot.confirmed{background:var(--jade);box-shadow:0 0 10px rgba(123,168,138,0.7)}
+
+.his-info strong{
+  display:block;
+  font-family:'Fraunces',serif;font-weight:500;
+  font-style:italic;font-size:16px;
+  color:var(--bone);margin-bottom:2px;
+  letter-spacing:-0.005em;
+}
+.his-info span{
+  font-family:'DM Mono',monospace;
+  font-size:11px;color:var(--bone-mute);
+  font-weight:500;
+}
+.his-status{
+  font-family:'DM Mono',monospace;
+  font-size:9px;letter-spacing:0.18em;text-transform:uppercase;
+  font-weight:600;
+}
+.his-status.pending{color:var(--sun)}
+.his-status.confirmed{color:var(--jade)}
+
+/* ─── FOOT ─── */
+.foot{padding:60px 24px 0;text-align:center}
+.foot-cta{
+  display:inline-flex;align-items:center;gap:12px;
+  font-family:'DM Sans',sans-serif;
+  font-weight:600;font-size:13px;letter-spacing:0.04em;
+  color:var(--bone);
+  padding:14px 26px;
+  border-radius:100px;
+  cursor:pointer;
+  transition:transform 0.2s;
+  text-decoration:none;
+  position:relative;
+}
+.foot-cta:hover{transform:translateY(-1px)}
+.foot-cta:active{transform:scale(0.98)}
+.foot-cta svg{width:14px;height:14px;position:relative;z-index:1}
+.foot-cta span{position:relative;z-index:1}
+.foot-fine{
+  margin-top:24px;
+  font-family:'Fraunces',serif;font-style:italic;
+  font-weight:300;font-size:12px;
+  color:var(--bone-soft);
+}
+.foot-fine::before{content:"— ";}
+.foot-fine::after{content:" —";}
+
+/* ════════════ BOTTOM SHEET ════════════ */
+.sheet-bg{
+  position:fixed;inset:0;z-index:90;
+  background:rgba(20,12,28,0.5);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  opacity:0;pointer-events:none;
+  transition:opacity 0.35s;
+}
+.sheet-bg.open{opacity:1;pointer-events:auto}
+
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:100;
+  max-width:480px;margin:0 auto;
+  background:
+    linear-gradient(180deg,rgba(60,40,52,0.85) 0%,rgba(36,28,40,0.95) 100%);
+  backdrop-filter:blur(40px) saturate(1.3);
+  -webkit-backdrop-filter:blur(40px) saturate(1.3);
+  border-top:1px solid rgba(245,234,216,0.22);
+  border-radius:28px 28px 0 0;
+  padding:8px 24px 32px;
+  transform:translateY(100%);
+  transition:transform 0.4s cubic-bezier(0.2,0.85,0.25,1);
+  max-height:90vh;overflow-y:auto;
+  color:var(--bone);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.2),
+    0 -20px 60px rgba(20,12,28,0.4);
+}
+.sheet.open{transform:translateY(0)}
+.sheet-handle{
+  width:40px;height:4px;
+  background:rgba(245,234,216,0.3);
+  border-radius:100px;margin:8px auto 22px;
+}
+.sheet-eyebrow{
+  font-family:'DM Mono',monospace;
+  font-size:10px;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--bone-mute);margin-bottom:8px;
+  font-weight:500;
+}
+.sheet-title{
+  font-family:'Fraunces',serif;
+  font-weight:400;font-size:36px;letter-spacing:-0.02em;
+  line-height:1;margin-bottom:10px;
+}
+.sheet-title em{font-style:italic;color:var(--terra-soft)}
+.sheet-sub{
+  font-family:'Fraunces',serif;font-style:italic;
+  font-size:14px;color:var(--bone-mute);
+  margin-bottom:26px;line-height:1.4;
+  font-weight:400;
+}
+
+.field{margin-bottom:20px}
+.field label{
+  display:block;
+  font-family:'DM Mono',monospace;
+  font-size:10px;letter-spacing:0.18em;text-transform:uppercase;
+  color:var(--bone-mute);margin-bottom:8px;
+  font-weight:500;
+}
+.field input,.field textarea{
+  width:100%;padding:14px 16px;
+  background:rgba(20,12,28,0.4);
+  border:1px solid rgba(245,234,216,0.18);
+  border-radius:12px;
+  font-family:'DM Sans',sans-serif;
+  font-size:15px;color:var(--bone);
+  transition:all 0.2s;
+}
+.field input::placeholder,.field textarea::placeholder{color:var(--bone-soft)}
+.field input:focus,.field textarea:focus{
+  outline:none;
+  border-color:var(--terra-soft);
+  background:rgba(20,12,28,0.55);
+}
+.field textarea{resize:vertical;min-height:80px;font-family:'Fraunces',serif;font-style:italic}
+
+.time-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.time-grid button{
+  padding:11px 0;
+  background:rgba(20,12,28,0.4);
+  border:1px solid rgba(245,234,216,0.18);
+  border-radius:10px;
+  color:var(--bone);
+  font-family:'DM Mono',monospace;font-size:13px;font-weight:500;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.time-grid button:hover{background:rgba(20,12,28,0.55)}
+.time-grid button.on{
+  background:var(--terra);color:var(--bone);
+  border-color:var(--terra);
+  box-shadow:0 4px 16px rgba(212,121,58,0.4);
+}
+
+.sheet-actions{
+  display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-top:24px;
+}
+.btn{
+  padding:16px;border-radius:12px;border:none;
+  font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;
+  cursor:pointer;transition:all 0.18s;letter-spacing:0.01em;
+}
+.btn-ghost{
+  background:transparent;color:var(--bone);
+  border:1px solid rgba(245,234,216,0.22);
+}
+.btn-ghost:hover{border-color:rgba(245,234,216,0.4)}
+.btn-primary{
+  background:var(--terra);color:var(--bone);
+  box-shadow:0 6px 22px rgba(212,121,58,0.4);
+}
+.btn-primary:hover{
+  background:var(--terra-soft);
+  box-shadow:0 8px 28px rgba(212,121,58,0.55);
+}
+.btn-primary:active{transform:scale(0.98)}
+
+/* ─── TOAST ─── */
+.toast{
+  position:fixed;left:50%;bottom:32px;z-index:200;
+  transform:translate(-50%,200%);
+  padding:14px 24px;border-radius:100px;
+  color:var(--bone);
+  font-family:'Fraunces',serif;font-style:italic;font-size:14px;font-weight:500;
+  display:flex;align-items:center;gap:12px;
+  transition:transform 0.45s cubic-bezier(0.2,0.85,0.25,1);
+}
+.toast.show{transform:translate(-50%,0)}
+.toast .check{
+  width:20px;height:20px;border-radius:50%;
+  background:var(--jade);color:var(--bone);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-style:normal;
+  position:relative;z-index:1;
+}
+.toast span:last-child{position:relative;z-index:1}
+
+@media(max-width:380px){
+  .greet{font-size:46px}
+  .stay-bar{grid-template-columns:1fr 1fr;gap:14px}
+  .stay-divider{display:none}
+}
+
+/* ════════════ DEV PANEL (selector de prueba) ════════════ */
+.dev-panel{
+  position:fixed;top:8px;left:50%;transform:translateX(-50%);
+  z-index:200;
+  background:rgba(20,12,28,0.85);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(245,234,216,0.2);
+  border-radius:14px;
+  padding:8px 12px;
+  display:flex;gap:8px;align-items:center;
+  font-family:'DM Mono',monospace;font-size:11px;
+  color:var(--bone);
+  max-width:calc(100vw - 24px);
+}
+.dev-panel select{
+  background:rgba(245,234,216,0.08);
+  border:1px solid rgba(245,234,216,0.18);
+  color:var(--bone);
+  padding:6px 8px;border-radius:8px;
+  font-family:inherit;font-size:11px;
+  cursor:pointer;
+}
+.dev-panel select:focus{outline:none;border-color:var(--terra-soft)}
+.dev-panel label{font-size:9px;letter-spacing:0.15em;text-transform:uppercase;opacity:0.6}
+
+/* ════════════ Aviso de cajita ════════════ */
+.cajita-aviso{
+  margin-top:14px;
+  padding:14px 16px;
+  background:rgba(232,192,116,0.08);
+  border:1px solid rgba(232,192,116,0.3);
+  border-radius:12px;
+  font-size:13px;
+  color:var(--bone);
+  display:none;
+  line-height:1.45;
+}
+.cajita-aviso.show{display:block}
+.cajita-aviso strong{
+  display:block;
+  font-family:'Fraunces',serif;font-style:italic;font-weight:500;
+  font-size:14px;color:var(--sun);margin-bottom:4px;
+}
+
+/* ════════════ Checkbox autorización ════════════ */
+.consent-row{
+  margin-top:18px;
+  padding:14px;
+  background:rgba(245,234,216,0.05);
+  border:1px solid rgba(245,234,216,0.14);
+  border-radius:12px;
+  display:flex;gap:12px;align-items:flex-start;
+  cursor:pointer;
+  transition:all 0.2s;
+}
+.consent-row:hover{background:rgba(245,234,216,0.08)}
+.consent-row.required-error{
+  border-color:var(--accent);
+  background:rgba(217,72,24,0.1);
+  animation:shake 0.4s;
+}
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  25%{transform:translateX(-4px)}
+  75%{transform:translateX(4px)}
+}
+.consent-checkbox{
+  width:20px;height:20px;
+  flex-shrink:0;
+  border:2px solid rgba(245,234,216,0.4);
+  border-radius:5px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.18s;
+  margin-top:1px;
+}
+.consent-row.checked .consent-checkbox{
+  background:var(--terra);border-color:var(--terra);
+}
+.consent-row.checked .consent-checkbox::after{
+  content:"✓";color:var(--bone);font-size:14px;font-weight:600;
+}
+.consent-text{
+  font-size:13px;line-height:1.4;color:var(--bone);
+}
+.consent-text em{
+  font-family:'Fraunces',serif;font-style:italic;
+  color:var(--bone-mute);font-size:12px;
+  display:block;margin-top:2px;
+}
+
+/* ─── Loading state ─── */
+.btn-primary.loading{
+  pointer-events:none;
+  opacity:0.7;
+  position:relative;
+}
+.btn-primary.loading::after{
+  content:"";
+  position:absolute;
+  right:18px;top:50%;
+  width:14px;height:14px;
+  margin-top:-7px;
+  border:2px solid var(--bone);
+  border-right-color:transparent;
+  border-radius:50%;
+  animation:spin 0.7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Estado vacío del depto */
+.no-dept-msg{
+  margin:32px 24px;
+  padding:24px;
+  background:rgba(245,234,216,0.05);
+  border:1px solid rgba(245,234,216,0.14);
+  border-radius:14px;
+  text-align:center;
+  font-family:'Fraunces',serif;font-style:italic;
+  color:var(--bone-mute);font-size:15px;
+  line-height:1.5;
+}
+
+/* Toast de error */
+.toast.error .check{background:var(--accent)}
+.toast.error .check::after{content:"!";color:var(--bone);font-style:normal}
+
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="atmosphere"></div>
+
+<div class="water-shimmer"></div>
+
+<div class="app">
+
+  <header class="topbar">
+    <span class="mark">VRM</span>
+    <span><em>Atardece en Vallarta</em></span>
+  </header>
+
+  <section class="hero">
+    <div class="hero-eyebrow">Servicios al huésped</div>
+    <h1 class="greet">Buenas tardes,<br><em>Sarah</em>.</h1>
+    <p class="greet-sub">Coordinamos cualquier servicio durante tu estancia. Te confirmamos por WhatsApp.</p>
+
+    <div class="stay-bar lg">
+      <div class="stay-cell">
+        <label>Propiedad</label>
+        <strong>Peninsula T.I</strong>
+      </div>
+      <div class="stay-divider"></div>
+      <div class="stay-cell">
+        <label>Depto</label>
+        <strong>19-E</strong>
+      </div>
+      <div class="stay-divider"></div>
+      <div class="stay-cell">
+        <label>Estancia</label>
+        <strong>4 noches</strong>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-h">
+    <h2>Servicios</h2>
+    <span class="count">— 03 —</span>
+  </div>
+
+  <div class="svc-stack">
+
+    <div class="svc lg cleaning" onclick="open_sheet('cleaning')">
+      <div class="svc-accent-line"></div>
+      <div class="svc-row">
+        <div>
+          <span class="svc-num">— I —</span>
+          <h3 class="svc-name"><em>Limpieza</em> extra</h3>
+          <p class="svc-desc">Cambio de ropa de cama y toallas a media estancia.</p>
+        </div>
+        <div class="svc-meta">
+          <div class="svc-meta-label">desde</div>
+          <div class="svc-meta-val">$650</div>
+        </div>
+      </div>
+      <div class="svc-arrow">
+        <span>Coordinar</span>
+        <span class="ar">→</span>
+      </div>
+    </div>
+
+    <div class="svc lg crib" onclick="open_sheet('crib')">
+      <div class="svc-accent-line"></div>
+      <div class="svc-row">
+        <div>
+          <span class="svc-num">— II —</span>
+          <h3 class="svc-name"><em>Cuna</em> o silla alta</h3>
+          <p class="svc-desc">Para tu bebé. Coordinamos entrega y recogida.</p>
+        </div>
+        <div class="svc-meta">
+          <div class="svc-meta-label">cortesía</div>
+          <div class="svc-meta-val free">Gratis</div>
+        </div>
+      </div>
+      <div class="svc-arrow">
+        <span>Solicitar</span>
+        <span class="ar">→</span>
+      </div>
+    </div>
+
+    <div class="svc lg checkin" onclick="open_sheet('checkin')">
+      <div class="svc-accent-line"></div>
+      <div class="svc-row">
+        <div>
+          <span class="svc-num">— III —</span>
+          <h3 class="svc-name"><em>Late</em> checkout</h3>
+          <p class="svc-desc">Más tiempo para disfrutar la bahía. Sujeto a disponibilidad.</p>
+        </div>
+        <div class="svc-meta">
+          <div class="svc-meta-label">según</div>
+          <div class="svc-meta-val quote">Cotizar</div>
+        </div>
+      </div>
+      <div class="svc-arrow">
+        <span>Cotizar</span>
+        <span class="ar">→</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-h">
+    <h2>Tus solicitudes</h2>
+    <span class="count">— 02 —</span>
+  </div>
+
+  <div class="history-stack lg">
+    <div class="his">
+      <span class="his-dot confirmed"></span>
+      <div class="his-info">
+        <strong>Cuna · entrega</strong>
+        <span>Jue 23 · 14:00</span>
+      </div>
+      <span class="his-status confirmed">Confirmada</span>
+    </div>
+    <div class="his">
+      <span class="his-dot pending"></span>
+      <div class="his-info">
+        <strong>Limpieza extra</strong>
+        <span>Sáb 26 · 11:00</span>
+      </div>
+      <span class="his-status pending">En espera</span>
+    </div>
+  </div>
+
+  <div class="foot">
+    <a class="foot-cta lg" href="#">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.4 6.4c-1.4-1.4-3.3-2.2-5.3-2.2-4.2 0-7.5 3.4-7.5 7.5 0 1.3.4 2.7 1 3.8L4.5 19l3.7-1c1.1.6 2.3.9 3.6.9h.1c4.2 0 7.5-3.4 7.5-7.5.1-2-.7-3.9-2-5.3z"/></svg>
+      <span>Escríbenos por WhatsApp</span>
+    </a>
+    <div class="foot-fine">VRM Vallarta</div>
+  </div>
+
+</div>
+
+<div class="sheet-bg" id="sheet-bg" onclick="close_sheet()"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-eyebrow" id="sh-eyebrow">Solicitud</div>
+  <h2 class="sheet-title" id="sh-title"><em>Limpieza</em> extra</h2>
+  <p class="sheet-sub" id="sh-sub">Selecciona la fecha y hora preferida.</p>
+
+  <div class="field">
+    <label>Fecha</label>
+    <input type="date" id="sh-date" value="2026-04-26">
+  </div>
+
+  <div class="field">
+    <label>Horario preferido</label>
+    <div class="time-grid">
+      <button onclick="pick_time(this)">9:00</button>
+      <button onclick="pick_time(this)" class="on">11:00</button>
+      <button onclick="pick_time(this)">13:00</button>
+      <button onclick="pick_time(this)">15:00</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Notas (opcional)</label>
+    <textarea placeholder="Algo que debamos saber…"></textarea>
+  </div>
+
+  <!-- Aviso de cajita (se muestra solo si el depto la requiere) -->
+  <div class="cajita-aviso" id="cajita-aviso">
+    <strong>⚠️ Importante: cajita de llaves</strong>
+    Antes de salir, deja la llave en la cajita: <span id="cajita-ubicacion"></span>. Sin la llave el equipo no podrá ingresar.
+  </div>
+
+  <!-- Casilla de autorización OBLIGATORIA -->
+  <div class="consent-row" id="consent-row" onclick="toggle_consent()">
+    <div class="consent-checkbox"></div>
+    <div class="consent-text">
+      Autorizo que el equipo ingrese al departamento durante el horario seleccionado, esté yo presente o no.
+      <em>Necesario para procesar la solicitud.</em>
+    </div>
+  </div>
+
+  <div class="sheet-actions">
+    <button class="btn btn-ghost" onclick="close_sheet()">Cancelar</button>
+    <button class="btn btn-primary" id="submit-btn" onclick="submit_request()">Enviar solicitud</button>
+  </div>
+</div>
+
+<div class="toast lg" id="toast">
+  <span class="check">✓</span>
+  <span>Solicitud enviada</span>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONFIG SUPABASE
+// ═══════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://grsykedeppdwenpfxlfh.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ═══════════════════════════════════════════════════════════════
+// ESTADO GLOBAL
+// ═══════════════════════════════════════════════════════════════
+let currentDept = null;          // objeto de propiedades_config
+let currentCanal = 'airbnb';
+let currentSheet = null;          // 'cleaning' / 'crib' / 'checkin'
+let consentChecked = false;
+let selectedTime = null;          // hora seleccionada en el grid
+
+// ═══════════════════════════════════════════════════════════════
+// CARGAR PARÁMETROS (URL o dev panel)
+// ═══════════════════════════════════════════════════════════════
+const params = new URLSearchParams(window.location.search);
+const urlDept = params.get('dept');
+const urlCanal = params.get('canal');
+
+// Si vino por URL (huésped real) ocultar el dev panel y ajustar padding
+if(urlDept){
+  document.getElementById('dev-panel').style.display = 'none';
+  document.querySelector('.app').style.paddingTop = '0';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CARGAR LISTA DE DEPTOS EN EL DEV PANEL
+// ═══════════════════════════════════════════════════════════════
+async function initDevPanel(){
+  const { data, error } = await sb
+    .from('propiedades_config')
+    .select('dept, nombre')
+    .eq('activo', true)
+    .order('dept');
+  
+  if(error){ console.error(error); return; }
+  
+  const sel = document.getElementById('dev-dept');
+  sel.innerHTML = '<option value="">— elegir —</option>' +
+    data.map(d => `<option value="${d.dept}">${d.dept} · ${d.nombre}</option>`).join('');
+  
+  // Si vino por URL, lo selecciona
+  if(urlDept){ sel.value = urlDept; }
+  if(urlCanal){ document.getElementById('dev-canal').value = urlCanal; }
+  
+  // Si tenemos depto (por URL o ya seleccionado), cargar
+  if(sel.value){ loadDept(); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CARGAR DATOS DEL DEPTO SELECCIONADO
+// ═══════════════════════════════════════════════════════════════
+async function loadDept(){
+  const dept = document.getElementById('dev-dept').value;
+  currentCanal = document.getElementById('dev-canal').value;
+  
+  if(!dept){ currentDept = null; updateUI(); return; }
+  
+  const { data, error } = await sb
+    .from('propiedades_config')
+    .select('*')
+    .eq('dept', dept)
+    .single();
+  
+  if(error){ console.error(error); return; }
+  
+  currentDept = data;
+  updateUI();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ACTUALIZAR UI CON LOS DATOS DEL DEPTO
+// ═══════════════════════════════════════════════════════════════
+function updateUI(){
+  const stayBar = document.querySelector('.stay-bar');
+  const svcStack = document.querySelector('.svc-stack');
+  
+  if(!currentDept){
+    stayBar.style.opacity = '0.4';
+    svcStack.style.opacity = '0.3';
+    svcStack.style.pointerEvents = 'none';
+    document.querySelectorAll('.svc').forEach(s => s.onclick = null);
+    return;
+  }
+  
+  // Actualizar barra de estancia
+  const cells = stayBar.querySelectorAll('.stay-cell strong');
+  if(cells.length >= 1) cells[0].textContent = currentDept.nombre;
+  if(cells.length >= 2) cells[1].textContent = currentDept.dept;
+  
+  // Actualizar precios de servicios
+  const cleaningCard = document.querySelector('.svc.cleaning');
+  const checkinCard = document.querySelector('.svc.checkin');
+  
+  if(cleaningCard){
+    const fee = Math.round(currentDept.precio_limpieza * 0.05);
+    const total = currentDept.precio_limpieza + fee;
+    cleaningCard.querySelector('.svc-meta-val').textContent = '$' + total;
+    cleaningCard.onclick = () => open_sheet('cleaning');
+  }
+  if(checkinCard){
+    checkinCard.querySelector('.svc-meta-val').textContent = '$' + currentDept.tarifa_hora + '/h';
+    checkinCard.onclick = () => open_sheet('checkin');
+  }
+  
+  // Cuna siempre $300/noche
+  const cribCard = document.querySelector('.svc.crib');
+  if(cribCard){
+    cribCard.onclick = () => open_sheet('crib');
+  }
+  
+  stayBar.style.opacity = '1';
+  svcStack.style.opacity = '1';
+  svcStack.style.pointerEvents = 'auto';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SHEETS POR TIPO DE SERVICIO
+// ═══════════════════════════════════════════════════════════════
+function getSheetConfig(type){
+  if(!currentDept) return null;
+  const fee = Math.round(currentDept.precio_limpieza * 0.05);
+  const total = currentDept.precio_limpieza + fee;
+  
+  return {
+    cleaning:{
+      eyebrow:'Servicio · pago',
+      title:'<em>Limpieza</em> extra',
+      sub:`Cambio de toallas y sábanas. Costo: $${total} MXN.`,
+      tipo:'limpieza',
+      precio: currentDept.precio_limpieza,
+      fee: fee,
+      total: total
+    },
+    crib:{
+      eyebrow:'Servicio · pago',
+      title:'<em>Cuna</em> o silla alta',
+      sub:'Cuna $300/noche · Silla alta $150/noche. Coordinamos entrega y recogida.',
+      tipo:'cuna',
+      precio: 300,
+      fee: 0,
+      total: 300
+    },
+    checkin:{
+      eyebrow:'Sujeto a disponibilidad',
+      title:'<em>Late</em> checkout',
+      sub:`$${currentDept.tarifa_hora}/hr extra. Te confirmamos disponibilidad.`,
+      tipo:'late_checkout',
+      precio: currentDept.tarifa_hora,
+      fee: Math.round(currentDept.tarifa_hora * 0.05),
+      total: currentDept.tarifa_hora + Math.round(currentDept.tarifa_hora * 0.05)
+    }
+  }[type];
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ABRIR/CERRAR SHEET
+// ═══════════════════════════════════════════════════════════════
+function open_sheet(type){
+  if(!currentDept){
+    showToast('Selecciona primero un departamento', 'error');
+    return;
+  }
+  
+  const cfg = getSheetConfig(type);
+  if(!cfg) return;
+  
+  currentSheet = type;
+  document.getElementById('sh-eyebrow').textContent = cfg.eyebrow;
+  document.getElementById('sh-title').innerHTML = cfg.title;
+  document.getElementById('sh-sub').textContent = cfg.sub;
+  
+  // Setear fecha mínima a mañana (24h de anticipación)
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDate = tomorrow.toISOString().split('T')[0];
+  const dateInput = document.getElementById('sh-date');
+  dateInput.min = minDate;
+  dateInput.value = minDate;
+  
+  // Mostrar aviso de cajita si aplica
+  const cajitaAviso = document.getElementById('cajita-aviso');
+  if(currentDept.requiere_cajita){
+    document.getElementById('cajita-ubicacion').textContent = currentDept.nota_cajita || '';
+    cajitaAviso.classList.add('show');
+  } else {
+    cajitaAviso.classList.remove('show');
+  }
+  
+  // Reset consent
+  consentChecked = false;
+  document.getElementById('consent-row').classList.remove('checked', 'required-error');
+  
+  // Reset selección de hora
+  document.querySelectorAll('.time-grid button').forEach(b => b.classList.remove('on'));
+  document.querySelector('.time-grid button:nth-child(2)').classList.add('on');
+  selectedTime = '11:00';
+  
+  document.getElementById('sheet-bg').classList.add('open');
+  document.getElementById('sheet').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function close_sheet(){
+  document.getElementById('sheet-bg').classList.remove('open');
+  document.getElementById('sheet').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+function pick_time(b){
+  b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  selectedTime = b.textContent.trim();
+}
+
+function toggle_consent(){
+  consentChecked = !consentChecked;
+  const row = document.getElementById('consent-row');
+  row.classList.toggle('checked', consentChecked);
+  row.classList.remove('required-error');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENVIAR SOLICITUD A SUPABASE
+// ═══════════════════════════════════════════════════════════════
+async function submit_request(){
+  // Validar consent
+  if(!consentChecked){
+    document.getElementById('consent-row').classList.add('required-error');
+    return;
+  }
+  
+  const cfg = getSheetConfig(currentSheet);
+  if(!cfg) return;
+  
+  const fecha = document.getElementById('sh-date').value;
+  if(!fecha){
+    showToast('Selecciona una fecha', 'error');
+    return;
+  }
+  
+  // Validar 24hr de anticipación
+  const fechaServ = new Date(fecha);
+  const ahora = new Date();
+  const diff = (fechaServ - ahora) / (1000 * 60 * 60);
+  if(diff < 24){
+    showToast('Mínimo 24 horas de anticipación', 'error');
+    return;
+  }
+  
+  const notas = document.querySelector('#sheet textarea').value || null;
+  const btn = document.getElementById('submit-btn');
+  btn.classList.add('loading');
+  
+  // Construir payload
+  const payload = {
+    dept: currentDept.dept,
+    canal: currentCanal,
+    tipo: cfg.tipo,
+    huesped_nombre: 'Huésped (test)',     // placeholder, en producción viene del URL/contexto
+    fecha_servicio: fecha,
+    notas_huesped: notas,
+    precio_servicio: cfg.precio,
+    fee_plataforma: cfg.fee,
+    total_cobrar: cfg.total,
+    autorizo_ingreso: true,
+    autorizo_at: new Date().toISOString(),
+    status: 'pendiente_revision'
+  };
+  
+  // Campos específicos por tipo
+  if(cfg.tipo === 'limpieza'){
+    payload.horario = selectedTime.startsWith('9') || selectedTime.startsWith('11') ? 'manana' : 'tarde';
+  } else if(cfg.tipo === 'late_checkout'){
+    payload.hora_exacta = selectedTime + ':00';
+  } else if(cfg.tipo === 'cuna'){
+    // Para prueba: cuna por 1 noche (después agregamos rango real)
+    const fin = new Date(fecha);
+    fin.setDate(fin.getDate() + 1);
+    payload.fecha_fin = fin.toISOString().split('T')[0];
+  }
+  
+  // Insertar
+  const { data, error } = await sb
+    .from('solicitudes')
+    .insert(payload)
+    .select();
+  
+  btn.classList.remove('loading');
+  
+  if(error){
+    console.error('Error al crear solicitud:', error);
+    showToast('Error: ' + error.message, 'error');
+    return;
+  }
+  
+  console.log('✓ Solicitud creada:', data[0]);
+  close_sheet();
+  setTimeout(() => showToast('Solicitud enviada · ID #' + data[0].id, 'success'), 250);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+function showToast(msg, type){
+  const t = document.getElementById('toast');
+  t.querySelector('span:last-child').textContent = msg;
+  t.classList.remove('error','success');
+  t.classList.add(type);
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+initDevPanel();
+</script>
+</body>
+</html>
