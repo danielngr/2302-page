@@ -661,6 +661,26 @@ body{
 }
 
 
+
+/* ════════════ Scrollbar custom (sheet) ════════════ */
+.sheet::-webkit-scrollbar{
+  width:6px;
+}
+.sheet::-webkit-scrollbar-track{
+  background:transparent;
+}
+.sheet::-webkit-scrollbar-thumb{
+  background:rgba(245,234,216,0.18);
+  border-radius:3px;
+}
+.sheet::-webkit-scrollbar-thumb:hover{
+  background:rgba(245,234,216,0.3);
+}
+.sheet{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(245,234,216,0.18) transparent;
+}
+
 /* ════════════ DATE PICKER CUSTOM ════════════ */
 .date-picker{
   position:relative;
@@ -1417,11 +1437,10 @@ async function submit_request(){
   console.log(JSON.stringify(payload, null, 2));
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   
-  // Insertar
-  const { data, error } = await sb
+  // Insertar (sin .select() para evitar que RLS bloquee la lectura post-insert)
+  const { error } = await sb
     .from('solicitudes')
-    .insert(payload)
-    .select();
+    .insert(payload);
   
   btn.classList.remove('loading');
   
@@ -1437,9 +1456,9 @@ async function submit_request(){
     return;
   }
   
-  console.log('✓ Solicitud creada:', data[0]);
+  console.log('✓ Solicitud creada exitosamente');
   close_sheet();
-  setTimeout(() => showToast('Solicitud enviada · ID #' + data[0].id, 'success'), 250);
+  setTimeout(() => showToast('Solicitud enviada', 'success'), 250);
 }
 
 // ═══════════════════════════════════════════════════════════════
