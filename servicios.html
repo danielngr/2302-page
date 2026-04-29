@@ -1133,6 +1133,12 @@ async function submit_request(){
     payload.fecha_fin = fin.toISOString().split('T')[0];
   }
   
+  // Log detallado para debug
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📤 PAYLOAD que se va a insertar:');
+  console.log(JSON.stringify(payload, null, 2));
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  
   // Insertar
   const { data, error } = await sb
     .from('solicitudes')
@@ -1142,7 +1148,13 @@ async function submit_request(){
   btn.classList.remove('loading');
   
   if(error){
-    console.error('Error al crear solicitud:', error);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('❌ ERROR detallado:', error);
+    console.error('   Code:', error.code);
+    console.error('   Message:', error.message);
+    console.error('   Details:', error.details);
+    console.error('   Hint:', error.hint);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     showToast('Error: ' + error.message, 'error');
     return;
   }
