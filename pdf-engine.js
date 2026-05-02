@@ -1089,7 +1089,14 @@ function pdfAlamar(datos, ocupantes, _genId, _returnB64) {
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text(datos.depto.replace('ALAMAR ', ''), ML + 8 + tw + 4, fy);
+  // Mapa de nombre interno (BD) → nombre comercial mostrado en el PDF
+  var ALAMAR_DISPLAY = {
+    'ALAMAR 503': 'CABO 503',
+    'ALAMAR 903': 'CABO 903',
+    'DELTA 2 101': 'DELTA 2 101'
+  };
+  var deptoDisplay = ALAMAR_DISPLAY[datos.depto] || datos.depto.replace('ALAMAR ', '');
+  doc.text(deptoDisplay, ML + 8 + tw + 4, fy);
   fy += 18;
 
   doc.setTextColor(128, 128, 128);
