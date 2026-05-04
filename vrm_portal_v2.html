@@ -4533,11 +4533,11 @@
             const nombre2 = grupo2[0].nombre.trim();
             const guests2 = grupo2.slice(1).map(o => ({name: o.nombre.trim(), type: "Adulto"}));
 
-            // Menores: todos en grupo 1 (o distribuir proporcionalmente si hace falta)
+            // Menores: ya están contados como ocupantes (adultos1 incluye todos), forzamos children=0
             const adultos1 = grupo1.length;
             const adultos2 = grupo2.length;
 
-            const url1 = await crearReservaFrakcio(housing505, fechaEntrada, fSalida, nombre1, guests1, adultos1, menores, reg, depto);
+            const url1 = await crearReservaFrakcio(housing505, fechaEntrada, fSalida, nombre1, guests1, adultos1, 0, reg, depto);
             const url2 = await crearReservaFrakcio(housing506, fechaEntrada, fSalida, nombre2, guests2, adultos2, 0, null, depto);
 
             return { split:true, urls:[
@@ -4555,12 +4555,14 @@
             adultos = ocupantes.filter(o => (o.nombre||'').trim()).length;
         }
 
-        // Deptos donde Frakcio NO acepta children → ya están todos contados como ocupantes
-        // En este caso solo ponemos children=0 (los menores ya están dentro del conteo de adultos)
-        const FRAKCIO_NO_CHILDREN = ["ARIA 906"];
-        if (FRAKCIO_NO_CHILDREN.includes((depto||'').toUpperCase().trim())) {
-            menores = 0;
+        // Frakcio rechaza con "el número de niños no coincide" si mandamos children>0.
+        // Mandamos a TODOS como adultos (incluidos menores) y children=0 siempre.
+        // Si los menores NO estaban listados como ocupantes, los sumamos a adultos.
+        if(menores > 0 && ocupantes.length <= 1) {
+            // No había ocupantes detallados, sumamos los menores al conteo de adultos
+            adultos = adultos + menores;
         }
+        menores = 0;
 
         return await crearReservaFrakcio(housing, fechaEntrada, fSalida, nombre, guests, adultos, menores, reg, depto);
     }
