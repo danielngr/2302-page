@@ -4669,11 +4669,46 @@
         "MARITIMA 6S":  "6S",
         "MARITIMA PHN": "PHN",
     };
-    const GOOGLE_FORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSdh0bnsMWOT0cBhQ9flyltlZP0koFWyPA2UUhpo-14c-anWPw/formResponse";
+    const GOOGLE_FORM_VIEW = "https://docs.google.com/forms/d/e/1FAIpQLSdh0bnsMWOT0cBhQ9flyltlZP0koFWyPA2UUhpo-14c-anWPw/viewform";
+
+    // Construye URL pre-llenada del Google Form para Marítima Playa
+    function _maritimaBuildPrefillUrl(reg, depto, fechaISO) {
+        const fSalida = reg ? (reg.fecha_salida||fechaISO) : fechaISO;
+        const nombre = reg ? reg.nombre : depto;
+        const email = reg ? (reg.email||'') : '';
+        const ocupantes = reg ? (typeof reg.ocupantes==='string' ? JSON.parse(reg.ocupantes||'[]') : (reg.ocupantes||[])) : [];
+        const nombresList = ocupantes.length
+            ? ocupantes.filter(o=>(o.nombre||'').trim()).map(o=>o.nombre.trim()).join('\n')
+            : nombre;
+
+        const deptoKey = Object.keys(MARITIMA_DEPTO_CORTO).find(k => depto.toUpperCase().includes(k) || k.includes(depto.toUpperCase())) || depto;
+        const deptoCorto = MARITIMA_DEPTO_CORTO[deptoKey] || depto;
+        const correoProp = MARITIMA_PROPIETARIO[deptoKey] || '';
+
+        const entrada = new Date(fechaISO + 'T12:00:00');
+        const salida  = new Date(fSalida + 'T12:00:00');
+
+        const params = new URLSearchParams({
+            "entry.972236446": nombre,
+            "entry.605360435": deptoCorto,
+            "entry.658795108": nombresList,
+            "entry.708456330": correoProp,
+            "entry.310336881": email,
+            "entry.324473893_year":  String(entrada.getFullYear()),
+            "entry.324473893_month": String(entrada.getMonth()+1),
+            "entry.324473893_day":   String(entrada.getDate()),
+            "entry.113549470_year":  String(salida.getFullYear()),
+            "entry.113549470_month": String(salida.getMonth()+1),
+            "entry.113549470_day":   String(salida.getDate()),
+            "entry.1422937358": "Renta",
+            "usp": "pp_url",
+        });
+        return `${GOOGLE_FORM_VIEW}?${params.toString()}`;
+    }
 
     async function enviarGoogleForm(depto, fechaISO) {
         const btn = document.querySelector(`[onclick*="enviarGoogleForm('${depto}'"]`);
-        if(btn) { btn.disabled=true; btn.innerHTML='<i class="ph-bold ph-spinner"></i> Enviando...'; }
+        if(btn) { btn.disabled=true; btn.innerHTML='<i class="ph-bold ph-spinner"></i> Cargando...'; }
 
         try {
             // Buscar datos del huésped
@@ -4684,66 +4719,83 @@
             const regData = await resReg.json();
             const reg = regData[0];
 
-            const nombre = reg ? reg.nombre : depto;
-            const fSalida = reg ? (reg.fecha_salida||fechaISO) : fechaISO;
-            const email = reg ? (reg.email||'') : '';
-            const ocupantes = reg ? (typeof reg.ocupantes==='string' ? JSON.parse(reg.ocupantes||'[]') : (reg.ocupantes||[])) : [];
-            const nombresList = ocupantes.length
-                ? ocupantes.filter(o=>(o.nombre||'').trim()).map(o=>o.nombre.trim()).join(' ')
-                : nombre;
-
-            const deptoKey = Object.keys(MARITIMA_DEPTO_CORTO).find(k => depto.toUpperCase().includes(k) || k.includes(depto.toUpperCase())) || depto;
-            const deptoCorto = MARITIMA_DEPTO_CORTO[deptoKey] || depto;
-            const correoProp = MARITIMA_PROPIETARIO[deptoKey] || '';
-
-            const entrada = new Date(fechaISO + 'T12:00:00');
-            const salida  = new Date(fSalida + 'T12:00:00');
-
-            // Construir form data
-            const formData = new URLSearchParams({
-                "entry.972236446": nombre,
-                "entry.605360435": deptoCorto,
-                "entry.658795108": nombresList,
-                "entry.708456330": correoProp,
-                "entry.310336881": email,
-                "entry.324473893_year":  String(entrada.getFullYear()),
-                "entry.324473893_month": String(entrada.getMonth()+1),
-                "entry.324473893_day":   String(entrada.getDate()),
-                "entry.113549470_year":  String(salida.getFullYear()),
-                "entry.113549470_month": String(salida.getMonth()+1),
-                "entry.113549470_day":   String(salida.getDate()),
-                "entry.1422937358": "Renta",
-                "fvv": "1",
-                "pageHistory": "0,2",
-                "fbzx": "-832659340357287635",
-            });
-
-            // Google Forms no permite CORS directo — usar no-cors
-            await fetch(GOOGLE_FORM_ACTION, {
-                method: "POST",
-                mode: "no-cors",
-                headers: {"Content-Type": "application/x-www-form-urlencoded"},
-                body: formData.toString()
-            });
-
-            // Marcar en Supabase
-            if(reg) {
-                await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?id=eq.${reg.id}`, {
-                    method:"PATCH", keepalive:true,
-                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-                    body:JSON.stringify({maritima_enviado:true, maritima_enviado_at: new Date().toISOString()})
-                });
-                // Actualizar array local
-                const localRec = (gformsCheckins||[]).find(x=>x.id===reg.id);
-                if(localRec) localRec.maritima_enviado = true;
-                else gformsCheckins.push({...reg, maritima_enviado:true, fecha_entrada:fechaISO});
+            if(!reg) {
+                toast("⚠️ No se encontró registro para " + depto);
+                if(btn) { btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-paper-plane-tilt"></i> Enviar form'; }
+                return;
             }
 
-            toast("✅ Formulario enviado a Marítima Playa");
-            renderTodo();
+            // 1. Construir URL pre-llenada y abrir en nueva pestaña
+            const prefillUrl = _maritimaBuildPrefillUrl(reg, depto, fechaISO);
+            window.open(prefillUrl, '_blank');
+
+            // 2. Mostrar modal de confirmación
+            _maritimaShowConfirmModal(reg, depto);
+
+            if(btn) { btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-paper-plane-tilt"></i> Enviar form'; }
         } catch(e) {
             toast("❌ Error: " + e.message);
             if(btn) { btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-paper-plane-tilt"></i> Enviar form'; }
+        }
+    }
+
+    // Modal: el usuario confirma manualmente que envió el form en Google
+    function _maritimaShowConfirmModal(reg, depto) {
+        const existing = document.getElementById('maritimaConfirmModal');
+        if(existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'maritimaConfirmModal';
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+        modal.innerHTML = `
+            <div style="background:#fff;border-radius:14px;max-width:480px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+                    <i class="ph-bold ph-paper-plane-tilt" style="font-size:22px;color:#d97706"></i>
+                    <h3 style="margin:0;font-size:17px;color:#1f2937">Marítima Playa — ${depto}</h3>
+                </div>
+                <p style="margin:0 0 12px;color:#374151;line-height:1.5;font-size:14px">
+                    Se abrió el form pre-llenado en una nueva pestaña con los datos de <b>${reg.nombre||'(sin nombre)'}</b>.
+                </p>
+                <ol style="margin:0 0 18px;padding-left:20px;color:#4b5563;line-height:1.7;font-size:13.5px">
+                    <li>Revisa que los datos estén correctos</li>
+                    <li>Selecciona <b>"Administrador"</b> en la página 1</li>
+                    <li>Click en <b>Siguiente → Enviar</b></li>
+                    <li>Cuando veas <i>"Respuesta registrada"</i>, regresa aquí y confirma</li>
+                </ol>
+                <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+                    <button class="btn btn-link" onclick="_maritimaCloseModal()">Cancelar</button>
+                    <button class="btn btn-warning" onclick="_maritimaConfirmSent('${reg.id}', '${depto}')">
+                        <i class="ph-bold ph-check-circle"></i> Ya lo envié, marcar como enviado
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    function _maritimaCloseModal() {
+        const m = document.getElementById('maritimaConfirmModal');
+        if(m) m.remove();
+    }
+
+    async function _maritimaConfirmSent(regId, depto) {
+        try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?id=eq.${regId}`, {
+                method:"PATCH",
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                body:JSON.stringify({maritima_enviado:true, maritima_enviado_at: new Date().toISOString()})
+            });
+            if(!r.ok) throw new Error("Supabase " + r.status);
+
+            // Actualizar array local
+            const localRec = (gformsCheckins||[]).find(x=>x.id===regId);
+            if(localRec) localRec.maritima_enviado = true;
+
+            _maritimaCloseModal();
+            toast("✅ " + depto + " marcado como enviado");
+            renderTodo();
+        } catch(e) {
+            toast("❌ No se pudo marcar: " + e.message);
         }
     }
 
