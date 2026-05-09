@@ -1584,24 +1584,26 @@ function pdfQuiya(datos, ocupantes, _genId, _returnB64) {
   };
 
   const propietario = PROP_MAP[datos.depto] || "—";
-  const villa = datos.depto.replace("QUIYA ","VILLA ");
+  const unidad = datos.depto.replace("QUIYA ","");
 
   function fmtLong(val) {
-    if(!val) return "___";
+    if(!val) return "";
     const meses=["ENERO","FEBRERO","MARZO","ABRIL","MAYO","JUNIO","JULIO","AGOSTO","SEPTIEMBRE","OCTUBRE","NOVIEMBRE","DICIEMBRE"];
     const [y,m,d] = val.split("-");
     return `${parseInt(d)} ${meses[parseInt(m)-1]} ${y}`;
   }
 
-  // y = text baseline; underline goes 4pt below baseline
   function uline(x, y, w) {
     doc.setDrawColor(0,0,0); doc.setLineWidth(0.5);
     doc.line(x, y+4, x+w, y+4);
   }
 
-  // draws label+value, underline spanning from after label to RIGHT, returns y + gap
-  function field(label, value, y, gap=36) {
-    doc.setFont("helvetica","normal"); doc.setFontSize(12); doc.setTextColor(0,0,0);
+  // Campo simple: label + valor en negritas con línea hasta margen derecho
+  function field(label, value, y, opts={}) {
+    const gap = opts.gap || 30;
+    const bold = opts.boldLabel === true;
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setFontSize(11); doc.setTextColor(0,0,0);
     doc.text(label, MARGIN, y);
     const lw = doc.getTextWidth(label);
     doc.setFont("helvetica","bold");
@@ -1610,71 +1612,131 @@ function pdfQuiya(datos, ocupantes, _genId, _returnB64) {
     return y + gap;
   }
 
-  // ── LAYOUT: y starts at top, increases downward ──
-  let y = 60;
+  // ── Procesar ocupantes ──────────────────────────────────────────────
+  const todosNombres = ocupantes.filter(o => o && o.nombre).map(o => o.nombre);
+  const huespedPrincipal = todosNombres[0] || datos.nombre || "";
+  const acompanantes = todosNombres.slice(1);
 
-  // Logo centered
-  doc.addImage(LOGOS.quiya, "JPEG", W/2-50, y, 100, 100);
-  y += 120;
+  // ── LAYOUT ──────────────────────────────────────────────────────────
+  let y = 50;
 
-  // Title
-  doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(0,0,0);
-  doc.text("ADMINISTRADORA DE CONDOMINIOS", W/2, y, {align:"center"});
-  y += 50;
+  // Logo centered (más pequeño que antes para dejar espacio)
+  doc.addImage(LOGOS.quiya, "JPEG", W/2-45, y, 90, 90);
+  y += 110;
 
-  // Fields
-  y = field("No. De villa:", villa, y, 38);
-  y = field("Nombre completo de propietario:", propietario, y, 38);
+  // No de unidad
+  y = field("No. De unidad:", unidad, y, {gap: 28});
 
-  // Administrador — 2 lines
-  doc.setFont("helvetica","normal"); doc.setFontSize(12); doc.setTextColor(0,0,0);
-  const adminLabel = "Nombre completo de administrador:";
-  doc.text(adminLabel, MARGIN, y);
-  const alw = doc.getTextWidth(adminLabel);
+  // Propietario
+  y = field("Nombre del propietario:", propietario, y, {gap: 28});
+
+  // Administrador
+  y = field("Nombre del administrador:", "CLAUDIA DANIELA RODRIGUEZ MELENDEZ", y, {gap: 28});
+
+  // Tel admin
+  y = field("Teléfono de contacto:", "322-117-0032", y, {gap: 32});
+
+  // ── Nombre del huésped (en negritas, layout adaptativo) ──────────────
+  doc.setFont("helvetica","bold"); doc.setFontSize(11.5); doc.setTextColor(0,0,0);
+  const lblHuesped = "Nombre del huésped:";
+  doc.text(lblHuesped, MARGIN, y);
+  const lwH = doc.getTextWidth(lblHuesped);
+  doc.text(huespedPrincipal, MARGIN+lwH+8, y);
+  uline(MARGIN+lwH+6, y, TW-lwH-6);
+  y += 26;
+
+  // Acompañantes (si hay 2 o más huéspedes)
+  if(acompanantes.length > 0) {
+    doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(64,64,64);
+    if(acompanantes.length <= 2) {
+      // 2-3 personas: en una sola línea separados por coma
+      const txt = "Acompañantes: " + acompanantes.join(", ");
+      doc.text(txt, MARGIN, y);
+      y += 24;
+    } else {
+      // 4+ personas: lista vertical compacta
+      doc.text("Acompañantes:", MARGIN, y);
+      y += 16;
+      doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(0,0,0);
+      acompanantes.forEach(n => {
+        doc.text("• " + n, MARGIN+12, y);
+        y += 14;
+      });
+      y += 8;
+    }
+  }
+  doc.setTextColor(0,0,0);
+
+  // Tel huésped
+  y = field("Teléfono de contacto:", datos.telefono || datos.tel || "", y, {gap: 30});
+
+  // No. de personas + adultos + menores en una sola línea
+  doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(0,0,0);
+  const labelPers = "No. De personas:";
+  doc.text(labelPers, MARGIN, y);
+  let cx = MARGIN + doc.getTextWidth(labelPers) + 6;
   doc.setFont("helvetica","bold");
-  doc.text("CLAUDIA DANIELA", MARGIN+alw+8, y);
-  uline(MARGIN+alw+6, y, TW-alw-6);
-  y += 26;
-  doc.text("RODRIGUEZ MELENDEZ", MARGIN, y);
-  uline(MARGIN, y, TW);
-  y += 38;
+  doc.text(String(datos.personas || ""), cx + 4, y);
+  uline(cx, y, 40);
+  cx += 60;
 
-  y = field("Teléfono de contacto:", "322-117-0032", y, 38);
-  y = field("No. De personas:", String(datos.personas || ""), y, 38);
+  doc.setFont("helvetica","normal");
+  doc.text("Adultos:", cx, y);
+  cx += doc.getTextWidth("Adultos:") + 6;
+  doc.setFont("helvetica","bold");
+  doc.text(String(datos.adultos || ""), cx + 4, y);
+  uline(cx, y, 35);
+  cx += 50;
 
-  // Adultos
-  doc.setFont("helvetica","normal"); doc.setFontSize(12); doc.setTextColor(0,0,0);
-  doc.text("Adultos:", MARGIN, y);
-  uline(MARGIN + doc.getTextWidth("Adultos:") + 6, y, 35);
-  y += 26;
-  ocupantes.filter(o => o && o.nombre).forEach(o => {
-    doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(0,0,0);
-    doc.text(o.nombre, MARGIN+16, y);
-    y += 22;
-  });
+  doc.setFont("helvetica","normal");
+  doc.text("Menores:", cx, y);
+  cx += doc.getTextWidth("Menores:") + 6;
+  doc.setFont("helvetica","bold");
+  doc.text(String(datos.menores || ""), cx + 4, y);
+  uline(cx, y, RIGHT - cx);
   y += 16;
 
-  // Menores
-  doc.setFont("helvetica","normal"); doc.setFontSize(12); doc.setTextColor(0,0,0);
-  doc.text("Menores:", MARGIN, y);
-  uline(MARGIN + doc.getTextWidth("Menores:") + 6, y, 35);
-  y += 22;
-  doc.setFont("helvetica","italic"); doc.setFontSize(10); doc.setTextColor(64,64,64);
-  doc.text(fc("(Se considera menores a todos aquellos de 1 a 10 años de edad)"), MARGIN+8, y);
+  // Nota de menores
+  doc.setFont("helvetica","italic"); doc.setFontSize(9); doc.setTextColor(80,80,80);
+  doc.text("(Se considera menores a todos aquellos de 0 a 2 años de edad)", MARGIN, y);
   doc.setTextColor(0,0,0);
-  y += 40;
+  y += 28;
 
-  // Gold separator
-  doc.setDrawColor(204,165,26); doc.setLineWidth(2);
-  doc.line(W/2-25, y, W/2+25, y);
-  doc.setDrawColor(0); doc.setLineWidth(0.5);
-  y += 36;
+  // Fechas
+  y = field("Fecha de ingreso:", fmtLong(datos.entrada || datos.fecha_entrada), y, {gap: 28});
+  y = field("Fecha de salida:", fmtLong(datos.salida || datos.fecha_salida), y, {gap: 32});
 
-  y = field("Fecha de ingreso:", fmtLong(datos.entrada || datos.fecha_entrada), y, 36);
-  y = field("Fecha de salida:", fmtLong(datos.salida || datos.fecha_salida), y, 36);
+  // Vehículo + Placa (opcional, se llena solo si vienen los datos)
+  y = field("Registro de Vehículo Autorizado:", datos.vehiculo || datos.modelo_vehiculo || "", y, {gap: 28});
+  y = field("Placa:", datos.placa || "", y, {gap: 36});
+
+  // ── Avisos al pie ────────────────────────────────────────────────────
+  doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(0,0,0);
+  const avisos = [
+    "Le recordamos que la ocupación máxima por unidad es de 6 adultos o menores",
+    "Le recordamos que cada unidad privativa cuenta con un cajón de estacionamiento flotante,",
+    "favor de seguir las indicaciones del personal de seguridad y no ocupar más de un cajón.",
+    "Para tener un mejor control y protección dentro de la propiedad, se solicita copia",
+    "fotostática de una identificación oficial."
+  ];
+  // Los avisos 2-3 son una sola viñeta partida en 2 líneas; igual los 4-5
+  const bullets = [
+    [avisos[0]],
+    [avisos[1], avisos[2]],
+    [avisos[3], avisos[4]]
+  ];
+  bullets.forEach(lines => {
+    doc.text("•", MARGIN, y);
+    lines.forEach((line, i) => {
+      doc.text(line, MARGIN+12, y);
+      if(i < lines.length-1) y += 12;
+    });
+    y += 16;
+  });
 
   if(_genId) marcarGenerado(_genId);
-  if(_returnB64) return doc; doc.save(`Quiya_${villa.replace("VILLA ","")}_${(datos.nombre||"huesped").split(" ")[0]}.pdf`);
+  if(_returnB64) return doc;
+  doc.save(`Quiya_${unidad}_${(huespedPrincipal||"huesped").split(" ")[0]}.pdf`);
 }
 
 function pdfXikiri(datos, ocupantes, _genId, _returnB64) {
