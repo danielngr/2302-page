@@ -2514,6 +2514,40 @@
     border-radius: 50%;
   }
 
+  /* SVG corazón premium */
+  .card-version-a .va-save .heart-svg {
+    width: 22px;
+    height: 22px;
+    color: rgba(40, 30, 25, 0.85);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Estado favorito: corazón rojo lleno con bounce */
+  .card-version-a .va-save.is-favorite .heart-svg {
+    color: #FF3D5F;
+  }
+
+  .card-version-a .va-save.is-favorite .heart-svg path {
+    fill: #FF3D5F;
+    stroke: #FF3D5F;
+  }
+
+  .card-version-a .va-save.is-favorite {
+    background: linear-gradient(180deg, rgba(255, 220, 220, 0.7), rgba(255, 200, 200, 0.5)) !important;
+    border-color: rgba(255, 100, 130, 0.5) !important;
+  }
+
+  /* Animación pop al marcar favorito */
+  .card-version-a .va-save.is-favorite .heart-svg {
+    animation: heartPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes heartPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.35); }
+    100% { transform: scale(1); }
+  }
+
   /* --- GALERÍA --- */
   .card-version-a .va-gallery {
     position: relative;
@@ -3050,9 +3084,15 @@
   }
 
   .card-version-a .va-stepper-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px;
+    min-height: 30px;
+    max-width: 30px;
+    max-height: 30px;
+    flex-shrink: 0;
+    border-radius: 50% !important;
+    aspect-ratio: 1 / 1;
     border: 1px solid rgba(255,255,255,.55);
     background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.22));
     color: var(--lg-text);
@@ -3066,7 +3106,7 @@
     box-shadow: 0 1px 0 rgba(255,255,255,.7) inset;
     user-select: none;
     line-height: 1;
-    padding-bottom: 2px;
+    padding: 0;
   }
 
   .card-version-a .va-stepper-btn:hover {
@@ -6687,18 +6727,20 @@
   }
 
   /* En mobile la zone-tag y el indicador estaban a la misma altura → chocaban.
-     Movemos el indicador arriba de la galería (debajo del header con close/save) */
+     Movemos el indicador EN LA MISMA LÍNEA que los botones close (←) y save (♡)
+     para que quede como "pestaña central" del header.
+     Centro vertical del header = 14px (padding) + 42/2 (botón) = ~35px desde inset */
   html.is-mobile .card-version-a .va-gallery-indicator {
     bottom: auto !important;
-    top: calc(env(safe-area-inset-top) + 70px) !important;
+    top: calc(env(safe-area-inset-top) + 35px) !important;
     left: 50% !important;
     right: auto !important;
-    transform: translateX(-50%) !important;
-    padding: 5px 10px !important;
+    transform: translate(-50%, -50%) !important;
+    padding: 7px 12px !important;
   }
 
   html.is-mobile .card-version-a .va-gallery-indicator .dot {
-    width: 12px !important;
+    width: 14px !important;
     height: 2px !important;
   }
 
@@ -6759,6 +6801,11 @@
   html.is-mobile .card-version-a .va-save {
     text-indent: 0 !important;
     color: var(--lg-text) !important;
+  }
+
+  html.is-mobile .card-version-a .va-save .heart-svg {
+    width: 22px !important;
+    height: 22px !important;
   }
 
   html.is-mobile .card-version-a .va-footer {
@@ -8243,7 +8290,12 @@
     <!-- Header flotante sobre la galería -->
     <div class="va-header">
       <button class="va-close" id="close-a">Cerrar</button>
-      <button class="va-save" id="va-save" aria-label="Guardar">♡</button>
+      <button class="va-save" id="va-save" aria-label="Guardar">
+        <svg class="heart-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M12 21s-7.5-4.6-9.5-9.4C1.3 8.5 3.6 5 7 5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.7 3.5 4.5 6.6C19.5 16.4 12 21 12 21z"
+                fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </div>
 
     <!-- GALERÍA DE FOTOS -->
@@ -13943,17 +13995,13 @@ setTimeout(() => {
   });
 }, 100);
 
-// Botón de favorito en la card
+// Botón de favorito en la card — toggle clase .is-favorite (no remplazar contenido)
 function updateFavoriteButton(propertyId) {
   const btn = document.getElementById('va-save');
   if (!btn) return;
   if (isFavorite(propertyId)) {
-    btn.textContent = '♥';
-    btn.style.color = 'rgba(255, 150, 150, 0.95)';
     btn.classList.add('is-favorite');
   } else {
-    btn.textContent = '♡';
-    btn.style.color = '';
     btn.classList.remove('is-favorite');
   }
 }
