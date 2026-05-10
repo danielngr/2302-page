@@ -41,7 +41,71 @@
   }
 
   /* ============================================================
-     LENIS SMOOTH SCROLL CSS
+     MOBILE EXPLORE HINT — pista visual para que el usuario sepa
+     que puede deslizar para explorar la bahía
+     ============================================================ */
+  .mobile-explore-hint {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .mobile-explore-hint {
+      display: block;
+      position: fixed;
+      bottom: calc(360px + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 8;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+    }
+
+    body.hero-dismissed .mobile-explore-hint {
+      opacity: 1;
+      animation: hintBob 2.5s ease-in-out infinite;
+    }
+
+    body.user-dragged .mobile-explore-hint {
+      opacity: 0 !important;
+      animation: none;
+    }
+  }
+
+  .hint-icon {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: rgba(10, 6, 18, 0.45);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 220, 180, 0.18);
+    border-radius: 100px;
+  }
+
+  .hint-arrow {
+    font-size: 16px;
+    color: rgba(255, 220, 180, 0.9);
+    font-weight: 300;
+    line-height: 1;
+  }
+
+  .hint-text {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 240, 220, 0.85);
+  }
+
+  @keyframes hintBob {
+    0%, 100% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.05); }
+  }
+
+
      Filosofía: el carrusel y la sheet detalle deben usar scroll nativo
      (data-lenis-prevent en HTML) para que NO sean afectados por Lenis
      ============================================================ */
@@ -1007,7 +1071,7 @@
   /* Responsive: en móvil cards más chicas y barra abajo */
   @media (max-width: 768px) {
     .featured-strip {
-      /* El carrusel arriba en mobile (la search bar está arriba ahora) */
+      /* Más arriba para que la pill "Ver todas las propiedades" entre completa */
       bottom: calc(20px + env(safe-area-inset-bottom));
     }
     .featured-eyebrow {
@@ -1015,12 +1079,30 @@
       letter-spacing: 0.3em;
       margin-bottom: 10px;
     }
+    /* Coverflow style: card central grande, laterales más chicas y sombreadas */
     .featured-card {
-      flex: 0 0 170px;
-      height: 220px;
+      flex: 0 0 220px;
+      height: 260px;
+      /* Por default la card es "grande" — las que estén en posición lateral
+         se reducen via JS o scroll-snap */
+      transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1),
+                  opacity 0.4s ease,
+                  filter 0.4s ease;
+      transform-origin: center center;
+    }
+    /* Cards no-centradas (las laterales) se ven más chiquitas y oscurecidas */
+    .featured-card:not(.is-centered) {
+      transform: scale(0.78);
+      opacity: 0.55;
+      filter: brightness(0.7) saturate(0.9);
+    }
+    .featured-card.is-centered {
+      transform: scale(1);
+      opacity: 1;
+      filter: brightness(1) saturate(1);
     }
     .featured-card .card-image {
-      height: 130px;
+      height: 150px;
     }
     .featured-card .card-content {
       padding: 10px 12px;
@@ -1044,14 +1126,21 @@
       max-width: 100%;
       padding: 0 !important;
     }
+    /* El track tiene padding lateral grande para que la primera/última card
+       puedan estar centradas en pantalla */
     .featured-track {
-      padding: 6px 14px 6px !important;
-      gap: 10px;
-      scroll-padding-left: 14px;
+      padding: 8px calc(50% - 110px) 8px !important;
+      gap: 14px;
+      scroll-snap-type: x mandatory;
+      scroll-padding: 0 calc(50% - 110px);
+    }
+    .featured-card {
+      scroll-snap-align: center;
     }
     .featured-arrow { display: none; }
     .featured-see-all-wrap {
       margin-top: 10px;
+      padding: 0 16px;
     }
     .featured-see-all {
       font-size: 9px;
@@ -5704,6 +5793,22 @@
     overflow-y: auto !important;
   }
 
+  /* MOBILE: contenedor property-light no captura touch.
+     Solo los elementos clickeables internos (pill .label y logo SVG) reciben taps.
+     Esto evita que tocar zonas vacías del contenedor abra el complejo */
+  @media (max-width: 768px) {
+    .property-light {
+      pointer-events: none;
+    }
+    .property-light .label,
+    .property-light .complex-logo-svg,
+    .property-light .quiya-logo-svg,
+    .property-light .maritima-logo-svg,
+    .property-light .bolongo-logo-svg {
+      pointer-events: auto;
+    }
+  }
+
   /* Canvas en mobile: full bleed (toda la pantalla), no captura touch */
   @media (max-width: 768px) {
     #scene-canvas {
@@ -6815,29 +6920,34 @@
     font-size: 18px;
   }
 
-  /* En mobile NO mostrar el toggle Mapa/Lista — siempre va a lista directo */
+  /* En mobile SÍ mostrar el toggle Mapa/Lista (igual que en pc) */
   html.is-mobile .vrm-topbar-nav {
-    display: none !important;
+    display: flex !important;
   }
 
   /* DUPLICADO via media query — asegura aplicar aunque is-mobile no se detecte */
   @media (max-width: 768px) {
     .vrm-topbar {
-      gap: 8px !important;
-      padding: calc(12px + env(safe-area-inset-top)) 14px 12px !important;
+      gap: 6px !important;
+      padding: calc(10px + env(safe-area-inset-top)) 10px 10px !important;
       background: rgba(10, 6, 18, 0.85) !important;
     }
-    .vrm-topbar-brand { font-size: 16px !important; }
-    .vrm-topbar-nav { display: none !important; }
+    .vrm-topbar-brand { font-size: 14px !important; }
+    .vrm-topbar-nav { display: flex !important; }
+    .vrm-toggle .toggle-option {
+      padding: 6px 10px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.10em !important;
+    }
     .vrm-topbar-phone {
-      padding: 8px 12px !important;
-      font-size: 10px !important;
+      padding: 7px 10px !important;
+      font-size: 9px !important;
     }
     .vrm-topbar-phone .phone-num { display: inline !important; }
     .vrm-topbar-cta {
-      padding: 9px 16px !important;
-      font-size: 10px !important;
-      letter-spacing: 0.14em !important;
+      padding: 8px 12px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.10em !important;
     }
   }
 
@@ -7607,6 +7717,16 @@
 </svg>
 
 <canvas id="scene-canvas"></canvas>
+
+<!-- Hint mobile: indica al usuario que puede deslizar para explorar la bahía
+     Aparece tras dismissar el hero y desaparece al primer drag -->
+<div class="mobile-explore-hint" id="mobile-explore-hint">
+  <div class="hint-icon">
+    <span class="hint-arrow hint-arrow-left">‹</span>
+    <span class="hint-text">desliza para explorar</span>
+    <span class="hint-arrow hint-arrow-right">›</span>
+  </div>
+</div>
 
 <!-- ============================================================
      HERO ESTÁTICO — primer viewport único, visible al cargar
@@ -10714,8 +10834,39 @@ propertyData.forEach((p, i) => {
   }
   document.body.appendChild(el);
 
-  // Click abre el panel correspondiente
+  // Click abre el panel correspondiente — pero en mobile, SOLO si el tap fue
+  // exactamente sobre la pill clickeable (no sobre el contenedor entero)
+  // y SOLO si no hubo drag (tap real, no scroll del paisaje)
+  let touchStartTime = 0;
+  let touchStartPos = { x: 0, y: 0 };
+
+  el.addEventListener('touchstart', (ev) => {
+    touchStartTime = Date.now();
+    if (ev.touches.length === 1) {
+      touchStartPos.x = ev.touches[0].clientX;
+      touchStartPos.y = ev.touches[0].clientY;
+    }
+  }, { passive: true });
+
   el.addEventListener('click', (ev) => {
+    // En mobile: verificar que el target sea la pill clickeable (no el contenedor entero)
+    const isMobile = document.documentElement.classList.contains('is-mobile');
+    if (isMobile) {
+      // El click debe haber tocado la pill o el logo SVG, NO el contenedor vacío
+      const target = ev.target;
+      const validTarget = target.closest('.label, .complex-logo-svg, .quiya-logo-svg, ' +
+                                          '.maritima-logo-svg, .bolongo-logo-svg');
+      if (!validTarget) {
+        return; // tap fuera de la pill — no abre el complejo
+      }
+
+      // Verificar que el tap fue rápido (no drag)
+      const tapDuration = Date.now() - touchStartTime;
+      if (tapDuration > 400) {
+        return; // tap muy largo — probablemente drag
+      }
+    }
+
     ev.stopPropagation();
     if (isHeroLabel) {
       // Complejos hero: abrir panel premium de unidades
@@ -12013,10 +12164,13 @@ window.addEventListener('mousemove', (e) => {
 // ============================================================
 // TOUCH HANDLER MOBILE — drag horizontal para rotar la bahía
 // El usuario desliza el dedo izquierda/derecha para mirar alrededor
+// Optimizado para fluidez: actualiza targetYaw via RAF
 // ============================================================
 let touchStartX = 0;
 let touchStartYaw = 0;
 let touchActive = false;
+let pendingTouchX = null;
+let touchHasMoved = false;
 
 window.addEventListener('touchstart', (e) => {
   if (cameraZoneLock) return;
@@ -12034,6 +12188,7 @@ window.addEventListener('touchstart', (e) => {
     touchStartX = e.touches[0].clientX;
     touchStartYaw = targetYaw;
     touchActive = true;
+    touchHasMoved = false;
   }
 }, { passive: true });
 
@@ -12042,14 +12197,34 @@ window.addEventListener('touchmove', (e) => {
   if (cameraZoneLock) return;
   if (!document.documentElement.classList.contains('is-mobile')) return;
 
-  const dx = e.touches[0].clientX - touchStartX;
-  // Sensibilidad: ~ ancho pantalla = 0.5 * MAX_YAW de rotación
-  const sensitivity = MAX_YAW / window.innerWidth * 0.8;
-  targetYaw = Math.max(-MAX_YAW, Math.min(MAX_YAW, touchStartYaw + dx * sensitivity));
+  // Almacenar posición — se procesa en el próximo RAF (no en cada touchmove
+  // que dispara 60+ veces por segundo, causando jitter)
+  pendingTouchX = e.touches[0].clientX;
+  touchHasMoved = true;
 }, { passive: true });
+
+// Procesar touch en RAF para suavidad máxima
+function processTouchInput() {
+  if (touchActive && pendingTouchX !== null) {
+    const dx = pendingTouchX - touchStartX;
+    // Sensibilidad: ~ pantalla completa = 60% de MAX_YAW (sensible pero controlable)
+    const sensitivity = MAX_YAW / window.innerWidth * 1.4;
+    targetYaw = Math.max(-MAX_YAW, Math.min(MAX_YAW, touchStartYaw + dx * sensitivity));
+    pendingTouchX = null;
+
+    // Si el usuario movió más de 20px, marcar que ya entendió que puede explorar
+    // → el hint "desliza para explorar" desaparece
+    if (Math.abs(dx) > 20 && !document.body.classList.contains('user-dragged')) {
+      document.body.classList.add('user-dragged');
+    }
+  }
+  requestAnimationFrame(processTouchInput);
+}
+requestAnimationFrame(processTouchInput);
 
 window.addEventListener('touchend', () => {
   touchActive = false;
+  pendingTouchX = null;
 }, { passive: true });
 
 // ============================================================
@@ -12259,6 +12434,34 @@ const PROPERTY_PHOTOS = {
   }
   track.addEventListener('scroll', updateArrows, { passive: true });
   setTimeout(updateArrows, 100);
+
+  // En mobile: detectar qué card está centrada y aplicarle clase .is-centered
+  // (efecto coverflow: card central grande, laterales sombreadas)
+  function updateCenteredCard() {
+    if (!window.matchMedia('(max-width: 768px)').matches) return;
+    const trackRect = track.getBoundingClientRect();
+    const trackCenter = trackRect.left + trackRect.width / 2;
+
+    let closestCard = null;
+    let closestDistance = Infinity;
+    track.querySelectorAll('.featured-card').forEach(card => {
+      const rect = card.getBoundingClientRect();
+      const cardCenter = rect.left + rect.width / 2;
+      const distance = Math.abs(cardCenter - trackCenter);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestCard = card;
+      }
+    });
+
+    track.querySelectorAll('.featured-card').forEach(card => {
+      card.classList.toggle('is-centered', card === closestCard);
+    });
+  }
+  track.addEventListener('scroll', updateCenteredCard, { passive: true });
+  window.addEventListener('resize', updateCenteredCard);
+  setTimeout(updateCenteredCard, 200);
+  setTimeout(updateCenteredCard, 800);  // re-check tras animaciones
 
   // Botón "Ver todas las propiedades" → abre grid overlay
   seeAllBtn.addEventListener('click', () => {
@@ -13033,16 +13236,16 @@ function animate() {
   const t = clock.getElapsedTime();
   boatT += dt;
 
-  // Optimización mobile: en lugar de congelar el render (que rompe el oleaje del mar),
-  // renderizamos a 30fps aproximadamente (skip 1 frame de cada 2). Esto mantiene
-  // el oleaje y nubes animándose suavemente sin consumir tanta batería.
+  // Optimización mobile: 60fps DURANTE drag (touch activo), 30fps el resto.
+  // Esto da fluidez total cuando el usuario explora la bahía.
   if (document.documentElement.classList.contains('is-mobile')) {
     window._mobileFrameCount = (window._mobileFrameCount || 0) + 1;
-    // Skip 1 de cada 2 frames → ~30fps (suficiente para oleaje suave)
-    if (window._mobileFrameCount % 2 !== 0) {
+    // Si NO hay touch activo, skipear 1 de cada 2 frames (30fps idle)
+    if (!touchActive && window._mobileFrameCount % 2 !== 0) {
       requestAnimationFrame(animate);
       return;
     }
+    // Durante drag: render full 60fps (sin skip)
   }
 
   oceanUniforms.iTime.value = t;
@@ -13054,8 +13257,11 @@ function animate() {
     targetPitch = cameraZoneLock.pitch;
   }
 
-  curYaw += (targetYaw - curYaw) * 0.018;
-  curPitch += (targetPitch - curPitch) * 0.018;
+  // Lerp adaptativo: durante drag mobile, responde casi instantáneo (0.25)
+  // En idle (mouse desktop), lerp suave (0.018) para evitar mareo
+  const lerpFactor = touchActive ? 0.25 : 0.018;
+  curYaw += (targetYaw - curYaw) * lerpFactor;
+  curPitch += (targetPitch - curPitch) * lerpFactor;
 
   // Balanceo de lancha (DESACTIVADO en la cámara para que no se mueva sola
   // y los logos floten estáticos. boatT sigue avanzando para nubes y agua)
