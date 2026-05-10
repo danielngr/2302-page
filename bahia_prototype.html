@@ -13348,11 +13348,7 @@ setVersion('A');
 // La cámara NO se mueve cuando el mouse está en el centro del frame.
 // Solo panea cuando el mouse se acerca a los bordes (últimos 30% a cada lado).
 // Además, se congela completamente cuando el mouse está sobre una luz.
-// Quiya está en t=0.2635 → yaw inicial calculado para apuntar hacia ella
-// Fórmula: normalized = (t - 0.5) * 2 → yaw = normalized * Math.PI * 0.24
-// = (0.2635 - 0.5) * 2 * Math.PI * 0.24 = -0.357 rad (~-20°)
-const INITIAL_YAW_QUIYA = (0.2635 - 0.5) * 2 * Math.PI * 0.24;
-let targetYaw = INITIAL_YAW_QUIYA, targetPitch = 0, curYaw = INITIAL_YAW_QUIYA, curPitch = 0;
+let targetYaw = 0, targetPitch = 0, curYaw = 0, curPitch = 0;
 let cameraFrozen = false;
 
 // Cuando hay un filtro de zona activo, la cámara apunta hacia esa zona.
@@ -13371,6 +13367,12 @@ function getZoneYaw(zoneName) {
   const normalized = (avgT - 0.5) * 2;  // [-1..1]
   return normalized * Math.PI * 0.24;
 }
+
+// Cámara inicial apuntando hacia Quiya (zona BUCERÍAS)
+// Usa getZoneYaw para mantener la misma lógica que el cameraZoneLock
+const _initialYaw = getZoneYaw('BUCERÍAS');
+targetYaw = _initialYaw;
+curYaw = _initialYaw;
 
 // Zona muerta: del 35% al 65% del ancho de pantalla, la cámara no se mueve
 const EDGE_DEAD_ZONE = 0.50;      // 50% central → sin pan horizontal (más zona quieta)
