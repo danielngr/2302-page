@@ -14083,10 +14083,14 @@ setupGridFilters();
   const ctaBtn = document.getElementById('vrm-hero-cta');
   if (ctaBtn) {
     ctaBtn.addEventListener('click', () => {
-      // Apuntar la cámara a Quiya (zona BUCERÍAS) antes de revelar el panorama
-      const quiyaYaw = getZoneYaw('BUCERÍAS');
-      targetYaw = quiyaYaw;
-      curYaw = quiyaYaw;
+      // Apuntar la cámara a Quiya específicamente (t=0.2635)
+      // Usamos su t directo, no el promedio de zona BUCERÍAS
+      const quiyaProp = propertyData.find(p => p.id === 'vallarta_gardens_quiya');
+      if (quiyaProp) {
+        const quiyaYaw = (quiyaProp.t - 0.5) * 2 * Math.PI * 0.24;
+        targetYaw = quiyaYaw;
+        curYaw = quiyaYaw;
+      }
 
       document.body.classList.add('hero-dismissed');
 
@@ -14266,9 +14270,12 @@ setupGridFilters();
 
           // Si el hero estaba visible, dismissarlo
           if (!document.body.classList.contains('hero-dismissed')) {
-            const quiyaYaw = getZoneYaw('BUCERÍAS');
-            targetYaw = quiyaYaw;
-            curYaw = quiyaYaw;
+            const quiyaProp = propertyData.find(p => p.id === 'vallarta_gardens_quiya');
+            if (quiyaProp) {
+              const quiyaYaw = (quiyaProp.t - 0.5) * 2 * Math.PI * 0.24;
+              targetYaw = quiyaYaw;
+              curYaw = quiyaYaw;
+            }
             document.body.classList.add('hero-dismissed');
           }
 
@@ -14290,9 +14297,12 @@ setupGridFilters();
       reserveBtn.addEventListener('click', () => {
         // Dismissar el hero si todavía está visible
         if (!document.body.classList.contains('hero-dismissed')) {
-          const quiyaYaw = getZoneYaw('BUCERÍAS');
-          targetYaw = quiyaYaw;
-          curYaw = quiyaYaw;
+          const quiyaProp = propertyData.find(p => p.id === 'vallarta_gardens_quiya');
+          if (quiyaProp) {
+            const quiyaYaw = (quiyaProp.t - 0.5) * 2 * Math.PI * 0.24;
+            targetYaw = quiyaYaw;
+            curYaw = quiyaYaw;
+          }
         }
         document.body.classList.add('hero-dismissed');
         // Activar modo lista para que vea ambos complejos
