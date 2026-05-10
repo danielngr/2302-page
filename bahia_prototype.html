@@ -8980,10 +8980,10 @@
               </div>
             </div>
             <div class="va-ttk-item">
-              <div class="va-ttk-icon">☎</div>
+              <div class="va-ttk-icon">⌚</div>
               <div class="va-ttk-content">
-                <div class="va-ttk-title">Soporte 24/7</div>
-                <div class="va-ttk-text">Daniel responde en menos de 1 hora. WhatsApp, llamada o email — el medio que prefieras.</div>
+                <div class="va-ttk-title">Check-in / Check-out</div>
+                <div class="va-ttk-text">Check-in 4:00 PM. Check-out 11:00 AM. Llegadas tempranas y salidas tarde sujetas a disponibilidad.</div>
               </div>
             </div>
           </div>
@@ -9015,15 +9015,7 @@
           </div>
         </div>
 
-        <!-- HOST -->
-        <div class="va-host">
-          <div class="va-host-avatar">D</div>
-          <div class="va-host-info">
-            <div class="va-host-name">Daniel Reyes</div>
-            <div class="va-host-role">Anfitrión · VRM</div>
-            <div class="va-host-meta">Responde en menos de 2 horas · Anfitrión desde 2022</div>
-          </div>
-        </div>
+        <!-- Host card eliminada: ya aparece arriba en .va-host-note (más rica) -->
 
       </div>
 
@@ -10844,6 +10836,122 @@ const COMPLEX_PROFILES = {
   'Querencia':                { guests: 8, beds: 4, baths: 4, sqm: 280, highlight: 'Villa de retiro, sur de la bahía' },
 };
 
+// ============================================================
+// AMENITY TEMPLATES — sistema escalable a 70+ propiedades
+// Lógica: cada propiedad tiene un "tipo" + overrides puntuales
+// Las amenities se calculan: BASE_AMENITIES + tipo + overrides
+// ============================================================
+
+// Amenities universales (todas las propiedades VRM las tienen)
+const BASE_AMENITIES = [
+  { icon: '◉', text: 'WiFi alta velocidad' },
+  { icon: '❄', text: 'Aire acondicionado' },
+  { icon: '▤', text: 'Cocina equipada' },
+  { icon: '◎', text: 'Estacionamiento' },
+];
+
+// Templates por tipo de propiedad
+const PROPERTY_TYPE_AMENITIES = {
+  // Depa en complejo de lujo con resort amenities (Quiya, Marítima, Bolongo PM, etc.)
+  'resort_complex': [
+    { icon: '☰', text: 'Albercas del complejo' },
+    { icon: '♦', text: 'Gimnasio' },
+    { icon: '⌂', text: 'Acceso a playa privada' },
+    { icon: '◐', text: 'Terraza privada' },
+    { icon: '✦', text: 'Lavadora y secadora' },
+  ],
+  // Depa en complejo medio (Amoara, Marsala, Aria, ALAMAR, etc.)
+  'mid_complex': [
+    { icon: '☰', text: 'Alberca del complejo' },
+    { icon: '⌂', text: 'Acceso a playa' },
+    { icon: '◐', text: 'Balcón o terraza' },
+    { icon: '✦', text: 'Lavadora y secadora' },
+  ],
+  // Depa en marina (GD, Marina Sol, Náutico)
+  'marina_condo': [
+    { icon: '☰', text: 'Alberca con vista a la marina' },
+    { icon: '◐', text: 'Balcón a la marina' },
+    { icon: '♦', text: 'Acceso a club de yates' },
+    { icon: '⌂', text: 'Restaurantes y bares al frente' },
+  ],
+  // Villa independiente (Querencia)
+  'villa': [
+    { icon: '☰', text: 'Alberca privada' },
+    { icon: '◐', text: 'Vista panorámica' },
+    { icon: '⌂', text: 'Acceso a playa virgen' },
+    { icon: '♦', text: 'Aislamiento total' },
+  ],
+  // Depa standalone urbano (Peninsula, Tules, Rincón, Arcano)
+  'urban_condo': [
+    { icon: '☰', text: 'Alberca compartida' },
+    { icon: '◐', text: 'Terraza con vista' },
+    { icon: '♦', text: 'Cerca de restaurantes' },
+  ],
+};
+
+// Mapeo de cada propiedad a su tipo (default si no está: 'mid_complex')
+const PROPERTY_TYPE_MAP = {
+  // Resort premium
+  'vallarta_gardens_quiya': 'resort_complex',
+  'maritima_playa_flamingos': 'resort_complex',
+  'maritima': 'resort_complex',
+  'bolongo_punta_mita': 'resort_complex',
+  'bolongo': 'resort_complex',
+  'gd': 'resort_complex',
+  // Mid complex
+  'amoara': 'mid_complex',
+  'marsala': 'mid_complex',
+  'aria': 'mid_complex',
+  'flamingos': 'mid_complex',
+  'albatros': 'mid_complex',
+  'puerta_arena': 'mid_complex',
+  'palmares_cielo': 'mid_complex',
+  'alamar_delta_2': 'mid_complex',
+  'alamar_cabo': 'mid_complex',
+  'zantamar': 'mid_complex',
+  // Marina
+  'marina_sol': 'marina_condo',
+  'nautico': 'marina_condo',
+  'zoho': 'marina_condo',
+  // Urban / hotelera
+  'peninsula': 'urban_condo',
+  'venetian_t3': 'urban_condo',
+  'tules': 'urban_condo',
+  'rincon': 'urban_condo',
+  'arcano': 'urban_condo',
+  // Villa
+  'querencia': 'villa',
+};
+
+// Overrides por propiedad: cuando una unidad tiene algo único
+// (ej: PHN tiene jacuzzi privado, 2905 tiene vista panorámica)
+const PROPERTY_AMENITY_OVERRIDES = {
+  // Marítima penthouse
+  'PHN': [{ icon: '✧', text: 'Jacuzzi privado en terraza' }],
+  // Quiya unidades premium
+  '2905': [{ icon: '◐', text: 'Vista panorámica al mar' }],
+  '3004': [{ icon: '◐', text: 'Penthouse con vista al océano' }],
+  // Bolongo PM
+  '0N': [{ icon: '⌂', text: 'Frente al mar directo' }],
+};
+
+/**
+ * Genera amenities para una propiedad combinando:
+ * BASE + template del tipo + overrides puntuales
+ * Escala a N propiedades sin editar arrays manualmente.
+ */
+function getAmenitiesForProperty(propertyId, fallbackZoneAmenities) {
+  const type = PROPERTY_TYPE_MAP[propertyId];
+  // Si no hay tipo mapeado, usar las amenities de zona como fallback
+  if (!type) return fallbackZoneAmenities;
+
+  const templateAmenities = PROPERTY_TYPE_AMENITIES[type] || [];
+  const overrides = PROPERTY_AMENITY_OVERRIDES[propertyId] || [];
+
+  return [...BASE_AMENITIES, ...templateAmenities, ...overrides];
+}
+
+
 // Helper: dado un complejo, devuelve el perfil combinado de zona + complejo
 function getEnrichedProfile(propertyName, zone) {
   const zoneProfile = ZONE_PROFILES[zone] || ZONE_PROFILES['ZONA HOTELERA'];
@@ -11418,7 +11526,7 @@ const propertyData = (function() {
     name: 'Bolongo',
     zoneTag: 'PUNTA DE MITA',
     eyebrow: 'Punta Mita · frente al mar',
-    specs: ['5 unidades disponibles', 'Punta Mita · frente al mar', 'Desde $280/noche'],
+    specs: ['5 unidades disponibles', 'Punta Mita · frente al mar', 'Tarifas a consultar'],
     t: 0.0530,
     heightOffset: 4,
     units: ['0N', '3N', '211', 'G13', 'L05'],
@@ -11428,7 +11536,7 @@ const propertyData = (function() {
     name: 'ALAMAR Delta 2',
     zoneTag: 'COSTA NORTE',
     eyebrow: 'Costa norte · primera línea',
-    specs: ['Unidad 101', 'Costa norte · primera línea', 'Desde $280/noche'],
+    specs: ['Unidad 101', 'Costa norte · primera línea', 'Tarifas a consultar'],
     t: 0.1880,
     heightOffset: 8,
     units: ['101'],
@@ -11438,7 +11546,7 @@ const propertyData = (function() {
     name: 'ALAMAR Cabo',
     zoneTag: 'COSTA NORTE',
     eyebrow: 'Costa norte · vista al mar',
-    specs: ['Unidad 903', 'Costa norte · vista al mar', 'Desde $280/noche'],
+    specs: ['Unidad 903', 'Costa norte · vista al mar', 'Tarifas a consultar'],
     t: 0.1880,
     heightOffset: 6,
     units: ['903'],
@@ -11448,7 +11556,7 @@ const propertyData = (function() {
     name: 'Zantamar',
     zoneTag: 'COSTA NORTE',
     eyebrow: 'Costa norte',
-    specs: ['Unidad 109B', 'Costa norte', 'Desde $280/noche'],
+    specs: ['Unidad 109B', 'Costa norte', 'Tarifas a consultar'],
     t: 0.1993,
     heightOffset: 10,
     units: ['109B'],
@@ -11488,7 +11596,7 @@ const propertyData = (function() {
     name: 'Amoara',
     zoneTag: 'BUCERÍAS',
     eyebrow: 'Bucerías',
-    specs: ['Unidad 301', 'Bucerías', 'Desde $280/noche'],
+    specs: ['Unidad 301', 'Bucerías', 'Tarifas a consultar'],
     t: 0.3193,
     heightOffset: 8,
     units: ['301'],
@@ -11498,7 +11606,7 @@ const propertyData = (function() {
     name: 'Marsala',
     zoneTag: 'BUCERÍAS',
     eyebrow: 'Bucerías',
-    specs: ['Unidad 104', 'Bucerías', 'Desde $280/noche'],
+    specs: ['Unidad 104', 'Bucerías', 'Tarifas a consultar'],
     t: 0.3443,
     heightOffset: 6,
     units: ['104'],
@@ -11508,7 +11616,7 @@ const propertyData = (function() {
     name: 'Marítima',
     zoneTag: 'NUEVO VALLARTA',
     eyebrow: 'Nuevo Vallarta · Marítima',
-    specs: ['7 unidades disponibles', 'Nuevo Vallarta · Marítima', 'Desde $280/noche'],
+    specs: ['7 unidades disponibles', 'Nuevo Vallarta · Marítima', 'Tarifas a consultar'],
     t: 0.4602,
     heightOffset: 10,
     units: ['6S', '9S', '10I', 'Golf 2L', 'Golf 2M', 'Golf LW1B', 'PHN'],
@@ -11518,7 +11626,7 @@ const propertyData = (function() {
     name: 'Aria',
     zoneTag: 'NUEVO VALLARTA',
     eyebrow: 'Nuevo Vallarta · Aria',
-    specs: ['5 unidades disponibles', 'Nuevo Vallarta · Aria', 'Desde $280/noche'],
+    specs: ['5 unidades disponibles', 'Nuevo Vallarta · Aria', 'Tarifas a consultar'],
     t: 0.4652,
     heightOffset: 4,
     units: ['812', '906', '1010', '1013', 'PH 1001'],
@@ -11528,7 +11636,7 @@ const propertyData = (function() {
     name: 'Flamingos',
     zoneTag: 'NUEVO VALLARTA',
     eyebrow: 'Nuevo Vallarta · Flamingos',
-    specs: ['Unidad 27', 'Nuevo Vallarta · Flamingos', 'Desde $280/noche'],
+    specs: ['Unidad 27', 'Nuevo Vallarta · Flamingos', 'Tarifas a consultar'],
     t: 0.4888,
     heightOffset: 8,
     units: ['27'],
@@ -11538,7 +11646,7 @@ const propertyData = (function() {
     name: 'Albatros',
     zoneTag: 'NUEVO VALLARTA',
     eyebrow: 'Nuevo Vallarta',
-    specs: ['Unidad 301A', 'Nuevo Vallarta', 'Desde $280/noche'],
+    specs: ['Unidad 301A', 'Nuevo Vallarta', 'Tarifas a consultar'],
     t: 0.5318,
     heightOffset: 6,
     units: ['301A'],
@@ -11548,7 +11656,7 @@ const propertyData = (function() {
     name: 'Puerta Arena',
     zoneTag: 'MARINA',
     eyebrow: 'Marina Vallarta',
-    specs: ['Unidad 16D', 'Marina Vallarta', 'Desde $280/noche'],
+    specs: ['Unidad 16D', 'Marina Vallarta', 'Tarifas a consultar'],
     t: 0.5604,
     heightOffset: 10,
     units: ['16D'],
@@ -11558,7 +11666,7 @@ const propertyData = (function() {
     name: 'GD',
     zoneTag: 'MARINA',
     eyebrow: 'Marina Vallarta · GD',
-    specs: ['5 unidades disponibles', 'Marina Vallarta · GD', 'Desde $280/noche'],
+    specs: ['5 unidades disponibles', 'Marina Vallarta · GD', 'Tarifas a consultar'],
     t: 0.5707,
     heightOffset: 4,
     units: ['103A', '202B', '303A', '501B', '501E'],
@@ -11568,7 +11676,7 @@ const propertyData = (function() {
     name: 'Palmares Cielo',
     zoneTag: 'MARINA',
     eyebrow: 'Marina Vallarta',
-    specs: ['Unidad 102', 'Marina Vallarta', 'Desde $280/noche'],
+    specs: ['Unidad 102', 'Marina Vallarta', 'Tarifas a consultar'],
     t: 0.6052,
     heightOffset: 8,
     units: ['102'],
@@ -11578,7 +11686,7 @@ const propertyData = (function() {
     name: 'Marina Sol',
     zoneTag: 'MARINA',
     eyebrow: 'Marina Sol · frente a la marina',
-    specs: ['Unidad 405A', 'Marina Sol · frente a la marina', 'Desde $280/noche'],
+    specs: ['Unidad 405A', 'Marina Sol · frente a la marina', 'Tarifas a consultar'],
     t: 0.6844,
     heightOffset: 6,
     units: ['405A'],
@@ -11588,7 +11696,7 @@ const propertyData = (function() {
     name: 'Nautico',
     zoneTag: 'MARINA',
     eyebrow: 'Marina · Náutico',
-    specs: ['5 unidades disponibles', 'Marina · Náutico', 'Desde $280/noche'],
+    specs: ['5 unidades disponibles', 'Marina · Náutico', 'Tarifas a consultar'],
     t: 0.6926,
     heightOffset: 10,
     units: ['1G', '3G', '9C', '9E', '408'],
@@ -11598,7 +11706,7 @@ const propertyData = (function() {
     name: 'Zoho',
     zoneTag: 'ZONA HOTELERA',
     eyebrow: 'Zona Hotelera Norte',
-    specs: ['Unidad 204', 'Zona Hotelera Norte', 'Desde $280/noche'],
+    specs: ['Unidad 204', 'Zona Hotelera Norte', 'Tarifas a consultar'],
     t: 0.7190,
     heightOffset: 4,
     units: ['204'],
@@ -11608,7 +11716,7 @@ const propertyData = (function() {
     name: 'Península',
     zoneTag: 'ZONA HOTELERA',
     eyebrow: 'Peninsula Torre I · piso 19',
-    specs: ['Unidad 19E', 'Peninsula Torre I · piso 19', 'Desde $280/noche'],
+    specs: ['Unidad 19E', 'Peninsula Torre I · piso 19', 'Tarifas a consultar'],
     t: 0.7523,
     heightOffset: 8,
     units: ['19E'],
@@ -11619,7 +11727,7 @@ const propertyData = (function() {
     name: 'Venetian T3',
     zoneTag: 'ZONA HOTELERA',
     eyebrow: 'Zona Hotelera · Venetian T3',
-    specs: ['4 unidades disponibles', 'Zona Hotelera · Venetian T3', 'Desde $280/noche'],
+    specs: ['4 unidades disponibles', 'Zona Hotelera · Venetian T3', 'Tarifas a consultar'],
     t: 0.7639,
     heightOffset: 6,
     units: ['905', '906', '1010', '1903'],
@@ -11629,7 +11737,7 @@ const propertyData = (function() {
     name: 'Tules',
     zoneTag: 'ZONA HOTELERA',
     eyebrow: 'Zona Hotelera · Los Tules',
-    specs: ['3 unidades disponibles', 'Zona Hotelera · Los Tules', 'Desde $280/noche'],
+    specs: ['3 unidades disponibles', 'Zona Hotelera · Los Tules', 'Tarifas a consultar'],
     t: 0.7990,
     heightOffset: 10,
     units: ['15-143', '19-1301', '20-105'],
@@ -11639,7 +11747,7 @@ const propertyData = (function() {
     name: 'Rincón',
     zoneTag: 'ROMÁNTICA',
     eyebrow: 'Conchas Chinas · Rincón',
-    specs: ['3 unidades disponibles', 'Conchas Chinas · Rincón', 'Desde $280/noche'],
+    specs: ['3 unidades disponibles', 'Conchas Chinas · Rincón', 'Tarifas a consultar'],
     t: 0.9002,
     heightOffset: 4,
     units: ['104', '403', '502'],
@@ -11649,7 +11757,7 @@ const propertyData = (function() {
     name: 'Arcano',
     zoneTag: 'ROMÁNTICA',
     eyebrow: 'Conchas Chinas · Arcano',
-    specs: ['Unidad 203', 'Conchas Chinas · Arcano', 'Desde $280/noche'],
+    specs: ['Unidad 203', 'Conchas Chinas · Arcano', 'Tarifas a consultar'],
     t: 0.9013,
     heightOffset: 8,
     units: ['203'],
@@ -11659,7 +11767,7 @@ const propertyData = (function() {
     name: 'Playa Esmeralda',
     zoneTag: 'COSTA SUR',
     eyebrow: 'Costa Sur · Playa Esmeralda',
-    specs: ['Unidad 303', 'Costa Sur · Playa Esmeralda', 'Desde $280/noche'],
+    specs: ['Unidad 303', 'Costa Sur · Playa Esmeralda', 'Tarifas a consultar'],
     t: 0.9521,
     heightOffset: 6,
     units: ['303'],
@@ -11669,7 +11777,7 @@ const propertyData = (function() {
     name: 'Amapa',
     zoneTag: 'COSTA SUR',
     eyebrow: 'Costa Sur · Amapa',
-    specs: ['Unidad PH2', 'Costa Sur · Amapa', 'Desde $280/noche'],
+    specs: ['Unidad PH2', 'Costa Sur · Amapa', 'Tarifas a consultar'],
     t: 0.9569,
     heightOffset: 10,
     units: ['PH2'],
@@ -11679,7 +11787,7 @@ const propertyData = (function() {
     name: 'Querencia',
     zoneTag: 'COSTA SUR',
     eyebrow: 'Costa Sur · Querencia',
-    specs: ['Villa', 'Costa Sur · Querencia', 'Desde $280/noche'],
+    specs: ['Villa', 'Costa Sur · Querencia', 'Tarifas a consultar'],
     t: 0.9992,
     heightOffset: 4,
     units: [],
@@ -12307,8 +12415,25 @@ function hashString(str) {
   return Math.abs(hash);
 }
 
-// Devuelve N reviews para una propiedad de manera determinística
+// Devuelve N reviews para una propiedad
+// Prioridad: 1) reviews reales scrapeadas (window.REAL_REVIEWS_BY_PROPERTY)
+//            2) banco genérico determinístico (fallback hasta tener CSV)
+//
+// Cuando se cargue el CSV de 517 reviews reales, debe poblarse así:
+//   window.REAL_REVIEWS_BY_PROPERTY = {
+//     '2302': [{author, location, date, rating, text}, ...],
+//     'PHN':  [{...}, ...],
+//     ...
+//   }
 function getReviewsForProperty(propId, count = 4) {
+  // 1) Reviews reales si existen para esta propiedad
+  const realReviews = window.REAL_REVIEWS_BY_PROPERTY && window.REAL_REVIEWS_BY_PROPERTY[propId];
+  if (realReviews && realReviews.length > 0) {
+    // Devolver las más recientes (asumiendo que vienen ordenadas)
+    return realReviews.slice(0, count);
+  }
+
+  // 2) Fallback al banco genérico (determinístico por propId)
   const hash = hashString(propId);
   const total = REVIEW_BANK.length;
   const indices = new Set();
@@ -12318,6 +12443,22 @@ function getReviewsForProperty(propId, count = 4) {
     i++;
   }
   return Array.from(indices).map(idx => REVIEW_BANK[idx]);
+}
+
+// Devuelve metadata agregada (rating promedio + total) para una propiedad
+// Si hay reviews reales, calcula sobre las reales; si no, devuelve placeholder neutro
+function getReviewMetaForProperty(propId) {
+  const realReviews = window.REAL_REVIEWS_BY_PROPERTY && window.REAL_REVIEWS_BY_PROPERTY[propId];
+  if (realReviews && realReviews.length > 0) {
+    const sum = realReviews.reduce((s, r) => s + (r.rating || 5), 0);
+    return {
+      avg: (sum / realReviews.length).toFixed(2),
+      count: realReviews.length,
+      isReal: true
+    };
+  }
+  // Sin datos reales: no inventamos un score, dejamos al banco como muestra
+  return { avg: null, count: null, isReal: false };
 }
 
 let propertyMap = null;
@@ -12521,7 +12662,9 @@ function openPropertyCard(p) {
   if (!p.description) p.description = enriched.description;
   if (!p.hostNote) p.hostNote = enriched.hostNote;
   if (!p.subtitle) p.subtitle = enriched.subtitle;
-  if (!p.amenities) p.amenities = enriched.amenities;
+  // Amenities: usa sistema de templates por tipo (escalable a 70+ depas)
+  // Fallback a amenities de zona si no hay tipo mapeado
+  if (!p.amenities) p.amenities = getAmenitiesForProperty(p.id, enriched.amenities);
   if (!p.location) p.location = enriched.location;
   if (!p.quickFacts) p.quickFacts = enriched.quickFacts;
   if (!p.pricePerNight) p.pricePerNight = enriched.priceMin;
