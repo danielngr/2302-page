@@ -6992,6 +6992,7 @@
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 1px solid rgba(220, 160, 110, 0.12);
     opacity: 0;
+    pointer-events: none;
     transform: translateY(-12px);
     transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
   }
@@ -7004,9 +7005,11 @@
     transform: translateY(-12px);
   }
 
-  /* La topbar SIEMPRE visible (incluso durante hero), excepto cuando hay sheet/panel modal */
-  .vrm-topbar {
+  /* La topbar aparece solo cuando el usuario entró al panorama (hero-dismissed).
+     En pantalla inicial está oculta (no compite con el hero) */
+  body.hero-dismissed .vrm-topbar {
     opacity: 1;
+    pointer-events: auto;
     transform: translateY(0);
   }
 
@@ -8238,6 +8241,39 @@
     }
   }
 
+  /* Toggle de idioma flotante: visible cuando topbar está oculta (pantalla inicial) */
+  .vrm-lang-toggle-floating {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 250;
+    margin-right: 0;
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  /* Cuando aparece la topbar (hero-dismissed), ocultar el flotante */
+  body.hero-dismissed .vrm-lang-toggle-floating {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px);
+  }
+
+  /* Si hay un panel modal abierto, también ocultar el flotante */
+  body.property-card-active .vrm-lang-toggle-floating,
+  body.quiya-panel-active .vrm-lang-toggle-floating {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @media (max-width: 768px) {
+    .vrm-lang-toggle-floating {
+      top: calc(14px + env(safe-area-inset-top));
+      right: 14px;
+    }
+  }
+
   /* Host profile card (trust signal crítico) */
   .va-host-header {
     display: flex;
@@ -8550,6 +8586,13 @@
      TOPBAR PERSISTENTE — siempre visible, todas las vistas
      Brand + navegación + acción de reserva + teléfono
      ============================================================ -->
+<!-- Lang toggle flotante en pantalla inicial (cuando topbar está oculta) -->
+<button class="vrm-lang-toggle vrm-lang-toggle-floating" id="vrm-lang-toggle-floating" aria-label="Change language" type="button">
+  <span class="lang-option" data-lang="en">EN</span>
+  <span class="lang-divider">·</span>
+  <span class="lang-option active" data-lang="es">ES</span>
+</button>
+
 <header class="vrm-topbar" id="vrm-topbar">
   <div class="vrm-topbar-brand">
     <span class="mark"></span>VRM
@@ -9440,14 +9483,13 @@ function setLang(lang) {
   applyTranslations();
 }
 
-// Listener del toggle
+// Listener del toggle (escucha tanto al de la topbar como al flotante)
 document.addEventListener('DOMContentLoaded', () => {
-  const toggle = document.getElementById('vrm-lang-toggle');
-  if (toggle) {
-    toggle.addEventListener('click', () => {
-      setLang(VRM_LANG === 'es' ? 'en' : 'es');
-    });
-  }
+  const toggleHandler = () => setLang(VRM_LANG === 'es' ? 'en' : 'es');
+  ['vrm-lang-toggle', 'vrm-lang-toggle-floating'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', toggleHandler);
+  });
   // Aplicar traducciones iniciales
   applyTranslations();
 });
