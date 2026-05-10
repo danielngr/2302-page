@@ -501,11 +501,12 @@
     top: 96px;
     left: 50%;
     transform: translateX(-50%) translateY(-8px) scale(0.96);
-    z-index: 11;
+    z-index: 100001;
     width: 360px;
+    max-width: calc(100vw - 32px);
     padding: 22px 22px 20px;
     border-radius: 22px;
-    background: linear-gradient(180deg, rgba(252, 248, 244, 0.94), rgba(248, 242, 234, 0.88));
+    background: linear-gradient(180deg, rgba(252, 248, 244, 0.96), rgba(248, 242, 234, 0.94));
     backdrop-filter: blur(40px) saturate(180%);
     -webkit-backdrop-filter: blur(40px) saturate(180%);
     border: 1px solid rgba(255,255,255,.7);
@@ -525,12 +526,32 @@
     transform: translateX(-50%) translateY(0) scale(1);
   }
 
+  /* En mobile: el popover aparece desde abajo (bottom sheet style) */
+  @media (max-width: 768px) {
+    .guests-popover {
+      top: auto;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      max-width: 100%;
+      transform: translateY(100%);
+      border-radius: 22px 22px 0 0;
+      padding-bottom: max(24px, env(safe-area-inset-bottom));
+      box-shadow: 0 -10px 40px rgba(15, 25, 45, 0.30);
+    }
+    .guests-popover.active {
+      transform: translateY(0);
+    }
+  }
+
   .guests-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 12px 0;
     border-bottom: 1px solid rgba(40, 60, 100, 0.10);
+    gap: 16px;
   }
 
   .guests-row:last-of-type {
@@ -557,11 +578,16 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-shrink: 0;
   }
 
   .guests-step-btn {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+    flex-shrink: 0;
+    aspect-ratio: 1 / 1;
     border-radius: 50%;
     border: 1px solid rgba(40, 60, 100, 0.22);
     background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.5));
@@ -573,7 +599,7 @@
     align-items: center;
     justify-content: center;
     line-height: 1;
-    padding: 0 0 2px 0;
+    padding: 0;
     transition: all 0.2s ease;
     box-shadow:
       0 1px 0 rgba(255,255,255,.95) inset,
