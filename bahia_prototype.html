@@ -8097,8 +8097,8 @@
     display: flex;
     gap: 12px;
     padding: 14px;
-    background: rgba(255, 248, 235, 0.10);
-    border: 1px solid rgba(220, 160, 110, 0.32);
+    background: rgba(255, 248, 235, 0.18);
+    border: 1px solid rgba(220, 160, 110, 0.55);
     border-radius: 12px;
   }
 
@@ -8109,9 +8109,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, rgba(220, 160, 110, 0.32), rgba(220, 160, 110, 0.12));
+    background: linear-gradient(135deg, rgba(245, 200, 145, 0.55), rgba(220, 160, 110, 0.30));
     border-radius: 8px;
-    color: rgba(255, 220, 175, 1);
+    color: rgba(255, 235, 205, 1);
     font-size: 18px;
   }
 
@@ -8132,7 +8132,7 @@
     font-family: 'Inter Tight', sans-serif;
     font-size: 12px;
     line-height: 1.5;
-    color: rgba(255, 240, 220, 0.92);
+    color: rgba(255, 245, 230, 1);
   }
 
   /* Flechas laterales SIEMPRE visibles en mobile - guía universal */
@@ -13348,7 +13348,11 @@ setVersion('A');
 // La cámara NO se mueve cuando el mouse está en el centro del frame.
 // Solo panea cuando el mouse se acerca a los bordes (últimos 30% a cada lado).
 // Además, se congela completamente cuando el mouse está sobre una luz.
-let targetYaw = 0, targetPitch = 0, curYaw = 0, curPitch = 0;
+// Quiya está en t=0.2635 → yaw inicial calculado para apuntar hacia ella
+// Fórmula: normalized = (t - 0.5) * 2 → yaw = normalized * Math.PI * 0.24
+// = (0.2635 - 0.5) * 2 * Math.PI * 0.24 = -0.357 rad (~-20°)
+const INITIAL_YAW_QUIYA = (0.2635 - 0.5) * 2 * Math.PI * 0.24;
+let targetYaw = INITIAL_YAW_QUIYA, targetPitch = 0, curYaw = INITIAL_YAW_QUIYA, curPitch = 0;
 let cameraFrozen = false;
 
 // Cuando hay un filtro de zona activo, la cámara apunta hacia esa zona.
