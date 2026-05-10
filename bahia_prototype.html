@@ -1071,18 +1071,19 @@
   /* Responsive: en móvil cards más chicas y barra abajo */
   @media (max-width: 768px) {
     .featured-strip {
-      /* Más arriba para que la pill "Ver todas las propiedades" entre completa */
-      bottom: calc(20px + env(safe-area-inset-bottom));
+      /* Posicionado bien arriba del bottom del viewport
+         (deja espacio para la barra del browser y la pill "Ver todas...") */
+      bottom: calc(60px + env(safe-area-inset-bottom));
     }
     .featured-eyebrow {
       font-size: 8px;
       letter-spacing: 0.3em;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     /* Coverflow style: card central grande, laterales más chicas y sombreadas */
     .featured-card {
-      flex: 0 0 220px;
-      height: 260px;
+      flex: 0 0 200px;
+      height: 230px;
       /* Por default la card es "grande" — las que estén en posición lateral
          se reducen via JS o scroll-snap */
       transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1),
@@ -1102,10 +1103,10 @@
       filter: brightness(1) saturate(1);
     }
     .featured-card .card-image {
-      height: 150px;
+      height: 130px;
     }
     .featured-card .card-content {
-      padding: 10px 12px;
+      padding: 8px 11px;
     }
     .featured-card .card-name {
       font-size: 14px;
@@ -1129,10 +1130,15 @@
     /* El track tiene padding lateral grande para que la primera/última card
        puedan estar centradas en pantalla */
     .featured-track {
-      padding: 8px calc(50% - 110px) 8px !important;
+      padding: 6px calc(50% - 100px) 6px !important;
       gap: 14px;
       scroll-snap-type: x mandatory;
-      scroll-padding: 0 calc(50% - 110px);
+      scroll-padding: 0 calc(50% - 100px);
+      /* Scroll fluido nativo iOS — momentum scrolling */
+      -webkit-overflow-scrolling: touch !important;
+      scroll-behavior: auto !important;  /* dejar al sistema operativo manejarlo */
+      overscroll-behavior-x: contain;
+      touch-action: pan-x;  /* solo permite pan horizontal — más responsivo */
     }
     .featured-card {
       scroll-snap-align: center;
@@ -6808,6 +6814,15 @@
     align-items: center;
   }
 
+  /* Mobile: el padding-top de la topbar incluye safe-area-inset-top.
+     Para centrar el toggle correctamente respecto al área visible (no el área
+     con padding), ajustamos el top al 50% del área después del safe inset */
+  @media (max-width: 768px) {
+    .vrm-topbar-nav {
+      top: calc(50% + (env(safe-area-inset-top) / 2));
+    }
+  }
+
   .vrm-toggle {
     display: inline-flex;
     background: rgba(255, 240, 220, 0.05);
@@ -12113,7 +12128,10 @@ function getZoneYaw(zoneName) {
 // Zona muerta: del 35% al 65% del ancho de pantalla, la cámara no se mueve
 const EDGE_DEAD_ZONE = 0.50;      // 50% central → sin pan horizontal (más zona quieta)
 const EDGE_PITCH_DEAD = 0.55;     // 55% vertical central → sin pan vertical
-const MAX_YAW = Math.PI * 0.30;   // Reducido de 0.42 — menos giro extremo, menos mareo
+const MAX_YAW_DESKTOP = Math.PI * 0.30;   // Desktop: rango moderado
+const MAX_YAW_MOBILE = Math.PI * 0.55;    // Mobile: rango amplio para alcanzar Bolongo (t=0.13)
+const MAX_YAW = document.documentElement.classList.contains('is-mobile')
+                ? MAX_YAW_MOBILE : MAX_YAW_DESKTOP;
 const MAX_PITCH = Math.PI * 0.03;  // Reducido de 0.04 — menos pitch
 
 window.addEventListener('mousemove', (e) => {
