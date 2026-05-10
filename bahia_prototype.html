@@ -78,6 +78,28 @@
     height: 100vh;
   }
 
+  /* MOBILE: SIEMPRE single-page sin scroll vertical (igual que Igloo).
+     El body NO scrollea — solo el paisaje 3D ocupa toda la pantalla y
+     elementos individuales (carrusel, sheet) tienen scroll interno propio */
+  @media (max-width: 768px) {
+    html, body {
+      height: 100vh;
+      height: 100dvh; /* dynamic viewport - excluye barras de iOS Safari */
+      overflow: hidden !important;
+      position: fixed;
+      width: 100vw;
+      top: 0;
+      left: 0;
+    }
+    body:not(.home-revealed),
+    body.home-revealed {
+      overflow: hidden !important;
+      min-height: 100vh;
+      height: 100vh;
+      height: 100dvh;
+    }
+  }
+
   html.home-revealed {
     overflow: hidden;
     height: 100vh;
@@ -5682,9 +5704,25 @@
     overflow-y: auto !important;
   }
 
-  /* Canvas en mobile: solo decorativo, no interactivo (no captura touch) */
+  /* Canvas en mobile: full bleed (toda la pantalla), no captura touch */
+  @media (max-width: 768px) {
+    #scene-canvas {
+      pointer-events: none !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      position: fixed !important;
+      inset: 0 !important;
+      top: 0 !important;
+      left: 0 !important;
+      z-index: 0 !important;
+    }
+  }
   html.is-mobile #scene-canvas {
     pointer-events: none !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
   }
 
   /* Background fallback fixed que se ve detrás del canvas siempre.
@@ -5905,23 +5943,13 @@
      Es el contenedor de TODO el contenido funcional mobile
      ============================================================ */
   .mob-app {
-    display: none;
+    display: none !important;
   }
 
+  /* mob-app drawer DEPRECADO — ya no se usa, queda oculto siempre.
+     El flujo ahora es: hero → tap explorar → paisaje + carrusel directo */
   html.is-mobile .mob-app {
-    display: block;
-    margin-top: 100vh;
-    background:
-      radial-gradient(ellipse at top, rgba(220, 160, 110, 0.06) 0%, transparent 60%),
-      linear-gradient(180deg, #0a0612 0%, #15101e 50%, #0a0612 100%);
-    border-radius: 28px 28px 0 0;
-    box-shadow:
-      0 -24px 80px rgba(0, 0, 0, 0.7),
-      0 -1px 0 rgba(220, 160, 110, 0.2) inset;
-    position: relative;
-    z-index: 20;
-    padding-bottom: 140px;
-    min-height: 100vh;
+    display: none !important;
   }
 
   /* Handle decorativo arriba del drawer */
@@ -11981,6 +12009,48 @@ window.addEventListener('mousemove', (e) => {
   targetYaw = -yawInput * MAX_YAW;
   targetPitch = -pitchInput * MAX_PITCH;
 });
+
+// ============================================================
+// TOUCH HANDLER MOBILE — drag horizontal para rotar la bahía
+// El usuario desliza el dedo izquierda/derecha para mirar alrededor
+// ============================================================
+let touchStartX = 0;
+let touchStartYaw = 0;
+let touchActive = false;
+
+window.addEventListener('touchstart', (e) => {
+  if (cameraZoneLock) return;
+  if (!document.documentElement.classList.contains('is-mobile')) return;
+
+  // Si el touch está sobre el carrusel o un elemento interactivo, no manejamos
+  const target = e.target;
+  if (target.closest('.featured-track, .featured-card, .property-light, ' +
+                     '.search-bar, .vrm-topbar, .vrm-hero, .property-card, ' +
+                     '.vrm-list-view, [data-lenis-prevent]')) {
+    return;
+  }
+
+  if (e.touches.length === 1) {
+    touchStartX = e.touches[0].clientX;
+    touchStartYaw = targetYaw;
+    touchActive = true;
+  }
+}, { passive: true });
+
+window.addEventListener('touchmove', (e) => {
+  if (!touchActive) return;
+  if (cameraZoneLock) return;
+  if (!document.documentElement.classList.contains('is-mobile')) return;
+
+  const dx = e.touches[0].clientX - touchStartX;
+  // Sensibilidad: ~ ancho pantalla = 0.5 * MAX_YAW de rotación
+  const sensitivity = MAX_YAW / window.innerWidth * 0.8;
+  targetYaw = Math.max(-MAX_YAW, Math.min(MAX_YAW, touchStartYaw + dx * sensitivity));
+}, { passive: true });
+
+window.addEventListener('touchend', () => {
+  touchActive = false;
+}, { passive: true });
 
 // ============================================================
 // FEATURED STRIP — propiedades destacadas con cámara reactiva
