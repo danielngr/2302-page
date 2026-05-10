@@ -6037,6 +6037,22 @@
     transition: opacity 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.4s;
   }
 
+  /* Cuando el grid overlay "Ver todas las propiedades" está activo,
+     ocultar TODA la UI flotante para que no se cuele encima */
+  body.grid-overlay-open #search-bar,
+  body.grid-overlay-open #featured-strip,
+  body.grid-overlay-open .footer-hint,
+  body.grid-overlay-open .footer-bar,
+  body.grid-overlay-open .reloj-vallarta,
+  body.grid-overlay-open .context,
+  body.grid-overlay-open .property-light,
+  body.grid-overlay-open .zone-label,
+  body.grid-overlay-open .hint,
+  body.grid-overlay-open .vrm-topbar {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
   /* ============================================================
      MOBILE EXPERIENCE — sistema completo
      Intro overlay → drawer mob-app con Quiya
@@ -9279,7 +9295,6 @@
       <span>Volver</span>
     </button>
     <div class="grid-overlay-title">
-      <span class="grid-eyebrow">VRM · Bahía de Banderas</span>
       <span class="grid-name">Todas las propiedades</span>
     </div>
     <div class="grid-overlay-count" id="grid-count">16 unidades</div>
@@ -13530,6 +13545,10 @@ function computeYawForProperty(propId) {
   const normalized = (prop.t - 0.5) * 2;  // [-1..1]
   // Coeficiente igual al que usa getZoneYaw — funciona con los handlers existentes
   let yaw = normalized * Math.PI * 0.24;
+  // Offset específico para Quiya: mover más a la izquierda
+  if (propId === 'vallarta_gardens_quiya') {
+    yaw -= Math.PI * 0.05;  // ~9° más a la izquierda
+  }
   // Permitir override manual desde consola para calibrar:
   // window.QUIYA_YAW_OVERRIDE = 0.5  (en radianes)
   if (propId === 'vallarta_gardens_quiya' && window.QUIYA_YAW_OVERRIDE !== undefined) {
@@ -13931,6 +13950,7 @@ function openGridOverlay() {
   const overlay = document.getElementById('grid-overlay');
   if (!overlay) return;
   overlay.classList.add('active');
+  document.body.classList.add('grid-overlay-open');
   document.body.style.overflow = 'hidden';
   renderGridCards();
 }
@@ -13939,6 +13959,7 @@ function closeGridOverlay() {
   const overlay = document.getElementById('grid-overlay');
   if (!overlay) return;
   overlay.classList.remove('active');
+  document.body.classList.remove('grid-overlay-open');
   document.body.style.overflow = '';
   // Cerrar popovers abiertos
   document.querySelectorAll('.grid-filter-popover').forEach(p => p.classList.remove('active'));
