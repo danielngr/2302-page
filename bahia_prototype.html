@@ -8650,14 +8650,31 @@
         return new Set();
       }
 
-      // Expandir cada rango a fechas individuales
+      // Expandir cada rango a fechas individuales.
+      // CRÍTICO: incrementamos fechas como STRINGS puros, sin pasar por Date
+      // (Date en distintos timezones causa shifts impredecibles).
       const blocked = new Set();
+      const daysInMonth = (year, month) => {
+        // month es 1-12
+        return new Date(year, month, 0).getDate();
+        // ojo: aquí Date se usa solo para días-por-mes que no depende de timezone
+      };
+      const incrementDate = (yyyymmdd) => {
+        let [y, m, d] = yyyymmdd.split('-').map(Number);
+        d++;
+        if (d > daysInMonth(y, m)) {
+          d = 1;
+          m++;
+          if (m > 12) { m = 1; y++; }
+        }
+        return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      };
       (data || []).forEach(b => {
-        let cur = new Date(b.check_in + 'T00:00:00');
-        const end = new Date(b.check_out + 'T00:00:00');
-        while (cur < end) {
-          blocked.add(cur.toISOString().slice(0, 10));
-          cur.setDate(cur.getDate() + 1);
+        let cur = b.check_in;          // 'YYYY-MM-DD' ya viene así de Supabase
+        const end = b.check_out;       // 'YYYY-MM-DD'
+        while (cur < end) {            // comparación lexicográfica de strings ISO funciona
+          blocked.add(cur);
+          cur = incrementDate(cur);
         }
       });
 
