@@ -6729,6 +6729,42 @@
       font-size: 9px !important;
       letter-spacing: 0.14em !important;
     }
+
+    /* Indicador de disponibilidad: pill flotante separada DEBAJO del bar.
+       NO compite por espacio horizontal con los slots de fechas + huéspedes. */
+    #search-bar .search-availability {
+      position: absolute !important;
+      top: calc(100% + 8px) !important;
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+      margin: 0 !important;
+      padding: 6px 14px !important;
+      border: 1px solid rgba(255,255,255,.32) !important;
+      border-left: 1px solid rgba(255,255,255,.32) !important;
+      border-radius: 100px !important;
+      background: linear-gradient(180deg, rgba(255,255,255,.42), rgba(255,255,255,.18)) !important;
+      backdrop-filter: blur(20px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,.55) inset,
+        0 4px 14px rgba(20, 30, 50, 0.14) !important;
+      font-size: 11px !important;
+      white-space: nowrap !important;
+      max-width: calc(100vw - 32px) !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      pointer-events: none !important;
+      opacity: 0 !important;
+      transition: opacity 0.3s ease !important;
+    }
+    /* Solo aparece cuando hay búsqueda activa (sino el "25 propiedades" estorba) */
+    #search-bar.has-search .search-availability {
+      opacity: 1 !important;
+    }
+    /* Botón clear: que no tape los slots — esquina top-right como una "x" pequeña */
+    #search-bar .search-clear {
+      flex: 0 0 auto !important;
+    }
   }
 
   /* ============================================================
@@ -14695,10 +14731,16 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
     const forWord = isEN2 ? 'for' : 'para';
     const personaSing2 = isEN2 ? 'guest' : 'persona';
     const personaPlur2 = isEN2 ? 'guests' : 'personas';
+    const isMobileVw = window.matchMedia('(max-width: 768px)').matches;
     if (bar.classList.contains('has-search')) {
       if (checkin && checkout) {
-        availabilityText.textContent =
-          `${availableCount} ${dispWord} · ${formatDate(checkin)} → ${formatDate(checkout)}`;
+        // En mobile: solo mostrar conteo (las fechas ya están visibles en los slots arriba)
+        if (isMobileVw) {
+          availabilityText.textContent = `${availableCount} ${dispWord}`;
+        } else {
+          availabilityText.textContent =
+            `${availableCount} ${dispWord} · ${formatDate(checkin)} → ${formatDate(checkout)}`;
+        }
       } else {
         availabilityText.textContent = `${availableCount} ${forWord} ${tot} ${tot === 1 ? personaSing2 : personaPlur2}`;
       }
