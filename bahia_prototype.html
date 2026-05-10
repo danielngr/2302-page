@@ -8565,7 +8565,7 @@
     <button class="quiya-units-close" id="quiya-units-close" aria-label="Cerrar">×</button>
 
     <div class="quiya-units-header">
-      <div class="quiya-units-eyebrow">Vallarta Gardens · Bucerías</div>
+      <div class="quiya-units-eyebrow">Vallarta Gardens · Cruz de Huanacaxtle</div>
       <h2 class="quiya-units-title">Quiya</h2>
       <p class="quiya-units-subtitle">Nueve unidades. Una sola bahía.</p>
       <div class="quiya-units-rule"></div>
@@ -9227,7 +9227,7 @@ const VRM_TRANSLATIONS = {
     'list.title': 'Curated homes on Banderas Bay',
     'list.subtitle': 'From Punta de Mita to Nuevo Vallarta',
     'list.results': 'properties',
-    'complex.descriptor.quiya': 'Apartments · Bucerías · Ocean view',
+    'complex.descriptor.quiya': 'Apartments · Cruz de Huanacaxtle',
     'complex.descriptor.maritima': 'Pool resort · Nuevo Vallarta',
     'complex.descriptor.bolongo': 'Beachfront · Punta de Mita',
     'complex.cta.quiya': 'View 8 units',
@@ -9324,7 +9324,7 @@ const VRM_TRANSLATIONS = {
     'list.title': 'Casas curadas en Bahía de Banderas',
     'list.subtitle': 'De Punta de Mita a Nuevo Vallarta',
     'list.results': 'propiedades',
-    'complex.descriptor.quiya': 'Departamentos · Bucerías · Vista al mar',
+    'complex.descriptor.quiya': 'Departamentos · Cruz de Huanacaxtle',
     'complex.descriptor.maritima': 'Resort con alberca · Nuevo Vallarta',
     'complex.descriptor.bolongo': 'Frente al mar · Punta de Mita',
     'complex.cta.quiya': 'Ver 8 unidades',
@@ -11610,8 +11610,8 @@ const propertyData = (function() {
     id: 'vallarta_gardens_quiya',
     name: 'Vallarta Gardens (Quiya)',
     zoneTag: 'BUCERÍAS',
-    eyebrow: 'Bucerías · Quiya',
-    specs: ['8 unidades disponibles', 'Bucerías · Quiya', 'Desde $145/noche'],
+    eyebrow: 'Cruz de Huanacaxtle · Quiya',
+    specs: ['8 unidades disponibles', 'Cruz de Huanacaxtle · Quiya', 'Desde $145/noche'],
     t: 0.2635,
     heightOffset: 30,
     units: ['2005', '2302', '2403', '2701', '2705', '2801', '2905', '3004'],
@@ -11967,7 +11967,7 @@ propertyData.forEach((p, i) => {
                 fill="rgba(220, 160, 110, 0.95)">LA CRUZ DE HUANACAXTLE</text>
         </svg>
         <div class="quiya-cta-text complex-cta-text">Ver 8 unidades →</div>
-        <div class="complex-descriptor">Departamentos · Bucerías · Vista al mar</div>
+        <div class="complex-descriptor">Departamentos · Cruz de Huanacaxtle</div>
       </div>
     `;
   } else if (isMaritima) {
@@ -13368,12 +13368,6 @@ function getZoneYaw(zoneName) {
   return normalized * Math.PI * 0.24;
 }
 
-// Cámara inicial apuntando hacia Quiya (zona BUCERÍAS)
-// Usa getZoneYaw para mantener la misma lógica que el cameraZoneLock
-const _initialYaw = getZoneYaw('BUCERÍAS');
-targetYaw = _initialYaw;
-curYaw = _initialYaw;
-
 // Zona muerta: del 35% al 65% del ancho de pantalla, la cámara no se mueve
 const EDGE_DEAD_ZONE = 0.50;      // 50% central → sin pan horizontal (más zona quieta)
 const EDGE_PITCH_DEAD = 0.55;     // 55% vertical central → sin pan vertical
@@ -14089,6 +14083,11 @@ setupGridFilters();
   const ctaBtn = document.getElementById('vrm-hero-cta');
   if (ctaBtn) {
     ctaBtn.addEventListener('click', () => {
+      // Apuntar la cámara a Quiya (zona BUCERÍAS) antes de revelar el panorama
+      const quiyaYaw = getZoneYaw('BUCERÍAS');
+      targetYaw = quiyaYaw;
+      curYaw = quiyaYaw;
+
       document.body.classList.add('hero-dismissed');
 
       // Después del fade del hero, el usuario ve:
@@ -14208,7 +14207,7 @@ setupGridFilters();
       if (quiya?.units) {
         html += `
           <div class="vrm-list-section-header">
-            <div class="vrm-list-section-eyebrow">Vallarta Gardens · Bucerías</div>
+            <div class="vrm-list-section-eyebrow">Vallarta Gardens · Cruz de Huanacaxtle</div>
             <h2 class="vrm-list-section-title">Quiya</h2>
             <p class="vrm-list-section-subtitle">8 unidades · La Cruz de Huanacaxtle</p>
           </div>
@@ -14267,6 +14266,9 @@ setupGridFilters();
 
           // Si el hero estaba visible, dismissarlo
           if (!document.body.classList.contains('hero-dismissed')) {
+            const quiyaYaw = getZoneYaw('BUCERÍAS');
+            targetYaw = quiyaYaw;
+            curYaw = quiyaYaw;
             document.body.classList.add('hero-dismissed');
           }
 
@@ -14287,6 +14289,11 @@ setupGridFilters();
     if (reserveBtn) {
       reserveBtn.addEventListener('click', () => {
         // Dismissar el hero si todavía está visible
+        if (!document.body.classList.contains('hero-dismissed')) {
+          const quiyaYaw = getZoneYaw('BUCERÍAS');
+          targetYaw = quiyaYaw;
+          curYaw = quiyaYaw;
+        }
         document.body.classList.add('hero-dismissed');
         // Activar modo lista para que vea ambos complejos
         document.body.classList.add('list-mode');
