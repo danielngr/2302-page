@@ -5185,24 +5185,183 @@
     align-self: center;
   }
 
-  /* Grid de cards */
+  /* Layout: secciones verticales por complejo */
   .grid-overlay-content {
     max-width: 1280px;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  .grid-complex-section {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .grid-complex-header {
+    padding: 0 4px 14px;
+    border-bottom: 1px solid rgba(220, 160, 110, 0.18);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .grid-complex-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 28px;
+    line-height: 1.05;
+    color: rgba(255, 248, 235, 0.95);
+    letter-spacing: -0.01em;
+  }
+
+  .grid-complex-meta {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(245, 200, 145, 0.7);
+  }
+
+  .grid-complex-units {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
   }
 
   @media (max-width: 1024px) {
-    .grid-overlay-content { grid-template-columns: repeat(2, 1fr); }
+    .grid-complex-units { grid-template-columns: repeat(3, 1fr); }
   }
 
-  @media (max-width: 640px) {
-    .grid-overlay-content { grid-template-columns: 1fr; }
-    .grid-overlay { padding: 60px 20px 40px; }
+  @media (max-width: 768px) {
+    .grid-complex-units { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .grid-complex-name { font-size: 22px; }
+    .grid-overlay-content { gap: 36px; }
+    .grid-overlay { padding: 60px 16px 40px; }
     .grid-overlay-header { flex-wrap: wrap; }
-    .grid-name { font-size: 24px; }
+    .grid-name { font-size: 22px; }
+  }
+
+  /* Unit card individual en el grid */
+  .grid-unit-card {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    border-radius: 14px;
+    overflow: hidden;
+    background-color: #1a1a1a;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    border: 1px solid rgba(220, 160, 110, 0.15);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .grid-unit-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.15) 35%,
+      rgba(0, 0, 0, 0.7) 65%,
+      rgba(0, 0, 0, 0.95) 100%);
+    pointer-events: none;
+  }
+
+  .grid-unit-number {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 2;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 56px;
+    line-height: 0.9;
+    background: linear-gradient(180deg,
+      rgba(255, 248, 230, 0.95) 0%,
+      rgba(245, 200, 145, 0.78) 60%,
+      rgba(220, 160, 110, 0.55) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 3px 14px rgba(0, 0, 0, 0.85));
+    letter-spacing: -0.03em;
+    pointer-events: none;
+  }
+
+  .grid-unit-bottom {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 8px;
+    color: white;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
+  }
+
+  .grid-unit-guests {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: rgba(255, 240, 220, 0.78);
+    text-transform: lowercase;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .grid-unit-price {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 10px;
+    color: rgba(255, 240, 220, 0.55);
+    line-height: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .grid-unit-price strong {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 17px;
+    color: rgba(255, 250, 235, 1);
+    letter-spacing: -0.01em;
+  }
+
+  .grid-unit-price .suffix {
+    font-size: 9px;
+    opacity: 0.55;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .grid-unit-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(220, 160, 110, 0.5);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5),
+                  0 0 50px rgba(220, 160, 110, 0.15);
+    }
+  }
+
+  .grid-unit-card:active {
+    transform: scale(0.98);
+    transition: transform 0.15s ease;
   }
 
   /* Card individual del grid */
@@ -9123,7 +9282,7 @@
       <span class="grid-eyebrow">VRM · Bahía de Banderas</span>
       <span class="grid-name">Todas las propiedades</span>
     </div>
-    <div class="grid-overlay-count" id="grid-count">25 propiedades</div>
+    <div class="grid-overlay-count" id="grid-count">16 unidades</div>
   </div>
 
   <div class="grid-overlay-filters">
@@ -13340,6 +13499,9 @@ setVersion('A');
 // Solo panea cuando el mouse se acerca a los bordes (últimos 30% a cada lado).
 // Además, se congela completamente cuando el mouse está sobre una luz.
 let targetYaw = 0, targetPitch = 0, curYaw = 0, curPitch = 0;
+// Helper de debug: window.setYaw(0.5) en consola para probar diferentes valores
+window.setYaw = (v) => { targetYaw = v; curYaw = v; console.log('yaw set to', v, '(', v*180/Math.PI, 'deg)'); };
+window.getYaw = () => ({ targetYaw, curYaw, deg: curYaw * 180 / Math.PI });
 let cameraFrozen = false;
 
 // Cuando hay un filtro de zona activo, la cámara apunta hacia esa zona.
@@ -13359,42 +13521,23 @@ function getZoneYaw(zoneName) {
   return normalized * Math.PI * 0.24;
 }
 
-// Calcula el yaw exacto para apuntar la cámara a una propiedad por su id.
-// Usa camera.lookAt() de Three.js como fuente de verdad para evitar errores
-// de signo o convención. El yaw resultante se aplica al render loop.
+// Calcula el yaw para apuntar la cámara a una propiedad por su id.
+// Usa la misma fórmula que getZoneYaw (que está calibrada para el sistema
+// de cámara) pero con la t exacta de la propiedad en lugar del promedio de zona.
 function computeYawForProperty(propId) {
   const prop = propertyData.find(p => p.id === propId);
   if (!prop) return 0;
-  const angleSpan = Math.PI * 1.15;
-  const halfAngle = angleSpan / 2;
-  const propAngle = Math.PI - halfAngle + prop.t * angleSpan;
-  const radius = 458;
-  const target = new THREE.Vector3(
-    Math.sin(propAngle) * radius,
-    prop.heightOffset || 0,
-    -Math.cos(propAngle) * radius
-  );
-
-  // Usar una cámara temporal en la misma posición que la real,
-  // hacerle lookAt al target, y leer la rotation.y resultante.
-  const tempCam = new THREE.Object3D();
-  tempCam.position.set(0, 2.5, 0);
-  tempCam.rotation.order = 'YXZ';
-  tempCam.lookAt(target);
-  const desiredRotY = tempCam.rotation.y;
-
-  // El render hace: camera.rotation.y = Math.PI + curYaw
-  // El signo del yaw está invertido respecto a lookAt (convención del proyecto).
-  // Invertimos signo:
-  let yaw = -(desiredRotY - Math.PI);
-  while (yaw > Math.PI) yaw -= 2 * Math.PI;
-  while (yaw < -Math.PI) yaw += 2 * Math.PI;
-  // Offset configurable: ajusta a la derecha. Positivo = mueve a la derecha.
-  // Para Quiya en mobile sin offset apunta cerca pero queda corrida a la izquierda.
-  const offset = Math.PI * 0.28;  // ~50.4° a la derecha
-  yaw += offset;
-  return Math.max(-MAX_YAW, Math.min(MAX_YAW, yaw));
+  const normalized = (prop.t - 0.5) * 2;  // [-1..1]
+  // Coeficiente igual al que usa getZoneYaw — funciona con los handlers existentes
+  let yaw = normalized * Math.PI * 0.24;
+  // Permitir override manual desde consola para calibrar:
+  // window.QUIYA_YAW_OVERRIDE = 0.5  (en radianes)
+  if (propId === 'vallarta_gardens_quiya' && window.QUIYA_YAW_OVERRIDE !== undefined) {
+    yaw = window.QUIYA_YAW_OVERRIDE;
+  }
+  return yaw;
 }
+window.computeYawForProperty = computeYawForProperty;
 
 // Zona muerta: del 35% al 65% del ancho de pantalla, la cámara no se mueve
 const EDGE_DEAD_ZONE = 0.50;      // 50% central → sin pan horizontal (más zona quieta)
@@ -13830,22 +13973,54 @@ function getPropertyPrice(prop) {
   return 280;
 }
 
+// Construye la lista plana de todas las unidades de los 3 complejos
+// con metadata combinada (complejo + unidad) para filtrar y renderizar.
+function getAllUnitsForGrid() {
+  const out = [];
+  const complexes = [
+    { id: 'vallarta_gardens_quiya', name: 'Vallarta Gardens · Quiya', zone: 'Cruz de Huanacaxtle', units: window.QUIYA_UNITS || {} },
+    { id: 'maritima_playa_flamingos', name: 'Marítima Playa Flamingos', zone: 'Nuevo Vallarta', units: window.MARITIMA_UNITS || {} },
+    { id: 'bolongo_punta_mita', name: 'Bolongo', zone: 'Punta de Mita', units: window.BOLONGO_UNITS || {} },
+  ];
+  complexes.forEach(c => {
+    Object.values(c.units).forEach(u => {
+      out.push({
+        unitId: u.id,
+        complexId: c.id,
+        complexName: c.name,
+        zone: c.zone,
+        coverImage: u.coverImage,
+        guests: u.guests || 4,
+        priceUSD: u.priceUSD || 0,
+        bedrooms: u.bedrooms?.length || 1,
+        bathrooms: u.bathrooms || 1,
+        sqm: u.sqm,
+        view: u.view,
+        unit: u
+      });
+    });
+  });
+  return out;
+}
+
 function renderGridCards() {
   const content = document.getElementById('grid-content');
   const empty = document.getElementById('grid-empty');
   const countEl = document.getElementById('grid-count');
   if (!content) return;
 
+  const allUnits = getAllUnitsForGrid();
+
   // Filtrar
-  const filtered = propertyData.filter(p => {
-    if (gridState.zone && p.zoneTag !== gridState.zone) return false;
-    if (gridState.maxPrice && getPropertyPrice(p) > gridState.maxPrice) return false;
-    if (gridState.minCapacity && getPropertyCapacityForGrid(p) < gridState.minCapacity) return false;
+  const filtered = allUnits.filter(u => {
+    if (gridState.zone && u.zone !== gridState.zone) return false;
+    if (gridState.maxPrice && u.priceUSD > gridState.maxPrice) return false;
+    if (gridState.minCapacity && u.guests < gridState.minCapacity) return false;
     return true;
   });
 
   // Update count
-  countEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'propiedad' : 'propiedades'}`;
+  countEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'unidad' : 'unidades'}`;
 
   // Empty state
   if (filtered.length === 0) {
@@ -13855,47 +14030,53 @@ function renderGridCards() {
   }
   empty.style.display = 'none';
 
-  // Render cards
-  content.innerHTML = filtered.map(prop => {
-    const photo = getPropertyPhoto(prop.id);
-    const price = getPropertyPrice(prop);
-    const ratingHash = prop.id.charCodeAt(0) + prop.id.charCodeAt(prop.id.length - 1);
-    const rating = (4.7 + (ratingHash % 30) / 100).toFixed(2);
-    const reviewCount = 18 + (ratingHash % 80);
-    const capacity = getPropertyCapacityForGrid(prop);
+  // Agrupar por complejo
+  const byComplex = {};
+  filtered.forEach(u => {
+    if (!byComplex[u.complexId]) {
+      byComplex[u.complexId] = { complexName: u.complexName, zone: u.zone, units: [] };
+    }
+    byComplex[u.complexId].units.push(u);
+  });
 
-    return `
-      <div class="grid-card" data-property-id="${prop.id}">
-        <div class="grid-card-photo${photo ? '' : ' placeholder'}">
-          ${photo ? `<img src="${photo}" alt="${prop.name}" loading="lazy">` : ''}
-          <div class="grid-card-zone-badge">${prop.zoneTag || ''}</div>
+  // Render: una sección por complejo con su título, luego las cards de unidades
+  const orderedComplexes = ['vallarta_gardens_quiya', 'maritima_playa_flamingos', 'bolongo_punta_mita'];
+  let html = '';
+  orderedComplexes.forEach(cid => {
+    const group = byComplex[cid];
+    if (!group) return;
+    html += `
+      <div class="grid-complex-section">
+        <div class="grid-complex-header">
+          <div class="grid-complex-name">${group.complexName}</div>
+          <div class="grid-complex-meta">${group.zone} · ${group.units.length} ${group.units.length === 1 ? 'unidad' : 'unidades'}</div>
         </div>
-        <div class="grid-card-info">
-          <div class="grid-card-name">${prop.name}</div>
-          <div class="grid-card-eyebrow">${prop.eyebrow || ''} · ${capacity} huéspedes</div>
-          <div class="grid-card-meta">
-            <div class="grid-card-price">
-              <span class="from">desde</span>
-              <span class="amount"><span class="currency">USD</span>${price}<span class="per">/ noche</span></span>
+        <div class="grid-complex-units">
+          ${group.units.map(u => `
+            <div class="grid-unit-card" data-complex-id="${u.complexId}" data-unit-id="${u.unitId}" style="background-image: url('${u.coverImage || ''}');">
+              <div class="grid-unit-overlay"></div>
+              <div class="grid-unit-number">${u.unitId}</div>
+              <div class="grid-unit-bottom">
+                <span class="grid-unit-guests">${u.guests} huéspedes · ${u.bedrooms} rec</span>
+                <span class="grid-unit-price"><strong>$${u.priceUSD}</strong><span class="suffix">/noche</span></span>
+              </div>
             </div>
-            <div class="grid-card-rating">
-              <span class="star">★</span>
-              <span>${rating} · ${reviewCount}</span>
-            </div>
-          </div>
+          `).join('')}
         </div>
       </div>
     `;
-  }).join('');
+  });
+  content.innerHTML = html;
 
-  // Click handler para cada card → abre detalle
-  content.querySelectorAll('.grid-card').forEach(cardEl => {
+  // Click handler
+  content.querySelectorAll('.grid-unit-card').forEach(cardEl => {
     cardEl.addEventListener('click', () => {
-      const propId = cardEl.dataset.propertyId;
-      const prop = propertyData.find(p => p.id === propId);
+      const complexId = cardEl.dataset.complexId;
+      const unitId = cardEl.dataset.unitId;
+      const prop = propertyData.find(p => p.id === complexId);
       if (prop && typeof openPropertyCard === 'function') {
         closeGridOverlay();
-        setTimeout(() => openPropertyCard(prop), 100);
+        setTimeout(() => openPropertyCard({ ...prop, selectedUnit: unitId }), 200);
       }
     });
   });
@@ -13941,8 +14122,8 @@ function setupGridFilters() {
     }
   });
 
-  // Llenar opciones de zona
-  const zones = [...new Set(propertyData.map(p => p.zoneTag).filter(Boolean))];
+  // Llenar opciones de zona — usa las zonas que existen en el grid
+  const zones = ['Cruz de Huanacaxtle', 'Nuevo Vallarta', 'Punta de Mita'];
   const zoneOptions = document.getElementById('zone-options');
   if (zoneOptions) {
     zoneOptions.innerHTML = zones.map(z =>
