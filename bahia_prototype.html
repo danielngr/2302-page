@@ -4266,7 +4266,7 @@
   }
 
   /* MOBILE: footer sticky fullwidth abajo (no flotante).
-     SIEMPRE VISIBLE en mobile (no necesita scroll para aparecer) */
+     Aparece cuando el usuario scrollea hasta el final (no por default) */
   @media (max-width: 768px) {
     .card-version-a .va-footer-sticky,
     .va-footer-sticky {
@@ -4278,7 +4278,14 @@
       border-radius: 22px 22px 0 0 !important;
       padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) !important;
       gap: 8px !important;
-      /* SIEMPRE visible en mobile — sin esperar scroll */
+      /* Por default OCULTO bajo el viewport */
+      transform: translateY(110%) !important;
+      pointer-events: none !important;
+      display: flex !important;
+    }
+
+    /* Cuando el overlay tiene .scrolled, el footer aparece */
+    .property-card-overlay[data-version="A"].active.scrolled .va-footer-sticky {
       transform: translateY(0) !important;
       pointer-events: auto !important;
     }
@@ -6677,13 +6684,20 @@
     font-size: 18px !important;
   }
 
-  /* En mobile la zone-tag y el indicador están a la misma altura → chocan.
-     Subimos el indicador para que quede arriba de la zone-tag */
+  /* En mobile la zone-tag y el indicador estaban a la misma altura → chocaban.
+     Movemos el indicador arriba de la galería (debajo del header con close/save) */
   html.is-mobile .card-version-a .va-gallery-indicator {
     bottom: auto !important;
-    top: calc(50vh - 60px) !important;
+    top: calc(env(safe-area-inset-top) + 70px) !important;
     left: 50% !important;
     right: auto !important;
+    transform: translateX(-50%) !important;
+    padding: 5px 10px !important;
+  }
+
+  html.is-mobile .card-version-a .va-gallery-indicator .dot {
+    width: 12px !important;
+    height: 2px !important;
   }
 
   html.is-mobile .card-version-a .va-zone-tag {
@@ -6694,7 +6708,7 @@
   }
 
   html.is-mobile .card-version-a .va-body {
-    padding: 28px 20px 180px !important;  /* extra bottom para sticky siempre visible */
+    padding: 28px 20px 140px !important;
   }
 
   html.is-mobile .card-version-a .va-name {
@@ -11815,11 +11829,7 @@ function openPropertyCard(p) {
       const computeThreshold = () => {
         const bookingPanel = card.querySelector('.va-booking');
         if (!bookingPanel || bookingPanel.offsetHeight === 0) return null;
-        // En mobile: aparecer cuando el usuario scrollea ~30% del booking panel
-        // (no esperar a pasar todo el panel — eso es demasiado tarde)
-        if (isMobile) {
-          return bookingPanel.offsetTop + 80;
-        }
+        // En mobile y desktop: aparecer cuando el usuario pasó el booking panel
         return bookingPanel.offsetTop + bookingPanel.offsetHeight - 60;
       };
       // Esperar un frame para que offsetTop sea correcto
