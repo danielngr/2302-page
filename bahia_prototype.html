@@ -170,51 +170,6 @@
     height: 100vh;
   }
 
-  /* --- GAVIOTAS OCASIONALES --- */
-  /* Pequeños sprites SVG que cruzan el cielo de tanto en tanto */
-  .seagull {
-    position: fixed;
-    top: 25%;
-    left: -60px;
-    width: 24px;
-    height: 14px;
-    z-index: 2;
-    pointer-events: none;
-    opacity: 0.55;
-    animation: seagull-fly 18s linear forwards;
-  }
-
-  .seagull svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-
-  .seagull path {
-    animation: seagull-wings 0.45s ease-in-out infinite;
-    transform-origin: center;
-  }
-
-  @keyframes seagull-fly {
-    0% {
-      left: -60px;
-      top: 32%;
-      transform: scale(0.6);
-    }
-    50% {
-      top: 22%;
-    }
-    100% {
-      left: calc(100% + 60px);
-      top: 18%;
-      transform: scale(0.8);
-    }
-  }
-
-  @keyframes seagull-wings {
-    0%, 100% { transform: scaleY(1); }
-    50% { transform: scaleY(0.55); }
-  }
   #loading-screen {
     position: fixed;
     inset: 0;
@@ -5086,21 +5041,21 @@
 
   /* Popovers de filtros */
   .grid-filter-popover {
-    position: absolute;
-    top: 130px;
-    background: linear-gradient(180deg, rgba(35, 25, 50, 0.88), rgba(50, 35, 60, 0.92));
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid rgba(255,255,255,.18);
-    border-radius: 16px;
-    padding: 16px 18px;
-    min-width: 220px;
-    z-index: 60;
+    position: fixed;
+    background: linear-gradient(180deg, rgba(35, 25, 50, 0.96), rgba(50, 35, 60, 0.97));
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 18px;
+    padding: 18px 20px;
+    min-width: 240px;
+    z-index: 100000;
     opacity: 0;
     pointer-events: none;
     transform: translateY(-6px);
-    transition: opacity 0.25s ease, transform 0.25s ease;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    box-shadow: 0 16px 50px rgba(0,0,0,0.55),
+                0 0 0 1px rgba(220,160,110,0.08);
   }
 
   .grid-filter-popover.active {
@@ -5116,7 +5071,7 @@
     letter-spacing: 0.3em;
     text-transform: uppercase;
     color: rgba(255,255,255,0.55);
-    margin-bottom: 12px;
+    margin-bottom: 14px;
   }
 
   .popover-options {
@@ -5128,7 +5083,8 @@
   #capacity-options {
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
+    justify-content: flex-start;
   }
 
   .popover-options button {
@@ -5144,9 +5100,20 @@
     transition: all 0.2s ease;
   }
 
+  /* Botones de capacidad circulares */
   #capacity-options button {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    padding: 0;
+    border-radius: 50%;
     text-align: center;
-    min-width: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: -0.01em;
   }
 
   .popover-options button:hover {
@@ -5155,8 +5122,9 @@
   }
 
   .popover-options button.active {
-    background: linear-gradient(180deg, rgba(200, 120, 58, 0.5), rgba(160, 90, 40, 0.32));
-    border-color: rgba(255, 200, 140, 0.6);
+    background: linear-gradient(180deg, rgba(220, 160, 110, 0.45), rgba(180, 110, 60, 0.32));
+    border-color: rgba(245, 200, 145, 0.65);
+    color: rgba(255, 248, 230, 1);
   }
 
   .popover-price-content {
@@ -14121,11 +14089,32 @@ function setupGridFilters() {
       document.querySelectorAll('.grid-filter-popover').forEach(p => {
         if (p.id !== `popover-${filter}`) p.classList.remove('active');
       });
-      // Posicionar popover bajo el pill
+      // Posicionar popover bajo el pill, ajustando para no salirse del viewport
       const rect = pill.getBoundingClientRect();
-      popover.style.left = `${rect.left}px`;
-      popover.style.top = `${rect.bottom + 8}px`;
+      // Activar primero para medir su tamaño real
       popover.classList.toggle('active');
+      // Si quedó activo, recalcular posición
+      if (popover.classList.contains('active')) {
+        // Esperar un frame para que el popover tenga medidas reales
+        requestAnimationFrame(() => {
+          const popRect = popover.getBoundingClientRect();
+          const padding = 12;
+          let left = rect.left;
+          // No salirse por la derecha
+          if (left + popRect.width > window.innerWidth - padding) {
+            left = window.innerWidth - popRect.width - padding;
+          }
+          // No salirse por la izquierda
+          if (left < padding) left = padding;
+          let top = rect.bottom + 8;
+          // Si no cabe abajo, ponerlo arriba del pill
+          if (top + popRect.height > window.innerHeight - padding) {
+            top = rect.top - popRect.height - 8;
+          }
+          popover.style.left = `${left}px`;
+          popover.style.top = `${top}px`;
+        });
+      }
     });
   });
 
@@ -15403,49 +15392,6 @@ setTimeout(() => {
 }, 200);
 
 animate();
-
-// ============================================================
-// GAVIOTAS OCASIONALES cruzando el cielo
-// ============================================================
-// Cada 40-80 segundos aparece una gaviota que cruza el cielo de izquierda
-// a derecha. Son un detalle sutil que hace la escena más viva.
-function spawnSeagull() {
-  const seagull = document.createElement('div');
-  seagull.className = 'seagull';
-  seagull.innerHTML = `
-    <svg viewBox="0 0 24 14" xmlns="http://www.w3.org/2000/svg">
-      <path d="M 2 10 Q 5 4, 12 7 Q 19 4, 22 10"
-            stroke="#2a2430" stroke-width="1.3"
-            fill="none" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
-  `;
-  // Altura aleatoria
-  seagull.style.top = (15 + Math.random() * 18) + '%';
-  // Velocidad ligeramente variable
-  const duration = 16 + Math.random() * 6;
-  seagull.style.animationDuration = duration + 's';
-  document.body.appendChild(seagull);
-  // Limpiar después de que termina
-  setTimeout(() => seagull.remove(), duration * 1000 + 100);
-}
-
-function scheduleNextSeagull() {
-  const delay = 35000 + Math.random() * 40000;  // 35-75 segundos
-  setTimeout(() => {
-    spawnSeagull();
-    // Ocasionalmente una segunda gaviota poco después (pareja)
-    if (Math.random() < 0.35) {
-      setTimeout(() => spawnSeagull(), 1500 + Math.random() * 2000);
-    }
-    scheduleNextSeagull();
-  }, delay);
-}
-
-// Primera gaviota aparece después de 15-25 segundos de abrir el sitio
-setTimeout(() => {
-  spawnSeagull();
-  scheduleNextSeagull();
-}, 15000 + Math.random() * 10000);
 </script>
 
 </body>
