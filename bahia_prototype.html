@@ -3368,6 +3368,23 @@
     pointer-events: none;
   }
 
+  /* Día bloqueado por reserva existente (Airbnb/VRBO/directa) */
+  .vrm-calendar-day.blocked {
+    color: rgba(26, 36, 56, 0.28);
+    background: repeating-linear-gradient(
+      135deg,
+      rgba(26, 36, 56, 0.04),
+      rgba(26, 36, 56, 0.04) 4px,
+      rgba(26, 36, 56, 0.10) 4px,
+      rgba(26, 36, 56, 0.10) 8px
+    );
+    cursor: not-allowed;
+    pointer-events: none;
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+    text-decoration-color: rgba(120, 50, 50, 0.45);
+  }
+
   .vrm-calendar-day:not(.empty):not(.disabled):not(.selected):not(.in-range):hover {
     background: rgba(255,255,255,.85);
     transform: scale(1.1);
@@ -8519,6 +8536,70 @@
   }
 
 </style>
+
+<!-- ==========================================================
+     SUPABASE CLIENT — para disponibilidad y reservas directas
+========================================================== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // Cliente Supabase global. La publishable key es segura para exponerse
+  // (RLS controla qué se puede leer/escribir desde el frontend).
+  window.vrmSupabase = window.supabase.createClient(
+    'https://grsykedeppdwenpfxlfh.supabase.co',
+    'sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm'
+  );
+
+  // Cache de fechas bloqueadas por unit (TTL 5 min)
+  window.availabilityCache = {};
+
+  /**
+   * Carga las fechas bloqueadas de una unit desde Supabase.
+   * Devuelve un Set de strings YYYY-MM-DD que están ocupadas (check_in inclusive,
+   * check_out exclusive — el día de salida queda libre para el siguiente).
+   */
+  async function loadAvailability(unitId) {
+    if (!unitId) return new Set();
+
+    // Cache hit
+    const cached = window.availabilityCache[unitId];
+    if (cached && (Date.now() - cached.ts) < 5 * 60 * 1000) {
+      return cached.blocked;
+    }
+
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data, error } = await window.vrmSupabase
+        .from('public_availability')
+        .select('check_in, check_out')
+        .eq('unit_id', unitId)
+        .gte('check_out', today);
+
+      if (error) {
+        console.warn('[VRM] loadAvailability error:', error.message);
+        return new Set();
+      }
+
+      // Expandir cada rango a fechas individuales
+      const blocked = new Set();
+      (data || []).forEach(b => {
+        let cur = new Date(b.check_in + 'T00:00:00');
+        const end = new Date(b.check_out + 'T00:00:00');
+        while (cur < end) {
+          blocked.add(cur.toISOString().slice(0, 10));
+          cur.setDate(cur.getDate() + 1);
+        }
+      });
+
+      window.availabilityCache[unitId] = { blocked, ts: Date.now() };
+      return blocked;
+    } catch (err) {
+      console.warn('[VRM] loadAvailability exception:', err);
+      return new Set();
+    }
+  }
+  window.loadAvailability = loadAvailability;
+</script>
+
 </head>
 <body>
 
@@ -12820,6 +12901,8 @@ setTimeout(() => {
 
 function openPropertyCard(p) {
   currentProperty = p;
+  // Guardar el unit_id de la unit visible para que el calendar lo lea
+  window._currentPropertyUnitId = p.selectedUnit || null;
 
   // Bloquear scroll del body mientras la sheet está abierta
   document.body.style.overflow = 'hidden';
@@ -13131,6 +13214,8 @@ let calCurrentMonth = new Date();
 let calSelectedCheckin = null;
 let calSelectedCheckout = null;
 let calActiveField = 'checkin';   // qué fecha estamos seleccionando: checkin o checkout
+let calUnitId = null;             // unit_id de la unit actualmente abierta (para disponibilidad)
+let calBlockedDates = new Set();  // fechas bloqueadas de la unit actual (YYYY-MM-DD)
 
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -13179,10 +13264,18 @@ function renderCalendar() {
   // Días del mes
   for (let d = 1; d <= lastDay; d++) {
     const dayDate = new Date(year, month, d);
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const classes = ['vrm-calendar-day'];
 
     if (dayDate < today) classes.push('disabled');
     if (isSameDay(dayDate, today)) classes.push('today');
+
+    // Día bloqueado por reserva existente (Airbnb/VRBO/etc)
+    const isBlocked = calBlockedDates.has(dateStr);
+    if (isBlocked) {
+      classes.push('blocked');
+      classes.push('disabled');  // también no clickeable
+    }
 
     const isCheckin = calSelectedCheckin && isSameDay(dayDate, calSelectedCheckin);
     const isCheckout = calSelectedCheckout && isSameDay(dayDate, calSelectedCheckout);
@@ -13191,11 +13284,11 @@ function renderCalendar() {
       classes.push('selected');
       if (isCheckin) classes.push('range-start');
       if (isCheckout) classes.push('range-end');
-    } else if (isInRange(dayDate)) {
+    } else if (isInRange(dayDate) && !isBlocked) {
       classes.push('in-range');
     }
 
-    days.push(`<div class="${classes.join(' ')}" data-date="${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}">${d}</div>`);
+    days.push(`<div class="${classes.join(' ')}" data-date="${dateStr}">${d}</div>`);
   }
 
   grid.innerHTML = days.join('');
@@ -13255,19 +13348,45 @@ function updateCalendarStatus() {
 function openCalendar(field) {
   calActiveField = field;
   calCurrentMonth = calSelectedCheckin ? new Date(calSelectedCheckin) : new Date();
+  // Intentar detectar la unit actualmente abierta en el detalle
+  // Buscamos en el DOM si hay una card de propiedad activa con data-unit
+  const activeCard = document.querySelector('.va-card.active, .property-card.active, [data-active-unit]');
+  const detectedUnit = activeCard?.dataset?.activeUnit || activeCard?.dataset?.unit || window._currentPropertyUnitId || null;
+  calUnitId = detectedUnit;
+  calBlockedDates = new Set();
   document.getElementById('vrm-calendar').classList.add('active');
   renderCalendar();
+  // Si hay una unit asociada al calendar, cargar su disponibilidad
+  refreshAvailability();
+}
+
+// Recarga las fechas bloqueadas de la unit actual y re-renderiza el calendar.
+async function refreshAvailability() {
+  if (!calUnitId) {
+    calBlockedDates = new Set();
+    return;
+  }
+  if (typeof window.loadAvailability !== 'function') return;
+  try {
+    calBlockedDates = await window.loadAvailability(calUnitId);
+    renderCalendar();
+  } catch (err) {
+    console.warn('[VRM] refreshAvailability failed:', err);
+    calBlockedDates = new Set();
+  }
 }
 
 // Función pública que el search bar usa para abrir el calendar.
-// Permite pasar un callback custom y fechas iniciales.
-// Usa la misma UI del calendar existente pero con un onConfirm distinto.
+// Permite pasar un callback custom, fechas iniciales y unitId para disponibilidad.
 let _vrmCalendarOnConfirm = null;
 window.openVrmCalendar = function(opts) {
   opts = opts || {};
   // Setear estado inicial desde opts
   if (opts.currentCheckin) calSelectedCheckin = new Date(opts.currentCheckin);
   if (opts.currentCheckout) calSelectedCheckout = new Date(opts.currentCheckout);
+  // Setear unit_id para cargar disponibilidad real (si viene)
+  calUnitId = opts.unitId || null;
+  calBlockedDates = new Set();
   // Guardar callback custom (sobreescribe applyCalendarSelection cuando se usa)
   _vrmCalendarOnConfirm = opts.onConfirm || null;
   // Abrir como un check-in (después el usuario puede mover ambas)
@@ -13275,6 +13394,8 @@ window.openVrmCalendar = function(opts) {
   calCurrentMonth = calSelectedCheckin ? new Date(calSelectedCheckin) : new Date();
   document.getElementById('vrm-calendar').classList.add('active');
   renderCalendar();
+  // Cargar disponibilidad si hay unit
+  refreshAvailability();
 };
 
 function closeCalendar() {
@@ -13409,6 +13530,7 @@ function closePropertyCard() {
   cardOverlay.classList.remove('active');
   document.body.style.overflow = '';
   document.body.classList.remove('property-card-active');
+  window._currentPropertyUnitId = null;
 }
 
 // ============================================================
