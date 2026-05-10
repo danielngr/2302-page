@@ -6680,26 +6680,37 @@
       transform: translateX(-50%) translateY(0) !important;
     }
 
-    /* Slots compactos para mobile */
+    /* Slots compactos para mobile - pero legibles para usuarios 60+ */
     #search-bar .search-slot {
       flex: 1 !important;
-      padding: 7px 10px !important;
+      padding: 9px 10px !important;
       border-radius: 0 !important;
       background: transparent !important;
       border: none !important;
       min-width: 0 !important;
+      gap: 3px !important;
     }
     #search-bar .search-slot .search-label {
-      font-size: 7px !important;
-      letter-spacing: 0.18em !important;
-      margin-bottom: 1px !important;
+      font-size: 8px !important;
+      letter-spacing: 0.16em !important;
+      margin-bottom: 0 !important;
+      line-height: 1.1 !important;
     }
     #search-bar .search-slot .search-value {
-      font-size: 10px !important;
-      letter-spacing: 0 !important;
+      font-size: 12px !important;
+      font-weight: 500 !important;
+      letter-spacing: -0.005em !important;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      line-height: 1.2 !important;
+    }
+    /* En estado vacío (placeholder) usar la fuente serif compacta */
+    #search-bar .search-slot.empty .search-value {
+      font-family: 'Cormorant Garamond', serif !important;
+      font-size: 13px !important;
+      font-style: italic;
+      font-weight: 400 !important;
     }
 
     /* Mantener separadores visibles entre slots para el look "pill conectada" */
@@ -14515,11 +14526,15 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
   checkinSlot.classList.add('empty');
   checkoutSlot.classList.add('empty');
 
-  // Format date helper: "23 jun"
+  // Format date helper: "23 Jun" — bilingüe, super compacto
   function formatDate(d) {
-    const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
-                    'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-    return `${d.getDate()} ${months[d.getMonth()]}`;
+    const isEN = (typeof VRM_LANG !== 'undefined' && VRM_LANG === 'en');
+    const monthsES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
+                      'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const monthsEN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = isEN ? monthsEN : monthsES;
+    return isEN ? `${months[d.getMonth()]} ${d.getDate()}` : `${d.getDate()} ${months[d.getMonth()]}`;
   }
 
   // ===== CHECK-IN / CHECK-OUT =====
@@ -14620,23 +14635,33 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
   function updateSearchUI() {
     if (searchState.checkin) {
       checkinValue.textContent = formatDate(searchState.checkin);
+      // Quitar data-i18n para que el sistema de traducción no sobreescriba la fecha
+      checkinValue.removeAttribute('data-i18n');
       checkinSlot.classList.remove('empty');
     } else {
-      checkinValue.textContent = 'Selecciona fecha';
+      checkinValue.textContent = t('searchbar.placeholder.dates');
+      checkinValue.setAttribute('data-i18n', 'searchbar.placeholder.dates');
       checkinSlot.classList.add('empty');
     }
 
     if (searchState.checkout) {
       checkoutValue.textContent = formatDate(searchState.checkout);
+      checkoutValue.removeAttribute('data-i18n');
       checkoutSlot.classList.remove('empty');
     } else {
-      checkoutValue.textContent = 'Selecciona fecha';
+      checkoutValue.textContent = t('searchbar.placeholder.dates');
+      checkoutValue.setAttribute('data-i18n', 'searchbar.placeholder.dates');
       checkoutSlot.classList.add('empty');
     }
 
     const tot = totalGuests();
-    const babiesText = searchState.babies > 0 ? `, ${searchState.babies} bebé${searchState.babies > 1 ? 's' : ''}` : '';
-    guestsValue.textContent = `${tot} ${tot === 1 ? 'persona' : 'personas'}${babiesText}`;
+    const isEN = (typeof VRM_LANG !== 'undefined' && VRM_LANG === 'en');
+    const personaSing = isEN ? 'guest' : 'persona';
+    const personaPlur = isEN ? 'guests' : 'personas';
+    const bebeSing = isEN ? 'baby' : 'bebé';
+    const bebePlur = isEN ? 'babies' : 'bebés';
+    const babiesText = searchState.babies > 0 ? `, ${searchState.babies} ${searchState.babies > 1 ? bebePlur : bebeSing}` : '';
+    guestsValue.textContent = `${tot} ${tot === 1 ? personaSing : personaPlur}${babiesText}`;
 
     // ¿Hay search activo?
     const hasSearch = !!(searchState.checkin && searchState.checkout) ||
@@ -14664,15 +14689,21 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
     }
 
     // Update label de disponibilidad
+    const isEN2 = (typeof VRM_LANG !== 'undefined' && VRM_LANG === 'en');
+    const dispWord = isEN2 ? 'available' : 'disponibles';
+    const propsWord = isEN2 ? 'properties' : 'propiedades';
+    const forWord = isEN2 ? 'for' : 'para';
+    const personaSing2 = isEN2 ? 'guest' : 'persona';
+    const personaPlur2 = isEN2 ? 'guests' : 'personas';
     if (bar.classList.contains('has-search')) {
       if (checkin && checkout) {
         availabilityText.textContent =
-          `${availableCount} disponibles · ${formatDate(checkin)} → ${formatDate(checkout)}`;
+          `${availableCount} ${dispWord} · ${formatDate(checkin)} → ${formatDate(checkout)}`;
       } else {
-        availabilityText.textContent = `${availableCount} para ${tot} ${tot === 1 ? 'persona' : 'personas'}`;
+        availabilityText.textContent = `${availableCount} ${forWord} ${tot} ${tot === 1 ? personaSing2 : personaPlur2}`;
       }
     } else {
-      availabilityText.textContent = `${totalCount} propiedades`;
+      availabilityText.textContent = `${totalCount} ${propsWord}`;
     }
   }
 
@@ -14694,6 +14725,12 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
   // Inicializar UI
   updateSearchUI();
   applyAvailabilityFilter();
+
+  // Re-renderizar al cambiar idioma (nombres de meses, "personas/guests", etc.)
+  document.addEventListener('vrm:lang-changed', () => {
+    updateSearchUI();
+    applyAvailabilityFilter();
+  });
 })();
 
 
