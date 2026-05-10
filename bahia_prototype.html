@@ -13340,17 +13340,31 @@ function getZoneYaw(zoneName) {
 }
 
 // Calcula el yaw exacto para apuntar la cámara a una propiedad por su id.
-// Usa la misma fórmula geométrica que positionProperties() para garantizar
-// que la cámara apunte donde el dot/logo está renderizado en pantalla.
+// Usa camera.lookAt() de Three.js como fuente de verdad para evitar errores
+// de signo o convención. El yaw resultante se aplica al render loop.
 function computeYawForProperty(propId) {
   const prop = propertyData.find(p => p.id === propId);
   if (!prop) return 0;
   const angleSpan = Math.PI * 1.15;
   const halfAngle = angleSpan / 2;
   const propAngle = Math.PI - halfAngle + prop.t * angleSpan;
-  const px = Math.sin(propAngle);
-  const pz = -Math.cos(propAngle);
-  const desiredRotY = Math.atan2(px, -pz);
+  const radius = 458;
+  const target = new THREE.Vector3(
+    Math.sin(propAngle) * radius,
+    prop.heightOffset || 0,
+    -Math.cos(propAngle) * radius
+  );
+
+  // Usar una cámara temporal en la misma posición que la real,
+  // hacerle lookAt al target, y leer la rotation.y resultante.
+  const tempCam = new THREE.Object3D();
+  tempCam.position.set(0, 2.5, 0);
+  tempCam.rotation.order = 'YXZ';
+  tempCam.lookAt(target);
+  const desiredRotY = tempCam.rotation.y;
+
+  // El render hace: camera.rotation.y = Math.PI + curYaw
+  // → curYaw = desiredRotY - Math.PI
   let yaw = desiredRotY - Math.PI;
   while (yaw > Math.PI) yaw -= 2 * Math.PI;
   while (yaw < -Math.PI) yaw += 2 * Math.PI;
@@ -14074,6 +14088,7 @@ setupGridFilters();
     ctaBtn.addEventListener('click', () => {
       // Apuntar la cámara a Quiya antes de revelar el panorama
       const quiyaYaw = computeYawForProperty('vallarta_gardens_quiya');
+      console.log('[VRM] Setting camera yaw to Quiya:', quiyaYaw, '(deg:', quiyaYaw * 180 / Math.PI, ')');
       targetYaw = quiyaYaw;
       curYaw = quiyaYaw;
 
@@ -14085,6 +14100,11 @@ setupGridFilters();
       // - Carrusel "Algunas de nuestras propiedades"
       // - Barra liquid glass (check-in/out/huéspedes)
       setTimeout(() => {
+        // Re-aplicar yaw por si algo lo movió durante el fade
+        targetYaw = quiyaYaw;
+        curYaw = quiyaYaw;
+        console.log('[VRM] Re-applied Quiya yaw after fade. curYaw:', curYaw);
+
         window.dispatchEvent(new Event('hero-dismissed'));
         document.body.classList.add('explore-active');
 
