@@ -4277,13 +4277,13 @@
       border-radius: 22px 22px 0 0 !important;
       padding: 14px 18px calc(14px + env(safe-area-inset-bottom)) !important;
       gap: 10px !important;
+      /* Por default oculto bajo el viewport */
+      transform: translateY(110%) !important;
     }
 
-    /* En mobile el footer NO se puede ocultar abajo del viewport tanto, lo mostramos
-       desde justo afuera del bottom (no 50px más allá) */
-    .card-version-a .va-footer-sticky:not(.visible),
-    .va-footer-sticky:not(.visible) {
-      transform: translateY(110%) !important;
+    /* Cuando el overlay tiene .scrolled, el footer aparece */
+    .property-card-overlay[data-version="A"].active.scrolled .va-footer-sticky {
+      transform: translateY(0) !important;
     }
   }
 
@@ -6650,8 +6650,34 @@
     margin: 0 !important;
   }
 
+  /* En mobile la zone-tag y el indicador están a la misma altura → chocan.
+     Subimos el indicador para que quede arriba de la zone-tag */
+  html.is-mobile .card-version-a .va-gallery-indicator {
+    bottom: auto !important;
+    top: calc(58vh - 60px) !important;
+    left: 50% !important;
+    right: auto !important;
+  }
+
+  html.is-mobile .card-version-a .va-zone-tag {
+    bottom: 14px !important;
+    left: 16px !important;
+    font-size: 9px !important;
+    padding: 7px 11px !important;
+  }
+
   html.is-mobile .card-version-a .va-body {
     padding: 28px 20px 140px !important;
+    /* Esquinas superiores redondeadas — el panel info sube como sheet */
+    border-radius: 24px 24px 0 0 !important;
+    margin-top: -24px !important;  /* solapa la galería para crear el efecto */
+    position: relative !important;
+    z-index: 2 !important;
+    /* Background sólido para tapar el solape con la galería */
+    background: linear-gradient(180deg,
+      rgba(20, 14, 28, 0.98) 0%,
+      rgba(10, 6, 18, 1) 100%) !important;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4) !important;
   }
 
   html.is-mobile .card-version-a .va-name {
@@ -11768,9 +11794,15 @@ function openPropertyCard(p) {
       // se renderizó). Si lo recalculamos durante scroll, los cambios de height
       // del contenido (galería que se carga, footer que aparece) crean rebote.
       let scrollThreshold = null;
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
       const computeThreshold = () => {
         const bookingPanel = card.querySelector('.va-booking');
         if (!bookingPanel || bookingPanel.offsetHeight === 0) return null;
+        // En mobile: aparecer cuando el usuario scrollea ~30% del booking panel
+        // (no esperar a pasar todo el panel — eso es demasiado tarde)
+        if (isMobile) {
+          return bookingPanel.offsetTop + 80;
+        }
         return bookingPanel.offsetTop + bookingPanel.offsetHeight - 60;
       };
       // Esperar un frame para que offsetTop sea correcto
