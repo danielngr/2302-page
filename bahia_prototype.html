@@ -4282,6 +4282,8 @@
       transform: translateY(110%) !important;
       pointer-events: none !important;
       display: flex !important;
+      /* Z-index ALTO para estar ENCIMA de la card (que tiene z-index 1000) */
+      z-index: 1100 !important;
     }
 
     /* Cuando el overlay tiene .scrolled, el footer aparece */
@@ -11827,10 +11829,11 @@ function openPropertyCard(p) {
       let scrollThreshold = null;
       const isMobile = window.matchMedia('(max-width: 768px)').matches;
       const computeThreshold = () => {
-        const bookingPanel = card.querySelector('.va-booking');
-        if (!bookingPanel || bookingPanel.offsetHeight === 0) return null;
-        // En mobile y desktop: aparecer cuando el usuario pasó el booking panel
-        return bookingPanel.offsetTop + bookingPanel.offsetHeight - 60;
+        // El footer aparece cuando el usuario llegó al ~70% del scroll total
+        // (cerca del final, donde ya vio toda la información)
+        const totalScroll = card.scrollHeight - card.clientHeight;
+        if (totalScroll <= 0) return null;
+        return totalScroll * 0.65;  // 65% del scroll total = aparece en la última parte
       };
       // Esperar un frame para que offsetTop sea correcto
       requestAnimationFrame(() => {
