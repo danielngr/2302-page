@@ -13516,9 +13516,6 @@ setVersion('A');
 // Solo panea cuando el mouse se acerca a los bordes (últimos 30% a cada lado).
 // Además, se congela completamente cuando el mouse está sobre una luz.
 let targetYaw = 0, targetPitch = 0, curYaw = 0, curPitch = 0;
-// Helper de debug: window.setYaw(0.5) en consola para probar diferentes valores
-window.setYaw = (v) => { targetYaw = v; curYaw = v; console.log('yaw set to', v, '(', v*180/Math.PI, 'deg)'); };
-window.getYaw = () => ({ targetYaw, curYaw, deg: curYaw * 180 / Math.PI });
 let cameraFrozen = false;
 
 // Cuando hay un filtro de zona activo, la cámara apunta hacia esa zona.
@@ -13544,21 +13541,15 @@ function getZoneYaw(zoneName) {
 function computeYawForProperty(propId) {
   const prop = propertyData.find(p => p.id === propId);
   if (!prop) return 0;
-  const normalized = (prop.t - 0.5) * 2;  // [-1..1]
-  // Coeficiente igual al que usa getZoneYaw — funciona con los handlers existentes
-  let yaw = normalized * Math.PI * 0.24;
-  // Offset específico para Quiya: mover más a la izquierda
+
+  // Valor calibrado manualmente para Quiya (mobile)
   if (propId === 'vallarta_gardens_quiya') {
-    yaw -= Math.PI * 0.05;  // ~9° más a la izquierda
+    return 0.8611;
   }
-  // Permitir override manual desde consola para calibrar:
-  // window.QUIYA_YAW_OVERRIDE = 0.5  (en radianes)
-  if (propId === 'vallarta_gardens_quiya' && window.QUIYA_YAW_OVERRIDE !== undefined) {
-    yaw = window.QUIYA_YAW_OVERRIDE;
-  }
-  return yaw;
+
+  const normalized = (prop.t - 0.5) * 2;  // [-1..1]
+  return normalized * Math.PI * 0.24;
 }
-window.computeYawForProperty = computeYawForProperty;
 
 // Zona muerta: del 35% al 65% del ancho de pantalla, la cámara no se mueve
 const EDGE_DEAD_ZONE = 0.50;      // 50% central → sin pan horizontal (más zona quieta)
@@ -15455,82 +15446,6 @@ setTimeout(() => {
   spawnSeagull();
   scheduleNextSeagull();
 }, 15000 + Math.random() * 10000);
-
-// ============================================================
-// CALIBRADOR DE YAW — solo activo durante calibración manual
-// Activar con: window.showYawCalibrator()
-// Desactivar con: window.hideYawCalibrator()
-// ============================================================
-(function() {
-  let calibratorEl = null;
-  let displayEl = null;
-
-  function makeCalibrator() {
-    if (calibratorEl) return;
-    calibratorEl = document.createElement('div');
-    calibratorEl.style.cssText = `
-      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-      z-index: 99999; background: rgba(20,15,10,0.92);
-      border: 1px solid rgba(220,160,110,0.4); border-radius: 14px;
-      padding: 14px 16px; display: flex; flex-direction: column;
-      gap: 10px; align-items: center; backdrop-filter: blur(20px);
-      font-family: 'Inter Tight', sans-serif; color: white;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
-    `;
-    calibratorEl.innerHTML = `
-      <div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;opacity:0.6;">Calibrador yaw</div>
-      <div id="yaw-display" style="font-family:monospace;font-size:16px;font-weight:600;color:#f5c891;">--</div>
-      <div style="display:flex;gap:8px;">
-        <button id="yaw-left-big" style="padding:10px 16px;background:rgba(220,160,110,0.2);border:1px solid rgba(220,160,110,0.4);border-radius:8px;color:white;cursor:pointer;font-size:14px;">⟵⟵</button>
-        <button id="yaw-left" style="padding:10px 16px;background:rgba(220,160,110,0.2);border:1px solid rgba(220,160,110,0.4);border-radius:8px;color:white;cursor:pointer;font-size:14px;">⟵</button>
-        <button id="yaw-right" style="padding:10px 16px;background:rgba(220,160,110,0.2);border:1px solid rgba(220,160,110,0.4);border-radius:8px;color:white;cursor:pointer;font-size:14px;">⟶</button>
-        <button id="yaw-right-big" style="padding:10px 16px;background:rgba(220,160,110,0.2);border:1px solid rgba(220,160,110,0.4);border-radius:8px;color:white;cursor:pointer;font-size:14px;">⟶⟶</button>
-      </div>
-      <button id="yaw-copy" style="padding:6px 12px;background:rgba(245,200,145,0.25);border:1px solid rgba(245,200,145,0.5);border-radius:6px;color:white;cursor:pointer;font-size:11px;letter-spacing:0.1em;">COPIAR VALOR</button>
-    `;
-    document.body.appendChild(calibratorEl);
-    displayEl = document.getElementById('yaw-display');
-
-    const STEP_SMALL = 0.02;
-    const STEP_BIG = 0.10;
-    const apply = (delta) => {
-      if (typeof targetYaw !== 'undefined') {
-        targetYaw += delta;
-        curYaw = targetYaw;
-        updateDisplay();
-      }
-    };
-    document.getElementById('yaw-left-big').onclick = () => apply(-STEP_BIG);
-    document.getElementById('yaw-left').onclick = () => apply(-STEP_SMALL);
-    document.getElementById('yaw-right').onclick = () => apply(STEP_SMALL);
-    document.getElementById('yaw-right-big').onclick = () => apply(STEP_BIG);
-    document.getElementById('yaw-copy').onclick = () => {
-      const val = (typeof curYaw !== 'undefined' ? curYaw : 0).toFixed(4);
-      navigator.clipboard?.writeText(val).catch(()=>{});
-      const btn = document.getElementById('yaw-copy');
-      btn.textContent = '✓ ' + val;
-      setTimeout(()=>{ btn.textContent = 'COPIAR VALOR'; }, 1500);
-      console.log('Yaw value:', val);
-    };
-  }
-
-  function updateDisplay() {
-    if (!displayEl) return;
-    const v = typeof curYaw !== 'undefined' ? curYaw : 0;
-    const deg = v * 180 / Math.PI;
-    displayEl.textContent = `${v.toFixed(4)} rad (${deg.toFixed(1)}°)`;
-  }
-
-  window.showYawCalibrator = () => {
-    makeCalibrator();
-    if (window._yawCalibratorInterval) clearInterval(window._yawCalibratorInterval);
-    window._yawCalibratorInterval = setInterval(updateDisplay, 100);
-  };
-  window.hideYawCalibrator = () => {
-    if (calibratorEl) { calibratorEl.remove(); calibratorEl = null; displayEl = null; }
-    if (window._yawCalibratorInterval) { clearInterval(window._yawCalibratorInterval); window._yawCalibratorInterval = null; }
-  };
-})();
 </script>
 
 </body>
