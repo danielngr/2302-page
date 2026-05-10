@@ -6953,15 +6953,21 @@
   @media (max-width: 768px) {
     .vrm-topbar {
       gap: 6px !important;
-      padding: calc(10px + env(safe-area-inset-top)) 10px 10px !important;
+      padding: calc(10px + env(safe-area-inset-top)) 14px 10px !important;
       background: rgba(10, 6, 18, 0.85) !important;
     }
     .vrm-topbar-brand { font-size: 14px !important; }
+    .vrm-topbar-actions {
+      gap: 8px !important;  /* menos gap entre tel y reservar */
+    }
     .vrm-topbar-nav { display: flex !important; }
+    .vrm-toggle {
+      padding: 3px !important;
+    }
     .vrm-toggle .toggle-option {
-      padding: 7px 14px !important;
+      padding: 7px 16px !important;
       font-size: 10px !important;
-      letter-spacing: 0.12em !important;
+      letter-spacing: 0.14em !important;
     }
     .vrm-topbar-phone {
       /* Botón redondo solo con ícono — ahorra espacio */
@@ -6983,9 +6989,9 @@
       display: none !important;  /* texto Contáctanos oculto en mobile */
     }
     .vrm-topbar-cta {
-      padding: 9px 16px !important;
-      font-size: 10px !important;
-      letter-spacing: 0.12em !important;
+      padding: 8px 14px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.10em !important;
     }
   }
 
@@ -7950,7 +7956,7 @@
       </svg>
       <span class="phone-num">Contáctanos</span>
     </a>
-    <button class="vrm-topbar-cta" id="vrm-topbar-reserve">Reservar</button>
+    <button class="vrm-topbar-cta" id="vrm-topbar-reserve" style="display: none;" aria-hidden="true">Reservar</button>
   </div>
 </header>
 
@@ -12261,8 +12267,9 @@ window.addEventListener('touchmove', (e) => {
 function processTouchInput() {
   if (touchActive && pendingTouchX !== null) {
     const dx = pendingTouchX - touchStartX;
-    // Sensibilidad: ~ pantalla completa = 60% de MAX_YAW (sensible pero controlable)
-    const sensitivity = MAX_YAW / window.innerWidth * 1.4;
+    // Sensibilidad reducida: pantalla completa = ~50% de MAX_YAW
+    // (más lento que antes para mejor control sin ser lentísimo)
+    const sensitivity = MAX_YAW / window.innerWidth * 0.65;
     targetYaw = Math.max(-MAX_YAW, Math.min(MAX_YAW, touchStartYaw + dx * sensitivity));
     pendingTouchX = null;
 
@@ -13311,9 +13318,9 @@ function animate() {
     targetPitch = cameraZoneLock.pitch;
   }
 
-  // Lerp adaptativo: durante drag mobile, responde casi instantáneo (0.25)
+  // Lerp adaptativo: durante drag mobile, sigue al dedo con smoothing suave (0.15)
   // En idle (mouse desktop), lerp suave (0.018) para evitar mareo
-  const lerpFactor = touchActive ? 0.25 : 0.018;
+  const lerpFactor = touchActive ? 0.15 : 0.018;
   curYaw += (targetYaw - curYaw) * lerpFactor;
   curPitch += (targetPitch - curPitch) * lerpFactor;
 
