@@ -1984,12 +1984,17 @@
     line-height: 1;
     background: linear-gradient(180deg,
       rgba(255, 248, 235, 1) 0%,
-      rgba(220, 160, 110, 0.85) 100%);
+      rgba(245, 210, 160, 1) 50%,
+      rgba(220, 160, 110, 0.95) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     margin: 0 0 14px;
     letter-spacing: -0.01em;
+    /* Drop shadow para que destaque sobre la foto */
+    filter:
+      drop-shadow(0 2px 12px rgba(0, 0, 0, 0.85))
+      drop-shadow(0 0 30px rgba(220, 160, 110, 0.45));
   }
 
   .quiya-units-subtitle {
@@ -2148,14 +2153,22 @@
     margin-right: 2px;
   }
 
-  /* Hover de la card */
-  .quiya-unit-card:hover {
-    transform: translateY(-4px);
-    border-color: rgba(220, 160, 110, 0.5);
-    box-shadow:
-      0 16px 40px rgba(0, 0, 0, 0.55),
-      0 0 60px rgba(220, 160, 110, 0.15);
-    background-size: 110%;
+  /* Hover de la card - solo dispositivos con hover real (desktop) */
+  @media (hover: hover) and (pointer: fine) {
+    .quiya-unit-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(220, 160, 110, 0.5);
+      box-shadow:
+        0 16px 40px rgba(0, 0, 0, 0.55),
+        0 0 60px rgba(220, 160, 110, 0.15);
+      background-size: 110%;
+    }
+  }
+
+  /* Active state mobile: solo un sutil scale-down al tocar (feedback) */
+  .quiya-unit-card:active {
+    transform: scale(0.98);
+    transition: transform 0.15s ease;
   }
 
   /* Footer del panel con CTA "Ver complejo entero" */
@@ -5905,8 +5918,18 @@
     .property-light .complex-logo-svg,
     .property-light .quiya-logo-svg,
     .property-light .maritima-logo-svg,
-    .property-light .bolongo-logo-svg {
+    .property-light .bolongo-logo-svg,
+    .property-light .complex-cta-text,
+    .property-light .quiya-cta-text,
+    .property-light .maritima-cta-text,
+    .property-light .bolongo-cta-text,
+    .property-light .quiya-cta-pill,
+    .property-light .complex-cta-pill,
+    .property-light .quiya-content,
+    .property-light .complex-content {
       pointer-events: auto;
+      touch-action: manipulation; /* elimina el delay de 300ms del double-tap zoom */
+      -webkit-tap-highlight-color: transparent;
     }
   }
 
@@ -11062,10 +11085,14 @@ propertyData.forEach((p, i) => {
     // En mobile: verificar que el target sea la pill clickeable (no el contenedor entero)
     const isMobile = document.documentElement.classList.contains('is-mobile');
     if (isMobile) {
-      // El click debe haber tocado la pill o el logo SVG, NO el contenedor vacío
+      // El click debe haber tocado la pill, su contenedor wrapper, o el logo SVG —
+      // NO el espacio vacío del contenedor general
       const target = ev.target;
-      const validTarget = target.closest('.label, .complex-logo-svg, .quiya-logo-svg, ' +
-                                          '.maritima-logo-svg, .bolongo-logo-svg');
+      const validTarget = target.closest(
+        '.label, .complex-logo-svg, .quiya-logo-svg, .maritima-logo-svg, .bolongo-logo-svg, ' +
+        '.complex-cta-text, .quiya-cta-text, .maritima-cta-text, .bolongo-cta-text, ' +
+        '.quiya-cta-pill, .complex-cta-pill, .quiya-content, .complex-content'
+      );
       if (!validTarget) {
         return; // tap fuera de la pill — no abre el complejo
       }
