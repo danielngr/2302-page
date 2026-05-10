@@ -13364,10 +13364,15 @@ function computeYawForProperty(propId) {
   const desiredRotY = tempCam.rotation.y;
 
   // El render hace: camera.rotation.y = Math.PI + curYaw
-  // → curYaw = desiredRotY - Math.PI
-  let yaw = desiredRotY - Math.PI;
+  // El signo del yaw está invertido respecto a lookAt (convención del proyecto).
+  // Invertimos signo:
+  let yaw = -(desiredRotY - Math.PI);
   while (yaw > Math.PI) yaw -= 2 * Math.PI;
   while (yaw < -Math.PI) yaw += 2 * Math.PI;
+  // Offset configurable: ajusta a la derecha. Positivo = mueve a la derecha.
+  // Para Quiya en mobile sin offset apunta cerca pero queda corrida a la izquierda.
+  const offset = Math.PI * 0.08;  // ~14.4° a la derecha
+  yaw += offset;
   return Math.max(-MAX_YAW, Math.min(MAX_YAW, yaw));
 }
 
@@ -14088,7 +14093,6 @@ setupGridFilters();
     ctaBtn.addEventListener('click', () => {
       // Apuntar la cámara a Quiya antes de revelar el panorama
       const quiyaYaw = computeYawForProperty('vallarta_gardens_quiya');
-      console.log('[VRM] Setting camera yaw to Quiya:', quiyaYaw, '(deg:', quiyaYaw * 180 / Math.PI, ')');
       targetYaw = quiyaYaw;
       curYaw = quiyaYaw;
 
@@ -14103,7 +14107,6 @@ setupGridFilters();
         // Re-aplicar yaw por si algo lo movió durante el fade
         targetYaw = quiyaYaw;
         curYaw = quiyaYaw;
-        console.log('[VRM] Re-applied Quiya yaw after fade. curYaw:', curYaw);
 
         window.dispatchEvent(new Event('hero-dismissed'));
         document.body.classList.add('explore-active');
