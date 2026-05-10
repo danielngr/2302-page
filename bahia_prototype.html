@@ -47,6 +47,8 @@
     color: var(--ink);
     margin: 0;
     padding: 0;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   /* Durante el intro: el body tiene altura del scrolly (4 frames de 100vh)
@@ -970,33 +972,55 @@
   /* Responsive: en móvil cards más chicas y barra abajo */
   @media (max-width: 768px) {
     .featured-strip {
-      /* Subimos el carrusel para que quede ARRIBA de la search bar (sticky bottom) */
-      bottom: calc(100px + env(safe-area-inset-bottom));
+      /* El carrusel arriba en mobile (la search bar está arriba ahora) */
+      bottom: calc(20px + env(safe-area-inset-bottom));
     }
     .featured-eyebrow {
       font-size: 8px;
       letter-spacing: 0.3em;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
     .featured-card {
-      flex: 0 0 200px;
-      height: 250px;
+      flex: 0 0 170px;
+      height: 220px;
+    }
+    .featured-card .card-image {
+      height: 130px;
+    }
+    .featured-card .card-content {
+      padding: 10px 12px;
+    }
+    .featured-card .card-name {
+      font-size: 14px;
+    }
+    .featured-card .card-zone {
+      font-size: 7px;
+    }
+    .featured-card .card-meta {
+      font-size: 9px;
+    }
+    .featured-card .card-price {
+      font-size: 13px;
+    }
+    .featured-card .card-rating {
+      font-size: 9px;
     }
     .featured-track-wrap {
       max-width: 100%;
-      padding: 0 !important;  /* override el padding de 56px del desktop */
+      padding: 0 !important;
     }
     .featured-track {
-      padding: 8px 16px 8px !important;
-      gap: 12px;
+      padding: 6px 14px 6px !important;
+      gap: 10px;
+      scroll-padding-left: 14px;
     }
     .featured-arrow { display: none; }
     .featured-see-all-wrap {
-      margin-top: 12px;
+      margin-top: 10px;
     }
     .featured-see-all {
-      font-size: 10px;
-      padding: 8px 18px;
+      font-size: 9px;
+      padding: 7px 16px;
     }
   }
 
@@ -6366,61 +6390,78 @@
 
   /* DUPLICADO via media query para asegurar que aplique aunque is-mobile no esté */
   @media (max-width: 768px) {
+    /* Search bar mobile: PILL LIQUID GLASS flotante arriba (debajo del topbar)
+       NO una barra rectangular abajo — preservamos el look premium */
     #search-bar.search-bar {
       position: fixed !important;
-      bottom: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      top: auto !important;
-      transform: none !important;
-      border-radius: 24px 24px 0 0 !important;
+      top: 80px !important;
+      bottom: auto !important;
+      left: 50% !important;
+      right: auto !important;
+      transform: translateX(-50%) !important;
+      width: calc(100% - 24px) !important;
+      max-width: 380px !important;
+      border-radius: 80px !important;
       margin: 0 !important;
-      padding: 14px 16px calc(14px + env(safe-area-inset-bottom)) !important;
-      background:
-        linear-gradient(180deg,
-          rgba(20, 10, 22, 0.92) 0%,
-          rgba(10, 6, 18, 0.98) 100%) !important;
+      padding: 5px !important;
+      background: linear-gradient(180deg, rgba(255,255,255,.32), rgba(255,255,255,.12)) !important;
       backdrop-filter: blur(28px) saturate(180%) !important;
       -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
-      border-top: 1px solid rgba(220, 160, 110, 0.18) !important;
-      border-left: none !important;
-      border-right: none !important;
-      border-bottom: none !important;
-      box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.55) !important;
-      z-index: 50 !important;
+      border: 1px solid rgba(255,255,255,.42) !important;
+      box-shadow:
+        0 1.5px 0 rgba(255,255,255,.6) inset,
+        0 -1px 0 rgba(40,60,100,.06) inset,
+        0 14px 38px rgba(20, 30, 50, 0.22),
+        0 4px 12px rgba(20, 30, 50, 0.12) !important;
+      z-index: 90 !important;
       display: flex !important;
-      gap: 10px !important;
-      width: 100% !important;
-      max-width: none !important;
+      gap: 0 !important;
       height: auto !important;
       align-items: stretch !important;
     }
 
+    /* Cuando .ready aplique transform translateY(0) sin perder el centrado X */
+    #search-bar.search-bar.ready {
+      transform: translateX(-50%) translateY(0) !important;
+    }
+
+    /* Slots compactos para mobile */
     #search-bar .search-slot {
-      flex: 1;
-      padding: 12px 14px !important;
-      border-radius: 14px !important;
-      background: rgba(255, 240, 220, 0.06) !important;
-      border: 1px solid rgba(255, 240, 220, 0.1) !important;
-      min-width: 0;
+      flex: 1 !important;
+      padding: 7px 10px !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      border: none !important;
+      min-width: 0 !important;
     }
     #search-bar .search-slot .search-label {
-      font-size: 8px !important;
-      letter-spacing: 0.32em !important;
-      color: rgba(220, 160, 110, 0.85) !important;
+      font-size: 7px !important;
+      letter-spacing: 0.18em !important;
+      margin-bottom: 1px !important;
     }
     #search-bar .search-slot .search-value {
-      font-size: 12px !important;
-      color: rgba(255, 240, 220, 0.95) !important;
+      font-size: 10px !important;
+      letter-spacing: 0 !important;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    #search-bar .search-divider { display: none !important; }
+
+    /* Mantener separadores visibles entre slots para el look "pill conectada" */
+    #search-bar .search-divider {
+      display: block !important;
+      width: 1px !important;
+      background: rgba(255,255,255,.22) !important;
+      margin: 8px 0 !important;
+      flex: 0 0 1px !important;
+    }
     #search-bar .search-icon { display: none !important; }
     #search-bar .search-cta {
       flex: 0 0 auto !important;
-      padding: 0 22px !important;
-      border-radius: 14px !important;
-      font-size: 10px !important;
-      letter-spacing: 0.18em !important;
+      padding: 0 14px !important;
+      border-radius: 80px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.14em !important;
     }
   }
 
