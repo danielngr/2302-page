@@ -18541,6 +18541,36 @@ setInterval(updateTime, 30000);
 const clock = new THREE.Clock();
 let boatT = 0;
 
+// =====================================================================
+// THROTTLE DINÁMICO DE FPS — Mobile only.
+// Cuando el usuario interactúa: 60fps (suave).
+// Cuando está quieto >1s: 24fps (sigue animado, GPU 60% menos).
+// Cuando está quieto >5s: 10fps (olas casi imperceptibles de cambio, GPU 80% menos).
+// En cuanto toca algo, vuelve a 60fps al instante.
+// =====================================================================
+let _lastUserActivity = performance.now();
+let _frameAccumulator = 0;
+
+function markUserActivity() {
+  _lastUserActivity = performance.now();
+}
+
+if (IS_MOBILE) {
+  // Detectar cualquier interacción que requiera fluidez visual
+  const activityEvents = ['touchstart', 'touchmove', 'scroll', 'wheel', 'click'];
+  activityEvents.forEach(ev => {
+    window.addEventListener(ev, markUserActivity, { passive: true, capture: true });
+  });
+}
+
+function getTargetFrameInterval() {
+  if (!IS_MOBILE) return 0;  // desktop: sin throttle
+  const idleMs = performance.now() - _lastUserActivity;
+  if (idleMs < 1000) return 0;          // <1s idle: 60fps
+  if (idleMs < 5000) return 1000 / 24;  // 1-5s idle: 24fps
+  return 1000 / 10;                      // >5s idle: 10fps
+}
+
 function animate() {
   // OPTIMIZACIÓN BATERÍA: skip render si el panorama no es visible (usuario scrolleó)
   // o si la pestaña no está activa (cambió de tab). Re-arranca automáticamente
@@ -18549,12 +18579,30 @@ function animate() {
     return;  // NO llamar requestAnimationFrame — el loop muere hasta que vuelva a ser visible
   }
 
-  const dt = clock.getDelta();
-  const t = clock.getElapsedTime();
-  boatT += dt;
-
-  oceanUniforms.iTime.value = t;
-  oceanUniforms.uCameraPos.value.copy(camera.position);
+  // Throttle dinámico: si estamos en mobile e idle, skipear frames
+  const targetInterval = getTargetFrameInterval();
+  if (targetInterval > 0) {
+    const rawDt = clock.getDelta();
+    _frameAccumulator += rawDt * 1000;  // en ms
+    if (_frameAccumulator < targetInterval) {
+      // No renderizar este frame — solo seguir el loop
+      requestAnimationFrame(animate);
+      return;
+    }
+    // Reset acumulador (sin acumular debt si pasó mucho tiempo)
+    _frameAccumulator = Math.min(_frameAccumulator - targetInterval, targetInterval);
+    // Usar el rawDt acumulado para que las animaciones avancen lo correcto
+    boatT += rawDt;
+    const t = clock.getElapsedTime();
+    oceanUniforms.iTime.value = t;
+    oceanUniforms.uCameraPos.value.copy(camera.position);
+  } else {
+    const dt = clock.getDelta();
+    const t = clock.getElapsedTime();
+    boatT += dt;
+    oceanUniforms.iTime.value = t;
+    oceanUniforms.uCameraPos.value.copy(camera.position);
+  }
 
   // Si hay zoom de zona activo, sobreescribir los targets
   if (cameraZoneLock) {
