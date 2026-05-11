@@ -970,12 +970,17 @@
     position: relative;
     flex: 0 0 232px;
     overflow: hidden;
+    /* Background placeholder dorado mientras carga la imagen */
+    background: linear-gradient(135deg,
+      rgba(60, 40, 30, 0.95) 0%,
+      rgba(80, 55, 35, 0.95) 100%);
   }
 
   .featured-card-photo img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center center;
     transition: transform 1.4s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
@@ -989,8 +994,8 @@
     position: absolute;
     inset: 0;
     background: linear-gradient(180deg,
-      rgba(0, 0, 0, 0.32) 0%,
-      rgba(0, 0, 0, 0) 35%,
+      rgba(0, 0, 0, 0.22) 0%,
+      rgba(0, 0, 0, 0) 40%,
       rgba(0, 0, 0, 0) 100%);
     pointer-events: none;
   }
@@ -1271,19 +1276,19 @@
       letter-spacing: 0.26em;
       margin-bottom: 8px;
     }
-    /* Coverflow style: card central grande, laterales más chicas */
+    /* Coverflow style: card central grande, laterales más chicas y atrás */
     .featured-card {
-      flex: 0 0 195px;
-      height: 265px;
+      flex: 0 0 185px;
+      height: 235px;
       transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1),
                   opacity 0.4s ease,
                   filter 0.4s ease;
       transform-origin: center center;
     }
     .featured-card:not(.is-centered) {
-      transform: scale(0.92);
-      opacity: 0.88;
-      filter: brightness(0.95) saturate(0.96);
+      transform: scale(0.86);
+      opacity: 0.78;
+      filter: brightness(0.92) saturate(0.94);
     }
     .featured-card.is-centered {
       transform: scale(1);
@@ -1291,44 +1296,44 @@
       filter: brightness(1) saturate(1);
     }
     .featured-card-photo {
-      flex: 0 0 158px;
+      flex: 0 0 128px;
     }
     .featured-card-content {
-      padding: 11px 13px 12px;
+      padding: 10px 12px 11px;
     }
     .featured-card-divider {
       width: 18px;
-      margin-bottom: 8px;
+      margin-bottom: 7px;
     }
     .featured-card-zone {
-      font-size: 8.5px;
+      font-size: 8px;
       letter-spacing: 0.22em;
       margin-bottom: 4px;
     }
     .featured-card-name {
-      font-size: 16px;
+      font-size: 15px;
       margin-bottom: 3px;
     }
     .featured-card-view {
-      font-size: 11px;
-    }
-    .featured-card-bottom {
-      padding-top: 8px;
-    }
-    .featured-card-price .amount {
-      font-size: 13px;
-    }
-    .featured-card-price .meta {
-      font-size: 9px;
-    }
-    .featured-card-rating {
       font-size: 10.5px;
     }
-    .featured-card-badge {
+    .featured-card-bottom {
+      padding-top: 7px;
+    }
+    .featured-card-price .amount {
+      font-size: 12.5px;
+    }
+    .featured-card-price .meta {
       font-size: 8.5px;
-      padding: 3px 8px 3px 6px;
-      top: 9px;
-      left: 9px;
+    }
+    .featured-card-rating {
+      font-size: 10px;
+    }
+    .featured-card-badge {
+      font-size: 8px;
+      padding: 3px 7px 3px 5px;
+      top: 8px;
+      left: 8px;
     }
     .featured-track-wrap {
       max-width: 100%;
@@ -1337,10 +1342,10 @@
     /* El track tiene padding lateral grande para que la primera/última card
        puedan estar centradas en pantalla */
     .featured-track {
-      padding: 6px calc(50% - 97.5px) 6px !important;
+      padding: 6px calc(50% - 92.5px) 6px !important;
       gap: 12px;
       scroll-snap-type: x mandatory;
-      scroll-padding: 0 calc(50% - 97.5px);
+      scroll-padding: 0 calc(50% - 92.5px);
       -webkit-overflow-scrolling: auto !important;
       scroll-behavior: smooth !important;
       overscroll-behavior-x: contain;
@@ -1351,12 +1356,18 @@
     }
     .featured-arrow { display: none; }
     .featured-see-all-wrap {
-      margin-top: 10px;
+      margin-top: 8px;
       padding: 0 16px;
     }
     .featured-see-all {
-      font-size: 10.5px;
-      padding: 9px 18px;
+      font-size: 9.5px;
+      padding: 7px 14px;
+      letter-spacing: 0.18em;
+      gap: 7px;
+    }
+    .featured-see-all svg {
+      width: 10px !important;
+      height: 10px !important;
     }
   }
 
@@ -11258,7 +11269,6 @@
 
 <!-- FEATURED STRIP — propiedades destacadas, scroll horizontal cinemático -->
 <div class="featured-strip" id="featured-strip">
-  <div class="featured-eyebrow" data-i18n="featured.eyebrow">Algunas de nuestras propiedades</div>
   <div class="featured-track-wrap">
     <button class="featured-arrow prev" id="featured-prev" aria-label="Anterior">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
@@ -17036,6 +17046,16 @@ const PROPERTY_PHOTOS = {
   window.addEventListener('resize', updateCenteredCard);
   setTimeout(updateCenteredCard, 200);
   setTimeout(updateCenteredCard, 800);  // re-check tras animaciones
+
+  // Cuando el hero se descarta y el strip se vuelve visible, recalcular qué card
+  // está centrada. Sin esto, el strip aparece con todas las cards sin scale
+  // (porque updateCenteredCard se ejecutó cuando el strip estaba con opacity:0
+  // y los getBoundingClientRect retornaban valores no útiles).
+  window.addEventListener('hero-dismissed', () => {
+    setTimeout(updateCenteredCard, 50);
+    setTimeout(updateCenteredCard, 400);
+    setTimeout(updateCenteredCard, 1000);
+  });
 
   // Botón "Ver todas las propiedades" → abre grid overlay
   seeAllBtn.addEventListener('click', () => {
