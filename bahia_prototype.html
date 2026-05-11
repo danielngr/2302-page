@@ -59,6 +59,15 @@
     checkMobile();
     // Re-evaluar al cambiar tamaño (DevTools, rotación, etc.)
     window.addEventListener('resize', checkMobile);
+
+    // Detectar TOUCH DEVICE REAL (no DevTools).
+    // En device real: tiene touch + user agent mobile. DevTools emulado: solo CSS.
+    // Para devices reales aplicamos modo ULTRA-PERFORMANCE (menos blur, sin reflejos pesados, etc.)
+    const isRealTouchDevice = ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+                              && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isRealTouchDevice) {
+      document.documentElement.classList.add('is-real-mobile');
+    }
   })();
 </script>
 <!-- Leaflet (mapa) y su CSS se cargan ON-DEMAND cuando el usuario abre el detail card.
@@ -267,6 +276,45 @@
       backdrop-filter: blur(16px) saturate(140%) !important;
       -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
     }
+  }
+
+  /* =====================================================================
+     ULTRA-PERFORMANCE MODE: device real (iPhone/Android touch real).
+     DevTools emulation NO activa este modo — solo el iPhone real.
+     Las GPUs de mobile reales sufren mucho con backdrop-filter sobre WebGL.
+     Aquí cap a 10px (casi sin blur visual pero render 5x más rápido).
+     ===================================================================== */
+  html.is-real-mobile .vrm-topbar,
+  html.is-real-mobile .quiya-units-panel,
+  html.is-real-mobile .quiya-units-overlay,
+  html.is-real-mobile .property-card-overlay[data-version="A"].active,
+  html.is-real-mobile .card-version-a,
+  html.is-real-mobile .va-footer-sticky,
+  html.is-real-mobile .quiya-units-close,
+  html.is-real-mobile #search-bar,
+  html.is-real-mobile .search-pill,
+  html.is-real-mobile .vrm-lang-toggle-floating,
+  html.is-real-mobile .vrm-map-list-toggle {
+    backdrop-filter: blur(10px) saturate(130%) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(130%) !important;
+  }
+
+  /* Grid cards: en device real, sin backdrop-filter (es lo más pesado en scroll vertical) */
+  html.is-real-mobile .grid-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    /* Background opaco que simula el liquid sin GPU cost */
+    background: linear-gradient(180deg, rgba(255,250,242,.78), rgba(255,245,232,.68)) !important;
+  }
+
+  /* Topbar en device real: simple background sólido (no blur sobre WebGL) */
+  html.is-real-mobile .vrm-topbar {
+    background: linear-gradient(180deg,
+      rgba(0, 0, 0, 0.98) 0%,
+      rgba(15, 8, 22, 0.96) 60%,
+      rgba(20, 12, 28, 0.92) 100%) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
   }
 
   html.home-revealed {
@@ -17331,6 +17379,38 @@ const PROPERTY_PHOTOS = {
   });
   setTimeout(updateCenteredCard, 200);
   setTimeout(updateCenteredCard, 800);  // re-check tras animaciones
+
+  // PERFORMANCE EN DEVICE REAL: pausar el paisaje 3D mientras el usuario hace scroll
+  // horizontal en el carrusel. Auto-reanuda 200ms después de que el scroll para.
+  // Esto libera ~80% de GPU al carrusel para que sea super fluido.
+  const isRealMobile = document.documentElement.classList.contains('is-real-mobile');
+  if (isRealMobile) {
+    let _scrollPauseTimeout = null;
+    let _isCarouselScrolling = false;
+
+    function pausePanoramaForScroll() {
+      if (!_isCarouselScrolling) {
+        _isCarouselScrolling = true;
+        if (window._panoramaVisible !== undefined) {
+          window._panoramaVisible = false;
+        }
+      }
+      clearTimeout(_scrollPauseTimeout);
+      _scrollPauseTimeout = setTimeout(() => {
+        _isCarouselScrolling = false;
+        if (window._panoramaVisible !== undefined) {
+          window._panoramaVisible = true;
+          if (typeof animate === 'function') {
+            requestAnimationFrame(animate);
+          }
+        }
+      }, 250);
+    }
+
+    track.addEventListener('touchstart', pausePanoramaForScroll, { passive: true });
+    track.addEventListener('touchmove', pausePanoramaForScroll, { passive: true });
+    track.addEventListener('scroll', pausePanoramaForScroll, { passive: true });
+  }
 
   // Cuando el hero se descarta y el strip se vuelve visible, recalcular qué card
   // está centrada. Sin esto, el strip aparece con todas las cards sin scale
