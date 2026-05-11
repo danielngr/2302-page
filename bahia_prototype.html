@@ -2166,9 +2166,9 @@
     position: fixed;
     inset: 0;
     z-index: 950;
-    background: rgba(10, 6, 18, 0.85);
-    backdrop-filter: blur(16px) saturate(180%);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    background: rgba(10, 6, 18, 0.55);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1);
@@ -2188,16 +2188,21 @@
     max-width: 920px;
     max-height: 88vh;
     overflow-y: auto;
+    /* Liquid glass: translúcido con blur fuerte sobre el paisaje detrás */
     background:
       linear-gradient(180deg,
-        rgba(28, 18, 32, 0.95) 0%,
-        rgba(20, 12, 24, 0.98) 100%);
-    border: 1px solid rgba(220, 160, 110, 0.25);
+        rgba(40, 28, 48, 0.42) 0%,
+        rgba(28, 20, 36, 0.55) 50%,
+        rgba(22, 15, 28, 0.62) 100%);
+    backdrop-filter: blur(32px) saturate(180%);
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    border: 1px solid rgba(245, 200, 145, 0.28);
     border-radius: 28px;
     box-shadow:
-      0 24px 80px rgba(0, 0, 0, 0.6),
-      0 1px 0 rgba(255, 220, 180, 0.18) inset,
-      0 0 100px rgba(220, 160, 110, 0.1);
+      0 24px 80px rgba(0, 0, 0, 0.5),
+      0 1px 0 rgba(255, 220, 180, 0.22) inset,
+      0 -1px 0 rgba(180, 130, 90, 0.18) inset,
+      0 0 100px rgba(220, 160, 110, 0.08);
     padding: 48px 44px 36px;
     transform: scale(0.96) translateY(20px);
     opacity: 0;
@@ -2205,6 +2210,30 @@
       transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
       opacity 0.5s ease;
     -webkit-overflow-scrolling: touch;
+    /* Pseudo-elemento con borde especular para el efecto liquid */
+    isolation: isolate;
+    position: relative;
+  }
+
+  /* Borde especular interno (efecto liquid glass premium) */
+  .quiya-units-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg,
+      rgba(255, 240, 220, 0.35) 0%,
+      rgba(255, 240, 220, 0.08) 30%,
+      rgba(220, 160, 110, 0.25) 100%);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.55;
   }
 
   .quiya-units-overlay.active .quiya-units-panel {
@@ -2318,21 +2347,25 @@
   }
 
   /* ============================================================
-     QUIYA UNIT CARD — Editorial premium redesign
-     Foto arriba + info abajo (consistente con featured cards)
+     QUIYA UNIT CARD — Editorial premium con liquid glass
+     Foto arriba + info abajo translúcida (consistente con featured cards)
      ============================================================ */
   .quiya-unit-card {
     position: relative;
     border-radius: 16px;
     overflow: hidden;
+    /* Liquid glass: translúcido con tinte cálido, blur del paisaje detrás */
     background: linear-gradient(180deg,
-      rgba(20, 14, 22, 0.94) 0%,
-      rgba(28, 20, 32, 0.96) 100%);
+      rgba(40, 28, 48, 0.35) 0%,
+      rgba(28, 20, 36, 0.48) 100%);
+    backdrop-filter: blur(20px) saturate(170%);
+    -webkit-backdrop-filter: blur(20px) saturate(170%);
     cursor: pointer;
-    border: 1px solid rgba(220, 160, 110, 0.18);
+    border: 1px solid rgba(245, 200, 145, 0.22);
     box-shadow:
-      0 6px 20px rgba(0, 0, 0, 0.4),
-      0 1px 0 rgba(255, 240, 220, 0.04) inset;
+      0 8px 24px rgba(0, 0, 0, 0.35),
+      0 1px 0 rgba(255, 240, 220, 0.1) inset,
+      0 -1px 0 rgba(180, 130, 90, 0.12) inset;
     transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform, box-shadow;
     display: flex;
@@ -2340,7 +2373,7 @@
     isolation: isolate;
   }
 
-  /* Borde especular dorado sutil */
+  /* Borde especular dorado (más prominente que antes) */
   .quiya-unit-card::before {
     content: '';
     position: absolute;
@@ -2348,9 +2381,9 @@
     padding: 1px;
     border-radius: inherit;
     background: linear-gradient(135deg,
-      rgba(255, 240, 220, 0.22) 0%,
-      rgba(255, 240, 220, 0.04) 50%,
-      rgba(220, 160, 110, 0.18) 100%);
+      rgba(255, 240, 220, 0.3) 0%,
+      rgba(255, 240, 220, 0.06) 50%,
+      rgba(220, 160, 110, 0.25) 100%);
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
       linear-gradient(#000 0 0);
@@ -2358,7 +2391,7 @@
     mask-composite: exclude;
     pointer-events: none;
     z-index: 4;
-    opacity: 0.5;
+    opacity: 0.6;
     transition: opacity 0.5s ease;
   }
 
