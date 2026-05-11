@@ -2589,11 +2589,10 @@
     gap: 8px;
   }
 
-  .card-version-a .va-close::before {
-    content: '←';
-    font-size: 13px;
-    letter-spacing: 0;
+  .card-version-a .va-close .va-close-svg {
     transition: transform 0.3s ease;
+    flex-shrink: 0;
+    color: var(--lg-text);
   }
 
   .card-version-a .va-close:hover,
@@ -2602,7 +2601,7 @@
     background: linear-gradient(180deg, rgba(255,255,255,.58), rgba(255,255,255,.24));
   }
 
-  .card-version-a .va-close:hover::before { transform: translateX(-3px); }
+  .card-version-a .va-close:hover .va-close-svg { transform: translateX(-3px); }
 
   .card-version-a .va-save {
     font-size: 16px;
@@ -5596,7 +5595,7 @@
     font-style: italic;
     font-weight: 300;
     font-size: 56px;
-    line-height: 0.9;
+    line-height: 1.1;
     background: linear-gradient(180deg,
       rgba(255, 248, 230, 0.95) 0%,
       rgba(245, 200, 145, 0.78) 60%,
@@ -5607,6 +5606,8 @@
     filter: drop-shadow(0 3px 14px rgba(0, 0, 0, 0.85));
     letter-spacing: -0.03em;
     pointer-events: none;
+    /* Espacio extra para descendentes itálicos */
+    padding: 2px 4px 4px 0;
   }
 
   .grid-unit-bottom {
@@ -7353,32 +7354,34 @@
     height: 42px !important;
     border-radius: 50% !important;
     padding: 0 !important;
-    font-size: 14px !important;
-    overflow: hidden !important;
-    /* Solo el ícono ← se muestra (via ::before) — el texto "Cerrar" se oculta */
-    text-indent: -9999px !important;
-    color: transparent !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    gap: 0 !important;
+    /* Más contraste para que se vea sobre fotos claras */
+    background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.28)) !important;
+    border: 1px solid rgba(255,255,255,.55) !important;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.7) inset,
+      0 4px 16px rgba(0,0,0,.25) !important;
   }
 
-  html.is-mobile .card-version-a .va-close::before {
-    text-indent: 0 !important;
-    color: var(--lg-text) !important;
-    font-size: 18px !important;
-    font-weight: 400 !important;
-    position: absolute !important;
+  /* Ocultar el texto "Cerrar" en mobile - solo se ve el SVG */
+  html.is-mobile .card-version-a .va-close .va-close-text {
+    display: none !important;
   }
 
-  html.is-mobile .card-version-a .va-save {
-    text-indent: 0 !important;
-    color: var(--lg-text) !important;
+  html.is-mobile .card-version-a .va-close .va-close-svg {
+    width: 18px !important;
+    height: 18px !important;
+    color: rgba(40, 50, 70, 0.95) !important;
+    stroke-width: 2.6 !important;
   }
 
   html.is-mobile .card-version-a .va-save .heart-svg {
     width: 22px !important;
     height: 22px !important;
+    color: rgba(40, 50, 70, 0.95) !important;
   }
 
   html.is-mobile .card-version-a .va-footer {
@@ -7862,7 +7865,7 @@
     font-style: italic;
     font-weight: 300;
     font-size: clamp(46px, 6vw, 70px);
-    line-height: 1;
+    line-height: 1.18;
     background: linear-gradient(180deg,
       rgba(255, 248, 235, 1) 0%,
       rgba(220, 160, 110, 0.85) 100%);
@@ -7871,6 +7874,8 @@
     -webkit-text-fill-color: transparent;
     margin: 0 0 14px;
     letter-spacing: -0.01em;
+    /* Espacio para descendentes (g, y, j) cuando hay background-clip: text */
+    padding-bottom: 0.12em;
   }
 
   .vrm-list-section-title.vrm-list-title-pink {
@@ -8054,9 +8059,12 @@
     font-style: italic;
     font-weight: 300;
     font-size: 24px;
-    line-height: 1.05;
+    line-height: 1.18;
     color: rgba(255, 245, 230, 0.97);
     margin: 0 0 12px;
+    padding-bottom: 3px;
+    /* Permitir que glifos colgantes (g, y, j) y números itálicos no se corten */
+    overflow: visible;
   }
 
   .vrm-list-card-meta {
@@ -8079,6 +8087,10 @@
     font-size: 22px;
     color: rgba(255, 240, 220, 0.97);
     margin-right: 3px;
+    /* Espacio extra para itálica - los números 3,5,7,9 con itálica se inclinan */
+    padding-right: 2px;
+    display: inline-block;
+    line-height: 1.15;
   }
 
   .vrm-list-card-stats {
@@ -8583,9 +8595,16 @@
     display: flex;
     gap: 12px;
     padding: 14px;
-    background: rgba(255, 248, 235, 0.18);
-    border: 1px solid rgba(220, 160, 110, 0.55);
+    background: linear-gradient(180deg,
+      rgba(40, 30, 20, 0.42),
+      rgba(40, 30, 20, 0.28));
+    border: 1px solid rgba(220, 180, 130, 0.32);
     border-radius: 12px;
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    box-shadow:
+      0 1px 0 rgba(255, 235, 210, 0.12) inset,
+      0 4px 14px rgba(0, 0, 0, 0.12);
   }
 
   .va-ttk-icon {
@@ -8595,9 +8614,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, rgba(245, 200, 145, 0.55), rgba(220, 160, 110, 0.30));
+    background: linear-gradient(135deg, rgba(245, 200, 145, 0.65), rgba(220, 160, 110, 0.40));
     border-radius: 8px;
-    color: rgba(255, 235, 205, 1);
+    color: rgba(255, 240, 215, 1);
     font-size: 18px;
   }
 
@@ -8611,14 +8630,17 @@
     font-size: 13px;
     font-weight: 600;
     color: rgba(255, 250, 240, 1);
-    margin-bottom: 3px;
+    margin-bottom: 4px;
+    letter-spacing: 0.01em;
   }
 
   .va-ttk-text {
     font-family: 'Inter Tight', sans-serif;
     font-size: 12px;
-    line-height: 1.5;
-    color: rgba(255, 245, 230, 1);
+    line-height: 1.55;
+    /* Texto secundario: crema cálido en lugar de blanco puro,
+       para que respire mejor sobre el liquid glass */
+    color: rgba(255, 235, 210, 0.85);
   }
 
   /* Flechas laterales SIEMPRE visibles en mobile - guía universal */
@@ -10283,7 +10305,7 @@
 
 <!-- FEATURED STRIP — propiedades destacadas, scroll horizontal cinemático -->
 <div class="featured-strip" id="featured-strip">
-  <div class="featured-eyebrow">Algunas de nuestras propiedades</div>
+  <div class="featured-eyebrow" data-i18n="featured.eyebrow">Algunas de nuestras propiedades</div>
   <div class="featured-track-wrap">
     <button class="featured-arrow prev" id="featured-prev" aria-label="Anterior">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -10300,7 +10322,7 @@
     </button>
   </div>
   <button class="featured-see-all" id="featured-see-all">
-    <span>Ver todas las propiedades</span>
+    <span data-i18n="featured.seeAll">Ver todas las propiedades</span>
     <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <line x1="5" y1="12" x2="19" y2="12"/>
       <polyline points="12 5 19 12 12 19"/>
@@ -10318,7 +10340,12 @@
 
     <!-- Header flotante sobre la galería -->
     <div class="va-header">
-      <button class="va-close" id="close-a">Cerrar</button>
+      <button class="va-close" id="close-a">
+        <svg class="va-close-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        <span class="va-close-text">Cerrar</span>
+      </button>
       <button class="va-save" id="va-save" aria-label="Guardar">
         <svg class="heart-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M12 21s-7.5-4.6-9.5-9.4C1.3 8.5 3.6 5 7 5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.7 3.5 4.5 6.6C19.5 16.4 12 21 12 21z"
@@ -10802,6 +10829,10 @@ const VRM_TRANSLATIONS = {
     'complex.cta.quiya': 'View 8 units',
     'complex.cta.maritima': 'View 4 units',
     'complex.cta.bolongo': 'View 4 units',
+    'featured.eyebrow': 'Some of our properties',
+    'featured.seeAll': 'See all properties',
+    'cta.from': 'from',
+    'cta.perNight': '/night',
     'sheet.close': 'Close',
     'sheet.save': 'Save',
     'sheet.guests': 'Guests',
@@ -10899,6 +10930,10 @@ const VRM_TRANSLATIONS = {
     'complex.cta.quiya': 'Ver 8 unidades',
     'complex.cta.maritima': 'Ver 4 unidades',
     'complex.cta.bolongo': 'Ver 4 unidades',
+    'featured.eyebrow': 'Algunas de nuestras propiedades',
+    'featured.seeAll': 'Ver todas las propiedades',
+    'cta.from': 'desde',
+    'cta.perNight': '/noche',
     'sheet.close': 'Cerrar',
     'sheet.save': 'Guardar',
     'sheet.guests': 'Huéspedes',
@@ -13542,8 +13577,8 @@ propertyData.forEach((p, i) => {
                 fill="rgba(220, 160, 110, 0.95)">LA CRUZ DE HUANACAXTLE</text>
         </svg>
         <div class="quiya-cta-text complex-cta-text">
-          <span class="cta-line-1">Ver 8 unidades</span>
-          <span class="cta-line-2">desde $145 USD <span class="cta-suffix">/noche</span></span>
+          <span class="cta-line-1" data-i18n="complex.cta.quiya">Ver 8 unidades</span>
+          <span class="cta-line-2"><span data-i18n="cta.from">desde</span> $145 USD <span class="cta-suffix" data-i18n="cta.perNight">/noche</span></span>
         </div>
       </div>
     `;
@@ -13577,8 +13612,8 @@ propertyData.forEach((p, i) => {
                 fill="rgba(220, 220, 230, 0.92)">PLAYA FLAMINGOS NV</text>
         </svg>
         <div class="quiya-cta-text complex-cta-text maritima-cta-text">
-          <span class="cta-line-1">Ver 4 unidades</span>
-          <span class="cta-line-2">desde $190 USD <span class="cta-suffix">/noche</span></span>
+          <span class="cta-line-1" data-i18n="complex.cta.maritima">Ver 4 unidades</span>
+          <span class="cta-line-2"><span data-i18n="cta.from">desde</span> $190 USD <span class="cta-suffix" data-i18n="cta.perNight">/noche</span></span>
         </div>
       </div>
     `;
@@ -13613,8 +13648,8 @@ propertyData.forEach((p, i) => {
                 fill="rgba(245, 237, 218, 0.92)">PUNTA DE MITA · RIVIERA NAYARIT</text>
         </svg>
         <div class="quiya-cta-text complex-cta-text bolongo-cta-text">
-          <span class="cta-line-1">Ver 4 unidades</span>
-          <span class="cta-line-2">desde $185 USD <span class="cta-suffix">/noche</span></span>
+          <span class="cta-line-1" data-i18n="complex.cta.bolongo">Ver 4 unidades</span>
+          <span class="cta-line-2"><span data-i18n="cta.from">desde</span> $185 USD <span class="cta-suffix" data-i18n="cta.perNight">/noche</span></span>
         </div>
       </div>
     `;
@@ -14339,10 +14374,17 @@ function openPropertyCard(p) {
   document.getElementById('a-tag').textContent = p.zoneTag || 'BAHÍA DE BANDERAS';
 
   // Si la propiedad tiene una sola unidad, mostrarla discretamente junto al nombre
+  // EXCEPTO si p.name ya contiene ese número de unidad (ej. "Bolongo 211")
   const validUnitsForTitle = (p.units || []).filter(u => u);
-  const titleText = validUnitsForTitle.length === 1
-    ? `${p.name} <span class="va-name-unit">${validUnitsForTitle[0]}</span>`
-    : p.name;
+  let titleText = p.name;
+  if (validUnitsForTitle.length === 1) {
+    const unit = String(validUnitsForTitle[0]);
+    // Si el nombre ya termina con el número de la unidad (con o sin espacios), no duplicar
+    const alreadyHasUnit = new RegExp(`\\b${unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(p.name);
+    if (!alreadyHasUnit) {
+      titleText = `${p.name} <span class="va-name-unit">${unit}</span>`;
+    }
+  }
   document.getElementById('a-name').innerHTML = titleText;
   document.getElementById('a-subtitle').textContent = p.subtitle;
 
@@ -17156,81 +17198,39 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
   updateSearchUI();
   applyAvailabilityFilter();
 
-  // ===== NaN GUARD agresivo: interceptamos el setter de textContent
-  // del nodo de texto interno para capturar QUIÉN escribe y CON QUÉ valor.
+  // ===== NaN GUARD silencioso: bloquea cualquier intento de escribir "NaN"
+  // a estos elementos. Sin logs en producción.
   function installAggressiveGuard(el, label) {
     if (!el) return;
 
-    // Asegurar que hay un nodo de texto
-    if (!el.firstChild || el.firstChild.nodeType !== Node.TEXT_NODE) {
-      el.textContent = el.textContent || '';
-    }
-
-    // 1. Interceptar el setter de textContent del propio elemento
-    const elProto = Object.getPrototypeOf(el);
     const origTextContentDesc = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
+    const innerHTMLDesc = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
 
     Object.defineProperty(el, 'textContent', {
       configurable: true,
-      get() {
-        return origTextContentDesc.get.call(this);
-      },
+      get() { return origTextContentDesc.get.call(this); },
       set(value) {
         const strVal = String(value);
-        if (strVal === 'NaN' || strVal.includes('NaN')) {
-          console.error('[GUARD] %s.textContent = "%s" BLOQUEADO', label, strVal);
-          console.trace();
-          // No escribimos NaN. Mantenemos el valor actual.
-          return;
-        }
+        if (strVal === 'NaN' || strVal.includes('NaN')) return;
         origTextContentDesc.set.call(this, value);
-        console.log('[GUARD] %s.textContent ← "%s"', label, strVal);
       }
     });
 
-    // 2. Interceptar innerText también por si acaso
-    const innerTextDesc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'innerText');
-    if (innerTextDesc) {
-      Object.defineProperty(el, 'innerText', {
-        configurable: true,
-        get() { return innerTextDesc.get.call(this); },
-        set(value) {
-          const strVal = String(value);
-          if (strVal === 'NaN' || strVal.includes('NaN')) {
-            console.error('[GUARD] %s.innerText = "%s" BLOQUEADO', label, strVal);
-            console.trace();
-            return;
-          }
-          innerTextDesc.set.call(this, value);
-        }
-      });
-    }
-
-    // 3. Interceptar innerHTML
-    const innerHTMLDesc = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
     Object.defineProperty(el, 'innerHTML', {
       configurable: true,
       get() { return innerHTMLDesc.get.call(this); },
       set(value) {
         const strVal = String(value);
-        if (strVal === 'NaN' || strVal.includes('NaN')) {
-          console.error('[GUARD] %s.innerHTML = "%s" BLOQUEADO', label, strVal);
-          console.trace();
-          return;
-        }
+        if (strVal === 'NaN' || strVal.includes('NaN')) return;
         innerHTMLDesc.set.call(this, value);
       }
     });
 
-    // 4. MutationObserver de respaldo para detectar escrituras al text node directamente
+    // Backup observer para escrituras al text node interno
     const obs = new MutationObserver(() => {
       const txt = (el.textContent || '').trim();
       if (/^NaN$|^undefined$/i.test(txt)) {
-        console.error('[GUARD-OBS] %s mutó a "%s" (escritura al text node directo)', label, txt);
-        console.trace();
-        // Restaurar
         const state = label === 'checkin' ? searchState.checkin : searchState.checkout;
-        // Usar el setter original para no triggear nuestro propio guard
         origTextContentDesc.set.call(el,
           (state instanceof Date && !isNaN(state.getTime()))
             ? formatDate(state)
