@@ -15752,9 +15752,46 @@ const PROPERTY_PHOTOS = {
   // En mobile: detectar qué card está centrada y aplicarle clase .is-centered
   // (efecto coverflow: card central grande, laterales sombreadas).
   // Además: cuando cambia el COMPLEJO de la card centrada, rotar la cámara
-  // hacia ese complejo en el paisaje 3D (suave, ~1s) para que el usuario
-  // no se confunda viendo el complejo equivocado en el fondo.
+  // hacia ese complejo en el paisaje 3D con animación suave dedicada.
   let _lastCenteredComplexId = null;
+  let _carouselYawAnimation = null;   // { startTime, duration, fromYaw, toYaw, rafId }
+
+  // Animación dedicada: lleva targetYaw de su valor actual al nuevo con easing
+  // Usa requestAnimationFrame para ser fluido. Cancela animaciones previas.
+  function animateCarouselYaw(toYaw, duration) {
+    duration = duration || 850;  // ms — punto dulce entre fluido y deliberado
+
+    if (_carouselYawAnimation) {
+      cancelAnimationFrame(_carouselYawAnimation.rafId);
+    }
+
+    const fromYaw = (typeof targetYaw === 'number') ? targetYaw : 0;
+    const startTime = performance.now();
+
+    // easeInOutCubic: arranca y termina suave, mid-section rápida
+    const easeInOutCubic = (t) => t < 0.5
+      ? 4 * t * t * t
+      : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    function step() {
+      const now = performance.now();
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = easeInOutCubic(progress);
+      targetYaw = fromYaw + (toYaw - fromYaw) * eased;
+
+      if (progress < 1) {
+        _carouselYawAnimation.rafId = requestAnimationFrame(step);
+      } else {
+        targetYaw = toYaw;
+        _carouselYawAnimation = null;
+      }
+    }
+
+    _carouselYawAnimation = { startTime, duration, fromYaw, toYaw, rafId: 0 };
+    _carouselYawAnimation.rafId = requestAnimationFrame(step);
+  }
+
   function updateCenteredCard() {
     if (!window.matchMedia('(max-width: 768px)').matches) return;
     const trackRect = track.getBoundingClientRect();
@@ -15782,12 +15819,11 @@ const PROPERTY_PHOTOS = {
       const propId = closestCard.dataset.propertyId;
       if (propId && propId !== _lastCenteredComplexId) {
         _lastCenteredComplexId = propId;
-        // Solo movemos si NO hay un zoneLock activo (zoom de zona, etc.)
+        // Solo movemos si NO hay un zoneLock activo
         if (typeof cameraZoneLock !== 'undefined' && !cameraZoneLock) {
           const newYaw = computeYawForProperty(propId);
           if (typeof newYaw === 'number' && !isNaN(newYaw)) {
-            // Setear targetYaw; el lerp en el render loop hará la transición suave
-            targetYaw = newYaw;
+            animateCarouselYaw(newYaw);
           }
         }
       }
@@ -17508,6 +17544,280 @@ setTimeout(() => {
 }, 200);
 
 animate();
+</script>
+
+<!-- =========================================================
+     PANEL DE CALIBRACIÓN DE CÁMARA — temporal, para tuning
+     Toca el "≡" para abrir/cerrar. Apunta a cada complejo,
+     ajusta con sliders, y copia los valores.
+     ========================================================= -->
+<style>
+  .cam-cal-toggle {
+    position: fixed;
+    top: env(safe-area-inset-top, 12px);
+    left: 12px;
+    z-index: 99999;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(20, 20, 30, 0.78);
+    color: #FFD580;
+    border: 1px solid rgba(255, 213, 128, 0.45);
+    font-size: 14px;
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+  }
+  .cam-cal-panel {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 12px) + 44px);
+    left: 12px;
+    right: 12px;
+    max-width: 360px;
+    z-index: 99999;
+    background: rgba(15, 15, 22, 0.94);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 213, 128, 0.30);
+    border-radius: 14px;
+    padding: 14px 14px 12px;
+    color: #f4ecdb;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 12px;
+    display: none;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  }
+  .cam-cal-panel.active { display: block; }
+  .cam-cal-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .cam-cal-row label { flex: 0 0 50px; color: #FFD580; font-weight: 600; font-size: 11px; }
+  .cam-cal-row input[type="range"] {
+    flex: 1;
+    accent-color: #FFD580;
+    height: 22px;
+  }
+  .cam-cal-row .cam-cal-val {
+    flex: 0 0 70px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+    color: #f4ecdb;
+  }
+  .cam-cal-pill-row {
+    display: flex;
+    gap: 6px;
+    margin: 10px 0 8px;
+    flex-wrap: wrap;
+  }
+  .cam-cal-pill {
+    flex: 1 1 auto;
+    min-width: 60px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(40, 40, 55, 0.85);
+    border: 1px solid rgba(255, 213, 128, 0.30);
+    color: #FFD580;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .cam-cal-pill:active { background: rgba(60, 60, 80, 0.95); }
+  .cam-cal-readout {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 6px;
+    font-family: 'Inter Tight', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    word-break: break-all;
+    color: #b8d4ff;
+    white-space: pre-wrap;
+  }
+  .cam-cal-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .cam-cal-actions button {
+    flex: 1;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 213, 128, 0.30);
+    background: rgba(80, 60, 30, 0.6);
+    color: #FFD580;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .cam-cal-fine {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+    justify-content: center;
+  }
+  .cam-cal-fine button {
+    width: 36px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 213, 128, 0.30);
+    background: rgba(40, 40, 55, 0.85);
+    color: #FFD580;
+    font-size: 12px;
+    font-weight: 700;
+  }
+</style>
+
+<button class="cam-cal-toggle" id="cam-cal-toggle" aria-label="Calibración cámara">⚙</button>
+<div class="cam-cal-panel" id="cam-cal-panel">
+  <div class="cam-cal-row">
+    <label>Yaw</label>
+    <input type="range" id="cam-cal-yaw" min="-2.5" max="2.5" step="0.001" value="0">
+    <span class="cam-cal-val" id="cam-cal-yaw-val">0.000</span>
+  </div>
+  <div class="cam-cal-fine">
+    <button data-delta="-0.05">«</button>
+    <button data-delta="-0.01">‹</button>
+    <button data-delta="-0.001">·‹</button>
+    <button data-delta="0.001">›·</button>
+    <button data-delta="0.01">›</button>
+    <button data-delta="0.05">»</button>
+  </div>
+  <div class="cam-cal-row" style="margin-top:10px">
+    <label>Pitch</label>
+    <input type="range" id="cam-cal-pitch" min="-0.3" max="0.3" step="0.001" value="0">
+    <span class="cam-cal-val" id="cam-cal-pitch-val">0.000</span>
+  </div>
+  <div class="cam-cal-pill-row">
+    <button class="cam-cal-pill" data-prop="bolongo_punta_mita">Bolongo</button>
+    <button class="cam-cal-pill" data-prop="vallarta_gardens_quiya">Quiya</button>
+    <button class="cam-cal-pill" data-prop="maritima_playa_flamingos">Marítima</button>
+  </div>
+  <div class="cam-cal-readout" id="cam-cal-readout">Selecciona un complejo y ajusta</div>
+  <div class="cam-cal-actions">
+    <button id="cam-cal-copy">📋 Copy</button>
+    <button id="cam-cal-reset">↺ Reset</button>
+  </div>
+</div>
+
+<script>
+(function setupCameraCalibration() {
+  const toggle = document.getElementById('cam-cal-toggle');
+  const panel = document.getElementById('cam-cal-panel');
+  const yawSlider = document.getElementById('cam-cal-yaw');
+  const pitchSlider = document.getElementById('cam-cal-pitch');
+  const yawVal = document.getElementById('cam-cal-yaw-val');
+  const pitchVal = document.getElementById('cam-cal-pitch-val');
+  const readout = document.getElementById('cam-cal-readout');
+  const copyBtn = document.getElementById('cam-cal-copy');
+  const resetBtn = document.getElementById('cam-cal-reset');
+
+  // Estado: qué complejo está siendo calibrado en este momento
+  let currentProp = null;
+  // Valores ajustados por el usuario por complejo (para el readout final)
+  const adjustedValues = {};
+  // Valores INICIALES (lo que computeYawForProperty retorna en el momento de entrada)
+  const initialValues = {};
+
+  toggle.addEventListener('click', () => {
+    panel.classList.toggle('active');
+  });
+
+  function fmt(n) { return (Math.round(n * 1000) / 1000).toFixed(3); }
+
+  // Cuando arrastras el slider, se aplica DIRECTO al targetYaw/pitch del paisaje
+  // (sin animación, así ves el cambio instantáneo)
+  function applyYaw(v) {
+    targetYaw = v;
+    yawVal.textContent = fmt(v);
+    yawSlider.value = String(v);
+    if (currentProp) adjustedValues[currentProp] = { yaw: v, pitch: parseFloat(pitchSlider.value) };
+    updateReadout();
+  }
+  function applyPitch(v) {
+    targetPitch = v;
+    pitchVal.textContent = fmt(v);
+    pitchSlider.value = String(v);
+    if (currentProp) adjustedValues[currentProp] = { yaw: parseFloat(yawSlider.value), pitch: v };
+    updateReadout();
+  }
+
+  yawSlider.addEventListener('input', (e) => applyYaw(parseFloat(e.target.value)));
+  pitchSlider.addEventListener('input', (e) => applyPitch(parseFloat(e.target.value)));
+
+  // Botones de ajuste fino del yaw
+  document.querySelectorAll('.cam-cal-fine button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const delta = parseFloat(btn.dataset.delta);
+      applyYaw(parseFloat(yawSlider.value) + delta);
+    });
+  });
+
+  // Pills: apuntar a cada complejo
+  document.querySelectorAll('.cam-cal-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const propId = btn.dataset.prop;
+      currentProp = propId;
+      // Marcar pill activa
+      document.querySelectorAll('.cam-cal-pill').forEach(b =>
+        b.style.background = b === btn ? 'rgba(120, 90, 40, 0.95)' : 'rgba(40, 40, 55, 0.85)');
+      // Obtener yaw inicial calculado por el sistema actual
+      const yaw = (typeof computeYawForProperty === 'function')
+        ? computeYawForProperty(propId)
+        : 0;
+      initialValues[propId] = initialValues[propId] || yaw;
+      // Si ya había sido ajustado, usar el valor ajustado; sino el inicial
+      const adj = adjustedValues[propId];
+      const useYaw = adj ? adj.yaw : yaw;
+      const usePitch = adj ? adj.pitch : 0;
+      applyYaw(useYaw);
+      applyPitch(usePitch);
+    });
+  });
+
+  function updateReadout() {
+    const lines = [];
+    Object.keys(adjustedValues).forEach(propId => {
+      const v = adjustedValues[propId];
+      const init = initialValues[propId];
+      const initStr = (init !== undefined) ? fmt(init) : '—';
+      lines.push(`${propId}:\n  yaw: ${fmt(v.yaw)} (inicial: ${initStr})\n  pitch: ${fmt(v.pitch)}`);
+    });
+    if (currentProp && !adjustedValues[currentProp]) {
+      const init = initialValues[currentProp];
+      const initStr = (init !== undefined) ? fmt(init) : '—';
+      lines.push(`${currentProp}: yaw=${fmt(parseFloat(yawSlider.value))} (inicial=${initStr})`);
+    }
+    readout.textContent = lines.length ? lines.join('\n\n') : 'Selecciona un complejo y ajusta';
+  }
+
+  copyBtn.addEventListener('click', async () => {
+    const text = readout.textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = '✓ Copiado';
+      setTimeout(() => copyBtn.textContent = '📋 Copy', 1500);
+    } catch (e) {
+      // Fallback: seleccionar el readout
+      const range = document.createRange();
+      range.selectNode(readout);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      copyBtn.textContent = 'Selecciona y copia';
+    }
+  });
+
+  resetBtn.addEventListener('click', () => {
+    if (currentProp && initialValues[currentProp] !== undefined) {
+      applyYaw(initialValues[currentProp]);
+      applyPitch(0);
+      delete adjustedValues[currentProp];
+      updateReadout();
+    }
+  });
+
+  // Inicializar pitch a 0
+  applyPitch(0);
+})();
 </script>
 
 </body>
