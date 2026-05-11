@@ -17156,36 +17156,92 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
   updateSearchUI();
   applyAvailabilityFilter();
 
-  // ===== NaN GUARD (instalado UNA vez, no por render) =====
-  // Si cualquier código externo escribe "NaN" en los displays, lo corregimos
-  // y logueamos el stack para identificar al culpable.
-  // Versión agresiva: loguea TODA mutación para ver la secuencia completa.
-  function installSingleNaNGuard(el, label) {
+  // ===== NaN GUARD agresivo: interceptamos el setter de textContent
+  // del nodo de texto interno para capturar QUIÉN escribe y CON QUÉ valor.
+  function installAggressiveGuard(el, label) {
     if (!el) return;
-    let correcting = false;
-    const obs = new MutationObserver(() => {
-      if (correcting) return;
-      const txt = (el.textContent || '').trim();
-      // LOG TODA mutación para debug
-      console.log('[searchbar-mutation] %s = "%s"', label, txt);
-      if (/^NaN$|Invalid Date|^undefined$/i.test(txt)) {
-        console.error('[NaN-guard] %s mutó a "%s". Stack:', label, txt);
-        console.trace();
-        correcting = true;
-        // Reescribir al valor correcto basado en el estado real
-        const state = label === 'checkin' ? searchState.checkin : searchState.checkout;
-        if (state instanceof Date && !isNaN(state.getTime())) {
-          el.textContent = formatDate(state);
-        } else {
-          el.textContent = t('searchbar.placeholder.dates');
+
+    // Asegurar que hay un nodo de texto
+    if (!el.firstChild || el.firstChild.nodeType !== Node.TEXT_NODE) {
+      el.textContent = el.textContent || '';
+    }
+
+    // 1. Interceptar el setter de textContent del propio elemento
+    const elProto = Object.getPrototypeOf(el);
+    const origTextContentDesc = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
+
+    Object.defineProperty(el, 'textContent', {
+      configurable: true,
+      get() {
+        return origTextContentDesc.get.call(this);
+      },
+      set(value) {
+        const strVal = String(value);
+        if (strVal === 'NaN' || strVal.includes('NaN')) {
+          console.error('[GUARD] %s.textContent = "%s" BLOQUEADO', label, strVal);
+          console.trace();
+          // No escribimos NaN. Mantenemos el valor actual.
+          return;
         }
-        setTimeout(() => { correcting = false; }, 0);
+        origTextContentDesc.set.call(this, value);
+        console.log('[GUARD] %s.textContent ← "%s"', label, strVal);
+      }
+    });
+
+    // 2. Interceptar innerText también por si acaso
+    const innerTextDesc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'innerText');
+    if (innerTextDesc) {
+      Object.defineProperty(el, 'innerText', {
+        configurable: true,
+        get() { return innerTextDesc.get.call(this); },
+        set(value) {
+          const strVal = String(value);
+          if (strVal === 'NaN' || strVal.includes('NaN')) {
+            console.error('[GUARD] %s.innerText = "%s" BLOQUEADO', label, strVal);
+            console.trace();
+            return;
+          }
+          innerTextDesc.set.call(this, value);
+        }
+      });
+    }
+
+    // 3. Interceptar innerHTML
+    const innerHTMLDesc = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+    Object.defineProperty(el, 'innerHTML', {
+      configurable: true,
+      get() { return innerHTMLDesc.get.call(this); },
+      set(value) {
+        const strVal = String(value);
+        if (strVal === 'NaN' || strVal.includes('NaN')) {
+          console.error('[GUARD] %s.innerHTML = "%s" BLOQUEADO', label, strVal);
+          console.trace();
+          return;
+        }
+        innerHTMLDesc.set.call(this, value);
+      }
+    });
+
+    // 4. MutationObserver de respaldo para detectar escrituras al text node directamente
+    const obs = new MutationObserver(() => {
+      const txt = (el.textContent || '').trim();
+      if (/^NaN$|^undefined$/i.test(txt)) {
+        console.error('[GUARD-OBS] %s mutó a "%s" (escritura al text node directo)', label, txt);
+        console.trace();
+        // Restaurar
+        const state = label === 'checkin' ? searchState.checkin : searchState.checkout;
+        // Usar el setter original para no triggear nuestro propio guard
+        origTextContentDesc.set.call(el,
+          (state instanceof Date && !isNaN(state.getTime()))
+            ? formatDate(state)
+            : t('searchbar.placeholder.dates')
+        );
       }
     });
     obs.observe(el, { childList: true, characterData: true, subtree: true });
   }
-  installSingleNaNGuard(checkinValue, 'checkin');
-  installSingleNaNGuard(checkoutValue, 'checkout');
+  installAggressiveGuard(checkinValue, 'checkin');
+  installAggressiveGuard(checkoutValue, 'checkout');
 
   // Re-renderizar al cambiar idioma (nombres de meses, "personas/guests", etc.)
   document.addEventListener('vrm:lang-changed', () => {
