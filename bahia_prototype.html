@@ -12536,8 +12536,8 @@ oceanGeom.rotateX(-Math.PI / 2);
 const oceanMat = new THREE.ShaderMaterial({
   vertexShader: oceanVertexShader,
   fragmentShader: oceanFragmentShader
-    .replace('__RAYMARCH_ITERS__', IS_MOBILE ? '8' : '10')
-    .replace('__NORMAL_ITERS__', IS_MOBILE ? '18' : '24'),
+    .replace('__RAYMARCH_ITERS__', IS_MOBILE ? '5' : '10')
+    .replace('__NORMAL_ITERS__', IS_MOBILE ? '12' : '24'),
   uniforms: oceanUniforms
 });
 
@@ -14500,7 +14500,7 @@ const propertyData = (function() {
   {
     id: 'vallarta_gardens_quiya',
     name: 'Vallarta Gardens (Quiya)',
-    zoneTag: 'BUCERÍAS',
+    zoneTag: 'LA CRUZ DE HUANACAXTLE',
     eyebrow: 'Cruz de Huanacaxtle · Quiya',
     specs: ['8 unidades disponibles', 'Cruz de Huanacaxtle · Quiya', 'Desde $145/noche'],
     t: 0.2635,
@@ -18368,6 +18368,10 @@ setInterval(updateTime, 30000);
 // ---- RENDER LOOP -------------------------------------------------
 const clock = new THREE.Clock();
 let boatT = 0;
+// Mobile: throttle a 30fps. El ojo apenas nota la diferencia con el océano,
+// pero ahorra ~50% de GPU, lo que se traduce en menos lag al scrollear/interactuar.
+const _frameInterval = IS_MOBILE ? (1 / 30) : 0;
+let _frameAccum = 0;
 
 function animate() {
   // OPTIMIZACIÓN BATERÍA: skip render si el panorama no es visible (usuario scrolleó)
@@ -18377,13 +18381,21 @@ function animate() {
     return;  // NO llamar requestAnimationFrame — el loop muere hasta que vuelva a ser visible
   }
 
-  const dt = clock.getDelta();
+  const dt = Math.min(clock.getDelta(), 0.1);
+
+  // Mobile: throttle a 30fps. Acumular dt y solo renderizar cuando hayan pasado
+  // ~33ms (1/30 segundo). Esto reduce el GPU work a la mitad.
+  if (_frameInterval > 0) {
+    _frameAccum += dt;
+    if (_frameAccum < _frameInterval) {
+      requestAnimationFrame(animate);
+      return;
+    }
+    _frameAccum = _frameAccum % _frameInterval;
+  }
+
   const t = clock.getElapsedTime();
   boatT += dt;
-
-  // Mobile: 60fps siempre. Antes había un throttle a 30fps idle que se sentía
-  // laggeado. La escena ya es eficiente (pixelRatio 1, sin antialias, shader simple)
-  // así que el render a 60fps es viable y la fluidez visual prevalece.
 
   oceanUniforms.iTime.value = t;
   oceanUniforms.uCameraPos.value.copy(camera.position);
