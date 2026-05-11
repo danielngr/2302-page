@@ -244,6 +244,31 @@
     }
   }
 
+  /* =====================================================================
+     MOBILE PERFORMANCE: cap backdrop-filter blur values.
+     Blurs grandes (28-50px) son extremadamente caros en mobile GPU.
+     Visualmente casi idénticos a 16-18px pero render 3x más rápido.
+     Esta regla aplica a TODOS los elementos con backdrop-filter en mobile.
+     ===================================================================== */
+  @media (max-width: 768px) {
+    /* Cap a 18px en cualquier elemento mobile (el blur perceptual cap del ojo
+       en pantalla pequeña es ~15-20px de todos modos) */
+    .vrm-topbar,
+    .quiya-units-panel,
+    .quiya-units-overlay,
+    .property-card-overlay[data-version="A"].active,
+    .card-version-a,
+    .va-footer-sticky,
+    .quiya-units-close,
+    #search-bar,
+    .search-pill,
+    .vrm-lang-toggle-floating,
+    .vrm-map-list-toggle {
+      backdrop-filter: blur(16px) saturate(140%) !important;
+      -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
+    }
+  }
+
   html.home-revealed {
     overflow: hidden;
     height: 100vh;
@@ -1367,10 +1392,12 @@
     .featured-track {
       padding: 6px calc(50% - 97.5px) 6px !important;
       gap: 12px;
-      scroll-snap-type: x proximity;
+      /* mandatory para que el snap sea claro (no se queda a medio camino) */
+      scroll-snap-type: x mandatory;
       scroll-padding: 0 calc(50% - 97.5px);
-      /* Momentum touch nativo = scroll mucho más fluido en iOS */
-      -webkit-overflow-scrolling: touch !important;
+      scroll-snap-stop: always;
+      /* auto = el browser maneja el momentum sin agregar smooth scroll JS encima */
+      -webkit-overflow-scrolling: auto;
       overscroll-behavior-x: contain;
       touch-action: pan-x;
     }
@@ -2356,8 +2383,10 @@
     flex-direction: column;
     isolation: isolate;
     color: #1a2438;
-    /* Contain layout/style/paint para que el scroll del padre no recalcule esta card */
+    /* Performance: aislar layout y no renderizar cards off-screen */
     contain: layout style;
+    content-visibility: auto;
+    contain-intrinsic-size: 0 260px;
   }
 
   /* Borde especular interno tipo liquid (solo desktop hover) */
@@ -6101,6 +6130,10 @@
       box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1),
       border-color 0.4s ease;
     box-shadow: 0 1px 0 rgba(255,255,255,.22) inset, 0 8px 24px rgba(0,0,0,0.18);
+    /* Performance: no renderizar cards off-screen.
+       contain-intrinsic-size = altura estimada para que el scroll sea predecible. */
+    content-visibility: auto;
+    contain-intrinsic-size: 0 280px;
   }
 
   .grid-card:hover {
@@ -6386,7 +6419,6 @@
     inset: 0;
     background: #000;
     z-index: 100;
-    will-change: transform, opacity;
   }
 
   /* Stage container — pin durante todo el scroll del intro */
@@ -6411,7 +6443,13 @@
     padding: 80px 40px;
     box-sizing: border-box;
     opacity: 0;
-    will-change: opacity, transform;
+  }
+
+  /* Solo aplicar will-change en desktop (intro es desktop-only).
+     En mobile esos elementos no se ven pero crean capas GPU innecesarias. */
+  @media (min-width: 769px) {
+    .curtain { will-change: transform, opacity; }
+    .act { will-change: opacity, transform; }
   }
 
   /* Tipografía base con efectos de glow ámbar */
@@ -6738,7 +6776,6 @@
                 box-shadow 0.4s ease, border-color 0.4s ease;
     position: relative;
     overflow: hidden;
-    will-change: transform, box-shadow;
   }
 
   .act-5 .final-cta:hover {
@@ -17333,6 +17370,11 @@ function openGridOverlay() {
   updateSearchFilterPill();
   renderGridCards();
 
+  // PERFORMANCE: pausar render del paisaje 3D mientras el grid está abierto.
+  if (window._panoramaVisible !== undefined) {
+    window._panoramaVisible = false;
+  }
+
   // Pre-warm: en background, pre-cargar disponibilidad de TODAS las units para que
   // cuando el usuario aplique filtros de fechas, los resultados sean instant.
   // No bloquea la UI (no se hace await).
@@ -17380,6 +17422,14 @@ function closeGridOverlay() {
   // Cerrar popovers abiertos
   document.querySelectorAll('.grid-filter-popover').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.grid-filter-pill').forEach(p => p.classList.remove('active'));
+
+  // Re-activar render del paisaje 3D
+  if (window._panoramaVisible !== undefined) {
+    window._panoramaVisible = true;
+    if (typeof animate === 'function') {
+      requestAnimationFrame(animate);
+    }
+  }
 }
 
 // Mapping foto por id (reusa FEATURED_PHOTOS si existe, sino placeholder)
