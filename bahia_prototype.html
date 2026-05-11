@@ -2396,7 +2396,7 @@
   .property-card-overlay {
     position: fixed;
     inset: 0;
-    z-index: 500;
+    z-index: 1100;  /* Encima del Quiya units panel (950) para que se vea cuando se abre desde el grid */
     background: rgba(10, 15, 25, 0);
     backdrop-filter: blur(0px);
     opacity: 0;
@@ -3749,25 +3749,28 @@
   .va-inline-reserve-shimmer {
     position: absolute;
     top: 0;
-    left: -100%;
-    width: 60%;
+    left: -150%;
+    width: 90%;
     height: 100%;
     background: linear-gradient(
       105deg,
       transparent 0%,
-      transparent 35%,
-      rgba(255, 240, 215, 0.55) 50%,
-      transparent 65%,
+      transparent 30%,
+      rgba(255, 240, 215, 0.18) 45%,
+      rgba(255, 245, 220, 0.40) 50%,
+      rgba(255, 240, 215, 0.18) 55%,
+      transparent 70%,
       transparent 100%
     );
     pointer-events: none;
-    animation: vaInlineReserveShimmer 4.5s ease-in-out 1.8s infinite;
+    animation: vaInlineReserveShimmer 6.5s cubic-bezier(0.45, 0, 0.55, 1) 2.2s infinite;
+    will-change: transform;
   }
 
   @keyframes vaInlineReserveShimmer {
-    0% { left: -100%; }
-    35% { left: 180%; }
-    100% { left: 180%; }  /* se queda fuera hasta el próximo ciclo */
+    0% { left: -150%; }
+    18% { left: 200%; }
+    100% { left: 200%; }  /* descansa fuera del botón hasta el próximo ciclo */
   }
 
   .card-version-a .va-inline-reserve:hover {
@@ -14174,14 +14177,14 @@ function openQuiyaUnitsPanel(p) {
     `;
   }).join('');
 
-  // Click en una unit → abrir sheet con esa unit pre-seleccionada
+  // Click en una unit → abrir detail encima del grid del complejo (NO cierra el grid).
+  // Así cuando el usuario cierre el detail vuelve al grid del complejo, no al panorama.
   grid.querySelectorAll('.quiya-unit-card').forEach(card => {
     card.addEventListener('click', () => {
       const unit = card.dataset.unit;
-      closeQuiyaUnitsPanel();
-      setTimeout(() => {
-        openPropertyCard({ ...p, selectedUnit: unit });
-      }, 250);
+      // Recordar de qué complejo vino para volver ahí al cerrar el detail
+      window._returnToComplex = 'quiya';
+      openPropertyCard({ ...p, selectedUnit: unit });
     });
   });
 
@@ -14880,6 +14883,13 @@ function closePropertyCard() {
   document.body.style.overflow = '';
   document.body.classList.remove('property-card-active');
   window._currentPropertyUnitId = null;
+
+  // Si el detail vino del grid de un complejo (ej. Quiya), restaurar el scroll
+  // del body porque el grid del complejo aún sigue abierto debajo.
+  if (window._returnToComplex) {
+    document.body.style.overflow = 'hidden';
+    window._returnToComplex = null;
+  }
 }
 
 // ============================================================
