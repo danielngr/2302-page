@@ -3684,11 +3684,12 @@
     font-weight: 600;
   }
 
-  /* --- INLINE RESERVE BUTTON (después del desglose, evita scroll al footer) --- */
+  /* --- INLINE RESERVE BUTTON --- Limpio, alargado, con shimmer dorado luxury */
   .card-version-a .va-inline-reserve {
+    position: relative;
     width: 100%;
-    margin-top: 20px;
-    padding: 18px 24px;
+    margin-top: 22px;
+    padding: 19px 28px;
     border: 1px solid rgba(245, 200, 145, 0.55);
     border-radius: 100px;
     background:
@@ -3700,96 +3701,121 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
+    gap: 14px;
     font-family: 'Inter Tight', sans-serif;
-    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     box-shadow:
       0 1.5px 0 rgba(255, 230, 200, 0.45) inset,
       0 -1.5px 0 rgba(80, 30, 0, 0.20) inset,
       0 10px 28px rgba(180, 110, 60, 0.45),
-      0 3px 8px rgba(180, 110, 60, 0.25);
-    /* Aparición animada cuando se muestra */
-    animation: vaInlineReserveIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+      0 3px 8px rgba(180, 110, 60, 0.25),
+      0 0 0 0 rgba(245, 200, 145, 0.5);  /* glow ring listo para animar */
+    overflow: hidden;  /* contiene el shimmer */
+    animation:
+      vaInlineReserveIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both,
+      vaInlineReservePulse 3.2s ease-in-out 1s infinite;
   }
 
+  /* Entrada elegante (una sola vez) */
   @keyframes vaInlineReserveIn {
-    0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+    0% { opacity: 0; transform: translateY(10px) scale(0.97); }
     100% { opacity: 1; transform: translateY(0) scale(1); }
   }
 
+  /* Pulso del glow dorado: ring que respira (sutil, no intrusivo) */
+  @keyframes vaInlineReservePulse {
+    0%, 100% {
+      box-shadow:
+        0 1.5px 0 rgba(255, 230, 200, 0.45) inset,
+        0 -1.5px 0 rgba(80, 30, 0, 0.20) inset,
+        0 10px 28px rgba(180, 110, 60, 0.45),
+        0 3px 8px rgba(180, 110, 60, 0.25),
+        0 0 0 0 rgba(245, 200, 145, 0);
+      border-color: rgba(245, 200, 145, 0.55);
+    }
+    50% {
+      box-shadow:
+        0 1.5px 0 rgba(255, 230, 200, 0.55) inset,
+        0 -1.5px 0 rgba(80, 30, 0, 0.20) inset,
+        0 12px 34px rgba(180, 110, 60, 0.55),
+        0 3px 8px rgba(180, 110, 60, 0.25),
+        0 0 0 5px rgba(245, 200, 145, 0);
+      border-color: rgba(255, 220, 175, 0.85);
+    }
+  }
+
+  /* Shimmer dorado que cruza el botón (efecto luxury Apple-style) */
+  .va-inline-reserve-shimmer {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      transparent 35%,
+      rgba(255, 240, 215, 0.55) 50%,
+      transparent 65%,
+      transparent 100%
+    );
+    pointer-events: none;
+    animation: vaInlineReserveShimmer 4.5s ease-in-out 1.8s infinite;
+  }
+
+  @keyframes vaInlineReserveShimmer {
+    0% { left: -100%; }
+    35% { left: 180%; }
+    100% { left: 180%; }  /* se queda fuera hasta el próximo ciclo */
+  }
+
   .card-version-a .va-inline-reserve:hover {
-    transform: translateY(-1px);
-    box-shadow:
-      0 1.5px 0 rgba(255, 230, 200, 0.55) inset,
-      0 -1.5px 0 rgba(80, 30, 0, 0.25) inset,
-      0 14px 36px rgba(180, 110, 60, 0.55),
-      0 5px 12px rgba(180, 110, 60, 0.30);
+    transform: translateY(-2px);
+    background:
+      linear-gradient(180deg,
+        rgba(235, 175, 120, 1) 0%,
+        rgba(195, 125, 70, 1) 100%);
   }
 
   .card-version-a .va-inline-reserve:active {
     transform: scale(0.985);
+    transition: transform 0.1s ease;
   }
 
   .va-inline-reserve-label {
-    font-size: 12px;
+    position: relative;
+    z-index: 1;
+    font-size: 13px;
     font-weight: 600;
-    letter-spacing: 0.26em;
+    letter-spacing: 0.32em;
     text-transform: uppercase;
     color: rgba(255, 248, 235, 1);
-  }
-
-  .va-inline-reserve-sep {
-    color: rgba(255, 220, 180, 0.55);
-    font-size: 13px;
-    font-weight: 300;
-    margin: 0 -2px;
-  }
-
-  .va-inline-reserve-price {
-    font-family: 'Cormorant Garamond', serif;
-    font-style: italic;
-    font-weight: 500;
-    font-size: 22px;
-    color: rgba(255, 250, 240, 1);
-    letter-spacing: -0.01em;
-    line-height: 1;
-    display: inline-flex;
-    align-items: baseline;
-    gap: 5px;
-  }
-
-  .va-inline-reserve-currency {
-    font-family: 'Inter Tight', sans-serif;
-    font-style: normal;
-    font-size: 9.5px;
-    font-weight: 600;
-    letter-spacing: 0.18em;
-    color: rgba(255, 220, 180, 0.85);
-    vertical-align: 0.45em;
+    /* Sutil glow al texto */
+    text-shadow: 0 0 16px rgba(255, 230, 200, 0.35);
   }
 
   .va-inline-reserve-arrow {
-    margin-left: 4px;
-    transition: transform 0.3s ease;
+    position: relative;
+    z-index: 1;
+    margin-left: 2px;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     opacity: 0.92;
   }
 
   .card-version-a .va-inline-reserve:hover .va-inline-reserve-arrow {
-    transform: translateX(3px);
+    transform: translateX(5px);
+    opacity: 1;
   }
 
-  /* Mobile: mantener buen padding y tamaños legibles */
+  /* Mobile: mismo lenguaje, ajustado para tap targets */
   @media (max-width: 480px) {
     .card-version-a .va-inline-reserve {
-      padding: 16px 20px;
-      gap: 10px;
+      padding: 18px 24px;
+      gap: 12px;
     }
     .va-inline-reserve-label {
-      font-size: 11px;
-      letter-spacing: 0.22em;
-    }
-    .va-inline-reserve-price {
-      font-size: 20px;
+      font-size: 12px;
+      letter-spacing: 0.28em;
     }
   }
 
@@ -10334,14 +10360,10 @@
           </div>
         </div>
 
-        <!-- CTA inline: aparece cuando hay fechas y total, evita scroll hasta footer -->
+        <!-- CTA inline: aparece cuando hay fechas. Solo "Reservar →" — el total ya está arriba -->
         <button class="va-inline-reserve" id="a-inline-reserve" style="display:none;">
+          <span class="va-inline-reserve-shimmer" aria-hidden="true"></span>
           <span class="va-inline-reserve-label">Reservar</span>
-          <span class="va-inline-reserve-sep">·</span>
-          <span class="va-inline-reserve-price">
-            <span class="va-inline-reserve-currency">USD</span>
-            <span id="a-inline-reserve-amount">—</span>
-          </span>
           <svg class="va-inline-reserve-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
             <line x1="5" y1="12" x2="19" y2="12"/>
             <polyline points="12 5 19 12 12 19"/>
@@ -13795,12 +13817,11 @@ function recalculatePrice() {
   cta.disabled = false;
   cta.textContent = 'Reservar';
 
-  // Mostrar y actualizar botón inline de reservar después del desglose
+  // Mostrar botón inline de reservar después del desglose
+  // (Solo "Reservar →" — el total ya está visible justo arriba)
   const inlineBtn = document.getElementById('a-inline-reserve');
-  const inlineAmount = document.getElementById('a-inline-reserve-amount');
-  if (inlineBtn && inlineAmount) {
-    inlineAmount.textContent = total.toLocaleString('en-US');
-    // Resetear animación cada vez que se vuelva a mostrar
+  if (inlineBtn) {
+    // Resetear animación cada vez que se vuelva a mostrar (re-trigger del shimmer + pulse)
     inlineBtn.style.display = '';
     inlineBtn.style.animation = 'none';
     void inlineBtn.offsetWidth;  // trigger reflow
