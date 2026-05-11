@@ -9961,14 +9961,14 @@
 <div id="search-bar" class="search-bar">
   <button class="search-slot" id="search-checkin" data-type="checkin">
     <span class="search-label">Check-in</span>
-    <span class="search-value" id="search-checkin-value" data-i18n="searchbar.placeholder.dates">Selecciona fecha</span>
+    <span class="search-value" id="search-checkin-value">Selecciona fecha</span>
   </button>
 
   <div class="search-divider"></div>
 
   <button class="search-slot" id="search-checkout" data-type="checkout">
     <span class="search-label">Check-out</span>
-    <span class="search-value" id="search-checkout-value" data-i18n="searchbar.placeholder.dates">Selecciona fecha</span>
+    <span class="search-value" id="search-checkout-value">Selecciona fecha</span>
   </button>
 
   <div class="search-divider"></div>
@@ -17040,25 +17040,20 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
 
     if (isValidDate(searchState.checkin)) {
       checkinValue.textContent = formatDate(searchState.checkin);
-      // Quitar data-i18n para que el sistema de traducción no sobreescriba la fecha
-      checkinValue.removeAttribute('data-i18n');
       checkinSlot.classList.remove('empty');
     } else {
       // Si no es Date válida, limpiar el estado para que no se vuelva a usar
       if (searchState.checkin) searchState.checkin = null;
       checkinValue.textContent = t('searchbar.placeholder.dates');
-      checkinValue.setAttribute('data-i18n', 'searchbar.placeholder.dates');
       checkinSlot.classList.add('empty');
     }
 
     if (isValidDate(searchState.checkout)) {
       checkoutValue.textContent = formatDate(searchState.checkout);
-      checkoutValue.removeAttribute('data-i18n');
       checkoutSlot.classList.remove('empty');
     } else {
       if (searchState.checkout) searchState.checkout = null;
       checkoutValue.textContent = t('searchbar.placeholder.dates');
-      checkoutValue.setAttribute('data-i18n', 'searchbar.placeholder.dates');
       checkoutSlot.classList.add('empty');
     }
 
@@ -17160,6 +17155,37 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
   // Inicializar UI
   updateSearchUI();
   applyAvailabilityFilter();
+
+  // ===== NaN GUARD (instalado UNA vez, no por render) =====
+  // Si cualquier código externo escribe "NaN" en los displays, lo corregimos
+  // y logueamos el stack para identificar al culpable.
+  // Versión agresiva: loguea TODA mutación para ver la secuencia completa.
+  function installSingleNaNGuard(el, label) {
+    if (!el) return;
+    let correcting = false;
+    const obs = new MutationObserver(() => {
+      if (correcting) return;
+      const txt = (el.textContent || '').trim();
+      // LOG TODA mutación para debug
+      console.log('[searchbar-mutation] %s = "%s"', label, txt);
+      if (/^NaN$|Invalid Date|^undefined$/i.test(txt)) {
+        console.error('[NaN-guard] %s mutó a "%s". Stack:', label, txt);
+        console.trace();
+        correcting = true;
+        // Reescribir al valor correcto basado en el estado real
+        const state = label === 'checkin' ? searchState.checkin : searchState.checkout;
+        if (state instanceof Date && !isNaN(state.getTime())) {
+          el.textContent = formatDate(state);
+        } else {
+          el.textContent = t('searchbar.placeholder.dates');
+        }
+        setTimeout(() => { correcting = false; }, 0);
+      }
+    });
+    obs.observe(el, { childList: true, characterData: true, subtree: true });
+  }
+  installSingleNaNGuard(checkinValue, 'checkin');
+  installSingleNaNGuard(checkoutValue, 'checkout');
 
   // Re-renderizar al cambiar idioma (nombres de meses, "personas/guests", etc.)
   document.addEventListener('vrm:lang-changed', () => {
