@@ -1273,8 +1273,8 @@
     }
     /* Coverflow style: card central grande, laterales más chicas */
     .featured-card {
-      flex: 0 0 210px;
-      height: 290px;
+      flex: 0 0 195px;
+      height: 265px;
       transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1),
                   opacity 0.4s ease,
                   filter 0.4s ease;
@@ -1291,44 +1291,44 @@
       filter: brightness(1) saturate(1);
     }
     .featured-card-photo {
-      flex: 0 0 175px;
+      flex: 0 0 158px;
     }
     .featured-card-content {
-      padding: 12px 14px 14px;
+      padding: 11px 13px 12px;
     }
     .featured-card-divider {
-      width: 20px;
-      margin-bottom: 9px;
+      width: 18px;
+      margin-bottom: 8px;
     }
     .featured-card-zone {
-      font-size: 9px;
+      font-size: 8.5px;
       letter-spacing: 0.22em;
-      margin-bottom: 5px;
-    }
-    .featured-card-name {
-      font-size: 17px;
       margin-bottom: 4px;
     }
+    .featured-card-name {
+      font-size: 16px;
+      margin-bottom: 3px;
+    }
     .featured-card-view {
-      font-size: 11.5px;
-    }
-    .featured-card-bottom {
-      padding-top: 9px;
-    }
-    .featured-card-price .amount {
-      font-size: 14px;
-    }
-    .featured-card-price .meta {
-      font-size: 9.5px;
-    }
-    .featured-card-rating {
       font-size: 11px;
     }
-    .featured-card-badge {
+    .featured-card-bottom {
+      padding-top: 8px;
+    }
+    .featured-card-price .amount {
+      font-size: 13px;
+    }
+    .featured-card-price .meta {
       font-size: 9px;
-      padding: 4px 9px 4px 7px;
-      top: 10px;
-      left: 10px;
+    }
+    .featured-card-rating {
+      font-size: 10.5px;
+    }
+    .featured-card-badge {
+      font-size: 8.5px;
+      padding: 3px 8px 3px 6px;
+      top: 9px;
+      left: 9px;
     }
     .featured-track-wrap {
       max-width: 100%;
@@ -1337,10 +1337,10 @@
     /* El track tiene padding lateral grande para que la primera/última card
        puedan estar centradas en pantalla */
     .featured-track {
-      padding: 6px calc(50% - 105px) 6px !important;
-      gap: 14px;
+      padding: 6px calc(50% - 97.5px) 6px !important;
+      gap: 12px;
       scroll-snap-type: x mandatory;
-      scroll-padding: 0 calc(50% - 105px);
+      scroll-padding: 0 calc(50% - 97.5px);
       -webkit-overflow-scrolling: auto !important;
       scroll-behavior: smooth !important;
       overscroll-behavior-x: contain;
@@ -12379,7 +12379,7 @@ const oceanUniforms = {
   iTime: { value: 0 },
   uCameraPos: { value: camera.position.clone() },
   uSunDir: { value: sunDirection },
-  uFogColor: { value: new THREE.Color(0xd89870) }
+  uFogColor: { value: new THREE.Color(0xe8b890) }
 };
 
 const oceanGeom = new THREE.PlaneGeometry(3000, 3000, 1, 1);
@@ -12413,17 +12413,18 @@ const skyFrag = `
     vec3 dir = normalize(vDir);
     float sun = max(0.0, dot(dir, uSunDir));
     float h = clamp(dir.y, 0.0, 1.0);
-    vec3 zenith  = vec3(0.05, 0.11, 0.24);
-    vec3 midSky  = vec3(0.50, 0.32, 0.34);
-    vec3 horizon = vec3(1.00, 0.72, 0.45);
-    vec3 lowGlow = vec3(1.00, 0.52, 0.28);
+    // Paleta más dorada/lavanda — menos sangre, más Belmond/Aman golden hour
+    vec3 zenith  = vec3(0.10, 0.13, 0.24);
+    vec3 midSky  = vec3(0.42, 0.36, 0.46);
+    vec3 horizon = vec3(0.98, 0.78, 0.56);
+    vec3 lowGlow = vec3(1.00, 0.68, 0.42);
     vec3 sky = mix(lowGlow, horizon, smoothstep(0.0, 0.06, h));
     sky = mix(sky, midSky, smoothstep(0.05, 0.25, h));
     sky = mix(sky, zenith, smoothstep(0.2, 0.7, h));
-    sky += vec3(1.0, 0.85, 0.55) * pow(sun, 320.0) * 1.4;
-    sky += vec3(1.0, 0.65, 0.35) * pow(sun, 8.0) * 0.4;
-    sky += vec3(1.0, 0.45, 0.25) * pow(sun, 2.0) * 0.08;
-    sky = pow(sky, vec3(0.80));
+    sky += vec3(1.0, 0.88, 0.62) * pow(sun, 320.0) * 1.3;
+    sky += vec3(1.0, 0.75, 0.45) * pow(sun, 8.0) * 0.32;
+    sky += vec3(1.0, 0.58, 0.32) * pow(sun, 2.0) * 0.06;
+    sky = pow(sky, vec3(0.85));
     gl_FragColor = vec4(sky, 1.0);
   }
 `;
@@ -12616,8 +12617,8 @@ scene.add(fillLight);
 
 // ---- FOG atmosférico ---------------------------------------------
 // Fog exponencial: desaturación natural con la distancia (perspectiva aérea real)
-// Color: tinte cálido del horizonte del atardecer
-scene.fog = new THREE.FogExp2(0xd89870, 0.00085);
+// Color: dorado pálido cálido (golden hour neutro, no terracota saturado)
+scene.fog = new THREE.FogExp2(0xe8b890, 0.00085);
 
 // ---- TERRAIN BUILDER ---------------------------------------------
 /**
@@ -12874,9 +12875,9 @@ function addMountainTerrain(params) {
       // Ambient warm: en atardecer a contraluz, la cara de la montaña que mira al espectador
       // NO está en negro — está iluminada por luz indirecta del cielo naranja-rosa y bounce
       // del mar dorado. Este valor debe ser relativamente alto y cálido.
-      uAmbientWarm:  { value: new THREE.Color(0xffa878).multiplyScalar(0.95) },
+      uAmbientWarm:  { value: new THREE.Color(0xf5b88a).multiplyScalar(0.95) },
       uAmbientCool:  { value: new THREE.Color(0x8a7d80).multiplyScalar(0.55) },
-      uFogColor:     { value: new THREE.Color(0xd89870) },
+      uFogColor:     { value: new THREE.Color(0xe8b890) },
       uFogDensity:   { value: 0.00105 },
       uTime:         { value: 0 }
     }
@@ -17016,9 +17017,13 @@ const PROPERTY_PHOTOS = {
     if (closestCard && typeof computeYawForProperty === 'function') {
       const propId = closestCard.dataset.propertyId;
       if (propId && propId !== _lastCenteredComplexId) {
+        const isFirstDetection = _lastCenteredComplexId === null;
         _lastCenteredComplexId = propId;
-        // Solo movemos si NO hay un zoneLock activo
-        if (typeof cameraZoneLock !== 'undefined' && !cameraZoneLock) {
+        // Solo movemos si NO hay un zoneLock activo Y NO es la primera detección.
+        // La primera detección (al cargar) NO debe disparar movimiento de cámara —
+        // el ctaBtn ya posicionó la cámara en Quiya. Si la card centrada al inicio
+        // resulta ser Marítima o Bolongo (por scroll offset/timing), no la movemos.
+        if (!isFirstDetection && typeof cameraZoneLock !== 'undefined' && !cameraZoneLock) {
           const newYaw = computeYawForProperty(propId);
           if (typeof newYaw === 'number' && !isNaN(newYaw)) {
             animateCarouselYaw(newYaw);
