@@ -2317,160 +2317,252 @@
     }
   }
 
+  /* ============================================================
+     QUIYA UNIT CARD — Editorial premium redesign
+     Foto arriba + info abajo (consistente con featured cards)
+     ============================================================ */
   .quiya-unit-card {
     position: relative;
-    aspect-ratio: 4 / 5;
     border-radius: 16px;
     overflow: hidden;
-    background-color: #1a1a1a;
-    background-size: cover;
-    background-position: center;
+    background: linear-gradient(180deg,
+      rgba(20, 14, 22, 0.94) 0%,
+      rgba(28, 20, 32, 0.96) 100%);
     cursor: pointer;
-    border: 1px solid rgba(220, 160, 110, 0.15);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(220, 160, 110, 0.18);
+    box-shadow:
+      0 6px 20px rgba(0, 0, 0, 0.4),
+      0 1px 0 rgba(255, 240, 220, 0.04) inset;
     transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform, box-shadow;
+    display: flex;
+    flex-direction: column;
+    isolation: isolate;
   }
 
-  /* No usamos ::before — el background-image va inline en el style */
+  /* Borde especular dorado sutil */
+  .quiya-unit-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg,
+      rgba(255, 240, 220, 0.22) 0%,
+      rgba(255, 240, 220, 0.04) 50%,
+      rgba(220, 160, 110, 0.18) 100%);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 4;
+    opacity: 0.5;
+    transition: opacity 0.5s ease;
+  }
 
-  /* Overlay sobre la foto: gradient mucho más oscuro abajo para que el texto se lea */
-  .quiya-unit-card::after {
+  .quiya-unit-card:hover::before { opacity: 1; }
+
+  /* FOTO — sección superior limpia (sin textos encima) */
+  .quiya-unit-photo {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: linear-gradient(135deg,
+      rgba(60, 40, 30, 0.95) 0%,
+      rgba(80, 55, 35, 0.95) 100%);
+  }
+
+  .quiya-unit-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .quiya-unit-card:hover .quiya-unit-photo img {
+    transform: scale(1.06);
+  }
+
+  /* Gradient sutil arriba de la foto para el view-tag */
+  .quiya-unit-photo::after {
     content: '';
     position: absolute;
     inset: 0;
     background: linear-gradient(180deg,
-      transparent 0%,
-      rgba(0, 0, 0, 0.15) 35%,
-      rgba(0, 0, 0, 0.65) 60%,
-      rgba(0, 0, 0, 0.92) 85%,
-      rgba(0, 0, 0, 0.97) 100%);
+      rgba(0, 0, 0, 0.25) 0%,
+      rgba(0, 0, 0, 0) 40%,
+      rgba(0, 0, 0, 0) 100%);
     pointer-events: none;
   }
 
-  .quiya-unit-card-content {
+  /* TAG de vista en top-left de la foto */
+  .quiya-unit-view-tag {
     position: absolute;
-    bottom: 22px;
-    left: 26px;
-    right: 26px;
-    color: white;
-    z-index: 2;
-    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85),
-                 0 0 14px rgba(0, 0, 0, 0.65);
-  }
-
-  @media (max-width: 768px) {
-    .quiya-unit-card-content {
-      bottom: 18px;
-      left: 18px;
-      right: 18px;
-    }
-  }
-
-  .quiya-unit-card-meta-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 12px;
-  }
-
-  .quiya-unit-card-guests {
-    font-family: 'Inter Tight', sans-serif;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    color: rgba(255, 240, 220, 0.78);
-    text-transform: lowercase;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .quiya-unit-card-price {
-    font-family: 'Inter Tight', sans-serif;
-    font-size: 11px;
-    color: rgba(255, 240, 220, 0.7);
+    top: 11px;
+    left: 11px;
+    z-index: 3;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
     font-weight: 400;
-    line-height: 1;
-    display: flex;
-    align-items: baseline;
-    gap: 3px;
-    white-space: nowrap;
+    font-size: 12px;
+    color: rgba(255, 248, 235, 0.95);
+    padding: 4px 10px 4px 0;
+    letter-spacing: 0.01em;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .quiya-unit-view-tag::before {
+    content: '';
+    width: 16px;
+    height: 1px;
+    background: rgba(245, 200, 145, 0.9);
     flex-shrink: 0;
   }
 
-  .quiya-unit-card-price strong {
+  /* CONTENT — sección inferior con info estructurada */
+  .quiya-unit-content {
+    padding: 12px 14px 14px;
+    color: rgba(255, 245, 230, 0.92);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 3;
+  }
+
+  /* Número de unidad — protagonista del info area, Cormorant italic */
+  .quiya-unit-number {
     font-family: 'Cormorant Garamond', serif;
     font-style: italic;
+    font-weight: 400;
+    font-size: 22px;
+    line-height: 1;
+    color: rgba(255, 248, 235, 0.96);
+    letter-spacing: -0.005em;
+  }
+
+  /* Specs en una línea: rec · ba · huéspedes */
+  .quiya-unit-specs {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 10.5px;
     font-weight: 500;
-    font-size: 20px;
-    color: rgba(255, 250, 235, 1);
-    letter-spacing: -0.01em;
+    letter-spacing: 0.04em;
+    color: rgba(255, 240, 220, 0.6);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
   }
 
-  .quiya-unit-card-price .price-suffix {
-    font-size: 10px;
-    opacity: 0.55;
-  }
-
-  @media (max-width: 768px) {
-    .quiya-unit-card-price strong {
-      font-size: 18px;
-    }
-  }
-
-  /* Número grande — protagonista visual de la card */
-  .quiya-unit-number-big {
-    font-family: 'Cormorant Garamond', serif;
-    font-style: italic;
+  .quiya-unit-specs .spec-sep {
+    color: rgba(245, 200, 145, 0.4);
     font-weight: 300;
-    font-size: 88px;
-    line-height: 0.9;
-    background: linear-gradient(180deg,
-      rgba(255, 248, 230, 0.95) 0%,
-      rgba(245, 200, 145, 0.78) 60%,
-      rgba(220, 160, 110, 0.55) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.85))
-            drop-shadow(0 1px 3px rgba(0, 0, 0, 0.9));
-    letter-spacing: -0.03em;
-    position: absolute;
-    top: 18px;
-    right: 18px;
-    z-index: 2;
-    opacity: 0.92;
-    pointer-events: none;
   }
 
-  @media (max-width: 768px) {
-    .quiya-unit-number-big {
-      font-size: 64px;
-      top: 14px;
-      right: 14px;
-    }
+  /* Separator entre specs y precio */
+  .quiya-unit-divider {
+    height: 1px;
+    background: linear-gradient(90deg,
+      rgba(245, 200, 145, 0.18) 0%,
+      rgba(245, 200, 145, 0.05) 100%);
+    margin: 3px 0 1px;
   }
 
-  /* CSS de quiya-unit-card-label, quiya-unit-card-name eliminados — cards muestran solo número, capacidad y precio */
+  /* Bottom: precio prominente + rating */
+  .quiya-unit-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
 
-  /* Hover de la card - solo dispositivos con hover real (desktop) */
+  .quiya-unit-price {
+    font-family: 'Inter Tight', sans-serif;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+  }
+
+  .quiya-unit-price .amount {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255, 248, 235, 0.98);
+  }
+
+  .quiya-unit-price .meta {
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: rgba(255, 240, 220, 0.5);
+    text-transform: lowercase;
+  }
+
+  .quiya-unit-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 248, 235, 0.88);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .quiya-unit-rating svg {
+    color: rgba(245, 200, 80, 1);
+    flex-shrink: 0;
+  }
+
+  /* Hover desktop */
   @media (hover: hover) and (pointer: fine) {
     .quiya-unit-card:hover {
       transform: translateY(-4px);
-      border-color: rgba(220, 160, 110, 0.5);
+      border-color: rgba(220, 160, 110, 0.45);
       box-shadow:
         0 16px 40px rgba(0, 0, 0, 0.55),
-        0 0 60px rgba(220, 160, 110, 0.15);
-      background-size: 110%;
+        0 0 60px rgba(220, 160, 110, 0.12);
     }
   }
 
-  /* Active state mobile: solo un sutil scale-down al tocar (feedback) */
   .quiya-unit-card:active {
     transform: scale(0.98);
     transition: transform 0.15s ease;
+  }
+
+  /* Mobile adjustments */
+  @media (max-width: 768px) {
+    .quiya-unit-content {
+      padding: 11px 12px 12px;
+      gap: 5px;
+    }
+    .quiya-unit-number {
+      font-size: 20px;
+    }
+    .quiya-unit-specs {
+      font-size: 10px;
+    }
+    .quiya-unit-price .amount {
+      font-size: 15px;
+    }
+    .quiya-unit-price .meta {
+      font-size: 9px;
+    }
+    .quiya-unit-rating {
+      font-size: 10.5px;
+    }
+    .quiya-unit-view-tag {
+      font-size: 11px;
+      top: 9px;
+      left: 9px;
+    }
+    .quiya-unit-view-tag::before {
+      width: 13px;
+    }
   }
 
   /* Footer del panel con CTA "Ver complejo entero" */
@@ -15458,15 +15550,45 @@ function openQuiyaUnitsPanel(p) {
     const price = u?.priceUSD || 185;
     const guests = u?.guests || 4;
     const view = u?.view || 'Vista al mar';
-    const highlight = u?.highlight || '';
+    const bedroomsCount = Array.isArray(u?.bedrooms) ? u.bedrooms.length : (u?.bedrooms || 2);
+    const bathrooms = u?.bathrooms || 2;
+
+    // Rating determinístico igual que en el carrusel para consistencia
+    const ratingHash = unitId.charCodeAt(0) + unitId.charCodeAt(unitId.length - 1);
+    const rating = (4.7 + (ratingHash % 30) / 100).toFixed(2);
+
+    // Texto plural inteligente
+    const recText = bedroomsCount === 1 ? '1 rec' : `${bedroomsCount} rec`;
+    const baText = bathrooms === 1 ? '1 baño' : `${bathrooms} baños`;
+    const guestText = guests === 1 ? '1 huésped' : `${guests} huéspedes`;
 
     return `
-      <div class="quiya-unit-card" data-unit="${unitId}" style="background-image: url('${photo}');">
-        <div class="quiya-unit-number-big">${unitId}</div>
-        <div class="quiya-unit-card-content">
-          <div class="quiya-unit-card-meta-row">
-            <span class="quiya-unit-card-guests">${guests} huéspedes</span>
-            <span class="quiya-unit-card-price"><strong>$${price}</strong><span class="price-suffix">/noche</span></span>
+      <div class="quiya-unit-card" data-unit="${unitId}">
+        <div class="quiya-unit-photo">
+          <img src="${photo}" alt="${unitId}" loading="lazy">
+          <div class="quiya-unit-view-tag">${view}</div>
+        </div>
+        <div class="quiya-unit-content">
+          <div class="quiya-unit-number">${unitId}</div>
+          <div class="quiya-unit-specs">
+            <span>${recText}</span>
+            <span class="spec-sep">·</span>
+            <span>${baText}</span>
+            <span class="spec-sep">·</span>
+            <span>${guestText}</span>
+          </div>
+          <div class="quiya-unit-divider"></div>
+          <div class="quiya-unit-bottom">
+            <div class="quiya-unit-price">
+              <span class="amount">$${price}</span>
+              <span class="meta">USD · noche</span>
+            </div>
+            <div class="quiya-unit-rating" aria-label="${rating} estrellas">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <span>${rating}</span>
+            </div>
           </div>
         </div>
       </div>
