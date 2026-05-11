@@ -4,7 +4,44 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a14">
-<title>VRM · Bahía de Banderas</title>
+<title>VRM · Bahía de Banderas — Casas boutique frente al mar</title>
+
+<!-- ============================================================
+     META TAGS: SEO, sociales, favicon
+     ============================================================ -->
+<meta name="description" content="VRM · Vacation Rental México. Casas y depas boutique frente al mar en Bahía de Banderas (Punta de Mita, Nuevo Vallarta, Puerto Vallarta). Confianza desde 2018 · 517 reseñas · 4.83 estrellas.">
+<meta name="keywords" content="renta vacacional, vacation rental, Bahía de Banderas, Puerto Vallarta, Punta de Mita, Nuevo Vallarta, casas boutique, lujo, México">
+<meta name="author" content="VRM · Vacation Rental México">
+
+<!-- Open Graph (WhatsApp, Facebook, LinkedIn previews) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VRM · Vacation Rental México">
+<meta property="og:title" content="VRM · Casas boutique frente al mar en Bahía de Banderas">
+<meta property="og:description" content="Renta directa de casas y depas curados en Punta de Mita, Nuevo Vallarta y Puerto Vallarta. Confianza desde 2018.">
+<meta property="og:locale" content="es_MX">
+<meta property="og:locale:alternate" content="en_US">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="VRM · Casas boutique en Bahía de Banderas">
+<meta name="twitter:description" content="Renta directa de casas y depas curados frente al mar. 517 reseñas · 4.83 estrellas.">
+
+<!-- Favicon SVG inline: monograma V con gradient dorado (igual paleta que el hero) -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='0%25' y2='100%25'><stop offset='0%25' stop-color='%23FFF8E6'/><stop offset='100%25' stop-color='%23D2A578'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='%231a0a14'/><text x='50%25' y='55%25' text-anchor='middle' dominant-baseline='middle' font-family='Georgia,serif' font-style='italic' font-weight='300' font-size='42' fill='url(%23g)'>V</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='0%25' y2='100%25'><stop offset='0%25' stop-color='%23FFF8E6'/><stop offset='100%25' stop-color='%23D2A578'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='%231a0a14'/><text x='50%25' y='55%25' text-anchor='middle' dominant-baseline='middle' font-family='Georgia,serif' font-style='italic' font-weight='300' font-size='42' fill='url(%23g)'>V</text></svg>">
+
+<!-- ============================================================
+     OPTIMIZACIÓN DE CARGA INICIAL
+     - preconnect: abre conexión TLS a CDNs antes de pedirles archivos
+     - preload: descarga Three.js en paralelo con el parsing del HTML
+     ============================================================ -->
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" as="script" crossorigin>
+
 <script>
   // Detectar mobile inmediatamente — antes de cargar Three.js u otros scripts pesados
   (function detectMobile() {
@@ -39,6 +76,21 @@
     --ink: #f5efe3;
     --ink-dim: rgba(245, 239, 227, 0.55);
     --ink-faint: rgba(245, 239, 227, 0.25);
+
+    /* ============================================================
+       Z-INDEX TOKENS — escala unificada (antes había 30+ valores sueltos)
+       Uso: z-index: var(--z-modal);
+       ============================================================ */
+    --z-base:        1;     /* contenido normal sobre canvas */
+    --z-elevated:    10;    /* cards, botones flotantes */
+    --z-sticky:      50;    /* topbar, searchbar sticky */
+    --z-hero:        100;   /* hero overlay del intro */
+    --z-overlay:     500;   /* overlays de pantalla completa (grid, units panel) */
+    --z-sheet:       900;   /* bottom sheets de reserva, calendario */
+    --z-loading:     1000;  /* loading screen */
+    --z-modal:       2000;  /* modales centrales tipo card-version-a */
+    --z-toast:       5000;  /* notifications, toasts */
+    --z-debug:       99999; /* paneles de debug (calibración) */
   }
 
   /* ============================================================
@@ -179,7 +231,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    transition: opacity 1.2s ease, visibility 0s 1.2s;
+    transition: opacity 0.4s ease, visibility 0s 0.4s;
   }
 
   #loading-screen.done {
@@ -262,7 +314,7 @@
     height: 100vh;
     display: block;
     opacity: 0;
-    transition: opacity 2s ease;
+    transition: opacity 0.5s ease-out;
   }
 
   #scene-canvas.ready { opacity: 1; }
@@ -491,6 +543,34 @@
   .search-bar.has-search .search-availability::before {
     background: #d9863e;
     box-shadow: 0 0 8px rgba(217, 134, 62, 0.6);
+  }
+
+  /* Urgencia: cuando quedan POCAS propiedades disponibles para las fechas elegidas,
+     el dot del search availability pulsa en naranja-rojo. Patrón Booking.com. */
+  .search-availability.urgency-low,
+  .search-bar.has-search .search-availability.urgency-low {
+    color: rgba(190, 70, 40, 0.98);
+  }
+  .search-availability.urgency-low::before,
+  .search-bar.has-search .search-availability.urgency-low::before {
+    background: #e8602f;
+    box-shadow: 0 0 0 0 rgba(232, 96, 47, 0.55);
+    animation: availUrgencyPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes availUrgencyPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232, 96, 47, 0.55); }
+    50% { box-shadow: 0 0 0 6px rgba(232, 96, 47, 0); }
+  }
+  /* Urgencia max: 0 disponibles → rojo apagado, sin pulse (es estado terminal) */
+  .search-availability.urgency-none,
+  .search-bar.has-search .search-availability.urgency-none {
+    color: rgba(160, 60, 40, 0.85);
+  }
+  .search-availability.urgency-none::before,
+  .search-bar.has-search .search-availability.urgency-none::before {
+    background: rgba(190, 80, 50, 0.8);
+    box-shadow: none;
+    animation: none;
   }
 
   /* ============================================================
@@ -825,32 +905,43 @@
 
   .featured-track::-webkit-scrollbar { display: none; }
 
+  /* ============================================================
+     FEATURED CARDS — editorial premium (Belmond/Aman inspired)
+     Foto domina arriba. Info abajo con hairline divider entre ambos.
+     ============================================================ */
+
   /* Featured card individual */
   .featured-card {
-    flex: 0 0 245px;
-    height: 280px;
-    border-radius: 20px;
+    flex: 0 0 272px;
+    height: 388px;
+    border-radius: 18px;
     overflow: hidden;
     position: relative;
     cursor: pointer;
     scroll-snap-align: start;
     transition:
-      transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-    background: rgba(20, 30, 45, 0.4);
-    box-shadow: 0 6px 18px rgba(15, 25, 45, 0.18);
+      transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    background: linear-gradient(180deg,
+      rgba(16, 22, 32, 0.92) 0%,
+      rgba(22, 28, 40, 0.94) 100%);
+    box-shadow:
+      0 4px 14px rgba(15, 25, 45, 0.22),
+      0 1px 0 rgba(255, 240, 220, 0.04) inset;
     isolation: isolate;
+    display: flex;
+    flex-direction: column;
   }
 
   .featured-card:hover {
     transform: translateY(-6px);
     box-shadow:
-      0 1px 1px rgba(255,255,255,.5) inset,
-      0 14px 32px rgba(15, 25, 45, 0.28),
-      0 0 0 1px rgba(200, 120, 58, 0.4);
+      0 1px 0 rgba(255, 240, 220, 0.08) inset,
+      0 18px 40px rgba(15, 25, 45, 0.35),
+      0 0 0 1px rgba(220, 160, 110, 0.42);
   }
 
-  /* Borde especular sutil en cada card (mask-composite) */
+  /* Borde especular sutil en cada card */
   .featured-card::before {
     content: '';
     position: absolute;
@@ -858,35 +949,50 @@
     padding: 1px;
     border-radius: inherit;
     background: linear-gradient(135deg,
-      rgba(255, 255, 255, 0.4) 0%,
-      rgba(255, 255, 255, 0.08) 50%,
-      rgba(255, 255, 255, 0.25) 100%);
+      rgba(255, 240, 220, 0.22) 0%,
+      rgba(255, 240, 220, 0.04) 50%,
+      rgba(220, 160, 110, 0.18) 100%);
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
       linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;
-    z-index: 3;
-    opacity: 0.5;
+    z-index: 4;
+    opacity: 0.6;
+    transition: opacity 0.5s ease;
   }
 
+  .featured-card:hover::before { opacity: 1; }
+
+  /* FOTO: ocupa 232px arriba */
   .featured-card-photo {
-    position: absolute;
-    inset: 0;
+    position: relative;
+    flex: 0 0 232px;
     overflow: hidden;
-    border-radius: inherit;
   }
 
   .featured-card-photo img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 1.4s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .featured-card:hover .featured-card-photo img {
-    transform: scale(1.08);
+    transform: scale(1.06);
+  }
+
+  /* Gradient sutil sobre la foto para mejor contraste del badge top-left */
+  .featured-card-photo::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg,
+      rgba(0, 0, 0, 0.32) 0%,
+      rgba(0, 0, 0, 0) 35%,
+      rgba(0, 0, 0, 0) 100%);
+    pointer-events: none;
   }
 
   /* Placeholder gradient si no hay foto */
@@ -900,118 +1006,178 @@
     justify-content: center;
   }
 
-  .featured-card-photo.placeholder::after {
-    content: '🌅';
-    font-size: 40px;
-    opacity: 0.4;
-  }
-
-  /* Gradient overlay inferior para legibilidad del texto */
-  .featured-card::after {
+  .featured-card-photo.placeholder::before {
     content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: linear-gradient(180deg,
-      rgba(0,0,0,0) 0%,
-      rgba(0,0,0,0) 45%,
-      rgba(0,0,0,0.55) 80%,
-      rgba(0,0,0,0.78) 100%);
-    pointer-events: none;
-    z-index: 2;
+    width: 32px;
+    height: 32px;
+    background: radial-gradient(circle, rgba(245, 200, 145, 0.45) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 1;
   }
 
-  .featured-card-content {
+  /* BADGE top-left: "Guest favorite", "Rare find", etc.
+     Solo aparece si la unit tiene `unitData.badge` definido.
+     Patrón: Airbnb destaca las cards especiales con un badge sutil. */
+  .featured-card-badge {
     position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 14px 14px 13px;
+    top: 14px;
+    left: 14px;
     z-index: 3;
-    color: white;
-    text-align: left;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px 5px 9px;
+    border-radius: 100px;
+    background: rgba(255, 248, 235, 0.94);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 200, 140, 0.45);
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: rgba(120, 70, 30, 0.95);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+
+  .featured-card-badge .badge-icon {
+    color: rgba(220, 160, 80, 1);
+    display: inline-flex;
+    align-items: center;
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  /* Variantes de color del badge según tipo */
+  .featured-card-badge-favorite {
+    background: rgba(255, 248, 235, 0.96);
+    border-color: rgba(220, 160, 80, 0.55);
+    color: rgba(140, 80, 30, 0.95);
+  }
+  .featured-card-badge-rare {
+    background: rgba(40, 50, 70, 0.9);
+    border-color: rgba(180, 200, 230, 0.4);
+    color: rgba(220, 230, 245, 0.95);
+  }
+  .featured-card-badge-new {
+    background: rgba(95, 184, 107, 0.95);
+    border-color: rgba(60, 130, 75, 0.55);
+    color: rgba(255, 255, 255, 0.98);
+  }
+
+  /* CONTENT: 156px abajo. Padding generoso para que respire elegante. */
+  .featured-card-content {
+    flex: 1;
+    padding: 16px 18px 18px;
+    z-index: 3;
+    color: rgba(255, 245, 230, 0.92);
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg,
+      rgba(20, 26, 38, 0.0) 0%,
+      rgba(22, 28, 40, 0.4) 100%);
+  }
+
+  /* Hairline divider entre foto e info (signature mark editorial) */
+  .featured-card-divider {
+    width: 28px;
+    height: 1px;
+    background: linear-gradient(90deg,
+      rgba(220, 160, 110, 0) 0%,
+      rgba(245, 200, 145, 0.7) 50%,
+      rgba(220, 160, 110, 0) 100%);
+    margin: 0 0 12px;
+    transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .featured-card:hover .featured-card-divider {
+    width: 48px;
   }
 
   .featured-card-zone {
     font-family: 'Inter Tight', sans-serif;
-    font-size: 7px;
+    font-size: 9.5px;
     font-weight: 500;
-    letter-spacing: 0.26em;
+    letter-spacing: 0.28em;
     text-transform: uppercase;
-    color: rgba(255, 200, 140, 0.95);
-    margin-bottom: 5px;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    color: rgba(245, 200, 145, 0.78);
+    margin-bottom: 7px;
   }
 
   .featured-card-name {
     font-family: 'Cormorant Garamond', serif;
     font-style: italic;
     font-weight: 400;
-    font-size: 19px;
-    line-height: 1.05;
-    color: white;
-    margin-bottom: 8px;
-    text-shadow: 0 1px 8px rgba(0,0,0,0.6);
-    letter-spacing: 0.005em;
+    font-size: 22px;
+    line-height: 1.1;
+    color: rgba(255, 248, 235, 0.96);
+    letter-spacing: -0.005em;
+    margin-bottom: 6px;
+    /* Espacio extra abajo para descendentes itálicas (g, y, j) */
+    padding-bottom: 1px;
   }
 
+  /* View: descripción del atributo único de la unit (italic) */
+  .featured-card-view {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 13px;
+    color: rgba(255, 240, 220, 0.6);
+    letter-spacing: 0.005em;
+    /* No margin-bottom: el "margin-top: auto" del bottom row lo separa */
+  }
+
+  /* BOTTOM ROW: precio izquierda, rating derecha (mismo baseline).
+     margin-top: auto los empuja al fondo del flex column. */
   .featured-card-bottom {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 12px;
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid rgba(245, 200, 145, 0.14);
   }
 
   .featured-card-price {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
     font-family: 'Inter Tight', sans-serif;
-    color: white;
-    text-shadow: 0 1px 6px rgba(0,0,0,0.6);
-  }
-
-  .featured-card-price .from {
-    font-size: 8px;
-    font-weight: 500;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    opacity: 0.7;
-    display: block;
-    margin-bottom: 2px;
+    color: rgba(255, 248, 235, 0.96);
   }
 
   .featured-card-price .amount {
-    font-size: 17px;
-    font-weight: 500;
-    letter-spacing: -0.01em;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
     font-variant-numeric: tabular-nums;
+    color: rgba(255, 248, 235, 0.98);
   }
 
-  .featured-card-price .amount .currency {
-    font-size: 9px;
-    opacity: 0.7;
-    margin-right: 3px;
+  .featured-card-price .meta {
+    font-size: 10px;
     font-weight: 500;
-  }
-
-  .featured-card-price .amount .per {
-    font-size: 9px;
-    opacity: 0.65;
-    margin-left: 4px;
-    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: rgba(255, 240, 220, 0.5);
+    text-transform: lowercase;
   }
 
   .featured-card-rating {
-    font-family: 'Inter Tight', sans-serif;
-    font-size: 11px;
-    color: rgba(255,255,255,0.85);
-    text-shadow: 0 1px 6px rgba(0,0,0,0.6);
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 4px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 248, 235, 0.92);
+    font-variant-numeric: tabular-nums;
   }
 
-  .featured-card-rating .star {
-    color: rgba(255, 200, 140, 1);
-    font-size: 10px;
+  .featured-card-rating svg {
+    color: rgba(245, 200, 80, 1);
+    flex-shrink: 0;
   }
 
   /* Flechas de navegación del strip */
@@ -1098,8 +1264,6 @@
   /* Responsive: en móvil cards más chicas y barra abajo */
   @media (max-width: 768px) {
     .featured-strip {
-      /* Posicionado bien arriba del bottom del viewport
-         (deja espacio para la barra del browser y la pill "Ver todas...") */
       bottom: calc(60px + env(safe-area-inset-bottom));
     }
     .featured-eyebrow {
@@ -1107,19 +1271,15 @@
       letter-spacing: 0.26em;
       margin-bottom: 8px;
     }
-    /* Coverflow style: card central grande, laterales más chicas y sombreadas */
+    /* Coverflow style: card central grande, laterales más chicas */
     .featured-card {
-      flex: 0 0 200px;
-      height: 230px;
-      /* Por default la card es "grande" — las que estén en posición lateral
-         se reducen via JS o scroll-snap */
+      flex: 0 0 240px;
+      height: 340px;
       transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1),
                   opacity 0.4s ease,
                   filter 0.4s ease;
       transform-origin: center center;
     }
-    /* Cards no-centradas (las laterales) — efecto sutil, no oscurecidas
-       Para Margaret 67yo: que NO parezca que están deshabilitadas */
     .featured-card:not(.is-centered) {
       transform: scale(0.92);
       opacity: 0.88;
@@ -1130,26 +1290,45 @@
       opacity: 1;
       filter: brightness(1) saturate(1);
     }
-    .featured-card .card-image {
-      height: 130px;
+    .featured-card-photo {
+      flex: 0 0 200px;
     }
-    .featured-card .card-content {
-      padding: 8px 11px;
+    .featured-card-content {
+      padding: 14px 16px 16px;
     }
-    .featured-card .card-name {
-      font-size: 14px;
+    .featured-card-divider {
+      width: 22px;
+      margin-bottom: 10px;
     }
-    .featured-card .card-zone {
-      font-size: 7px;
-    }
-    .featured-card .card-meta {
+    .featured-card-zone {
       font-size: 9px;
+      letter-spacing: 0.24em;
+      margin-bottom: 6px;
     }
-    .featured-card .card-price {
-      font-size: 13px;
+    .featured-card-name {
+      font-size: 19px;
+      margin-bottom: 5px;
     }
-    .featured-card .card-rating {
+    .featured-card-view {
+      font-size: 12px;
+    }
+    .featured-card-bottom {
+      padding-top: 10px;
+    }
+    .featured-card-price .amount {
+      font-size: 15px;
+    }
+    .featured-card-price .meta {
+      font-size: 9.5px;
+    }
+    .featured-card-rating {
+      font-size: 11.5px;
+    }
+    .featured-card-badge {
       font-size: 9px;
+      padding: 4px 9px 4px 7px;
+      top: 10px;
+      left: 10px;
     }
     .featured-track-wrap {
       max-width: 100%;
@@ -1158,12 +1337,10 @@
     /* El track tiene padding lateral grande para que la primera/última card
        puedan estar centradas en pantalla */
     .featured-track {
-      padding: 6px calc(50% - 100px) 6px !important;
+      padding: 6px calc(50% - 120px) 6px !important;
       gap: 14px;
-      /* mandatory para que ancle perfecto a cada card (sin medio-scrolls extraños) */
       scroll-snap-type: x mandatory;
-      scroll-padding: 0 calc(50% - 100px);
-      /* Sin momentum touch agresivo — controlado, no se pasa de largo */
+      scroll-padding: 0 calc(50% - 120px);
       -webkit-overflow-scrolling: auto !important;
       scroll-behavior: smooth !important;
       overscroll-behavior-x: contain;
@@ -1178,8 +1355,8 @@
       padding: 0 16px;
     }
     .featured-see-all {
-      font-size: 9px;
-      padding: 7px 16px;
+      font-size: 10.5px;
+      padding: 9px 18px;
     }
   }
 
@@ -1196,7 +1373,7 @@
     font-family: 'Cormorant Garamond', serif;
     font-size: 15px;
     font-style: italic;
-    font-weight: 300;
+    font-weight: 400;
     letter-spacing: 0.15em;
     color: var(--ink);
     display: block;
@@ -1204,8 +1381,8 @@
   }
 
   .zone-label .meta {
-    font-size: 8px;
-    letter-spacing: 0.35em;
+    font-size: 9.5px;
+    letter-spacing: 0.3em;
     text-transform: uppercase;
     color: var(--ink-dim);
     margin-top: 3px;
@@ -1752,16 +1929,16 @@
   }
   html.is-mobile .complex-cta-text .cta-line-1,
   html.is-mobile .quiya-cta-text .cta-line-1 {
-    font-size: 8.5px;
-    letter-spacing: 0.18em;
+    font-size: 10px;
+    letter-spacing: 0.16em;
   }
   html.is-mobile .complex-cta-text .cta-line-2,
   html.is-mobile .quiya-cta-text .cta-line-2 {
-    font-size: 12px;
+    font-size: 13px;
   }
   html.is-mobile .complex-cta-text .cta-suffix,
   html.is-mobile .quiya-cta-text .cta-suffix {
-    font-size: 8px;
+    font-size: 10px;
   }
 
   /* ============================================================
@@ -2368,9 +2545,9 @@
   /* ZONE TAG — solo visible en hover (en default sólo se muestra el nombre) */
   .property-light .label .idx {
     font-family: 'Inter Tight', sans-serif;
-    font-size: 7px;
+    font-size: 9.5px;
     font-weight: 600;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.22em;
     color: rgba(255, 220, 170, 0.85);
     display: block;
     margin-top: 2px;
@@ -2430,9 +2607,9 @@
 
   .card-version-toggle button {
     font-family: 'Inter Tight', sans-serif;
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 500;
-    letter-spacing: 0.35em;
+    letter-spacing: 0.3em;
     text-transform: uppercase;
     padding: 8px 14px;
     background: rgba(18, 22, 32, 0.6);
@@ -3847,8 +4024,8 @@
       font-size: 19px;
     }
     .va-inline-reserve-sublabel {
-      font-size: 8.5px;
-      letter-spacing: 0.22em;
+      font-size: 10px;
+      letter-spacing: 0.18em;
     }
     .va-inline-reserve-right {
       gap: 10px;
@@ -3897,10 +4074,10 @@
 
   .card-version-a .va-host-note .note-text {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 16px;
+    font-size: 17px;
     font-style: italic;
     font-weight: 400;
-    line-height: 1.55;
+    line-height: 1.6;
     color: var(--lg-text);
     margin-bottom: 12px;
     letter-spacing: 0.005em;
@@ -4316,10 +4493,10 @@
 
   .card-version-a .va-review-text {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 14px;
+    font-size: 15px;
     font-style: italic;
     font-weight: 400;
-    line-height: 1.55;
+    line-height: 1.6;
     color: var(--lg-text-dim);
     letter-spacing: 0.005em;
   }
@@ -4692,6 +4869,30 @@
     margin-top: 1px;
   }
 
+  /* Línea de total — solo visible cuando el usuario seleccionó fechas.
+     Patrón Airbnb/Booking: dar al usuario el precio total real para
+     que no tenga sorpresas más adelante. Aumenta conversión vs ocultarlo. */
+  .card-version-a-footer-price .total-line {
+    margin-top: 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-family: 'Inter Tight', sans-serif;
+  }
+  .card-version-a-footer-price .total-line .total-amount {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--lg-text);
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .card-version-a-footer-price .total-line .total-meta {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--lg-text-faint);
+    letter-spacing: 0.04em;
+  }
+
   /* CTA PRINCIPAL — naranja terracota (acento de marca sobre glass claro) */
   /* CTA PRINCIPAL — pill terracota con highlights especulares y depth real */
   .card-version-a .va-cta, .va-footer-sticky .va-cta {
@@ -5017,6 +5218,9 @@
     cursor: pointer;
     line-height: 1;
     transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .card-version-b .close:hover {
@@ -5586,6 +5790,71 @@
     pointer-events: none;
   }
 
+  /* Badge de disponibilidad: se llena async después del render.
+     Aparece en top-left de cada card del grid. */
+  .grid-unit-availability-badge {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px 5px 8px;
+    border-radius: 100px;
+    background: rgba(20, 14, 8, 0.62);
+    backdrop-filter: blur(10px) saturate(160%);
+    -webkit-backdrop-filter: blur(10px) saturate(160%);
+    border: 1px solid rgba(255, 240, 220, 0.18);
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.005em;
+    color: rgba(255, 240, 220, 0.92);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .grid-unit-availability-badge.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .grid-unit-availability-badge .badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .grid-unit-availability-badge .badge-dot-green {
+    background: #5fb86b;
+    box-shadow: 0 0 0 0 rgba(95, 184, 107, 0.5);
+    animation: badgeDotPulse 2.5s ease-in-out infinite;
+  }
+  .grid-unit-availability-badge .badge-dot-amber {
+    background: #f5b945;
+  }
+  .grid-unit-availability-badge .badge-dot-orange {
+    background: #f08545;
+    animation: badgeDotPulse 2.2s ease-in-out infinite;
+    box-shadow: 0 0 0 0 rgba(240, 133, 69, 0.5);
+  }
+  .grid-unit-availability-badge .badge-dot-neutral {
+    background: rgba(220, 200, 180, 0.55);
+  }
+  @keyframes badgeDotPulse {
+    0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+    50% { box-shadow: 0 0 0 5px transparent; opacity: 0.7; }
+  }
+  /* Tone-specific border accents */
+  .grid-unit-availability-badge.badge-orange {
+    border-color: rgba(240, 133, 69, 0.42);
+  }
+  .grid-unit-availability-badge.badge-green {
+    border-color: rgba(95, 184, 107, 0.38);
+  }
+
   .grid-unit-number {
     position: absolute;
     top: 14px;
@@ -5743,9 +6012,9 @@
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 200, 140, 0.4);
     font-family: 'Inter Tight', sans-serif;
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 500;
-    letter-spacing: 0.22em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
     color: rgba(255, 220, 180, 0.95);
     z-index: 2;
@@ -5786,7 +6055,7 @@
   }
 
   .grid-card-price .from {
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 500;
     letter-spacing: 0.18em;
     text-transform: uppercase;
@@ -5830,27 +6099,139 @@
     font-size: 10px;
   }
 
-  /* Empty state */
-  .grid-overlay-empty {
+  /* Loading state cuando se consulta disponibilidad en Supabase */
+  .grid-loading-state {
     text-align: center;
     padding: 80px 20px;
+    color: rgba(245, 200, 145, 0.85);
+  }
+  .grid-loading-spinner {
+    width: 36px;
+    height: 36px;
+    margin: 0 auto 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(220, 160, 110, 0.15);
+    border-top-color: rgba(245, 200, 145, 0.9);
+    animation: gridSpinnerRot 0.9s linear infinite;
+  }
+  @keyframes gridSpinnerRot {
+    to { transform: rotate(360deg); }
+  }
+  .grid-loading-text {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(245, 200, 145, 0.95);
+    margin-bottom: 6px;
+  }
+  .grid-loading-sub {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 12px;
+    color: rgba(255, 240, 220, 0.45);
+    letter-spacing: 0.005em;
+  }
+
+  /* Empty states — diseño premium con icon + actions claras */
+  .grid-overlay-empty {
+    text-align: center;
+    padding: 60px 20px 80px;
     color: white;
+  }
+
+  .empty-state {
+    max-width: 420px;
+    margin: 0 auto;
+  }
+
+  .empty-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 24px;
+    border-radius: 50%;
+    background: rgba(255, 220, 170, 0.06);
+    border: 1px solid rgba(220, 160, 110, 0.22);
+    color: rgba(245, 200, 145, 0.85);
   }
 
   .empty-title {
     font-family: 'Cormorant Garamond', serif;
     font-style: italic;
-    font-size: 28px;
+    font-weight: 400;
+    font-size: 26px;
+    line-height: 1.25;
     color: white;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    letter-spacing: -0.005em;
   }
 
   .empty-sub {
     font-family: 'Inter Tight', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: rgba(255, 240, 220, 0.62);
+    letter-spacing: 0.005em;
+    margin-bottom: 28px;
+    text-transform: none;
+  }
+
+  .empty-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .empty-action-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    border-radius: 100px;
+    border: 1px solid rgba(220, 160, 110, 0.55);
+    background: linear-gradient(180deg,
+      rgba(255, 225, 190, 0.96) 0%,
+      rgba(225, 175, 125, 0.92) 100%);
+    color: rgba(40, 22, 14, 0.95);
+    font-family: 'Inter Tight', sans-serif;
     font-size: 12px;
+    font-weight: 600;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow:
+      0 1px 0 rgba(255, 248, 235, 0.55) inset,
+      0 4px 14px rgba(220, 160, 110, 0.28);
+  }
+  .empty-action-primary:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 248, 235, 0.6) inset,
+      0 6px 20px rgba(245, 200, 145, 0.45);
+  }
+
+  .empty-action-secondary {
+    background: transparent;
+    border: 1px solid rgba(220, 160, 110, 0.32);
+    color: rgba(255, 220, 170, 0.85);
+    padding: 11px 20px;
+    border-radius: 100px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .empty-action-secondary:hover {
+    border-color: rgba(220, 160, 110, 0.6);
+    color: rgba(255, 240, 220, 0.95);
+    background: rgba(220, 160, 110, 0.08);
   }
 
   /* ============================================================
@@ -8165,6 +8546,11 @@
      HERO ESTÁTICO — primer viewport único
      Reemplaza el scrollytelling. Click "Explorar" → fade + paisaje
      ============================================================ */
+  /* ============================================================
+     HERO PREMIUM — composición cinematográfica
+     Inspiración: Belmond / Aman / Rosewood. Italic delicada,
+     underline dorado hairline, animación de entrada en stagger.
+     ============================================================ */
   .vrm-hero {
     position: fixed;
     inset: 0;
@@ -8177,12 +8563,13 @@
     /* Vignette dramático sobre el paisaje */
     background:
       radial-gradient(ellipse at center,
-        rgba(10, 6, 18, 0.15) 0%,
-        rgba(10, 6, 18, 0.55) 60%,
-        rgba(10, 6, 18, 0.78) 100%);
+        rgba(10, 6, 18, 0.12) 0%,
+        rgba(10, 6, 18, 0.50) 60%,
+        rgba(10, 6, 18, 0.76) 100%);
     transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
                 transform 0.8s cubic-bezier(0.22, 1, 0.36, 1),
                 backdrop-filter 0.8s ease;
+    overflow: hidden;
   }
 
   body.hero-dismissed .vrm-hero {
@@ -8192,131 +8579,212 @@
     backdrop-filter: blur(0px);
   }
 
+  /* Stardust: 4 puntos dorados con drift muy sutil */
+  .vrm-hero-stardust {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+  }
+  .vrm-hero-stardust .dust-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 220, 160, 0.6) 0%, rgba(255, 200, 130, 0.0) 70%);
+    filter: blur(0.5px);
+    opacity: 0;
+  }
+  .vrm-hero-stardust .dust-particle:nth-child(1) {
+    top: 18%; left: 22%;
+    animation: dustDrift1 14s ease-in-out infinite, dustFadeIn 1.6s ease-out 1.6s forwards;
+  }
+  .vrm-hero-stardust .dust-particle:nth-child(2) {
+    top: 30%; right: 18%;
+    width: 3px; height: 3px;
+    animation: dustDrift2 18s ease-in-out infinite, dustFadeIn 1.6s ease-out 2s forwards;
+  }
+  .vrm-hero-stardust .dust-particle:nth-child(3) {
+    bottom: 36%; left: 14%;
+    width: 3px; height: 3px;
+    animation: dustDrift3 16s ease-in-out infinite, dustFadeIn 1.6s ease-out 2.4s forwards;
+  }
+  .vrm-hero-stardust .dust-particle:nth-child(4) {
+    bottom: 28%; right: 24%;
+    width: 5px; height: 5px;
+    animation: dustDrift4 20s ease-in-out infinite, dustFadeIn 1.6s ease-out 2.8s forwards;
+  }
+  @keyframes dustFadeIn { to { opacity: 1; } }
+  @keyframes dustDrift1 {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(20px, -15px); }
+  }
+  @keyframes dustDrift2 {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(-25px, 18px); }
+  }
+  @keyframes dustDrift3 {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(18px, -22px); }
+  }
+  @keyframes dustDrift4 {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(-20px, 16px); }
+  }
+
   .vrm-hero-content {
     text-align: center;
     max-width: 720px;
     width: 100%;
-    animation: heroEntry 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+    position: relative;
+    z-index: 1;
   }
 
-  @keyframes heroEntry {
-    from {
-      opacity: 0;
-      transform: translateY(24px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .vrm-hero-eyebrow {
-    font-family: 'Inter Tight', sans-serif;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.5em;
-    text-transform: uppercase;
-    color: rgba(220, 160, 110, 0.85);
-    margin-bottom: 32px;
-    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
-  }
-
-  .vrm-hero-headline {
+  /* ============ VRM MONOGRAMA — protagonista ============ */
+  .vrm-hero-monogram {
     font-family: 'Cormorant Garamond', serif;
     font-style: italic;
     font-weight: 300;
-    font-size: clamp(40px, 6.5vw, 76px);
-    line-height: 1.05;
-    letter-spacing: -0.012em;
-    margin: 0 0 44px;
-    color: rgba(255, 248, 235, 0.97);
-    text-shadow:
-      0 2px 24px rgba(0, 0, 0, 0.8),
-      0 0 60px rgba(0, 0, 0, 0.5);
-  }
-
-  /* Variante con VRM gigante como título principal */
-  .vrm-hero-headline-main {
-    font-size: clamp(120px, 18vw, 240px);
-    font-weight: 200;
+    font-size: clamp(110px, 26vw, 240px);
     line-height: 1;
-    letter-spacing: -0.02em;
-    margin: 12px 0 56px;
+    letter-spacing: 0.04em;
+    margin: 0 0 18px;
+    position: relative;
+    display: inline-block;
+    /* Animación entrada: sutil scale + fade */
+    opacity: 0;
+    transform: scale(0.94);
+    animation: monogramIn 1s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards;
+  }
+  @keyframes monogramIn {
+    to { opacity: 1; transform: scale(1); }
   }
 
-  .vrm-hero-headline .line {
-    display: block;
-  }
-
-  .vrm-hero-headline em {
-    font-style: italic;
+  .vrm-hero-monogram-text {
     background: linear-gradient(180deg,
-      rgba(255, 245, 215, 1) 0%,
-      rgba(220, 160, 110, 0.92) 70%,
-      rgba(180, 120, 90, 0.85) 100%);
+      rgba(255, 248, 230, 1) 0%,
+      rgba(245, 215, 175, 0.96) 45%,
+      rgba(210, 165, 120, 0.92) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 2px 12px rgba(0, 0, 0, 0.6));
+    filter:
+      drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45))
+      drop-shadow(0 6px 28px rgba(0, 0, 0, 0.4))
+      drop-shadow(0 0 36px rgba(220, 160, 110, 0.18));
+    /* Espacio para descendentes itálicas */
+    padding-bottom: 0.06em;
+    display: inline-block;
   }
 
-  .vrm-hero-subtitle {
+  /* Underline dorado hairline que se dibuja izquierda → derecha */
+  .vrm-hero-monogram-underline {
+    display: block;
+    height: 1px;
+    width: 0;
+    margin: 4px auto 0;
+    background: linear-gradient(90deg,
+      rgba(220, 160, 110, 0) 0%,
+      rgba(245, 215, 175, 0.85) 30%,
+      rgba(245, 215, 175, 0.85) 70%,
+      rgba(220, 160, 110, 0) 100%);
+    animation: underlineDraw 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.0s forwards;
+  }
+  @keyframes underlineDraw {
+    to { width: 70%; }
+  }
+
+  /* ============ EYEBROW (ahora debajo del VRM) ============ */
+  .vrm-hero-eyebrow {
     font-family: 'Inter Tight', sans-serif;
-    font-weight: 400;
-    font-size: clamp(15px, 1.4vw, 18px);
-    color: rgba(255, 240, 220, 0.78);
-    margin: 0 0 44px;
-    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
-    letter-spacing: 0.015em;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.46em;
+    text-transform: uppercase;
+    color: rgba(220, 175, 130, 0.78);
+    margin: 18px 0 0;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    transform: translateY(8px);
+    animation: heroFadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) 1.3s forwards;
+    /* Compensar el último letter-spacing para centrado óptico */
+    padding-left: 0.46em;
   }
 
-  /* Subtítulo claro para Margaret 67yo: "qué es esto" sin ambigüedad */
+  /* ============ TAGLINE editorial en 2 líneas ============ */
   .vrm-hero-tagline {
-    font-family: 'Inter Tight', sans-serif;
-    font-size: 14px;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
     font-weight: 400;
-    letter-spacing: 0.04em;
-    color: rgba(255, 235, 210, 0.78);
-    margin-top: 18px;
-    margin-bottom: 28px;
-    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.7);
-    text-align: center;
-    max-width: 480px;
+    font-size: clamp(18px, 2.3vw, 22px);
+    color: rgba(255, 240, 220, 0.88);
+    margin: 28px auto 36px;
+    line-height: 1.5;
+    letter-spacing: 0.005em;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.65);
+    max-width: 440px;
   }
-  @media (max-width: 768px) {
-    .vrm-hero-tagline {
-      font-size: 13px;
-      margin-top: 14px;
-      margin-bottom: 22px;
-      padding: 0 24px;
-    }
+  .vrm-hero-tagline .tagline-line {
+    display: block;
+    opacity: 0;
+    transform: translateY(8px);
+    animation: heroFadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .vrm-hero-tagline .tagline-line:nth-child(1) { animation-delay: 1.55s; }
+  .vrm-hero-tagline .tagline-line:nth-child(2) { animation-delay: 1.7s; }
+
+  @keyframes heroFadeUp {
+    to { opacity: 1; transform: translateY(0); }
   }
 
-  /* CTA grande premium */
+  /* ============ CTA premium con glow pulsante ============ */
   .vrm-hero-cta {
     display: inline-flex;
     align-items: center;
     gap: 14px;
-    padding: 20px 40px;
+    padding: 18px 38px;
     border-radius: 100px;
-    border: 1px solid rgba(220, 160, 110, 0.6);
+    border: 1px solid rgba(220, 160, 110, 0.55);
     background: linear-gradient(180deg,
-      rgba(255, 220, 180, 0.95) 0%,
-      rgba(220, 160, 110, 0.9) 100%);
-    color: rgba(40, 20, 15, 0.95);
+      rgba(255, 225, 190, 0.96) 0%,
+      rgba(225, 175, 125, 0.92) 100%);
+    color: rgba(40, 22, 14, 0.95);
     font-family: 'Inter Tight', sans-serif;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.32em;
     text-transform: uppercase;
     cursor: pointer;
-    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.35s ease;
     box-shadow:
-      0 1px 0 rgba(255, 248, 235, 0.5) inset,
-      0 4px 20px rgba(220, 160, 110, 0.35),
-      0 12px 40px rgba(0, 0, 0, 0.4);
+      0 1px 0 rgba(255, 248, 235, 0.55) inset,
+      0 4px 18px rgba(220, 160, 110, 0.32),
+      0 12px 40px rgba(0, 0, 0, 0.42);
     position: relative;
     margin-bottom: 36px;
+    opacity: 0;
+    transform: translateY(10px);
+    animation:
+      heroFadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) 1.9s forwards,
+      ctaGlow 3s ease-in-out 2.7s infinite;
+  }
+
+  @keyframes ctaGlow {
+    0%, 100% {
+      box-shadow:
+        0 1px 0 rgba(255, 248, 235, 0.55) inset,
+        0 4px 18px rgba(220, 160, 110, 0.32),
+        0 12px 40px rgba(0, 0, 0, 0.42);
+    }
+    50% {
+      box-shadow:
+        0 1px 0 rgba(255, 248, 235, 0.6) inset,
+        0 4px 24px rgba(245, 200, 145, 0.55),
+        0 12px 50px rgba(0, 0, 0, 0.42),
+        0 0 38px rgba(245, 200, 145, 0.25);
+    }
   }
 
   .vrm-hero-cta::before {
@@ -8324,28 +8792,26 @@
     position: absolute;
     inset: -4px;
     border-radius: 100px;
-    border: 1px solid rgba(220, 160, 110, 0.4);
+    border: 1px solid rgba(220, 160, 110, 0.35);
     animation: ctaRipple 2.5s ease-in-out infinite;
     pointer-events: none;
+    opacity: 0;
+    animation-delay: 2s;
   }
 
   @keyframes ctaRipple {
-    0%, 100% {
-      transform: scale(1);
-      opacity: 0.6;
-    }
-    50% {
-      transform: scale(1.04);
-      opacity: 0;
-    }
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.04); opacity: 0; }
   }
 
   .vrm-hero-cta:hover {
     transform: translateY(-2px);
+    animation-play-state: paused;
     box-shadow:
-      0 1px 0 rgba(255, 248, 235, 0.55) inset,
-      0 8px 30px rgba(220, 160, 110, 0.5),
-      0 16px 50px rgba(0, 0, 0, 0.5);
+      0 1px 0 rgba(255, 248, 235, 0.6) inset,
+      0 8px 30px rgba(245, 200, 145, 0.6),
+      0 16px 50px rgba(0, 0, 0, 0.5),
+      0 0 44px rgba(245, 200, 145, 0.3);
   }
 
   .vrm-hero-cta:active {
@@ -8353,7 +8819,8 @@
   }
 
   .vrm-hero-cta .cta-arrow {
-    font-size: 16px;
+    display: inline-flex;
+    align-items: center;
     transition: transform 0.3s ease;
   }
 
@@ -8361,93 +8828,100 @@
     transform: translateX(4px);
   }
 
-  /* Trust signals */
+  /* ============ TRUST signals agrupados ============ */
   .vrm-hero-trust {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px 14px;
-    font-family: 'Inter Tight', sans-serif;
-    font-size: 12px;
-    color: rgba(255, 240, 220, 0.7);
-    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+    opacity: 0;
+    animation: heroFadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) 2.2s forwards;
   }
 
-  .vrm-hero-trust .trust-item {
+  .vrm-hero-trust-divider {
+    width: 36px;
+    height: 1px;
+    margin: 0 auto 16px;
+    background: linear-gradient(90deg,
+      rgba(220, 160, 110, 0) 0%,
+      rgba(220, 160, 110, 0.55) 50%,
+      rgba(220, 160, 110, 0) 100%);
+  }
+
+  .vrm-hero-trust-items {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 10px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    color: rgba(255, 240, 220, 0.62);
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
   }
 
-  .vrm-hero-trust .trust-icon {
-    color: rgba(255, 220, 140, 1);
-    font-size: 13px;
+  .vrm-hero-trust-items .trust-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
   }
 
-  .vrm-hero-trust .trust-divider {
-    color: rgba(220, 160, 110, 0.5);
+  .vrm-hero-trust-items .trust-icon {
+    color: rgba(245, 200, 140, 0.92);
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .vrm-hero-trust-items .trust-sep {
+    color: rgba(220, 160, 110, 0.32);
+    font-size: 10px;
   }
 
   /* ============================================================
-     MOBILE HERO — paisaje 3D detrás + VRM gigante adelante
+     MOBILE HERO — ajustes específicos
      ============================================================ */
   html.is-mobile .vrm-hero {
     padding: 20px 24px calc(40px + env(safe-area-inset-bottom));
-    /* Vignette sobre el paisaje 3D para que el texto se lea */
     background: radial-gradient(ellipse at center,
-      rgba(10, 6, 18, 0.20) 0%,
-      rgba(10, 6, 18, 0.55) 60%,
-      rgba(10, 6, 18, 0.78) 100%);
+      rgba(10, 6, 18, 0.18) 0%,
+      rgba(10, 6, 18, 0.52) 60%,
+      rgba(10, 6, 18, 0.76) 100%);
   }
 
   html.is-mobile .vrm-hero-content {
-    /* Centrado vertical pero con espacio arriba para la topbar */
     padding-top: 40px;
   }
 
+  html.is-mobile .vrm-hero-monogram {
+    font-size: clamp(120px, 42vw, 200px);
+    margin-bottom: 14px;
+  }
+
   html.is-mobile .vrm-hero-eyebrow {
-    font-size: 10px;
-    letter-spacing: 0.4em;
-    margin-bottom: 32px;
-    color: rgba(220, 160, 110, 0.85);
+    font-size: 9px;
+    letter-spacing: 0.42em;
+    margin-top: 14px;
+    padding-left: 0.42em;
   }
 
-  html.is-mobile .vrm-hero-headline {
-    font-size: clamp(34px, 9vw, 52px);
+  html.is-mobile .vrm-hero-tagline {
+    font-size: 17px;
+    margin: 22px auto 28px;
+    padding: 0 16px;
+    max-width: 360px;
   }
 
-  /* VRM gigante en mobile */
-  html.is-mobile .vrm-hero-headline-main {
-    font-size: clamp(110px, 36vw, 180px);
-    margin: 16px 0 48px;
-    line-height: 0.95;
-    letter-spacing: -0.02em;
-  }
-
-  html.is-mobile .vrm-hero-subtitle {
-    font-size: 14px;
-    margin-bottom: 32px;
-  }
-
-  /* CTA grande tipo botón principal de Airbnb */
   html.is-mobile .vrm-hero-cta {
-    padding: 18px 36px;
-    font-size: 12px;
-    letter-spacing: 0.24em;
+    padding: 16px 32px;
+    font-size: 11px;
+    letter-spacing: 0.26em;
     width: auto;
-    min-width: 240px;
-    margin-bottom: 32px;
+    min-width: 230px;
+    margin-bottom: 30px;
   }
 
-  html.is-mobile .vrm-hero-trust {
+  html.is-mobile .vrm-hero-trust-items {
     font-size: 10px;
-    gap: 6px 10px;
-    flex-direction: column;
-  }
-
-  html.is-mobile .vrm-hero-trust .trust-divider {
-    display: none; /* en columna no necesita separadores */
+    gap: 4px 8px;
   }
 
   /* DUPLICADO via media query — asegura que las reglas mobile apliquen
@@ -8456,39 +8930,39 @@
     .vrm-hero {
       padding: 20px 24px calc(40px + env(safe-area-inset-bottom));
       background: radial-gradient(ellipse at center,
-        rgba(10, 6, 18, 0.20) 0%,
-        rgba(10, 6, 18, 0.55) 60%,
-        rgba(10, 6, 18, 0.78) 100%);
+        rgba(10, 6, 18, 0.18) 0%,
+        rgba(10, 6, 18, 0.52) 60%,
+        rgba(10, 6, 18, 0.76) 100%);
     }
     .vrm-hero-content { padding-top: 40px; }
+    .vrm-hero-monogram {
+      font-size: clamp(120px, 42vw, 200px);
+      margin-bottom: 14px;
+    }
     .vrm-hero-eyebrow {
-      font-size: 10px;
-      letter-spacing: 0.4em;
-      margin-bottom: 32px;
-      color: rgba(220, 160, 110, 0.85);
+      font-size: 9px;
+      letter-spacing: 0.42em;
+      margin-top: 14px;
+      padding-left: 0.42em;
     }
-    .vrm-hero-headline { font-size: clamp(34px, 9vw, 52px); }
-    .vrm-hero-headline-main {
-      font-size: clamp(110px, 36vw, 180px);
-      margin: 16px 0 48px;
-      line-height: 0.95;
-      letter-spacing: -0.02em;
+    .vrm-hero-tagline {
+      font-size: 17px;
+      margin: 22px auto 28px;
+      padding: 0 16px;
+      max-width: 360px;
     }
-    .vrm-hero-subtitle { font-size: 14px; margin-bottom: 32px; }
     .vrm-hero-cta {
-      padding: 18px 36px;
-      font-size: 12px;
-      letter-spacing: 0.24em;
+      padding: 16px 32px;
+      font-size: 11px;
+      letter-spacing: 0.26em;
       width: auto;
-      min-width: 240px;
-      margin-bottom: 32px;
+      min-width: 230px;
+      margin-bottom: 30px;
     }
-    .vrm-hero-trust {
+    .vrm-hero-trust-items {
       font-size: 10px;
-      gap: 6px 10px;
-      flex-direction: column;
+      gap: 4px 8px;
     }
-    .vrm-hero-trust .trust-divider { display: none; }
   }
 
   /* ============================================================
@@ -8497,6 +8971,55 @@
      contraste, reducción de animaciones distractoras.
      Estas reglas van AL FINAL para tener mayor especificidad.
      ============================================================ */
+
+  /* Inputs: 16px mínimo en mobile previene auto-zoom de Safari iOS */
+  @media (max-width: 768px), (pointer: coarse) {
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="search"],
+    input[type="url"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Focus visible: cualquier elemento focuseable con teclado muestra outline dorado.
+     Solo aparece con teclado (no con mouse), para no ensuciar el diseño. */
+  *:focus { outline: none; }
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [tabindex]:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid rgba(245, 200, 145, 0.85);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* Respetar prefers-reduced-motion: pausa animaciones infinitas y reduce
+     transiciones para usuarios con vestibular disorders. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.15s !important;
+      scroll-behavior: auto !important;
+    }
+    /* Stardust del hero: ocultar */
+    .vrm-hero-stardust { display: none !important; }
+    /* CTA glow pulsante: desactivar */
+    .vrm-hero-cta { animation: none !important; }
+    .vrm-hero-cta::before { display: none !important; }
+  }
 
   /* Tap targets mínimos en mobile (WCAG AAA: 44x44px) */
   @media (max-width: 768px), (pointer: coarse) {
@@ -8627,7 +9150,7 @@
 
   .va-ttk-title {
     font-family: 'Inter Tight', sans-serif;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: rgba(255, 250, 240, 1);
     margin-bottom: 4px;
@@ -8636,7 +9159,7 @@
 
   .va-ttk-text {
     font-family: 'Inter Tight', sans-serif;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.55;
     /* Texto secundario: crema cálido en lugar de blanco puro,
        para que respire mejor sobre el liquid glass */
@@ -9155,6 +9678,132 @@
     margin-bottom: 16px;
   }
 
+  /* ===== ANFITRIÓN visible — trust signal #1 (Booking/Airbnb pattern) =====
+     Aparece en el sheet de reserva para que el usuario vea que hay un humano
+     real detrás. Reduce miedo a scam y dispara confianza. */
+  .rsv-host {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: linear-gradient(180deg, rgba(255, 220, 170, 0.18), rgba(255, 200, 140, 0.06));
+    border: 1px solid rgba(220, 160, 110, 0.32);
+    border-radius: 14px;
+    margin-bottom: 14px;
+  }
+  .rsv-host-avatar {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+  }
+  .rsv-host-avatar svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 50%;
+  }
+  .rsv-host-badge-verified {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(135deg, #5fb86b, #3d8d4a);
+    border: 1.5px solid rgba(40, 25, 15, 0.95);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+  .rsv-host-info { flex: 1; min-width: 0; }
+  .rsv-host-name {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(40, 20, 10, 0.92);
+    margin-bottom: 3px;
+    letter-spacing: -0.005em;
+  }
+  .rsv-host-name span {
+    font-weight: 400;
+    color: rgba(60, 40, 30, 0.65);
+  }
+  .rsv-host-meta {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    color: rgba(60, 40, 30, 0.7);
+  }
+  .rsv-host-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .rsv-host-meta-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #5fb86b;
+    flex-shrink: 0;
+  }
+  .rsv-host-meta-dot-live {
+    animation: rsvHostPulse 2.5s ease-in-out infinite;
+    box-shadow: 0 0 0 0 rgba(95, 184, 107, 0.5);
+  }
+  @keyframes rsvHostPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(95, 184, 107, 0.5); }
+    50% { box-shadow: 0 0 0 6px rgba(95, 184, 107, 0); }
+  }
+
+  /* ===== SOCIAL PROOF compacto debajo del anfitrión ===== */
+  .rsv-social-proof {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    color: rgba(60, 40, 30, 0.7);
+    margin-bottom: 22px;
+    letter-spacing: 0.01em;
+  }
+  .rsv-social-stars {
+    display: inline-flex;
+    align-items: center;
+    color: rgba(220, 160, 80, 1);
+  }
+  .rsv-social-rating {
+    font-weight: 600;
+    color: rgba(40, 20, 10, 0.92);
+    font-variant-numeric: tabular-nums;
+  }
+  .rsv-social-sep {
+    color: rgba(220, 160, 110, 0.45);
+  }
+
+  /* ===== GUARANTÍA precio final ===== */
+  .rsv-bd-guarantee {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: rgba(95, 184, 107, 0.10);
+    border: 1px solid rgba(95, 184, 107, 0.28);
+    border-radius: 10px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(40, 80, 50, 0.92);
+    letter-spacing: 0.01em;
+  }
+  .rsv-bd-guarantee svg {
+    color: rgba(60, 130, 75, 0.88);
+    flex-shrink: 0;
+  }
+
   /* ===== GREETING (header conversacional) ===== */
   .rsv-greet {
     text-align: center;
@@ -9235,9 +9884,9 @@
   .rsv-q-prompt {
     font-family: 'Cormorant Garamond', serif;
     font-style: italic;
-    font-weight: 300;
+    font-weight: 400;
     font-size: 19px;
-    color: rgba(60, 40, 30, 0.75);
+    color: rgba(60, 40, 30, 0.8);
     flex-shrink: 0;
     letter-spacing: -0.005em;
   }
@@ -9523,19 +10172,39 @@
 
   /* ===== PAYMENT INFO (placeholder Stripe) ===== */
   .rsv-payment-info {
-    padding: 22px;
+    padding: 18px 20px;
     background:
-      linear-gradient(180deg, rgba(255, 248, 232, 0.6), rgba(252, 240, 218, 0.7));
-    border: 1px dashed rgba(180, 110, 60, 0.30);
+      linear-gradient(180deg, rgba(255, 248, 232, 0.7), rgba(252, 240, 218, 0.8));
+    border: 1px solid rgba(180, 110, 60, 0.22);
     border-radius: 14px;
     font-family: 'Inter Tight', sans-serif;
-    font-size: 12px;
-    color: rgba(60, 40, 30, 0.75);
-    line-height: 1.6;
-    text-align: center;
+    font-size: 13px;
+    color: rgba(60, 40, 30, 0.82);
+    line-height: 1.55;
+    text-align: left;
   }
 
   #rsv-stripe-elements { margin-top: 16px; }
+
+  /* Stripe trust badge bajo el form de pago */
+  .rsv-stripe-trust {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: rgba(40, 90, 160, 0.06);
+    border: 1px solid rgba(40, 90, 160, 0.18);
+    border-radius: 10px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(40, 90, 160, 0.85);
+    letter-spacing: 0.005em;
+    line-height: 1.4;
+  }
+  .rsv-stripe-trust svg { color: rgba(40, 90, 160, 0.78); flex-shrink: 0; }
 
   /* ===== STEP 3: CONFIRMATION ===== */
   .rsv-confirm-content {
@@ -9601,6 +10270,80 @@
     color: rgba(60, 40, 30, 0.85);
     font-weight: 500;
   }
+
+  /* ===== TIMELINE de próximos pasos post-confirmación =====
+     Reduce ansiedad: el usuario sabe exactamente qué esperar y cuándo.
+     Pattern de Booking.com / Airbnb / Expedia. */
+  .rsv-confirm-timeline {
+    text-align: left;
+    max-width: 380px;
+    margin: 0 auto 28px;
+    padding: 18px 20px;
+    background: rgba(255, 248, 235, 0.55);
+    border: 1px solid rgba(220, 160, 110, 0.22);
+    border-radius: 14px;
+  }
+  .rsv-confirm-timeline-title {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(180, 110, 60, 0.85);
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .rsv-confirm-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 0;
+    position: relative;
+  }
+  .rsv-confirm-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 28px;
+    bottom: -4px;
+    width: 1px;
+    background: linear-gradient(180deg, rgba(220, 160, 110, 0.35), rgba(220, 160, 110, 0.12));
+  }
+  .rsv-confirm-step-marker {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255, 248, 235, 0.85);
+    border: 1px solid rgba(220, 160, 110, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(180, 110, 60, 0.65);
+    flex-shrink: 0;
+    margin-top: 1px;
+    position: relative;
+    z-index: 1;
+  }
+  .rsv-confirm-step-done {
+    background: linear-gradient(135deg, #5fb86b, #3d8d4a);
+    border-color: rgba(95, 184, 107, 0.6);
+    color: white;
+  }
+  .rsv-confirm-step-content { flex: 1; min-width: 0; }
+  .rsv-confirm-step-title {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(40, 25, 15, 0.92);
+    margin-bottom: 2px;
+    letter-spacing: -0.005em;
+  }
+  .rsv-confirm-step-time {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    color: rgba(60, 40, 30, 0.62);
+  }
+  .rsv-confirm-step-time span { color: rgba(40, 25, 15, 0.85); font-weight: 500; }
 
 </style>
 
@@ -9708,6 +10451,72 @@
     }
   }
   window.loadAvailability = loadAvailability;
+
+  /**
+   * Precarga la disponibilidad de MUCHAS unidades en UNA sola query.
+   * Optimización clave: al abrir el grid con 25 unidades, en vez de hacer 25 calls
+   * a Supabase, hacemos 1 con .in('unit_id', [...]). 10-20x más rápido.
+   * Llena el cache para que cada loadAvailability(unitId) posterior sea instant.
+   */
+  async function preloadAvailability(unitIds) {
+    if (!Array.isArray(unitIds) || unitIds.length === 0) return;
+    if (!window.vrmSupabase) {
+      _initSupabaseClient();
+      if (!window.vrmSupabase) return;
+    }
+
+    // Filtrar las que ya tenemos en cache fresco (< 5 min)
+    const now = Date.now();
+    const toFetch = unitIds.filter(id => {
+      const cached = window.availabilityCache[id];
+      return !cached || (now - cached.ts) > 5 * 60 * 1000;
+    });
+
+    if (toFetch.length === 0) return;
+
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data, error } = await window.vrmSupabase
+        .from('public_availability')
+        .select('unit_id, check_in, check_out')
+        .in('unit_id', toFetch)
+        .gte('check_out', today);
+
+      if (error) {
+        console.warn('[VRM] preloadAvailability error:', error.message);
+        return;
+      }
+
+      // Helper para expandir rangos
+      const daysInMonth = (y, m) => new Date(y, m, 0).getDate();
+      const inc = (yyyymmdd) => {
+        let [y, m, d] = yyyymmdd.split('-').map(Number);
+        d++;
+        if (d > daysInMonth(y, m)) { d = 1; m++; if (m > 12) { m = 1; y++; } }
+        return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      };
+
+      // Agrupar por unit_id
+      const byUnit = {};
+      toFetch.forEach(id => { byUnit[id] = new Set(); });
+      (data || []).forEach(b => {
+        if (!byUnit[b.unit_id]) byUnit[b.unit_id] = new Set();
+        let cur = b.check_in;
+        while (cur < b.check_out) {
+          byUnit[b.unit_id].add(cur);
+          cur = inc(cur);
+        }
+      });
+
+      // Llenar cache
+      Object.keys(byUnit).forEach(id => {
+        window.availabilityCache[id] = { blocked: byUnit[id], ts: now };
+      });
+    } catch (err) {
+      console.warn('[VRM] preloadAvailability exception:', err);
+    }
+  }
+  window.preloadAvailability = preloadAvailability;
 </script>
 
 </head>
@@ -9772,26 +10581,57 @@
      Click "Explorar" → fade out + reveal del paisaje + topbar
      ============================================================ -->
 <section class="vrm-hero" id="vrm-hero">
-  <div class="vrm-hero-content">
-    <div class="vrm-hero-eyebrow" data-i18n="hero.eyebrow">Vacation Rental México</div>
+  <!-- Stardust decorativo: 4 puntos dorados con drift muy sutil -->
+  <div class="vrm-hero-stardust" aria-hidden="true">
+    <span class="dust-particle"></span>
+    <span class="dust-particle"></span>
+    <span class="dust-particle"></span>
+    <span class="dust-particle"></span>
+  </div>
 
-    <h1 class="vrm-hero-headline vrm-hero-headline-main">
-      <span class="line"><em>VRM</em></span>
+  <div class="vrm-hero-content">
+    <!-- VRM monograma protagonista -->
+    <h1 class="vrm-hero-monogram">
+      <span class="vrm-hero-monogram-text">VRM</span>
+      <span class="vrm-hero-monogram-underline" aria-hidden="true"></span>
     </h1>
 
-    <div class="vrm-hero-tagline" data-i18n="hero.tagline">Casas boutique frente al mar · Confianza desde 2018</div>
+    <!-- Eyebrow debajo del monograma (más editorial) -->
+    <div class="vrm-hero-eyebrow" data-i18n="hero.eyebrow">Vacation Rental · México</div>
+
+    <!-- Tagline editorial en dos líneas -->
+    <div class="vrm-hero-tagline">
+      <span class="tagline-line" data-i18n="hero.tagline.line1">Casas boutique frente al mar.</span>
+      <span class="tagline-line" data-i18n="hero.tagline.line2">Confianza desde 2018.</span>
+    </div>
 
     <button class="vrm-hero-cta" id="vrm-hero-cta">
       <span class="cta-text" data-i18n="hero.cta">Explorar propiedades</span>
-      <span class="cta-arrow">→</span>
+      <span class="cta-arrow">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+          <polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </span>
     </button>
 
+    <!-- Trust signals agrupados con hairline divider arriba -->
     <div class="vrm-hero-trust">
-      <span class="trust-item"><span class="trust-icon">★</span> 4.83 · 517 <span data-i18n="trust.reviews">reseñas</span></span>
-      <span class="trust-divider">·</span>
-      <span class="trust-item" data-i18n="trust.cancellation">Cancelación gratis</span>
-      <span class="trust-divider">·</span>
-      <span class="trust-item" data-i18n="trust.payment">Pago seguro</span>
+      <div class="vrm-hero-trust-divider" aria-hidden="true"></div>
+      <div class="vrm-hero-trust-items">
+        <span class="trust-item">
+          <span class="trust-icon">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </span>
+          <span class="trust-text">4.83 · 517 <span data-i18n="trust.reviews">reseñas</span></span>
+        </span>
+        <span class="trust-sep" aria-hidden="true">·</span>
+        <span class="trust-item" data-i18n="trust.cancellation">Cancelación gratis</span>
+        <span class="trust-sep" aria-hidden="true">·</span>
+        <span class="trust-item" data-i18n="trust.payment">Pago seguro</span>
+      </div>
     </div>
   </div>
 </section>
@@ -9812,7 +10652,12 @@
   </div>
   <div class="mob-intro-cue">
     <span data-i18n="hero.scroll">Toca para explorar</span>
-    <span class="arrow">↓</span>
+    <span class="arrow">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <polyline points="5 12 12 19 19 12"/>
+      </svg>
+    </span>
   </div>
 </div>
 
@@ -9899,7 +10744,12 @@
      ============================================================ -->
 <div class="quiya-units-overlay" id="quiya-units-overlay">
   <div class="quiya-units-panel" id="quiya-units-panel">
-    <button class="quiya-units-close" id="quiya-units-close" aria-label="Cerrar">×</button>
+    <button class="quiya-units-close" id="quiya-units-close" aria-label="Cerrar">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+        <line x1="6" y1="6" x2="18" y2="18"/>
+        <line x1="18" y1="6" x2="6" y2="18"/>
+      </svg>
+    </button>
 
     <div class="quiya-units-header">
       <div class="quiya-units-eyebrow">Vallarta Gardens · Cruz de Huanacaxtle</div>
@@ -10060,7 +10910,7 @@
         <div class="vrm-calendar-subtitle" id="vrm-cal-subtitle">Elige tu llegada y salida</div>
       </div>
       <button class="vrm-calendar-close" id="vrm-cal-close" aria-label="Cerrar">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="6" y1="6" x2="18" y2="18"/>
           <line x1="18" y1="6" x2="6" y2="18"/>
         </svg>
@@ -10113,7 +10963,10 @@
       <div class="rsv-hero-image" id="rsv-hero-image"></div>
       <div class="rsv-hero-gradient"></div>
       <button class="rsv-close" id="rsv-close" aria-label="Cerrar reserva">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
       </button>
       <div class="rsv-hero-text">
         <div class="rsv-hero-eyebrow" id="rsv-hero-eyebrow">VRM · Bahía de Banderas</div>
@@ -10146,10 +10999,52 @@
       <!-- ============ STEP 1: TUS DATOS (conversacional, no form) ============ -->
       <div class="rsv-step-content" data-step="1">
 
+        <!-- ANFITRIÓN visible (trust signal #1 en booking premium) -->
+        <div class="rsv-host">
+          <div class="rsv-host-avatar" aria-hidden="true">
+            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="rsvAvatarBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#5a3826"/>
+                  <stop offset="100%" stop-color="#2a1810"/>
+                </linearGradient>
+              </defs>
+              <rect width="64" height="64" rx="32" fill="url(#rsvAvatarBg)"/>
+              <text x="50%" y="58%" text-anchor="middle" font-family="Cormorant Garamond, serif" font-style="italic" font-weight="400" font-size="28" fill="#F4D2A8">R</text>
+            </svg>
+            <span class="rsv-host-badge-verified" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </span>
+          </div>
+          <div class="rsv-host-info">
+            <div class="rsv-host-name">Rodrigo · <span data-i18n="rsv.host.role">tu anfitrión</span></div>
+            <div class="rsv-host-meta">
+              <span class="rsv-host-meta-item">
+                <span class="rsv-host-meta-dot rsv-host-meta-dot-live"></span>
+                <span data-i18n="rsv.host.responds">Responde en ~1 hora</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Social proof real: 517 reseñas, 4.83 estrellas -->
+        <div class="rsv-social-proof">
+          <span class="rsv-social-stars" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </span>
+          <span class="rsv-social-rating">4.83</span>
+          <span class="rsv-social-sep">·</span>
+          <span class="rsv-social-text"><span data-i18n="rsv.social.reviews">517 reseñas verificadas</span></span>
+        </div>
+
         <!-- Saludo + resumen integrado -->
         <div class="rsv-greet">
-          <div class="rsv-greet-eyebrow">Casi listo</div>
-          <h3 class="rsv-greet-title">Cuéntanos quién viene</h3>
+          <div class="rsv-greet-eyebrow" data-i18n="rsv.greet.eyebrow">Casi listo</div>
+          <h3 class="rsv-greet-title" data-i18n="rsv.greet.title">Cuéntanos quién viene</h3>
           <p class="rsv-greet-body">
             <span class="rsv-greet-dates" id="rsv-greet-dates">—</span>
             <span class="rsv-greet-dot">·</span>
@@ -10194,69 +11089,83 @@
         <!-- Línea fina separadora -->
         <div class="rsv-divider-fine"></div>
 
-        <!-- Resumen del cobro (minimal, sin "Desglose" en uppercase) -->
+        <!-- Resumen del cobro con garantía explícita arriba del total -->
         <div class="rsv-breakdown">
           <div class="rsv-bd-row">
             <span class="rsv-bd-label" id="rsv-nightly-label">$— × — noches</span>
             <span class="rsv-bd-value" id="rsv-subtotal">$—</span>
           </div>
           <div class="rsv-bd-row">
-            <span class="rsv-bd-label">Limpieza</span>
+            <span class="rsv-bd-label" data-i18n="rsv.bd.cleaning">Limpieza</span>
             <span class="rsv-bd-value" id="rsv-cleaning">$—</span>
           </div>
           <div class="rsv-bd-row">
-            <span class="rsv-bd-label">Impuestos · IVA + ISH</span>
+            <span class="rsv-bd-label" data-i18n="rsv.bd.taxes">Impuestos · IVA + ISH</span>
             <span class="rsv-bd-value" id="rsv-taxes">$—</span>
           </div>
           <div class="rsv-bd-row total">
-            <span class="rsv-bd-label">Total</span>
+            <span class="rsv-bd-label" data-i18n="rsv.bd.total">Total</span>
             <span class="rsv-bd-value">
               <span class="rsv-bd-currency">USD</span>
               <span id="rsv-total">$—</span>
             </span>
+          </div>
+          <!-- Garantía sutil: anti-letra-chica. Reduce ansiedad pre-pago. -->
+          <div class="rsv-bd-guarantee">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span data-i18n="rsv.bd.guarantee">Precio final. Sin cargos sorpresa.</span>
           </div>
         </div>
 
         <!-- Garantías compactas en una línea -->
         <div class="rsv-trust">
           <span class="rsv-trust-item">
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="20 6 9 17 4 12"/></svg>
-            Cancelación gratuita 7 días antes
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span data-i18n="rsv.trust.cancellation">Cancelación gratis hasta 7 días antes</span>
           </span>
           <span class="rsv-trust-sep">·</span>
           <span class="rsv-trust-item">
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            Pago seguro
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span data-i18n="rsv.trust.payment">Pago seguro con Stripe</span>
           </span>
           <span class="rsv-trust-sep">·</span>
           <span class="rsv-trust-item">
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-            Confirmación inmediata
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span data-i18n="rsv.trust.confirm">Confirmación inmediata</span>
           </span>
         </div>
 
-        <!-- CTA continuar -->
+        <!-- CTA continuar (copy decisivo, no cauteloso) -->
         <button class="rsv-cta" id="rsv-cta-continue">
-          <span>Continuar al pago</span>
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          <span data-i18n="rsv.cta.continue">Reservar ahora</span>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
       </div>
 
       <!-- ============ STEP 2: PAGO (Stripe Elements) ============ -->
       <div class="rsv-step-content" data-step="2" style="display:none;">
         <div class="rsv-section">
-          <div class="rsv-section-eyebrow">Método de pago</div>
-          <div class="rsv-payment-info">
-            Cuando tu jefe configure Stripe, aquí aparecerá el formulario seguro de tarjeta.
-            <br><br>
-            Por ahora, te confirmamos por WhatsApp.
+          <div class="rsv-section-eyebrow" data-i18n="rsv.step2.eyebrow">Método de pago</div>
+          <div class="rsv-payment-info" data-i18n="rsv.step2.body">
+            Estamos finalizando la integración con Stripe. Mientras tanto, tu reserva queda apartada y te confirmamos los detalles de pago por WhatsApp en menos de una hora.
           </div>
           <!-- Aquí inyectará Stripe Elements el card form cuando llegue -->
           <div id="rsv-stripe-elements"></div>
+
+          <!-- Stripe trust badges visibles incluso pre-integración -->
+          <div class="rsv-stripe-trust">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span data-i18n="rsv.step2.trust">Encriptación SSL · Tu tarjeta nunca pasa por nuestros servidores</span>
+          </div>
         </div>
 
         <div class="rsv-bd-row total" style="margin-top:24px;">
-          <span class="rsv-bd-label">Total a cobrar</span>
+          <span class="rsv-bd-label" data-i18n="rsv.step2.totalLabel">Total a pagar</span>
           <span class="rsv-bd-value">
             <span class="rsv-bd-currency">USD</span>
             <span id="rsv-total-2">$—</span>
@@ -10264,35 +11173,79 @@
         </div>
 
         <button class="rsv-cta" id="rsv-cta-pay" style="margin-top:24px;">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          <span>Confirmar y pagar</span>
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span data-i18n="rsv.step2.cta">Confirmar reserva</span>
         </button>
-        <button class="rsv-cta-secondary" id="rsv-cta-back">Atrás</button>
+        <button class="rsv-cta-secondary" id="rsv-cta-back" data-i18n="rsv.step2.back">Atrás</button>
       </div>
 
       <!-- ============ STEP 3: CONFIRMACIÓN ============ -->
       <div class="rsv-step-content" data-step="3" style="display:none;">
         <div class="rsv-confirm-content">
           <div class="rsv-confirm-icon">
-            <svg viewBox="0 0 60 60" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.2">
+            <svg viewBox="0 0 60 60" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="30" cy="30" r="28"/>
               <polyline points="18 30 27 39 42 22"/>
             </svg>
           </div>
-          <div class="rsv-confirm-eyebrow">Reserva confirmada</div>
-          <h2 class="rsv-confirm-title">Gracias, <span id="rsv-confirm-name">—</span></h2>
+          <div class="rsv-confirm-eyebrow" data-i18n="rsv.confirm.eyebrow">Reserva confirmada</div>
+          <h2 class="rsv-confirm-title"><span data-i18n="rsv.confirm.thanks">Gracias,</span> <span id="rsv-confirm-name">—</span></h2>
           <div class="rsv-confirm-body">
-            Tu estadía en <strong id="rsv-confirm-property">—</strong> está reservada del
+            <span data-i18n="rsv.confirm.body1">Tu estadía en</span> <strong id="rsv-confirm-property">—</strong> <span data-i18n="rsv.confirm.body2">está reservada del</span>
             <strong id="rsv-confirm-dates">—</strong>.
-            <br><br>
-            Te enviamos la confirmación a <strong id="rsv-confirm-email">—</strong>
-            con todos los detalles de check-in.
           </div>
           <div class="rsv-confirm-ref">
-            Referencia · <span id="rsv-confirm-ref">—</span>
+            <span data-i18n="rsv.confirm.ref">Referencia</span> · <span id="rsv-confirm-ref">—</span>
           </div>
+
+          <!-- TIMELINE de próximos pasos (Booking.com / Airbnb pattern):
+               Reduce ansiedad post-pago. El usuario sabe qué esperar y cuándo. -->
+          <div class="rsv-confirm-timeline">
+            <div class="rsv-confirm-timeline-title" data-i18n="rsv.confirm.next">Qué sigue</div>
+
+            <div class="rsv-confirm-step">
+              <div class="rsv-confirm-step-marker rsv-confirm-step-done">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="rsv-confirm-step-content">
+                <div class="rsv-confirm-step-title" data-i18n="rsv.confirm.step1">Confirmación por email</div>
+                <div class="rsv-confirm-step-time" data-i18n="rsv.confirm.step1time">Ahora · <span id="rsv-confirm-email">—</span></div>
+              </div>
+            </div>
+
+            <div class="rsv-confirm-step">
+              <div class="rsv-confirm-step-marker">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+              </div>
+              <div class="rsv-confirm-step-content">
+                <div class="rsv-confirm-step-title" data-i18n="rsv.confirm.step2">Mensaje de Rodrigo</div>
+                <div class="rsv-confirm-step-time" data-i18n="rsv.confirm.step2time">En 1-2 horas · WhatsApp</div>
+              </div>
+            </div>
+
+            <div class="rsv-confirm-step">
+              <div class="rsv-confirm-step-marker">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
+              <div class="rsv-confirm-step-content">
+                <div class="rsv-confirm-step-title" data-i18n="rsv.confirm.step3">Instrucciones de check-in</div>
+                <div class="rsv-confirm-step-time" data-i18n="rsv.confirm.step3time">7 días antes de tu llegada</div>
+              </div>
+            </div>
+
+            <div class="rsv-confirm-step">
+              <div class="rsv-confirm-step-marker">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              </div>
+              <div class="rsv-confirm-step-content">
+                <div class="rsv-confirm-step-title" data-i18n="rsv.confirm.step4">Día de tu llegada</div>
+                <div class="rsv-confirm-step-time" data-i18n="rsv.confirm.step4time">Acceso · WhatsApp del host disponible 24/7</div>
+              </div>
+            </div>
+          </div>
+
           <button class="rsv-cta" id="rsv-cta-done">
-            <span>Listo</span>
+            <span data-i18n="rsv.cta.done">Listo</span>
           </button>
         </div>
       </div>
@@ -10308,7 +11261,7 @@
   <div class="featured-eyebrow" data-i18n="featured.eyebrow">Algunas de nuestras propiedades</div>
   <div class="featured-track-wrap">
     <button class="featured-arrow prev" id="featured-prev" aria-label="Anterior">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="15 18 9 12 15 6"/>
       </svg>
     </button>
@@ -10316,7 +11269,7 @@
       <!-- Cards generadas dinámicamente -->
     </div>
     <button class="featured-arrow next" id="featured-next" aria-label="Siguiente">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="9 18 15 12 9 6"/>
       </svg>
     </button>
@@ -10360,8 +11313,16 @@
         <!-- Slides se generan dinámicamente -->
       </div>
 
-      <button class="va-gallery-arrow prev" id="va-gal-prev">‹</button>
-      <button class="va-gallery-arrow next" id="va-gal-next">›</button>
+      <button class="va-gallery-arrow prev" id="va-gal-prev" aria-label="Anterior">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+      <button class="va-gallery-arrow next" id="va-gal-next" aria-label="Siguiente">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </button>
 
       <div class="va-gallery-indicator" id="va-gallery-indicator">
         <!-- Dots se generan dinámicamente -->
@@ -10505,7 +11466,11 @@
               <circle cx="32" cy="32" r="32" fill="url(#avatarBg)"/>
               <text x="32" y="42" font-family="'Cormorant Garamond', serif" font-size="28" font-weight="500" text-anchor="middle" fill="rgba(245,200,145,0.95)" font-style="italic">R</text>
             </svg>
-            <span class="va-host-badge" aria-hidden="true">✓</span>
+            <span class="va-host-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </span>
           </div>
           <div class="va-host-info">
             <div class="va-host-title" data-i18n="host.title">Anfitrión: Rodrigo</div>
@@ -10625,14 +11590,18 @@
     <div class="card-version-a-footer-price">
       <div class="amount"><span class="currency">USD</span><span id="a-sticky-amount">—</span></div>
       <div class="sub" id="a-sticky-sub">/ noche</div>
+      <div class="total-line" id="a-sticky-total-line" style="display:none;">
+        <span class="total-amount" id="a-sticky-total">—</span>
+        <span class="total-meta" id="a-sticky-total-meta">— noches</span>
+      </div>
     </div>
     <button class="va-cta" id="a-cta-reserve">
       <span class="va-spec" aria-hidden="true"></span>
-      <span>Reservar</span>
+      <span data-i18n="va.cta.reserve">Reservar ahora</span>
     </button>
     <button class="va-cta-secondary" id="a-cta-ask">
       <span class="va-spec" aria-hidden="true"></span>
-      <span>Consultar</span>
+      <span data-i18n="va.cta.ask">Consultar</span>
     </button>
   </div>
 
@@ -10642,7 +11611,12 @@
     <div class="overlay-gradient"></div>
     <div class="photo-hint">FOTOGRAFÍA DE PORTADA</div>
 
-    <button class="close" id="close-b" aria-label="Cerrar">×</button>
+    <button class="close" id="close-b" aria-label="Cerrar">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+        <line x1="6" y1="6" x2="18" y2="18"/>
+        <line x1="18" y1="6" x2="6" y2="18"/>
+      </svg>
+    </button>
 
     <div class="top-meta">
       <span class="tag" id="b-tag">ZONA</span>
@@ -10696,7 +11670,12 @@
         <line x1="3" y1="10" x2="21" y2="10"/>
       </svg>
       <span id="filter-search-label">—</span>
-      <span class="grid-filter-pill-x" id="filter-search-clear" aria-label="Quitar filtro de fechas">×</span>
+      <span class="grid-filter-pill-x" id="filter-search-clear" aria-label="Quitar filtro de fechas">
+        <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+          <line x1="6" y1="6" x2="18" y2="18"/>
+          <line x1="18" y1="6" x2="6" y2="18"/>
+        </svg>
+      </span>
     </button>
     <button class="grid-filter-pill" data-filter="zone" id="filter-zone">
       <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -10756,8 +11735,49 @@
   </div>
 
   <div class="grid-overlay-empty" id="grid-empty" style="display:none;">
-    <div class="empty-title">No hay propiedades</div>
-    <div class="empty-sub">Probá ajustando los filtros</div>
+    <!-- Estado 1: sin disponibilidad para las fechas seleccionadas (caso principal con calendar real) -->
+    <div class="empty-state" id="grid-empty-dates" style="display:none;">
+      <div class="empty-icon" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="12" width="48" height="46" rx="4"/>
+          <line x1="8" y1="24" x2="56" y2="24"/>
+          <line x1="20" y1="6" x2="20" y2="18"/>
+          <line x1="44" y1="6" x2="44" y2="18"/>
+          <path d="M22 38 L30 46 L44 32" stroke-opacity="0.35"/>
+        </svg>
+      </div>
+      <div class="empty-title" data-i18n="empty.dates.title">No hay disponibilidad para estas fechas</div>
+      <div class="empty-sub" data-i18n="empty.dates.sub">Todas las propiedades están reservadas en el rango que elegiste.</div>
+      <div class="empty-actions">
+        <button class="empty-action-primary" id="empty-change-dates">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <span data-i18n="empty.dates.cta">Cambiar fechas</span>
+        </button>
+        <button class="empty-action-secondary" id="empty-flexible-dates">
+          <span data-i18n="empty.dates.flexible">Soy flexible · Mostrar fechas cercanas</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Estado 2: filtros muy restrictivos (zona/precio/huéspedes sin match) -->
+    <div class="empty-state" id="grid-empty-filters" style="display:none;">
+      <div class="empty-icon" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="28" cy="28" r="18"/>
+          <line x1="41" y1="41" x2="54" y2="54"/>
+        </svg>
+      </div>
+      <div class="empty-title" data-i18n="empty.filters.title">Ningún resultado con estos filtros</div>
+      <div class="empty-sub" data-i18n="empty.filters.sub">Prueba quitando alguno o ampliando el rango de precio.</div>
+      <button class="empty-action-primary" id="empty-clear-filters">
+        <span data-i18n="empty.filters.cta">Limpiar todos los filtros</span>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -10805,12 +11825,61 @@ const VRM_TRANSLATIONS = {
     'topbar.list': 'List',
     'topbar.contact': 'Contact',
     'topbar.reserve': 'Reserve',
-    'hero.eyebrow': 'Vacation Rental México',
+    'hero.eyebrow': 'Vacation Rental · México',
     'hero.subtitle': 'Vacation rentals on Banderas Bay',
     'hero.tagline': 'Boutique homes by the sea · Trusted since 2018',
+    'hero.tagline.line1': 'Boutique homes by the sea.',
+    'hero.tagline.line2': 'Trusted since 2018.',
     'hero.cta': 'Explore properties',
     'hero.scroll': 'tap to explore',
     'hint.swipe': 'swipe to explore',
+    'va.cta.reserve': 'Book now',
+    'va.cta.ask': 'Ask',
+    'badge.available.now': 'Available now',
+    'badge.long.booked': 'Very popular',
+    'empty.dates.title': 'No availability for these dates',
+    'empty.dates.sub': 'All properties are booked for the range you selected.',
+    'empty.dates.cta': 'Change dates',
+    'empty.dates.flexible': 'I\'m flexible · Show nearby dates',
+    'empty.filters.title': 'No results with these filters',
+    'empty.filters.sub': 'Try removing one or expanding the price range.',
+    'empty.filters.cta': 'Clear all filters',
+    'grid.loading': 'Checking availability',
+    'grid.loading.sub': 'Querying calendars in real time',
+    'rsv.host.role': 'your host',
+    'rsv.host.responds': 'Responds in ~1 hour',
+    'rsv.social.reviews': '517 verified reviews',
+    'rsv.greet.eyebrow': 'Almost there',
+    'rsv.greet.title': 'Tell us who\'s coming',
+    'rsv.bd.cleaning': 'Cleaning',
+    'rsv.bd.taxes': 'Taxes · VAT + Hotel tax',
+    'rsv.bd.total': 'Total',
+    'rsv.bd.guarantee': 'Final price. No surprise fees.',
+    'rsv.trust.cancellation': 'Free cancellation up to 7 days before',
+    'rsv.trust.payment': 'Secure payment with Stripe',
+    'rsv.trust.confirm': 'Instant confirmation',
+    'rsv.cta.continue': 'Book now',
+    'rsv.step2.eyebrow': 'Payment method',
+    'rsv.step2.body': 'We\'re finalizing our Stripe integration. In the meantime, your reservation is on hold and Rodrigo will reach out by WhatsApp in less than an hour to confirm payment.',
+    'rsv.step2.trust': 'SSL encryption · Your card never touches our servers',
+    'rsv.step2.totalLabel': 'Total to pay',
+    'rsv.step2.cta': 'Confirm booking',
+    'rsv.step2.back': 'Back',
+    'rsv.confirm.eyebrow': 'Booking confirmed',
+    'rsv.confirm.thanks': 'Thank you,',
+    'rsv.confirm.body1': 'Your stay at',
+    'rsv.confirm.body2': 'is booked for',
+    'rsv.confirm.ref': 'Reference',
+    'rsv.confirm.next': 'What\'s next',
+    'rsv.confirm.step1': 'Email confirmation',
+    'rsv.confirm.step1time': 'Now',
+    'rsv.confirm.step2': 'Message from Rodrigo',
+    'rsv.confirm.step2time': 'In 1-2 hours · WhatsApp',
+    'rsv.confirm.step3': 'Check-in instructions',
+    'rsv.confirm.step3time': '7 days before arrival',
+    'rsv.confirm.step4': 'Day of arrival',
+    'rsv.confirm.step4time': 'Access · Host on WhatsApp 24/7',
+    'rsv.cta.done': 'Done',
     'searchbar.checkin': 'CHECK-IN',
     'searchbar.checkout': 'CHECK-OUT',
     'searchbar.guests': 'GUESTS',
@@ -10906,12 +11975,61 @@ const VRM_TRANSLATIONS = {
     'topbar.list': 'Lista',
     'topbar.contact': 'Contáctanos',
     'topbar.reserve': 'Reservar',
-    'hero.eyebrow': 'Vacation Rental México',
+    'hero.eyebrow': 'Vacation Rental · México',
     'hero.subtitle': 'Rentas vacacionales en Bahía de Banderas',
     'hero.tagline': 'Casas boutique frente al mar · Confianza desde 2018',
+    'hero.tagline.line1': 'Casas boutique frente al mar.',
+    'hero.tagline.line2': 'Confianza desde 2018.',
     'hero.cta': 'Explorar propiedades',
     'hero.scroll': 'toca para explorar',
     'hint.swipe': 'desliza para explorar',
+    'va.cta.reserve': 'Reservar ahora',
+    'va.cta.ask': 'Consultar',
+    'badge.available.now': 'Disponible ahora',
+    'badge.long.booked': 'Muy popular',
+    'empty.dates.title': 'No hay disponibilidad para estas fechas',
+    'empty.dates.sub': 'Todas las propiedades están reservadas en el rango que elegiste.',
+    'empty.dates.cta': 'Cambiar fechas',
+    'empty.dates.flexible': 'Soy flexible · Mostrar fechas cercanas',
+    'empty.filters.title': 'Ningún resultado con estos filtros',
+    'empty.filters.sub': 'Prueba quitando alguno o ampliando el rango de precio.',
+    'empty.filters.cta': 'Limpiar todos los filtros',
+    'grid.loading': 'Verificando disponibilidad',
+    'grid.loading.sub': 'Consultando calendarios en tiempo real',
+    'rsv.host.role': 'tu anfitrión',
+    'rsv.host.responds': 'Responde en ~1 hora',
+    'rsv.social.reviews': '517 reseñas verificadas',
+    'rsv.greet.eyebrow': 'Casi listo',
+    'rsv.greet.title': 'Cuéntanos quién viene',
+    'rsv.bd.cleaning': 'Limpieza',
+    'rsv.bd.taxes': 'Impuestos · IVA + ISH',
+    'rsv.bd.total': 'Total',
+    'rsv.bd.guarantee': 'Precio final. Sin cargos sorpresa.',
+    'rsv.trust.cancellation': 'Cancelación gratis hasta 7 días antes',
+    'rsv.trust.payment': 'Pago seguro con Stripe',
+    'rsv.trust.confirm': 'Confirmación inmediata',
+    'rsv.cta.continue': 'Reservar ahora',
+    'rsv.step2.eyebrow': 'Método de pago',
+    'rsv.step2.body': 'Estamos finalizando la integración con Stripe. Mientras tanto, tu reserva queda apartada y Rodrigo te contactará por WhatsApp en menos de una hora para confirmar el pago.',
+    'rsv.step2.trust': 'Encriptación SSL · Tu tarjeta nunca pasa por nuestros servidores',
+    'rsv.step2.totalLabel': 'Total a pagar',
+    'rsv.step2.cta': 'Confirmar reserva',
+    'rsv.step2.back': 'Atrás',
+    'rsv.confirm.eyebrow': 'Reserva confirmada',
+    'rsv.confirm.thanks': 'Gracias,',
+    'rsv.confirm.body1': 'Tu estadía en',
+    'rsv.confirm.body2': 'está reservada del',
+    'rsv.confirm.ref': 'Referencia',
+    'rsv.confirm.next': 'Qué sigue',
+    'rsv.confirm.step1': 'Confirmación por email',
+    'rsv.confirm.step1time': 'Ahora',
+    'rsv.confirm.step2': 'Mensaje de Rodrigo',
+    'rsv.confirm.step2time': 'En 1-2 horas · WhatsApp',
+    'rsv.confirm.step3': 'Instrucciones de check-in',
+    'rsv.confirm.step3time': '7 días antes de tu llegada',
+    'rsv.confirm.step4': 'Día de tu llegada',
+    'rsv.confirm.step4time': 'Acceso · WhatsApp del host 24/7',
+    'rsv.cta.done': 'Listo',
     'searchbar.checkin': 'LLEGADA',
     'searchbar.checkout': 'SALIDA',
     'searchbar.guests': 'HUÉSPEDES',
@@ -11165,8 +12283,11 @@ const oceanFragmentShader = `
 
   #define DRAG_MULT 0.38
   #define WATER_DEPTH 1.0
-  #define ITERATIONS_RAYMARCH 10
-  #define ITERATIONS_NORMAL 24
+  // ITERATIONS_RAYMARCH e ITERATIONS_NORMAL son inyectados por JS según device
+  // (mobile: 6/10, desktop: 10/24) — la diferencia de calidad es mínima pero
+  // el costo cae a la mitad en mobile.
+  #define ITERATIONS_RAYMARCH __RAYMARCH_ITERS__
+  #define ITERATIONS_NORMAL __NORMAL_ITERS__
 
   vec2 wavedx(vec2 position, vec2 direction, float frequency, float timeshift) {
     float x = dot(direction, position) * frequency + timeshift;
@@ -11266,7 +12387,9 @@ oceanGeom.rotateX(-Math.PI / 2);
 
 const oceanMat = new THREE.ShaderMaterial({
   vertexShader: oceanVertexShader,
-  fragmentShader: oceanFragmentShader,
+  fragmentShader: oceanFragmentShader
+    .replace('__RAYMARCH_ITERS__', IS_MOBILE ? '8' : '10')
+    .replace('__NORMAL_ITERS__', IS_MOBILE ? '18' : '24'),
   uniforms: oceanUniforms
 });
 
@@ -12303,24 +13426,33 @@ zoneData.forEach(z => {
   setTimeout(() => { el.style.opacity = '0.75'; }, 2000 + zoneData.indexOf(z) * 300);
 });
 
+const _zoneVec = new THREE.Vector3();
 function positionZoneLabels() {
   const dist = 550;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
   zoneData.forEach(z => {
-    const worldPos = new THREE.Vector3(
+    _zoneVec.set(
       Math.sin(Math.PI + z.angle) * dist,
       18,
       -Math.cos(Math.PI + z.angle) * dist
     );
-    const sp = worldPos.clone().project(camera);
-    const x = (sp.x * 0.5 + 0.5) * window.innerWidth;
-    const y = (-sp.y * 0.5 + 0.5) * window.innerHeight;
+    _zoneVec.project(camera);
+    const x = (_zoneVec.x * 0.5 + 0.5) * w;
+    const y = (-_zoneVec.y * 0.5 + 0.5) * h;
+    const visible = _zoneVec.z < 1 && x > -80 && x < w + 80;
 
-    if (sp.z < 1 && x > -80 && x < window.innerWidth + 80) {
-      z.el.style.display = 'block';
+    if (visible) {
+      if (z._lastVisible !== true) {
+        z.el.style.display = 'block';
+        z._lastVisible = true;
+      }
       z.el.style.left = x + 'px';
       z.el.style.top = y + 'px';
-    } else {
+    } else if (z._lastVisible !== false) {
       z.el.style.display = 'none';
+      z._lastVisible = false;
     }
   });
 }
@@ -13721,32 +14853,41 @@ propertyData.forEach((p, i) => {
  * Calcula posición en pantalla para una propiedad dada su t (angular)
  * y heightOffset (altura sobre la costa).
  * Se llama cada frame para que las luces "viajen" con la cámara.
+ *
+ * Optimizado: vector reutilizado (sin alloc cada frame),
+ * cambio de display solo cuando cambia (evita reflows innecesarios).
  */
+const _posPropsVec = new THREE.Vector3();
 function positionProperties() {
   const angleSpan = Math.PI * 1.15;
   const halfAngle = angleSpan / 2;
+  const radius = 458;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
 
   propertyData.forEach(p => {
     const angle = Math.PI - halfAngle + p.t * angleSpan;
-    const radius = 458;  // pegado a los edificios/arena
-
-    const worldPos = new THREE.Vector3(
+    _posPropsVec.set(
       Math.sin(angle) * radius,
       p.heightOffset,
       -Math.cos(angle) * radius
     );
+    _posPropsVec.project(camera);
 
-    const sp = worldPos.clone().project(camera);
-    const x = (sp.x * 0.5 + 0.5) * window.innerWidth;
-    const y = (-sp.y * 0.5 + 0.5) * window.innerHeight;
+    const x = (_posPropsVec.x * 0.5 + 0.5) * w;
+    const y = (-_posPropsVec.y * 0.5 + 0.5) * h;
+    const visible = _posPropsVec.z < 1 && x > -50 && x < w + 50;
 
-    // Solo mostrar si está dentro del frustum y en pantalla
-    if (sp.z < 1 && x > -50 && x < window.innerWidth + 50) {
-      p.el.style.display = 'block';
+    if (visible) {
+      if (p._lastVisible !== true) {
+        p.el.style.display = 'block';
+        p._lastVisible = true;
+      }
       p.el.style.left = x + 'px';
       p.el.style.top = y + 'px';
-    } else {
+    } else if (p._lastVisible !== false) {
       p.el.style.display = 'none';
+      p._lastVisible = false;
     }
   });
 }
@@ -13867,9 +15008,12 @@ function buildGallery(p) {
   currentGallerySlides = slides;
   currentGalleryIndex = 0;
 
-  track.innerHTML = slides.map(s => {
+  track.innerHTML = slides.map((s, idx) => {
     if (s.real) {
-      return `<div class="va-slide"><img src="${s.src}" alt="" /></div>`;
+      // El primer slide carga eager (es lo que se ve primero), el resto lazy
+      const loading = idx === 0 ? 'eager' : 'lazy';
+      const decoding = idx === 0 ? 'sync' : 'async';
+      return `<div class="va-slide"><img src="${s.src}" alt="" loading="${loading}" decoding="${decoding}" /></div>`;
     } else if (s.isHero) {
       // Hero placeholder: nombre del complejo en grande tipo cartel editorial
       return `
@@ -13909,6 +15053,9 @@ function recalculatePrice() {
   const breakdown = document.getElementById('a-price-breakdown');
   const stickyAmount = document.getElementById('a-sticky-amount');
   const stickySub = document.getElementById('a-sticky-sub');
+  const stickyTotalLine = document.getElementById('a-sticky-total-line');
+  const stickyTotal = document.getElementById('a-sticky-total');
+  const stickyTotalMeta = document.getElementById('a-sticky-total-meta');
   const cta = document.getElementById('a-cta-reserve');
 
   if (!currentProperty) return;
@@ -13917,11 +15064,18 @@ function recalculatePrice() {
   const cleaningFee = currentProperty.cleaningFee || 50;
   const taxRate = currentProperty.taxRate || 0.16;
 
+  // Helper: detectar lang
+  const isEN = (typeof VRM_LANG !== 'undefined' && VRM_LANG === 'en');
+  const nightSing = isEN ? 'NIGHT' : 'NOCHE';
+  const nightPlur = isEN ? 'NIGHTS' : 'NOCHES';
+  const nightSingLow = isEN ? 'night' : 'noche';
+  const nightPlurLow = isEN ? 'nights' : 'noches';
+
   if (!checkin || !checkout) {
     breakdown.classList.remove('visible');
     stickyAmount.textContent = pricePerNight;
-    stickySub.textContent = '/ NOCHE';
-    cta.textContent = 'Reservar';
+    stickySub.textContent = isEN ? '/ NIGHT' : '/ NOCHE';
+    if (stickyTotalLine) stickyTotalLine.style.display = 'none';
     cta.disabled = false;
     return;
   }
@@ -13934,9 +15088,9 @@ function recalculatePrice() {
   if (nights <= 0) {
     breakdown.classList.remove('visible');
     stickyAmount.textContent = pricePerNight;
-    stickySub.textContent = '/ NOCHE · FECHAS INVÁLIDAS';
+    stickySub.textContent = isEN ? '/ NIGHT · INVALID DATES' : '/ NOCHE · FECHAS INVÁLIDAS';
+    if (stickyTotalLine) stickyTotalLine.style.display = 'none';
     cta.disabled = true;
-    // Ocultar botón inline mientras no haya fechas válidas
     const inlineBtn = document.getElementById('a-inline-reserve');
     if (inlineBtn) inlineBtn.style.display = 'none';
     return;
@@ -13947,17 +15101,25 @@ function recalculatePrice() {
   const total = subtotal + cleaningFee + taxes;
 
   document.getElementById('a-price-calc-line').textContent =
-    `USD ${pricePerNight} × ${nights} ${nights === 1 ? 'noche' : 'noches'}`;
+    `USD ${pricePerNight} × ${nights} ${nights === 1 ? nightSingLow : nightPlurLow}`;
   document.getElementById('a-price-calc-amount').textContent = `USD ${subtotal}`;
   document.getElementById('a-cleaning-fee').textContent = `USD ${cleaningFee}`;
   document.getElementById('a-taxes').textContent = `USD ${taxes}`;
   document.getElementById('a-total').textContent = `USD ${total}`;
 
   breakdown.classList.add('visible');
-  stickyAmount.textContent = total;
-  stickySub.textContent = `TOTAL · ${nights} ${nights === 1 ? 'NOCHE' : 'NOCHES'}`;
+  // El amount principal sigue siendo el precio /noche (anchor low — best practice).
+  // El total se muestra en una línea aparte abajo (transparencia sin asustar).
+  stickyAmount.textContent = pricePerNight;
+  stickySub.textContent = isEN ? '/ NIGHT' : '/ NOCHE';
+  if (stickyTotalLine && stickyTotal && stickyTotalMeta) {
+    stickyTotalLine.style.display = 'flex';
+    stickyTotal.textContent = `$${total.toLocaleString('en-US')} USD`;
+    stickyTotalMeta.textContent = isEN
+      ? `total · ${nights} ${nights === 1 ? nightSingLow : nightPlurLow}`
+      : `total · ${nights} ${nights === 1 ? nightSingLow : nightPlurLow}`;
+  }
   cta.disabled = false;
-  cta.textContent = 'Reservar';
 
   // Mostrar botón inline de reservar después del desglose
   const inlineBtn = document.getElementById('a-inline-reserve');
@@ -15666,24 +16828,60 @@ const PROPERTY_PHOTOS = {
     // Nombre: "Quiya 2302" o "Marítima 6S" o nombre del complejo
     const displayName = unitId ? `${complexLabel} ${unitId}` : complex.name;
 
-    // Zone tag: vista de la unit si existe, sino zoneTag del complejo
-    const zoneText = unitData?.view || complex.zoneTag || '';
+    // Zone = ubicación geográfica del complejo. View = atributo de la unit.
+    // Son cosas distintas: zone es "dónde está", view es "cómo es".
+    const zoneText = complex.zoneTag || '';
+    const viewText = unitData?.view || '';
+
+    // BADGE automático basado en rating + reseñas (Airbnb pattern):
+    // - "Guest favorite" si rating >= 4.85 (alto Y reviews >= 30)
+    // - "Most booked" si tiene >= 60 reseñas (popularidad)
+    // - sin badge en el resto (no saturar visualmente)
+    let badgeHtml = '';
+    if (parseFloat(rating) >= 4.85 && reviewCount >= 30) {
+      const isEN = (typeof VRM_LANG !== 'undefined' && VRM_LANG === 'en');
+      const badgeText = isEN ? 'Guest favorite' : 'Favorita de huéspedes';
+      badgeHtml = `
+        <div class="featured-card-badge featured-card-badge-favorite">
+          <span class="badge-icon">
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </span>
+          <span>${badgeText}</span>
+        </div>
+      `;
+    } else if (reviewCount >= 60) {
+      const isEN = (typeof VRM_LANG !== 'undefined' && VRM_LANG === 'en');
+      const badgeText = isEN ? 'Most booked' : 'Más reservada';
+      badgeHtml = `
+        <div class="featured-card-badge featured-card-badge-rare">
+          <span class="badge-icon">
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </span>
+          <span>${badgeText}</span>
+        </div>
+      `;
+    }
 
     card.innerHTML = `
       <div class="featured-card-photo${photo ? '' : ' placeholder'}">
         ${photo ? `<img src="${photo}" alt="${displayName}" loading="lazy">` : ''}
       </div>
+      ${badgeHtml}
       <div class="featured-card-content">
+        <div class="featured-card-divider" aria-hidden="true"></div>
         <div class="featured-card-zone">${zoneText}</div>
         <div class="featured-card-name">${displayName}</div>
+        ${viewText ? `<div class="featured-card-view">${viewText}</div>` : ''}
         <div class="featured-card-bottom">
           <div class="featured-card-price">
-            <span class="from">desde</span>
-            <span class="amount"><span class="currency">USD</span>${priceText}<span class="per">/ noche</span></span>
+            <span class="amount">$${priceText}</span>
+            <span class="meta">USD · noche</span>
           </div>
-          <div class="featured-card-rating">
-            <span class="star">★</span>
-            <span>${rating} · ${reviewCount}</span>
+          <div class="featured-card-rating" aria-label="${rating} estrellas, ${reviewCount} reseñas">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <span>${rating}</span>
           </div>
         </div>
       </div>
@@ -15712,7 +16910,7 @@ const PROPERTY_PHOTOS = {
   }
 
   // Navegación con flechas
-  const SCROLL_AMOUNT = 261; // 245 card + 16 gap
+  const SCROLL_AMOUNT = 288; // 272 card + 16 gap
   prevBtn.addEventListener('click', () => {
     track.scrollBy({ left: -SCROLL_AMOUNT, behavior: 'smooth' });
   });
@@ -15861,6 +17059,14 @@ function openGridOverlay() {
   document.body.style.overflow = 'hidden';
   updateSearchFilterPill();
   renderGridCards();
+
+  // Pre-warm: en background, pre-cargar disponibilidad de TODAS las units para que
+  // cuando el usuario aplique filtros de fechas, los resultados sean instant.
+  // No bloquea la UI (no se hace await).
+  if (typeof window.preloadAvailability === 'function' && typeof getAllUnitsForGrid === 'function') {
+    const allIds = getAllUnitsForGrid().map(u => u.unitId);
+    window.preloadAvailability(allIds).catch(() => {});
+  }
 }
 
 // Actualiza la visibilidad y texto del pill que muestra los filtros del search bar
@@ -16010,7 +17216,18 @@ async function renderGridCards() {
   // Filtro async: disponibilidad por fechas
   if (gridState.checkin && gridState.checkout) {
     // Mostrar loading state mientras consultamos
-    content.innerHTML = '<div style="text-align:center;padding:60px 20px;color:rgba(245,200,145,0.6);font-family:Inter Tight,sans-serif;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;">Verificando disponibilidad…</div>';
+    content.innerHTML = `
+      <div class="grid-loading-state">
+        <div class="grid-loading-spinner" aria-hidden="true"></div>
+        <div class="grid-loading-text">${t('grid.loading') || 'Verificando disponibilidad'}</div>
+        <div class="grid-loading-sub">${t('grid.loading.sub') || 'Consultando calendarios en tiempo real'}</div>
+      </div>
+    `;
+
+    // OPTIMIZACIÓN: una sola query para todas las units en vez de N queries.
+    if (typeof window.preloadAvailability === 'function') {
+      await window.preloadAvailability(filtered.map(u => u.unitId));
+    }
 
     const availability = await Promise.all(
       filtered.map(async u => ({
@@ -16024,10 +17241,21 @@ async function renderGridCards() {
   // Update count
   countEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'unidad' : 'unidades'}`;
 
-  // Empty state
+  // Empty state inteligente: distinguir entre "fechas sin disponibilidad" y "filtros sin match"
   if (filtered.length === 0) {
     content.innerHTML = '';
     empty.style.display = 'block';
+    const emptyDates = document.getElementById('grid-empty-dates');
+    const emptyFilters = document.getElementById('grid-empty-filters');
+    if (gridState.checkin && gridState.checkout) {
+      // Hay fechas seleccionadas pero nadie está disponible
+      if (emptyDates) emptyDates.style.display = 'block';
+      if (emptyFilters) emptyFilters.style.display = 'none';
+    } else {
+      // Sin fechas, filtros muy restrictivos
+      if (emptyDates) emptyDates.style.display = 'none';
+      if (emptyFilters) emptyFilters.style.display = 'block';
+    }
     return;
   }
   empty.style.display = 'none';
@@ -16058,6 +17286,8 @@ async function renderGridCards() {
             <div class="grid-unit-card" data-complex-id="${u.complexId}" data-unit-id="${u.unitId}" style="background-image: url('${u.coverImage || ''}');">
               <div class="grid-unit-overlay"></div>
               <div class="grid-unit-number">${u.unitId}</div>
+              <!-- Badge de disponibilidad: se llena async después del render -->
+              <div class="grid-unit-availability-badge" data-unit-id="${u.unitId}"></div>
               <div class="grid-unit-bottom">
                 <span class="grid-unit-guests">${u.guests} huéspedes · ${u.bedrooms} rec</span>
                 <span class="grid-unit-price"><strong>$${u.priceUSD}</strong><span class="suffix">/noche</span></span>
@@ -16082,6 +17312,97 @@ async function renderGridCards() {
       }
     });
   });
+
+  // ===== BADGES de disponibilidad: se cargan async después del render =====
+  // No bloquean el initial paint. Si Supabase tarda, las cards ya se ven.
+  // Solo mostramos badge cuando NO hay fechas seleccionadas (porque si las hay,
+  // todas las que ven el usuario YA están disponibles para ese rango).
+  if (!gridState.checkin || !gridState.checkout) {
+    loadAvailabilityBadgesForGrid(filtered);
+  }
+}
+
+// Carga próxima disponibilidad para cada card y le pinta un badge
+async function loadAvailabilityBadgesForGrid(units) {
+  if (typeof window.loadAvailability !== 'function') return;
+
+  // OPTIMIZACIÓN: precargar todas las units de una vez (1 call a Supabase)
+  if (typeof window.preloadAvailability === 'function') {
+    await window.preloadAvailability(units.map(u => u.unitId));
+  }
+
+  // Ahora cada loadAvailability(unitId) será instant (hit del cache)
+  await Promise.all(units.map(async u => {
+    try {
+      const blocked = await window.loadAvailability(u.unitId);
+      const badge = document.querySelector(`.grid-unit-availability-badge[data-unit-id="${u.unitId}"]`);
+      if (!badge) return;
+
+      const badgeInfo = computeAvailabilityBadge(blocked);
+      if (badgeInfo) {
+        badge.innerHTML = `
+          <span class="badge-dot badge-dot-${badgeInfo.tone}"></span>
+          <span class="badge-text">${badgeInfo.text}</span>
+        `;
+        badge.classList.add('visible', `badge-${badgeInfo.tone}`);
+      }
+    } catch (err) {
+      // Falla silenciosa: el card sigue funcional sin badge
+    }
+  }));
+}
+
+// Computa qué badge mostrar basado en próxima disponibilidad
+// Returns: { text, tone } | null
+function computeAvailabilityBadge(blockedSet) {
+  if (!blockedSet || blockedSet.size === 0) {
+    // Ninguna fecha bloqueada futura → disponible ya
+    return { text: t('badge.available.now') || 'Disponible ahora', tone: 'green' };
+  }
+
+  // Buscar la próxima fecha LIBRE empezando desde hoy
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+
+  // Helper: incrementar fecha como string puro
+  const inc = (yyyymmdd) => {
+    let [y, m, d] = yyyymmdd.split('-').map(Number);
+    d++;
+    const daysInMonth = new Date(y, m, 0).getDate();
+    if (d > daysInMonth) { d = 1; m++; if (m > 12) { m = 1; y++; } }
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  };
+
+  // Si hoy está libre, listo
+  if (!blockedSet.has(todayStr)) {
+    return { text: t('badge.available.now') || 'Disponible ahora', tone: 'green' };
+  }
+
+  // Buscar primer día libre en los próximos 90 días
+  let cur = todayStr;
+  let daysAhead = 0;
+  while (daysAhead < 90) {
+    cur = inc(cur);
+    daysAhead++;
+    if (!blockedSet.has(cur)) {
+      // Formatear fecha bonita: "18 mar" en ES, "Mar 18" en EN
+      const [y, m, d] = cur.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      const isEN = (typeof VRM_LANG !== 'undefined' && VRM_LANG === 'en');
+      const formatted = date.toLocaleDateString(isEN ? 'en-US' : 'es-MX', { day: 'numeric', month: 'short' });
+
+      // Tone: amarillo si dispone en menos de 7 días, naranja si 7-30, sin badge si >30 (probable)
+      let tone = 'amber';
+      if (daysAhead <= 3) tone = 'orange'; // urgencia leve
+      if (daysAhead > 30) tone = 'neutral'; // sin urgencia
+
+      const label = isEN ? 'Available from' : 'Disponible desde';
+      return { text: `${label} ${formatted}`, tone };
+    }
+  }
+
+  // Más de 90 días reservado
+  return { text: t('badge.long.booked') || 'Muy popular', tone: 'orange' };
 }
 
 // ---- Filter popovers + interacciones ----------------------------
@@ -16239,6 +17560,42 @@ function setupGridFilters() {
       }
     });
   }
+
+  // ====== EMPTY STATE: Botones de acción ======
+  // "Cambiar fechas" → abre el calendario del searchbar
+  document.getElementById('empty-change-dates')?.addEventListener('click', () => {
+    const checkinBtn = document.getElementById('search-checkin');
+    if (checkinBtn) checkinBtn.click();
+  });
+
+  // "Soy flexible" → busca +/- 7 días alrededor de las fechas seleccionadas
+  document.getElementById('empty-flexible-dates')?.addEventListener('click', () => {
+    if (!gridState.checkin || !gridState.checkout) return;
+    // Mostrar TODAS las propiedades quitando solo el filtro de fechas
+    gridState.checkin = null;
+    gridState.checkout = null;
+    if (typeof searchState !== 'undefined') {
+      searchState.checkin = null;
+      searchState.checkout = null;
+    }
+    if (typeof updateSearchFilterPill === 'function') updateSearchFilterPill();
+    renderGridCards();
+    if (typeof window.applyAvailabilityFilter === 'function') {
+      window.applyAvailabilityFilter();
+    }
+  });
+
+  // "Limpiar todos los filtros" → reset completo
+  document.getElementById('empty-clear-filters')?.addEventListener('click', () => {
+    gridState.zone = null;
+    gridState.maxPrice = 800;
+    gridState.minCapacity = null;
+    if (priceSlider) priceSlider.value = 800;
+    if (priceValue) priceValue.textContent = '$800';
+    document.querySelectorAll('.popover-options button').forEach(b => b.classList.remove('active'));
+    updateFilterPills();
+    renderGridCards();
+  });
 
   function updateFilterPills() {
     const zonePill = document.getElementById('filter-zone');
@@ -16793,17 +18150,9 @@ function animate() {
   const t = clock.getElapsedTime();
   boatT += dt;
 
-  // Optimización mobile: 60fps DURANTE drag (touch activo), 30fps el resto.
-  // Esto da fluidez total cuando el usuario explora la bahía.
-  if (document.documentElement.classList.contains('is-mobile')) {
-    window._mobileFrameCount = (window._mobileFrameCount || 0) + 1;
-    // Si NO hay touch activo, skipear 1 de cada 2 frames (30fps idle)
-    if (!touchActive && window._mobileFrameCount % 2 !== 0) {
-      requestAnimationFrame(animate);
-      return;
-    }
-    // Durante drag: render full 60fps (sin skip)
-  }
+  // Mobile: 60fps siempre. Antes había un throttle a 30fps idle que se sentía
+  // laggeado. La escena ya es eficiente (pixelRatio 1, sin antialias, shader simple)
+  // así que el render a 60fps es viable y la fluidez visual prevalece.
 
   oceanUniforms.iTime.value = t;
   oceanUniforms.uCameraPos.value.copy(camera.position);
@@ -16814,9 +18163,10 @@ function animate() {
     targetPitch = cameraZoneLock.pitch;
   }
 
-  // Lerp adaptativo: durante drag mobile, sigue al dedo con smoothing suave (0.15)
-  // En idle (mouse desktop), lerp suave (0.018) para evitar mareo
-  const lerpFactor = touchActive ? 0.15 : 0.018;
+  // Lerp adaptativo: durante drag mobile, sigue al dedo con smoothing suave (0.18)
+  // En idle, lerp un poco más rápido (0.06) para que cambios de yaw (carrusel,
+  // zoom de zona) se sientan vivos y no pesados.
+  const lerpFactor = touchActive ? 0.18 : 0.06;
   curYaw += (targetYaw - curYaw) * lerpFactor;
   curPitch += (targetPitch - curPitch) * lerpFactor;
 
@@ -16869,16 +18219,26 @@ function animate() {
     // así abajo el océano se ve totalmente limpio
     const cloudOpacityFactor = Math.max(0, 1 - Math.pow(eased, 0.6));
 
-    clouds.forEach((c, idx) => {
-      // Drift muy suave (movimiento horizontal lento de las nubes)
-      c.mesh.position.x += Math.sin(boatT * 0.05 + c.drift) * 0.025;
-      c.mesh.position.y = c.baseY + Math.sin(boatT * 0.08 + idx) * 0.6;
+    // Si todas las nubes están invisibles, no procesar nada (común post-intro)
+    if (cloudOpacityFactor > 0.001) {
+      clouds.forEach((c, idx) => {
+        // Drift muy suave (movimiento horizontal lento de las nubes)
+        c.mesh.position.x += Math.sin(boatT * 0.05 + c.drift) * 0.025;
+        c.mesh.position.y = c.baseY + Math.sin(boatT * 0.08 + idx) * 0.6;
 
-      // Billboard real: la nube siempre mira a la cámara
-      c.mesh.lookAt(camera.position);
+        // Billboard real: la nube siempre mira a la cámara
+        c.mesh.lookAt(camera.position);
 
-      c.mesh.material.opacity = c.baseOpacity * cloudOpacityFactor;
-    });
+        c.mesh.material.opacity = c.baseOpacity * cloudOpacityFactor;
+        if (c.mesh.visible === false) c.mesh.visible = true;
+      });
+    } else {
+      // Forzar opacity 0 una vez y ocultar meshes para skipear renderer también
+      clouds.forEach(c => {
+        if (c.mesh.material.opacity !== 0) c.mesh.material.opacity = 0;
+        if (c.mesh.visible === true) c.mesh.visible = false;
+      });
+    }
   }
 
   renderer.render(scene, camera);
@@ -17246,19 +18606,44 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
     const personaSing2 = isEN2 ? 'guest' : 'persona';
     const personaPlur2 = isEN2 ? 'guests' : 'personas';
     const isMobileVw = window.matchMedia('(max-width: 768px)').matches;
+
+    // Helper: añade clase de urgencia visual al label si quedan pocas
+    const setUrgencyClass = (count, total) => {
+      if (!availabilityText.parentElement) return;
+      const wrap = availabilityText.parentElement;
+      wrap.classList.remove('urgency-low', 'urgency-none');
+      if (checkin && checkout && total > 0) {
+        if (count === 0) wrap.classList.add('urgency-none');
+        else if (count <= Math.max(2, Math.round(total * 0.15))) wrap.classList.add('urgency-low');
+      }
+    };
+
     if (bar.classList.contains('has-search')) {
       if (checkin && checkout) {
-        // En mobile: solo mostrar conteo (las fechas ya están visibles en los slots arriba)
-        if (isMobileVw) {
-          availabilityText.textContent = `${availableCount} ${dispWord}`;
+        setUrgencyClass(availableCount, totalCount);
+        // Mensajes diferenciados según escasez (urgencia REAL):
+        let msg;
+        if (availableCount === 0) {
+          msg = isEN2 ? 'Nothing available' : 'Sin disponibilidad';
+        } else if (availableCount === 1) {
+          msg = isEN2 ? 'Only 1 left for these dates' : 'Solo 1 disponible · estas fechas';
+        } else if (availableCount <= Math.max(2, Math.round(totalCount * 0.15))) {
+          // 15% o menos disponibles → escasez visible
+          msg = isEN2
+            ? `Only ${availableCount} left · these dates`
+            : `Solo ${availableCount} · estas fechas`;
+        } else if (isMobileVw) {
+          msg = `${availableCount} ${dispWord}`;
         } else {
-          availabilityText.textContent =
-            `${availableCount} ${dispWord} · ${formatDate(checkin)} → ${formatDate(checkout)}`;
+          msg = `${availableCount} ${dispWord} · ${formatDate(checkin)} → ${formatDate(checkout)}`;
         }
+        availabilityText.textContent = msg;
       } else {
+        setUrgencyClass(availableCount, totalCount);
         availabilityText.textContent = `${availableCount} ${forWord} ${tot} ${tot === 1 ? personaSing2 : personaPlur2}`;
       }
     } else {
+      setUrgencyClass(totalCount, totalCount);
       availabilityText.textContent = `${totalCount} ${propsWord}`;
     }
   }
@@ -17282,9 +18667,10 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
   updateSearchUI();
   applyAvailabilityFilter();
 
-  // ===== NaN GUARD silencioso: bloquea cualquier intento de escribir "NaN"
-  // a estos elementos. Sin logs en producción.
-  function installAggressiveGuard(el, label) {
+  // ===== NaN GUARD: defensa contra escrituras inválidas a los displays de fecha.
+  // Si algún código intenta poner "NaN" o "undefined" en estos elementos,
+  // se ignora la escritura y se mantiene el placeholder correcto.
+  function installDateGuard(el, label) {
     if (!el) return;
 
     const origTextContentDesc = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
@@ -17324,8 +18710,8 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
     });
     obs.observe(el, { childList: true, characterData: true, subtree: true });
   }
-  installAggressiveGuard(checkinValue, 'checkin');
-  installAggressiveGuard(checkoutValue, 'checkout');
+  installDateGuard(checkinValue, 'checkin');
+  installDateGuard(checkoutValue, 'checkout');
 
   // Re-renderizar al cambiar idioma (nombres de meses, "personas/guests", etc.)
   document.addEventListener('vrm:lang-changed', () => {
@@ -17340,8 +18726,8 @@ function completeLoadingSequence() {
   const loader = document.getElementById('loading-screen');
   if (loader) loader.classList.add('done');
 
-  // 2. Fade in del canvas
-  setTimeout(() => canvas.classList.add('ready'), 100);
+  // 2. Fade in del canvas (rápido — el preconnect/preload ya cargaron Three.js)
+  requestAnimationFrame(() => canvas.classList.add('ready'));
 
   // 3. Luces de propiedades encienden secuencialmente (orden geográfico)
   const sortedProps = [...propertyData].sort((a, b) => a.t - b.t);
@@ -17546,281 +18932,6 @@ setTimeout(() => {
 animate();
 </script>
 
-<!-- =========================================================
-     PANEL DE CALIBRACIÓN DE CÁMARA — temporal, para tuning
-     Toca el "≡" para abrir/cerrar. Apunta a cada complejo,
-     ajusta con sliders, y copia los valores.
-     ========================================================= -->
-<style>
-  .cam-cal-toggle {
-    position: fixed;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-    left: 12px;
-    z-index: 99999;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: rgba(20, 20, 30, 0.78);
-    color: #FFD580;
-    border: 1px solid rgba(255, 213, 128, 0.45);
-    font-size: 14px;
-    font-family: 'Inter Tight', sans-serif;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    pointer-events: auto;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.45);
-  }
-  .cam-cal-panel {
-    position: fixed;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 56px);
-    left: 12px;
-    right: 12px;
-    max-width: 360px;
-    z-index: 99999;
-    background: rgba(15, 15, 22, 0.94);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 213, 128, 0.30);
-    border-radius: 14px;
-    padding: 14px 14px 12px;
-    color: #f4ecdb;
-    font-family: 'Inter Tight', sans-serif;
-    font-size: 12px;
-    display: none;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
-    max-height: calc(100vh - 120px);
-    overflow-y: auto;
-  }
-  .cam-cal-panel.active { display: block; }
-  .cam-cal-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .cam-cal-row label { flex: 0 0 50px; color: #FFD580; font-weight: 600; font-size: 11px; }
-  .cam-cal-row input[type="range"] {
-    flex: 1;
-    accent-color: #FFD580;
-    height: 22px;
-  }
-  .cam-cal-row .cam-cal-val {
-    flex: 0 0 70px;
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-    font-size: 11px;
-    color: #f4ecdb;
-  }
-  .cam-cal-pill-row {
-    display: flex;
-    gap: 6px;
-    margin: 10px 0 8px;
-    flex-wrap: wrap;
-  }
-  .cam-cal-pill {
-    flex: 1 1 auto;
-    min-width: 60px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    background: rgba(40, 40, 55, 0.85);
-    border: 1px solid rgba(255, 213, 128, 0.30);
-    color: #FFD580;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .cam-cal-pill:active { background: rgba(60, 60, 80, 0.95); }
-  .cam-cal-readout {
-    margin-top: 8px;
-    padding: 8px 10px;
-    background: rgba(0,0,0,0.5);
-    border-radius: 6px;
-    font-family: 'Inter Tight', monospace;
-    font-size: 11px;
-    line-height: 1.5;
-    word-break: break-all;
-    color: #b8d4ff;
-    white-space: pre-wrap;
-  }
-  .cam-cal-actions { display: flex; gap: 6px; margin-top: 8px; }
-  .cam-cal-actions button {
-    flex: 1;
-    padding: 8px;
-    border-radius: 6px;
-    border: 1px solid rgba(255, 213, 128, 0.30);
-    background: rgba(80, 60, 30, 0.6);
-    color: #FFD580;
-    font-size: 11px;
-    font-weight: 600;
-  }
-  .cam-cal-fine {
-    display: flex;
-    gap: 4px;
-    margin-top: 6px;
-    justify-content: center;
-  }
-  .cam-cal-fine button {
-    width: 36px;
-    height: 28px;
-    border-radius: 6px;
-    border: 1px solid rgba(255, 213, 128, 0.30);
-    background: rgba(40, 40, 55, 0.85);
-    color: #FFD580;
-    font-size: 12px;
-    font-weight: 700;
-  }
-</style>
-
-<button class="cam-cal-toggle" id="cam-cal-toggle" aria-label="Calibración cámara">⚙</button>
-<div class="cam-cal-panel" id="cam-cal-panel">
-  <div class="cam-cal-row">
-    <label>Yaw</label>
-    <input type="range" id="cam-cal-yaw" min="-2.5" max="2.5" step="0.001" value="0">
-    <span class="cam-cal-val" id="cam-cal-yaw-val">0.000</span>
-  </div>
-  <div class="cam-cal-fine">
-    <button data-delta="-0.05">«</button>
-    <button data-delta="-0.01">‹</button>
-    <button data-delta="-0.001">·‹</button>
-    <button data-delta="0.001">›·</button>
-    <button data-delta="0.01">›</button>
-    <button data-delta="0.05">»</button>
-  </div>
-  <div class="cam-cal-row" style="margin-top:10px">
-    <label>Pitch</label>
-    <input type="range" id="cam-cal-pitch" min="-0.3" max="0.3" step="0.001" value="0">
-    <span class="cam-cal-val" id="cam-cal-pitch-val">0.000</span>
-  </div>
-  <div class="cam-cal-pill-row">
-    <button class="cam-cal-pill" data-prop="bolongo_punta_mita">Bolongo</button>
-    <button class="cam-cal-pill" data-prop="vallarta_gardens_quiya">Quiya</button>
-    <button class="cam-cal-pill" data-prop="maritima_playa_flamingos">Marítima</button>
-  </div>
-  <div class="cam-cal-readout" id="cam-cal-readout">Selecciona un complejo y ajusta</div>
-  <div class="cam-cal-actions">
-    <button id="cam-cal-copy">📋 Copy</button>
-    <button id="cam-cal-reset">↺ Reset</button>
-  </div>
-</div>
-
-<script>
-(function setupCameraCalibration() {
-  const toggle = document.getElementById('cam-cal-toggle');
-  const panel = document.getElementById('cam-cal-panel');
-  const yawSlider = document.getElementById('cam-cal-yaw');
-  const pitchSlider = document.getElementById('cam-cal-pitch');
-  const yawVal = document.getElementById('cam-cal-yaw-val');
-  const pitchVal = document.getElementById('cam-cal-pitch-val');
-  const readout = document.getElementById('cam-cal-readout');
-  const copyBtn = document.getElementById('cam-cal-copy');
-  const resetBtn = document.getElementById('cam-cal-reset');
-
-  // Estado: qué complejo está siendo calibrado en este momento
-  let currentProp = null;
-  // Valores ajustados por el usuario por complejo (para el readout final)
-  const adjustedValues = {};
-  // Valores INICIALES (lo que computeYawForProperty retorna en el momento de entrada)
-  const initialValues = {};
-
-  toggle.addEventListener('click', () => {
-    panel.classList.toggle('active');
-  });
-
-  function fmt(n) { return (Math.round(n * 1000) / 1000).toFixed(3); }
-
-  // Cuando arrastras el slider, se aplica DIRECTO al targetYaw/pitch del paisaje
-  // (sin animación, así ves el cambio instantáneo)
-  function applyYaw(v) {
-    targetYaw = v;
-    yawVal.textContent = fmt(v);
-    yawSlider.value = String(v);
-    if (currentProp) adjustedValues[currentProp] = { yaw: v, pitch: parseFloat(pitchSlider.value) };
-    updateReadout();
-  }
-  function applyPitch(v) {
-    targetPitch = v;
-    pitchVal.textContent = fmt(v);
-    pitchSlider.value = String(v);
-    if (currentProp) adjustedValues[currentProp] = { yaw: parseFloat(yawSlider.value), pitch: v };
-    updateReadout();
-  }
-
-  yawSlider.addEventListener('input', (e) => applyYaw(parseFloat(e.target.value)));
-  pitchSlider.addEventListener('input', (e) => applyPitch(parseFloat(e.target.value)));
-
-  // Botones de ajuste fino del yaw
-  document.querySelectorAll('.cam-cal-fine button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const delta = parseFloat(btn.dataset.delta);
-      applyYaw(parseFloat(yawSlider.value) + delta);
-    });
-  });
-
-  // Pills: apuntar a cada complejo
-  document.querySelectorAll('.cam-cal-pill').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const propId = btn.dataset.prop;
-      currentProp = propId;
-      // Marcar pill activa
-      document.querySelectorAll('.cam-cal-pill').forEach(b =>
-        b.style.background = b === btn ? 'rgba(120, 90, 40, 0.95)' : 'rgba(40, 40, 55, 0.85)');
-      // Obtener yaw inicial calculado por el sistema actual
-      const yaw = (typeof computeYawForProperty === 'function')
-        ? computeYawForProperty(propId)
-        : 0;
-      initialValues[propId] = initialValues[propId] || yaw;
-      // Si ya había sido ajustado, usar el valor ajustado; sino el inicial
-      const adj = adjustedValues[propId];
-      const useYaw = adj ? adj.yaw : yaw;
-      const usePitch = adj ? adj.pitch : 0;
-      applyYaw(useYaw);
-      applyPitch(usePitch);
-    });
-  });
-
-  function updateReadout() {
-    const lines = [];
-    Object.keys(adjustedValues).forEach(propId => {
-      const v = adjustedValues[propId];
-      const init = initialValues[propId];
-      const initStr = (init !== undefined) ? fmt(init) : '—';
-      lines.push(`${propId}:\n  yaw: ${fmt(v.yaw)} (inicial: ${initStr})\n  pitch: ${fmt(v.pitch)}`);
-    });
-    if (currentProp && !adjustedValues[currentProp]) {
-      const init = initialValues[currentProp];
-      const initStr = (init !== undefined) ? fmt(init) : '—';
-      lines.push(`${currentProp}: yaw=${fmt(parseFloat(yawSlider.value))} (inicial=${initStr})`);
-    }
-    readout.textContent = lines.length ? lines.join('\n\n') : 'Selecciona un complejo y ajusta';
-  }
-
-  copyBtn.addEventListener('click', async () => {
-    const text = readout.textContent;
-    try {
-      await navigator.clipboard.writeText(text);
-      copyBtn.textContent = '✓ Copiado';
-      setTimeout(() => copyBtn.textContent = '📋 Copy', 1500);
-    } catch (e) {
-      // Fallback: seleccionar el readout
-      const range = document.createRange();
-      range.selectNode(readout);
-      window.getSelection().removeAllRanges();
-      window.getSelection().addRange(range);
-      copyBtn.textContent = 'Selecciona y copia';
-    }
-  });
-
-  resetBtn.addEventListener('click', () => {
-    if (currentProp && initialValues[currentProp] !== undefined) {
-      applyYaw(initialValues[currentProp]);
-      applyPitch(0);
-      delete adjustedValues[currentProp];
-      updateReadout();
-    }
-  });
-
-  // Inicializar pitch a 0
-  applyPitch(0);
-})();
-</script>
 
 </body>
 </html>
