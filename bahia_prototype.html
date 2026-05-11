@@ -1367,10 +1367,10 @@
     .featured-track {
       padding: 6px calc(50% - 97.5px) 6px !important;
       gap: 12px;
-      scroll-snap-type: x mandatory;
+      scroll-snap-type: x proximity;
       scroll-padding: 0 calc(50% - 97.5px);
-      -webkit-overflow-scrolling: auto !important;
-      scroll-behavior: smooth !important;
+      /* Momentum touch nativo = scroll mucho más fluido en iOS */
+      -webkit-overflow-scrolling: touch !important;
       overscroll-behavior-x: contain;
       touch-action: pan-x;
     }
@@ -12536,8 +12536,8 @@ oceanGeom.rotateX(-Math.PI / 2);
 const oceanMat = new THREE.ShaderMaterial({
   vertexShader: oceanVertexShader,
   fragmentShader: oceanFragmentShader
-    .replace('__RAYMARCH_ITERS__', IS_MOBILE ? '5' : '10')
-    .replace('__NORMAL_ITERS__', IS_MOBILE ? '12' : '24'),
+    .replace('__RAYMARCH_ITERS__', IS_MOBILE ? '8' : '10')
+    .replace('__NORMAL_ITERS__', IS_MOBILE ? '18' : '24'),
   uniforms: oceanUniforms
 });
 
@@ -17207,14 +17207,41 @@ const PROPERTY_PHOTOS = {
     _carouselYawAnimation.rafId = requestAnimationFrame(step);
   }
 
+  // Cachea las cards en variable para no hacer querySelectorAll cada frame
+  let _cardsCache = null;
+  function getCardsForCenter() {
+    if (!_cardsCache || _cardsCache.length === 0) {
+      _cardsCache = Array.from(track.querySelectorAll('.featured-card'));
+    }
+    return _cardsCache;
+  }
+
+  // Pending yaw update: si el scroll está activo, postergamos el rotation de cámara
+  // hasta que el scroll termine. Esto evita competir con el scroll nativo del browser.
+  let _pendingYawPropId = null;
+  let _scrollEndTimeout = null;
+
+  function applyPendingYaw() {
+    if (!_pendingYawPropId) return;
+    if (typeof cameraZoneLock !== 'undefined' && cameraZoneLock) return;
+    const newYaw = computeYawForProperty(_pendingYawPropId);
+    _pendingYawPropId = null;
+    if (typeof newYaw === 'number' && !isNaN(newYaw)) {
+      animateCarouselYaw(newYaw);
+    }
+  }
+
   function updateCenteredCard() {
     if (!window.matchMedia('(max-width: 768px)').matches) return;
     const trackRect = track.getBoundingClientRect();
     const trackCenter = trackRect.left + trackRect.width / 2;
 
+    const cards = getCardsForCenter();
     let closestCard = null;
     let closestDistance = Infinity;
-    track.querySelectorAll('.featured-card').forEach(card => {
+    // Loop nativo (más rápido que forEach con callback)
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
       const rect = card.getBoundingClientRect();
       const cardCenter = rect.left + rect.width / 2;
       const distance = Math.abs(cardCenter - trackCenter);
@@ -17222,34 +17249,49 @@ const PROPERTY_PHOTOS = {
         closestDistance = distance;
         closestCard = card;
       }
-    });
+    }
 
-    track.querySelectorAll('.featured-card').forEach(card => {
-      card.classList.toggle('is-centered', card === closestCard);
-    });
+    // Aplicar is-centered solo cuando cambia (evita reflows innecesarios)
+    for (let i = 0; i < cards.length; i++) {
+      const shouldBeCentered = (cards[i] === closestCard);
+      const isCentered = cards[i].classList.contains('is-centered');
+      if (shouldBeCentered !== isCentered) {
+        cards[i].classList.toggle('is-centered', shouldBeCentered);
+      }
+    }
 
     // Si la card centrada pertenece a un complejo distinto al previo,
-    // rotar la cámara del paisaje hacia ese complejo.
+    // postergar el camera yaw hasta que el scroll termine (no compite con scroll).
     if (closestCard && typeof computeYawForProperty === 'function') {
       const propId = closestCard.dataset.propertyId;
       if (propId && propId !== _lastCenteredComplexId) {
         const isFirstDetection = _lastCenteredComplexId === null;
         _lastCenteredComplexId = propId;
-        // Solo movemos si NO hay un zoneLock activo Y NO es la primera detección.
-        // La primera detección (al cargar) NO debe disparar movimiento de cámara —
-        // el ctaBtn ya posicionó la cámara en Quiya. Si la card centrada al inicio
-        // resulta ser Marítima o Bolongo (por scroll offset/timing), no la movemos.
-        if (!isFirstDetection && typeof cameraZoneLock !== 'undefined' && !cameraZoneLock) {
-          const newYaw = computeYawForProperty(propId);
-          if (typeof newYaw === 'number' && !isNaN(newYaw)) {
-            animateCarouselYaw(newYaw);
-          }
+        if (!isFirstDetection) {
+          // Postergar el camera yaw hasta que el scroll termine (debounce 120ms)
+          _pendingYawPropId = propId;
+          if (_scrollEndTimeout) clearTimeout(_scrollEndTimeout);
+          _scrollEndTimeout = setTimeout(applyPendingYaw, 120);
         }
       }
     }
   }
-  track.addEventListener('scroll', updateCenteredCard, { passive: true });
-  window.addEventListener('resize', updateCenteredCard);
+  // Throttle con requestAnimationFrame: el listener de scroll se dispara muchísimas
+  // veces por segundo. Wrap en RAF para que solo se ejecute 1x por frame (~60Hz max).
+  let _scrollRafId = null;
+  function scheduleUpdateCentered() {
+    if (_scrollRafId !== null) return;
+    _scrollRafId = requestAnimationFrame(() => {
+      _scrollRafId = null;
+      updateCenteredCard();
+    });
+  }
+
+  track.addEventListener('scroll', scheduleUpdateCentered, { passive: true });
+  window.addEventListener('resize', () => {
+    _cardsCache = null;  // invalidar cache si cambia tamaño
+    scheduleUpdateCentered();
+  });
   setTimeout(updateCenteredCard, 200);
   setTimeout(updateCenteredCard, 800);  // re-check tras animaciones
 
@@ -18368,10 +18410,6 @@ setInterval(updateTime, 30000);
 // ---- RENDER LOOP -------------------------------------------------
 const clock = new THREE.Clock();
 let boatT = 0;
-// Mobile: throttle a 30fps. El ojo apenas nota la diferencia con el océano,
-// pero ahorra ~50% de GPU, lo que se traduce en menos lag al scrollear/interactuar.
-const _frameInterval = IS_MOBILE ? (1 / 30) : 0;
-let _frameAccum = 0;
 
 function animate() {
   // OPTIMIZACIÓN BATERÍA: skip render si el panorama no es visible (usuario scrolleó)
@@ -18381,19 +18419,7 @@ function animate() {
     return;  // NO llamar requestAnimationFrame — el loop muere hasta que vuelva a ser visible
   }
 
-  const dt = Math.min(clock.getDelta(), 0.1);
-
-  // Mobile: throttle a 30fps. Acumular dt y solo renderizar cuando hayan pasado
-  // ~33ms (1/30 segundo). Esto reduce el GPU work a la mitad.
-  if (_frameInterval > 0) {
-    _frameAccum += dt;
-    if (_frameAccum < _frameInterval) {
-      requestAnimationFrame(animate);
-      return;
-    }
-    _frameAccum = _frameAccum % _frameInterval;
-  }
-
+  const dt = clock.getDelta();
   const t = clock.getElapsedTime();
   boatT += dt;
 
