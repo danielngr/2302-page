@@ -11004,21 +11004,21 @@ function applyTranslations(root) {
   root.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     const translated = t(key);
-    if (typeof translated === 'string') {
-      const containsHTML = /<\/?(br|em|strong|span|b|i)\b/i.test(translated);
-      // Si el elemento tiene SVG dentro, preservar el SVG
-      if (el.querySelector('svg')) {
-        const textNodes = Array.from(el.childNodes).filter(n => n.nodeType === Node.TEXT_NODE);
-        if (textNodes.length > 0) {
-          textNodes[textNodes.length - 1].textContent = translated;
-        } else {
-          el.appendChild(document.createTextNode(translated));
-        }
-      } else if (containsHTML) {
-        el.innerHTML = translated;
+    // Guard estricto: solo aplicar si es string no vacío y NO la palabra "NaN"
+    if (typeof translated !== 'string' || !translated || translated === 'NaN') return;
+    const containsHTML = /<\/?(br|em|strong|span|b|i)\b/i.test(translated);
+    // Si el elemento tiene SVG dentro, preservar el SVG
+    if (el.querySelector('svg')) {
+      const textNodes = Array.from(el.childNodes).filter(n => n.nodeType === Node.TEXT_NODE);
+      if (textNodes.length > 0) {
+        textNodes[textNodes.length - 1].textContent = translated;
       } else {
-        el.textContent = translated;
+        el.appendChild(document.createTextNode(translated));
       }
+    } else if (containsHTML) {
+      el.innerHTML = translated;
+    } else {
+      el.textContent = translated;
     }
   });
   // Placeholders
@@ -11031,7 +11031,13 @@ function applyTranslations(root) {
   });
   // Hint del paisaje (no tiene data-i18n por estructura especial)
   const hintText = document.querySelector('.mobile-explore-hint .hint-text');
-  if (hintText) hintText.textContent = t('hint.swipe');
+  if (hintText) {
+    const swipeTxt = t('hint.swipe');
+    // Guard: si t() retorna algo no-string (NaN, undefined, etc.), usar fallback
+    hintText.textContent = (typeof swipeTxt === 'string' && swipeTxt)
+      ? swipeTxt
+      : (VRM_LANG === 'en' ? 'swipe to explore' : 'desliza para explorar');
+  }
 
   // Toggle visual del idioma activo
   document.querySelectorAll('.vrm-lang-toggle .lang-option').forEach(opt => {
@@ -14606,7 +14612,11 @@ const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','A
 function formatDate(date) {
   if (!date) return '—';
   const d = new Date(date);
-  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].substring(0, 3).toLowerCase()} ${d.getFullYear()}`;
+  // Guard: Invalid Date produce NaN en getDate/getMonth/getFullYear
+  if (isNaN(d.getTime())) return '—';
+  const monthName = MONTH_NAMES[d.getMonth()];
+  if (!monthName) return '—';
+  return `${d.getDate()} ${monthName.substring(0, 3).toLowerCase()} ${d.getFullYear()}`;
 }
 
 function isSameDay(a, b) {
@@ -16918,6 +16928,8 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
 
   // Format date helper: "23 Jun" — bilingüe, super compacto
   function formatDate(d) {
+    // Guard: null, undefined, o Invalid Date
+    if (!d || !(d instanceof Date) || isNaN(d.getTime())) return '—';
     const isEN = (typeof VRM_LANG !== 'undefined' && VRM_LANG === 'en');
     const monthsES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
                       'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -17023,22 +17035,28 @@ function isPropertyAvailable(p, fromDate, toDate, totalGuests) {
 
   // ===== UPDATE UI =====
   function updateSearchUI() {
-    if (searchState.checkin) {
+    // Helper: ¿es una Date válida (no null, no Invalid Date)?
+    const isValidDate = (v) => v instanceof Date && !isNaN(v.getTime());
+
+    if (isValidDate(searchState.checkin)) {
       checkinValue.textContent = formatDate(searchState.checkin);
       // Quitar data-i18n para que el sistema de traducción no sobreescriba la fecha
       checkinValue.removeAttribute('data-i18n');
       checkinSlot.classList.remove('empty');
     } else {
+      // Si no es Date válida, limpiar el estado para que no se vuelva a usar
+      if (searchState.checkin) searchState.checkin = null;
       checkinValue.textContent = t('searchbar.placeholder.dates');
       checkinValue.setAttribute('data-i18n', 'searchbar.placeholder.dates');
       checkinSlot.classList.add('empty');
     }
 
-    if (searchState.checkout) {
+    if (isValidDate(searchState.checkout)) {
       checkoutValue.textContent = formatDate(searchState.checkout);
       checkoutValue.removeAttribute('data-i18n');
       checkoutSlot.classList.remove('empty');
     } else {
+      if (searchState.checkout) searchState.checkout = null;
       checkoutValue.textContent = t('searchbar.placeholder.dates');
       checkoutValue.setAttribute('data-i18n', 'searchbar.placeholder.dates');
       checkoutSlot.classList.add('empty');
