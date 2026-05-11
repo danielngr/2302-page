@@ -15608,6 +15608,33 @@ const PROPERTY_PHOTOS = {
     }
   });
 
+  // ============================================================
+  // ORDEN CURADO del carrusel:
+  // 1. Quiya (con 2403 al inicio)
+  // 2. Marítima
+  // 3. Bolongo
+  // 4. Resto de propiedades
+  // ============================================================
+  const COMPLEX_ORDER = {
+    'vallarta_gardens_quiya': 0,
+    'maritima_playa_flamingos': 1,
+    'bolongo_punta_mita': 2,
+  };
+  const QUIYA_HERO_UNIT = '2403';  // Card de Quiya que debe ir primero
+
+  expandedCards.sort((a, b) => {
+    const orderA = COMPLEX_ORDER[a.complex.id] ?? 99;
+    const orderB = COMPLEX_ORDER[b.complex.id] ?? 99;
+    if (orderA !== orderB) return orderA - orderB;
+
+    // Mismo complejo: si es Quiya, 2403 va primero
+    if (a.complex.id === 'vallarta_gardens_quiya') {
+      if (a.unitId === QUIYA_HERO_UNIT) return -1;
+      if (b.unitId === QUIYA_HERO_UNIT) return 1;
+    }
+    return 0;
+  });
+
   expandedCards.forEach(({ unitId, complex, complexLabel, unitData, isHero }) => {
     const card = document.createElement('div');
     card.className = 'featured-card';
@@ -15723,7 +15750,11 @@ const PROPERTY_PHOTOS = {
   setTimeout(updateArrows, 100);
 
   // En mobile: detectar qué card está centrada y aplicarle clase .is-centered
-  // (efecto coverflow: card central grande, laterales sombreadas)
+  // (efecto coverflow: card central grande, laterales sombreadas).
+  // Además: cuando cambia el COMPLEJO de la card centrada, rotar la cámara
+  // hacia ese complejo en el paisaje 3D (suave, ~1s) para que el usuario
+  // no se confunda viendo el complejo equivocado en el fondo.
+  let _lastCenteredComplexId = null;
   function updateCenteredCard() {
     if (!window.matchMedia('(max-width: 768px)').matches) return;
     const trackRect = track.getBoundingClientRect();
@@ -15744,6 +15775,23 @@ const PROPERTY_PHOTOS = {
     track.querySelectorAll('.featured-card').forEach(card => {
       card.classList.toggle('is-centered', card === closestCard);
     });
+
+    // Si la card centrada pertenece a un complejo distinto al previo,
+    // rotar la cámara del paisaje hacia ese complejo.
+    if (closestCard && typeof computeYawForProperty === 'function') {
+      const propId = closestCard.dataset.propertyId;
+      if (propId && propId !== _lastCenteredComplexId) {
+        _lastCenteredComplexId = propId;
+        // Solo movemos si NO hay un zoneLock activo (zoom de zona, etc.)
+        if (typeof cameraZoneLock !== 'undefined' && !cameraZoneLock) {
+          const newYaw = computeYawForProperty(propId);
+          if (typeof newYaw === 'number' && !isNaN(newYaw)) {
+            // Setear targetYaw; el lerp en el render loop hará la transición suave
+            targetYaw = newYaw;
+          }
+        }
+      }
+    }
   }
   track.addEventListener('scroll', updateCenteredCard, { passive: true });
   window.addEventListener('resize', updateCenteredCard);
