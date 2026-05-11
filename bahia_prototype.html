@@ -3684,6 +3684,115 @@
     font-weight: 600;
   }
 
+  /* --- INLINE RESERVE BUTTON (después del desglose, evita scroll al footer) --- */
+  .card-version-a .va-inline-reserve {
+    width: 100%;
+    margin-top: 20px;
+    padding: 18px 24px;
+    border: 1px solid rgba(245, 200, 145, 0.55);
+    border-radius: 100px;
+    background:
+      linear-gradient(180deg,
+        rgba(220, 160, 110, 1) 0%,
+        rgba(180, 110, 60, 1) 100%);
+    color: rgba(255, 248, 232, 1);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-family: 'Inter Tight', sans-serif;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow:
+      0 1.5px 0 rgba(255, 230, 200, 0.45) inset,
+      0 -1.5px 0 rgba(80, 30, 0, 0.20) inset,
+      0 10px 28px rgba(180, 110, 60, 0.45),
+      0 3px 8px rgba(180, 110, 60, 0.25);
+    /* Aparición animada cuando se muestra */
+    animation: vaInlineReserveIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes vaInlineReserveIn {
+    0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .card-version-a .va-inline-reserve:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 1.5px 0 rgba(255, 230, 200, 0.55) inset,
+      0 -1.5px 0 rgba(80, 30, 0, 0.25) inset,
+      0 14px 36px rgba(180, 110, 60, 0.55),
+      0 5px 12px rgba(180, 110, 60, 0.30);
+  }
+
+  .card-version-a .va-inline-reserve:active {
+    transform: scale(0.985);
+  }
+
+  .va-inline-reserve-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: rgba(255, 248, 235, 1);
+  }
+
+  .va-inline-reserve-sep {
+    color: rgba(255, 220, 180, 0.55);
+    font-size: 13px;
+    font-weight: 300;
+    margin: 0 -2px;
+  }
+
+  .va-inline-reserve-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 22px;
+    color: rgba(255, 250, 240, 1);
+    letter-spacing: -0.01em;
+    line-height: 1;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+  }
+
+  .va-inline-reserve-currency {
+    font-family: 'Inter Tight', sans-serif;
+    font-style: normal;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: rgba(255, 220, 180, 0.85);
+    vertical-align: 0.45em;
+  }
+
+  .va-inline-reserve-arrow {
+    margin-left: 4px;
+    transition: transform 0.3s ease;
+    opacity: 0.92;
+  }
+
+  .card-version-a .va-inline-reserve:hover .va-inline-reserve-arrow {
+    transform: translateX(3px);
+  }
+
+  /* Mobile: mantener buen padding y tamaños legibles */
+  @media (max-width: 480px) {
+    .card-version-a .va-inline-reserve {
+      padding: 16px 20px;
+      gap: 10px;
+    }
+    .va-inline-reserve-label {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+    }
+    .va-inline-reserve-price {
+      font-size: 20px;
+    }
+  }
+
   /* --- DESCRIPCIÓN --- */
   .card-version-a .va-description {
     font-family: 'Cormorant Garamond', serif;
@@ -10224,6 +10333,20 @@
             <span id="a-total">—</span>
           </div>
         </div>
+
+        <!-- CTA inline: aparece cuando hay fechas y total, evita scroll hasta footer -->
+        <button class="va-inline-reserve" id="a-inline-reserve" style="display:none;">
+          <span class="va-inline-reserve-label">Reservar</span>
+          <span class="va-inline-reserve-sep">·</span>
+          <span class="va-inline-reserve-price">
+            <span class="va-inline-reserve-currency">USD</span>
+            <span id="a-inline-reserve-amount">—</span>
+          </span>
+          <svg class="va-inline-reserve-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </button>
       </div>
 
       <!-- UBICACIÓN -->
@@ -13649,6 +13772,9 @@ function recalculatePrice() {
     stickyAmount.textContent = pricePerNight;
     stickySub.textContent = '/ NOCHE · FECHAS INVÁLIDAS';
     cta.disabled = true;
+    // Ocultar botón inline mientras no haya fechas válidas
+    const inlineBtn = document.getElementById('a-inline-reserve');
+    if (inlineBtn) inlineBtn.style.display = 'none';
     return;
   }
 
@@ -13668,6 +13794,18 @@ function recalculatePrice() {
   stickySub.textContent = `TOTAL · ${nights} ${nights === 1 ? 'NOCHE' : 'NOCHES'}`;
   cta.disabled = false;
   cta.textContent = 'Reservar';
+
+  // Mostrar y actualizar botón inline de reservar después del desglose
+  const inlineBtn = document.getElementById('a-inline-reserve');
+  const inlineAmount = document.getElementById('a-inline-reserve-amount');
+  if (inlineBtn && inlineAmount) {
+    inlineAmount.textContent = total.toLocaleString('en-US');
+    // Resetear animación cada vez que se vuelva a mostrar
+    inlineBtn.style.display = '';
+    inlineBtn.style.animation = 'none';
+    void inlineBtn.offsetWidth;  // trigger reflow
+    inlineBtn.style.animation = '';
+  }
 }
 
 let currentProperty = null;
@@ -14955,11 +15093,15 @@ function reserveViaWhatsApp() {
   openReservationModal();
 }
 
-// Adjuntar handler al botón Reservar
+// Adjuntar handler al botón Reservar (sticky footer + inline después del desglose)
 setTimeout(() => {
   const reserveBtn = document.getElementById('a-cta-reserve');
   if (reserveBtn) {
     reserveBtn.addEventListener('click', reserveViaWhatsApp);
+  }
+  const inlineBtn = document.getElementById('a-inline-reserve');
+  if (inlineBtn) {
+    inlineBtn.addEventListener('click', reserveViaWhatsApp);
   }
 }, 500);
 
