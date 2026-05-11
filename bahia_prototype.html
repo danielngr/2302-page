@@ -1307,20 +1307,19 @@
     .featured-card {
       flex: 0 0 195px;
       height: 250px;
-      transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1),
-                  opacity 0.4s ease,
-                  filter 0.4s ease;
+      transition: transform 0.35s cubic-bezier(0.25, 0.1, 0.25, 1),
+                  opacity 0.35s ease;
       transform-origin: center center;
+      /* contain layout para que cada card sea independiente al hacer scroll */
+      contain: layout style;
     }
     .featured-card:not(.is-centered) {
       transform: scale(0.86);
-      opacity: 0.78;
-      filter: brightness(0.92) saturate(0.94);
+      opacity: 0.72;
     }
     .featured-card.is-centered {
       transform: scale(1);
       opacity: 1;
-      filter: brightness(1) saturate(1);
     }
     .featured-card-photo {
       flex: 0 0 138px;
@@ -1329,36 +1328,33 @@
       padding: 11px 13px 12px;
     }
     .featured-card-divider {
-      width: 20px;
-      margin-bottom: 8px;
+      width: 22px;
+      margin-bottom: 9px;
     }
     .featured-card-zone {
-      font-size: 8.5px;
+      font-size: 9.5px;
       letter-spacing: 0.22em;
-      margin-bottom: 4px;
+      margin-bottom: 5px;
     }
     .featured-card-name {
-      font-size: 16px;
-      margin-bottom: 3px;
-    }
-    .featured-card-view {
-      font-size: 11px;
+      font-size: 18px;
+      margin-bottom: 4px;
     }
     .featured-card-bottom {
-      padding-top: 8px;
+      padding-top: 9px;
     }
     .featured-card-price .amount {
-      font-size: 13px;
+      font-size: 15px;
     }
     .featured-card-price .meta {
-      font-size: 9px;
+      font-size: 10px;
     }
     .featured-card-rating {
-      font-size: 10.5px;
+      font-size: 12px;
     }
     .featured-card-badge {
-      font-size: 8.5px;
-      padding: 3px 8px 3px 6px;
+      font-size: 9px;
+      padding: 3px 9px 3px 7px;
       top: 9px;
       left: 9px;
     }
@@ -2190,18 +2186,16 @@
     max-height: 88vh;
     overflow-y: auto;
     color: #1a2438;
-    /* LIQUID GLASS REAL: gradients blancos translúcidos + tinte cálido (igual que panel de propiedad) */
+    /* LIQUID GLASS: gradients blancos translúcidos + tinte cálido */
     background:
-      linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.08)),
-      linear-gradient(135deg, rgba(255,235,210,.14), rgba(255,255,255,.04) 58%, rgba(255,220,200,.12));
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
+      linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.12)),
+      linear-gradient(135deg, rgba(255,235,210,.18), rgba(255,255,255,.06) 58%, rgba(255,220,200,.14));
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
     border-radius: 28px;
     box-shadow:
       0 1px 1px rgba(255,255,255,.35) inset,
-      0 30px 70px rgba(15, 25, 45, 0.32),
-      0 12px 30px rgba(15, 25, 45, 0.20),
-      0 4px 10px rgba(15, 25, 45, 0.10);
+      0 20px 50px rgba(15, 25, 45, 0.28);
     padding: 48px 44px 48px;
     transform: scale(0.96) translateY(20px);
     opacity: 0;
@@ -2211,8 +2205,11 @@
     -webkit-overflow-scrolling: touch;
     isolation: isolate;
     position: relative;
-    /* Ocultar scrollbar (premium minimalism, igual que panel de propiedad) */
     scrollbar-width: none;
+    /* Performance: aislar el panel del resto del layout durante scroll */
+    contain: layout style;
+    /* Hint al browser para usar GPU layer */
+    transform-style: preserve-3d;
   }
 
   /* Webkit: ocultar scrollbar */
@@ -2345,26 +2342,25 @@
     position: relative;
     border-radius: 16px;
     overflow: hidden;
-    /* Liquid glass claro: gradients blancos translúcidos */
+    /* Background opaco-suave que simula el liquid sin necesidad de backdrop-filter
+       (el panel padre ya hace el blur del paisaje) */
     background:
-      linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.12)),
-      linear-gradient(135deg, rgba(255,235,210,.16), rgba(255,255,255,.06) 58%, rgba(255,220,200,.14));
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+      linear-gradient(180deg, rgba(255,250,242,.62), rgba(255,245,232,.45)),
+      linear-gradient(135deg, rgba(255,235,210,.22), rgba(255,255,255,.10) 58%, rgba(255,220,200,.18));
     cursor: pointer;
     box-shadow:
-      0 1px 1px rgba(255,255,255,.4) inset,
-      0 12px 30px rgba(15, 25, 45, 0.18),
-      0 4px 10px rgba(15, 25, 45, 0.08);
-    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform, box-shadow;
+      0 1px 1px rgba(255,255,255,.5) inset,
+      0 6px 16px rgba(15, 25, 45, 0.12);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
     display: flex;
     flex-direction: column;
     isolation: isolate;
     color: #1a2438;
+    /* Contain layout/style/paint para que el scroll del padre no recalcule esta card */
+    contain: layout style;
   }
 
-  /* Borde especular interno tipo liquid */
+  /* Borde especular interno tipo liquid (solo desktop hover) */
   .quiya-unit-card::before {
     content: '';
     position: absolute;
@@ -2372,9 +2368,9 @@
     padding: 1px;
     border-radius: inherit;
     background: linear-gradient(135deg,
-      rgba(255, 255, 255, 0.5) 0%,
-      rgba(255, 255, 255, 0.1) 50%,
-      rgba(220, 160, 110, 0.3) 100%);
+      rgba(255, 255, 255, 0.6) 0%,
+      rgba(255, 255, 255, 0.15) 50%,
+      rgba(220, 160, 110, 0.35) 100%);
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
       linear-gradient(#000 0 0);
@@ -2383,7 +2379,6 @@
     pointer-events: none;
     z-index: 4;
     opacity: 0.7;
-    transition: opacity 0.5s ease;
   }
 
   .quiya-unit-card:hover::before { opacity: 1; }
@@ -2561,31 +2556,23 @@
   /* Mobile adjustments */
   @media (max-width: 768px) {
     .quiya-unit-content {
-      padding: 11px 12px 12px;
-      gap: 5px;
+      padding: 12px 13px 13px;
+      gap: 6px;
     }
     .quiya-unit-number {
-      font-size: 20px;
+      font-size: 22px;
     }
     .quiya-unit-specs {
-      font-size: 10px;
+      font-size: 11.5px;
     }
     .quiya-unit-price .amount {
-      font-size: 15px;
+      font-size: 17px;
     }
     .quiya-unit-price .meta {
-      font-size: 9px;
+      font-size: 10px;
     }
     .quiya-unit-rating {
-      font-size: 10.5px;
-    }
-    .quiya-unit-view-tag {
-      font-size: 11px;
-      top: 9px;
-      left: 9px;
-    }
-    .quiya-unit-view-tag::before {
-      width: 13px;
+      font-size: 12px;
     }
   }
 
@@ -15590,7 +15577,6 @@ function openQuiyaUnitsPanel(p) {
       <div class="quiya-unit-card" data-unit="${unitId}">
         <div class="quiya-unit-photo">
           <img src="${photo}" alt="${unitId}" loading="lazy">
-          <div class="quiya-unit-view-tag">${view}</div>
         </div>
         <div class="quiya-unit-content">
           <div class="quiya-unit-number">${unitId}</div>
@@ -15634,6 +15620,13 @@ function openQuiyaUnitsPanel(p) {
   overlay.classList.add('active');
   document.body.style.overflow = 'hidden';
   document.body.classList.add('quiya-panel-active');
+
+  // PERFORMANCE: pausar el render del paisaje 3D mientras el panel está abierto.
+  // El paisaje está completamente cubierto por el panel liquid glass — no se ve
+  // y consume GPU compitiendo con el scroll del panel (causa lag/jank).
+  if (window._panoramaVisible !== undefined) {
+    window._panoramaVisible = false;
+  }
 }
 
 function closeQuiyaUnitsPanel() {
@@ -15642,6 +15635,14 @@ function closeQuiyaUnitsPanel() {
   overlay.classList.remove('active');
   document.body.style.overflow = '';
   document.body.classList.remove('quiya-panel-active');
+
+  // Re-activar el render del paisaje 3D
+  if (window._panoramaVisible !== undefined) {
+    window._panoramaVisible = true;
+    if (typeof animate === 'function') {
+      requestAnimationFrame(animate);
+    }
+  }
 }
 
 // Listeners del panel Quiya
@@ -15686,6 +15687,13 @@ function openPropertyCard(p) {
   // Bloquear scroll del body mientras la sheet está abierta
   document.body.style.overflow = 'hidden';
   document.body.classList.add('property-card-active');
+
+  // PERFORMANCE: pausar el render del paisaje 3D mientras la sheet está abierta.
+  // El paisaje está cubierto por la sheet liquid glass — no se ve y consume GPU
+  // compitiendo con el scroll de la sheet (causa lag/jank en mobile).
+  if (window._panoramaVisible !== undefined) {
+    window._panoramaVisible = false;
+  }
 
   // Combinar datos del propertyData con el perfil enriquecido por zona+complejo
   const enriched = getEnrichedProfile(p.name, p.zoneTag);
@@ -16336,6 +16344,15 @@ function closePropertyCard() {
   document.body.style.overflow = '';
   document.body.classList.remove('property-card-active');
   window._currentPropertyUnitId = null;
+
+  // Re-activar el render del paisaje 3D (a menos que se vuelva al grid de complejo,
+  // que también lo tiene pausado)
+  if (window._panoramaVisible !== undefined && !window._returnToComplex) {
+    window._panoramaVisible = true;
+    if (typeof animate === 'function') {
+      requestAnimationFrame(animate);
+    }
+  }
 
   // Si el detail vino del grid de un complejo (ej. Quiya), restaurar el scroll
   // del body porque el grid del complejo aún sigue abierto debajo.
@@ -17072,7 +17089,6 @@ const PROPERTY_PHOTOS = {
         <div class="featured-card-divider" aria-hidden="true"></div>
         <div class="featured-card-zone">${zoneText}</div>
         <div class="featured-card-name">${displayName}</div>
-        ${viewText ? `<div class="featured-card-view">${viewText}</div>` : ''}
         <div class="featured-card-bottom">
           <div class="featured-card-price">
             <span class="amount">$${priceText}</span>
