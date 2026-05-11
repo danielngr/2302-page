@@ -14553,18 +14553,33 @@ function handleDayClick(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   const date = new Date(y, m - 1, d);
 
-  if (calActiveField === 'checkin' || !calSelectedCheckin) {
-    // Setear checkin
+  // CASO 1: No hay nada seleccionado → esta fecha es checkin
+  if (!calSelectedCheckin) {
     calSelectedCheckin = date;
     calSelectedCheckout = null;
     calActiveField = 'checkout';
-  } else {
-    // Setear checkout (debe ser después del checkin)
-    if (date <= calSelectedCheckin) {
-      // Si clickeas antes del checkin, lo redefines
+  }
+  // CASO 2: Ya hay checkin Y checkout (rango completo) → empezar de nuevo con esta fecha como nuevo checkin
+  else if (calSelectedCheckin && calSelectedCheckout) {
+    calSelectedCheckin = date;
+    calSelectedCheckout = null;
+    calActiveField = 'checkout';
+  }
+  // CASO 3: Solo checkin (sin checkout aún)
+  else {
+    // Si tappea el MISMO checkin → quitarlo (toggle)
+    if (isSameDay(date, calSelectedCheckin)) {
+      calSelectedCheckin = null;
+      calSelectedCheckout = null;
+      calActiveField = 'checkin';
+    }
+    // Si tappea ANTES del checkin → reemplaza checkin
+    else if (date < calSelectedCheckin) {
       calSelectedCheckin = date;
       calSelectedCheckout = null;
-    } else {
+    }
+    // Si tappea DESPUÉS del checkin → es checkout
+    else {
       calSelectedCheckout = date;
     }
   }
