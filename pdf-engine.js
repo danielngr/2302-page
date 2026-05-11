@@ -2090,7 +2090,7 @@ function pdfPeninsula(datos, ocupantes, _genId, _returnB64) {
   // Occupants 2-10 — original spacing: start y=128, each row 38pt apart
   var oyStart=128, oSpacing=38;
   for(var i=2; i<=10; i++){
-    var occ=ocupantes[i-2]||null;
+    var occ=ocupantes[i-1]||null;
     var nameVal=occ ? fc(occ.nombre||occ.name||"") : "";
     var ageVal=occ ? String(occ.edad||occ.age||"") : "";
     var oy=oyStart+(i-2)*oSpacing;
@@ -2595,7 +2595,7 @@ function pdfPeninsulaES(datos, ocupantes, _returnB64) {
   // Occupants 2-10 — spacing 37pt each from y=168
   var oyStart=168, oSpacing=37;
   for(var i=2;i<=10;i++){
-    var occ=ocupantes[i-2]||null;
+    var occ=ocupantes[i-1]||null;
     var nameVal=occ?fc(occ.nombre||occ.name||""):"";
     var ageVal=occ?String(occ.edad||occ.age||""):"";
     var oy=oyStart+(i-2)*oSpacing;
