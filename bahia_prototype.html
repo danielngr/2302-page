@@ -225,15 +225,30 @@
     min-height: 100vh;
   }
 
-  /* Cuando la home está revelada: vuelve a comportarse como single-page sin scroll */
+  /* Cuando la home está revelada en DESKTOP: el paisaje 3D queda fixed
+     como background y el body puede scrollear para revelar las secciones narrative. */
   body.home-revealed {
-    overflow: hidden;
-    height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 100vh;
+    height: auto;
+  }
+
+  /* El paisaje 3D (canvas) debe quedar fixed en background mientras scrolleas */
+  body.home-revealed #scene-container,
+  body.home-revealed .three-canvas,
+  body.home-revealed canvas {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    z-index: 0;
   }
 
   /* MOBILE: SIEMPRE single-page sin scroll vertical (igual que Igloo).
      El body NO scrollea — solo el paisaje 3D ocupa toda la pantalla y
-     elementos individuales (carrusel, sheet) tienen scroll interno propio */
+     elementos individuales (carrusel, sheet) tienen scroll interno propio.
+     Las narrative sections se ocultan en mobile (el flujo cinemático actual
+     ya da toda la info necesaria via paisaje + carrusel + sheet propiedad). */
   @media (max-width: 768px) {
     html, body {
       height: 100vh;
@@ -250,6 +265,10 @@
       min-height: 100vh;
       height: 100vh;
       height: 100dvh;
+    }
+    /* Narrative oculta en mobile por ahora */
+    .vrm-narrative {
+      display: none !important;
     }
   }
 
@@ -1933,37 +1952,54 @@
   .property-light .complex-cta-text,
   .property-light.quiya-hero .quiya-cta-text {
     font-family: 'Inter Tight', sans-serif;
-    color: rgba(255, 240, 220, 0.95);
+    color: rgba(255, 240, 220, 0.92);
     text-shadow:
       0 1px 6px rgba(0, 0, 0, 0.95),
-      0 0 12px rgba(220, 160, 110, 0.4);
+      0 0 12px rgba(220, 160, 110, 0.35);
     transition: all 0.3s ease;
-    padding: 9px 16px;
-    border: 1px solid rgba(220, 160, 110, 0.45);
-    border-radius: 16px;
-    background: rgba(20, 12, 24, 0.62);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    margin-top: 8px;
-    animation: quiyaCtaPulse 2.5s ease-in-out infinite;
+    padding: 8px 0 0;
+    margin-top: 6px;
     cursor: pointer;
     white-space: nowrap !important;
     display: inline-flex;
     flex-direction: column;
     align-items: center;
-    gap: 3px;
+    gap: 2px;
     width: auto !important;
     max-width: none !important;
+    position: relative;
   }
 
-  /* Línea 1: "Ver X unidades" — sans-serif uppercase como antes */
+  /* Hairline divider sutil arriba (signature mark editorial) */
+  .property-light .complex-cta-text::before,
+  .property-light.quiya-hero .quiya-cta-text::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 26px;
+    height: 1px;
+    background: linear-gradient(90deg,
+      rgba(220, 160, 110, 0) 0%,
+      rgba(245, 200, 145, 0.7) 50%,
+      rgba(220, 160, 110, 0) 100%);
+    transition: width 0.3s ease;
+  }
+
+  .property-light:hover .complex-cta-text::before,
+  .property-light.quiya-hero:hover .quiya-cta-text::before {
+    width: 46px;
+  }
+
+  /* Línea 1: "Ver X unidades" — más sutil pero legible */
   .complex-cta-text .cta-line-1,
   .quiya-cta-text .cta-line-1 {
-    font-size: 9.5px;
-    font-weight: 600;
-    letter-spacing: 0.22em;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.28em;
     text-transform: uppercase;
-    color: rgba(255, 245, 225, 1);
+    color: rgba(245, 200, 145, 0.78);
   }
 
   /* Línea 2: "desde $145 USD" — serif italic, más cálido */
@@ -1975,7 +2011,7 @@
     font-weight: 400;
     letter-spacing: 0;
     text-transform: none;
-    color: rgba(245, 200, 145, 0.95);
+    color: rgba(255, 248, 235, 0.95);
     line-height: 1;
   }
 
@@ -1986,7 +2022,7 @@
     font-size: 9px;
     font-weight: 400;
     letter-spacing: 0.08em;
-    color: rgba(245, 200, 145, 0.65);
+    color: rgba(245, 200, 145, 0.55);
     margin-left: 1px;
   }
 
@@ -10579,6 +10615,425 @@
   }
   .rsv-confirm-step-time span { color: rgba(40, 25, 15, 0.85); font-weight: 500; }
 
+  /* ============================================================
+     VRM NARRATIVE SECTIONS — Scroll-down editorial
+     Aparecen al hacer scroll después del paisaje cinematográfico.
+     Diseñadas con la misma paleta dorado/borgoña/crema oscuro premium.
+     Desktop primario; mobile hereda pero con paddings ajustados.
+     ============================================================ */
+  .vrm-narrative {
+    position: relative;
+    width: 100%;
+    z-index: 1;
+    /* Background continuous con el atardecer del paisaje */
+    background:
+      linear-gradient(180deg,
+        rgba(10, 6, 18, 0) 0%,
+        rgba(10, 6, 18, 0.92) 5%,
+        rgba(16, 10, 26, 1) 30%,
+        rgba(20, 12, 28, 1) 100%);
+    color: rgba(255, 245, 230, 0.92);
+    padding-top: 100vh; /* el paisaje 3D toma la primera pantalla */
+    pointer-events: auto;
+  }
+
+  /* En mobile el flujo cinemático se queda como está (hero + paisaje + carrusel encima).
+     Las narrative sections aparecen scrolleando, pero más compactas. */
+  body:not(.home-revealed) .vrm-narrative {
+    display: none; /* no mostrar mientras el intro corre */
+  }
+
+  .vrm-section {
+    width: 100%;
+    padding: 96px 40px;
+    position: relative;
+  }
+
+  .vrm-section-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .vrm-section-inner-narrow {
+    max-width: 720px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .vrm-section-eyebrow {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.45em;
+    text-transform: uppercase;
+    color: rgba(245, 200, 145, 0.8);
+    margin-bottom: 24px;
+    text-align: center;
+  }
+
+  .vrm-section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(36px, 4.5vw, 56px);
+    line-height: 1.08;
+    color: rgba(255, 248, 235, 0.98);
+    letter-spacing: -0.01em;
+    text-align: center;
+    margin: 0 0 28px;
+  }
+
+  .vrm-section-title .title-line {
+    display: block;
+  }
+
+  .vrm-section-title .title-line-italic {
+    background: linear-gradient(180deg,
+      rgba(255, 240, 220, 1) 0%,
+      rgba(245, 200, 145, 1) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .vrm-section-rule {
+    width: 48px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(245, 200, 145, 0.8), transparent);
+    margin: 0 auto 56px;
+  }
+
+  /* ----- Bloque 1: Why ----- */
+  .vrm-why-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 48px;
+    margin-top: 24px;
+  }
+
+  .vrm-why-item {
+    text-align: center;
+    padding: 0 12px;
+  }
+
+  .vrm-why-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 38px;
+    color: rgba(245, 200, 145, 0.7);
+    line-height: 1;
+    margin-bottom: 14px;
+  }
+
+  .vrm-why-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 22px;
+    color: rgba(255, 248, 235, 0.98);
+    margin: 0 0 12px;
+    letter-spacing: -0.005em;
+  }
+
+  .vrm-why-text {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: rgba(255, 240, 220, 0.65);
+    margin: 0;
+    max-width: 280px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* ----- Bloque 2: Team ----- */
+  .vrm-team-intro {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 21px;
+    line-height: 1.5;
+    color: rgba(255, 240, 220, 0.85);
+    text-align: center;
+    max-width: 720px;
+    margin: 0 auto 64px;
+  }
+
+  .vrm-team-stats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 56px;
+    margin-top: 40px;
+  }
+
+  .vrm-stat {
+    text-align: center;
+  }
+
+  .vrm-stat-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 52px;
+    line-height: 1;
+    background: linear-gradient(180deg,
+      rgba(255, 248, 235, 1) 0%,
+      rgba(245, 200, 145, 1) 70%,
+      rgba(220, 160, 110, 0.95) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.02em;
+    margin-bottom: 10px;
+  }
+
+  .vrm-stat-label {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 240, 220, 0.55);
+  }
+
+  .vrm-stat-sep {
+    width: 1px;
+    height: 56px;
+    background: linear-gradient(180deg, transparent, rgba(245, 200, 145, 0.32), transparent);
+  }
+
+  /* ----- Bloque 3: Reviews ----- */
+  .vrm-reviews-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+  }
+
+  .vrm-review {
+    background: linear-gradient(180deg,
+      rgba(255, 240, 220, 0.04) 0%,
+      rgba(255, 240, 220, 0.02) 100%);
+    border: 1px solid rgba(245, 200, 145, 0.16);
+    border-radius: 14px;
+    padding: 32px 28px 24px;
+    margin: 0;
+    position: relative;
+    transition: border-color 0.3s ease, transform 0.3s ease;
+  }
+
+  .vrm-review:hover {
+    border-color: rgba(245, 200, 145, 0.32);
+    transform: translateY(-2px);
+  }
+
+  .vrm-review-stars {
+    color: rgba(245, 200, 80, 0.95);
+    font-size: 13px;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+  }
+
+  .vrm-review-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 17px;
+    line-height: 1.55;
+    color: rgba(255, 245, 230, 0.92);
+    margin: 0 0 20px;
+    letter-spacing: 0.003em;
+  }
+
+  .vrm-review-meta {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 240, 220, 0.55);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(245, 200, 145, 0.12);
+  }
+
+  .vrm-review-author { color: rgba(245, 200, 145, 0.85); }
+  .vrm-review-sep { opacity: 0.4; }
+  .vrm-review-property { font-style: italic; text-transform: none; letter-spacing: 0.03em; }
+
+  /* ----- Bloque 4: CTA final ----- */
+  .vrm-section-cta-final {
+    padding: 80px 40px 64px;
+  }
+
+  .vrm-final-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(40px, 5vw, 64px);
+    line-height: 1.08;
+    color: rgba(255, 248, 235, 0.98);
+    letter-spacing: -0.01em;
+    margin: 28px 0 20px;
+  }
+
+  .vrm-final-title .title-line { display: block; }
+  .vrm-final-title .title-line-italic {
+    background: linear-gradient(180deg,
+      rgba(255, 240, 220, 1) 0%,
+      rgba(245, 200, 145, 1) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .vrm-final-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 1.55;
+    color: rgba(255, 240, 220, 0.7);
+    max-width: 540px;
+    margin: 0 auto 36px;
+  }
+
+  .vrm-final-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .vrm-final-btn {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 14px 28px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid transparent;
+  }
+
+  .vrm-final-btn-primary {
+    background: linear-gradient(180deg,
+      rgba(245, 200, 145, 0.95) 0%,
+      rgba(220, 160, 110, 0.95) 100%);
+    color: rgba(40, 20, 10, 1);
+    border-color: rgba(245, 200, 145, 0.55);
+  }
+  .vrm-final-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(220, 160, 110, 0.32);
+  }
+
+  .vrm-final-btn-secondary {
+    background: transparent;
+    color: rgba(245, 200, 145, 0.9);
+    border-color: rgba(245, 200, 145, 0.32);
+  }
+  .vrm-final-btn-secondary:hover {
+    background: rgba(245, 200, 145, 0.08);
+    border-color: rgba(245, 200, 145, 0.55);
+  }
+
+  .vrm-footer {
+    margin-top: 64px;
+    padding-top: 28px;
+    border-top: 1px solid rgba(245, 200, 145, 0.14);
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 240, 220, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  .vrm-footer-sep { opacity: 0.4; }
+
+  /* ----- MOBILE adjustments ----- */
+  @media (max-width: 768px) {
+    .vrm-narrative {
+      padding-top: 100vh;
+    }
+    .vrm-section {
+      padding: 64px 24px;
+    }
+    .vrm-section-title {
+      font-size: 32px;
+      margin-bottom: 20px;
+    }
+    .vrm-section-rule {
+      margin-bottom: 36px;
+    }
+    .vrm-why-grid {
+      grid-template-columns: 1fr;
+      gap: 36px;
+    }
+    .vrm-why-text {
+      font-size: 13px;
+    }
+    .vrm-team-intro {
+      font-size: 17px;
+      margin-bottom: 40px;
+    }
+    .vrm-team-stats {
+      gap: 24px;
+    }
+    .vrm-stat-num {
+      font-size: 36px;
+    }
+    .vrm-stat-label {
+      font-size: 9.5px;
+    }
+    .vrm-stat-sep {
+      height: 40px;
+    }
+    .vrm-reviews-grid {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    .vrm-review {
+      padding: 24px 22px 20px;
+    }
+    .vrm-review-text {
+      font-size: 15px;
+    }
+    .vrm-final-title {
+      font-size: 36px;
+    }
+    .vrm-final-text {
+      font-size: 16px;
+    }
+    .vrm-final-actions {
+      flex-direction: column;
+      width: 100%;
+    }
+    .vrm-final-btn {
+      width: 100%;
+      justify-content: center;
+    }
+    .vrm-footer {
+      flex-direction: column;
+      gap: 6px;
+      font-size: 10px;
+    }
+    .vrm-footer-sep { display: none; }
+  }
 </style>
 
 <!-- ==========================================================
@@ -11514,6 +11969,177 @@
       <polyline points="12 5 19 12 12 19"/>
     </svg>
   </button>
+</div>
+
+<!-- ============================================================
+     SCROLL-DOWN SECTIONS — Aparecen al hacer scroll después del paisaje.
+     Mobile mantiene su flujo cinematográfico tal cual (estas secciones
+     se ocultan o aplanan en mobile para no romper el diseño actual).
+     ============================================================ -->
+<div class="vrm-narrative" id="vrm-narrative">
+
+  <!-- Bloque 1: Por qué reservar directo -->
+  <section class="vrm-section vrm-section-why">
+    <div class="vrm-section-inner">
+      <div class="vrm-section-eyebrow">RESERVAR DIRECTO</div>
+      <h2 class="vrm-section-title">
+        <span class="title-line">La bahía como debe ser:</span>
+        <span class="title-line title-line-italic">sin intermediarios.</span>
+      </h2>
+      <div class="vrm-section-rule"></div>
+
+      <div class="vrm-why-grid">
+        <article class="vrm-why-item">
+          <div class="vrm-why-num">01</div>
+          <h3 class="vrm-why-title">Atendido por personas</h3>
+          <p class="vrm-why-text">
+            Rodrigo, Paulo y el equipo gestionan cada estancia desde Vallarta.
+            Sin call centers. Sin algoritmos.
+          </p>
+        </article>
+
+        <article class="vrm-why-item">
+          <div class="vrm-why-num">02</div>
+          <h3 class="vrm-why-title">Sin cargos sorpresa</h3>
+          <p class="vrm-why-text">
+            El precio que ves es el precio final. Sin comisiones de Airbnb,
+            sin service fees ocultos.
+          </p>
+        </article>
+
+        <article class="vrm-why-item">
+          <div class="vrm-why-num">03</div>
+          <h3 class="vrm-why-title">Conocemos cada casa</h3>
+          <p class="vrm-why-text">
+            70+ propiedades curadas en Vallarta y Riviera Nayarit.
+            Cada una visitada, fotografiada y mantenida por nosotros.
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bloque 2: Equipo local — Confianza visible -->
+  <section class="vrm-section vrm-section-team">
+    <div class="vrm-section-inner">
+      <div class="vrm-section-eyebrow">EQUIPO LOCAL</div>
+      <h2 class="vrm-section-title">
+        <span class="title-line">Detrás de cada llave,</span>
+        <span class="title-line title-line-italic">un equipo que vive aquí.</span>
+      </h2>
+      <div class="vrm-section-rule"></div>
+
+      <p class="vrm-team-intro">
+        Desde 2018 atendemos cada llegada personalmente. Te recibimos en la propiedad,
+        te damos las llaves, y estamos a un mensaje de WhatsApp durante toda tu estancia.
+        Eso es lo que cambia cuando reservas directo con quien gestiona.
+      </p>
+
+      <div class="vrm-team-stats">
+        <div class="vrm-stat">
+          <div class="vrm-stat-num">2018</div>
+          <div class="vrm-stat-label">Operando en la bahía</div>
+        </div>
+        <div class="vrm-stat-sep" aria-hidden="true"></div>
+        <div class="vrm-stat">
+          <div class="vrm-stat-num">70+</div>
+          <div class="vrm-stat-label">Propiedades curadas</div>
+        </div>
+        <div class="vrm-stat-sep" aria-hidden="true"></div>
+        <div class="vrm-stat">
+          <div class="vrm-stat-num">4.83</div>
+          <div class="vrm-stat-label">★ · 517 reseñas</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bloque 3: Reviews seleccionadas -->
+  <section class="vrm-section vrm-section-reviews">
+    <div class="vrm-section-inner">
+      <div class="vrm-section-eyebrow">HUÉSPEDES</div>
+      <h2 class="vrm-section-title">
+        <span class="title-line">Lo que nos dicen</span>
+        <span class="title-line title-line-italic">los que ya volvieron.</span>
+      </h2>
+      <div class="vrm-section-rule"></div>
+
+      <div class="vrm-reviews-grid">
+        <blockquote class="vrm-review">
+          <div class="vrm-review-stars">★★★★★</div>
+          <p class="vrm-review-text">
+            "Llegamos a Vallarta cansados y Rodrigo nos recibió en la casa con todo
+            listo. Sentimos que reservamos con un amigo, no con una empresa."
+          </p>
+          <footer class="vrm-review-meta">
+            <span class="vrm-review-author">Mariana L.</span>
+            <span class="vrm-review-sep">·</span>
+            <span class="vrm-review-property">Quiya 2403</span>
+          </footer>
+        </blockquote>
+
+        <blockquote class="vrm-review">
+          <div class="vrm-review-stars">★★★★★</div>
+          <p class="vrm-review-text">
+            "Vista perfecta al mar, la cocina equipada con todo. Detalles que solo
+            un equipo que vive ahí podría conocer. Ya estamos planeando regresar."
+          </p>
+          <footer class="vrm-review-meta">
+            <span class="vrm-review-author">Carlos & Elena</span>
+            <span class="vrm-review-sep">·</span>
+            <span class="vrm-review-property">Marítima 6S</span>
+          </footer>
+        </blockquote>
+
+        <blockquote class="vrm-review">
+          <div class="vrm-review-stars">★★★★★</div>
+          <p class="vrm-review-text">
+            "Tercera vez reservando con VRM. La diferencia con Airbnb es enorme:
+            atención directa, precio justo, y siempre alguien al teléfono."
+          </p>
+          <footer class="vrm-review-meta">
+            <span class="vrm-review-author">Daniel R.</span>
+            <span class="vrm-review-sep">·</span>
+            <span class="vrm-review-property">Bolongo</span>
+          </footer>
+        </blockquote>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bloque 4: CTA final + footer minimal -->
+  <section class="vrm-section vrm-section-cta-final">
+    <div class="vrm-section-inner vrm-section-inner-narrow">
+      <div class="vrm-section-rule"></div>
+      <h2 class="vrm-final-title">
+        <span class="title-line">¿Listo para</span>
+        <span class="title-line title-line-italic">conocer la bahía?</span>
+      </h2>
+      <p class="vrm-final-text">
+        Explora nuestras propiedades disponibles, contáctanos directo por WhatsApp,
+        o llámanos. Estamos en Vallarta, esperándote.
+      </p>
+      <div class="vrm-final-actions">
+        <button class="vrm-final-btn vrm-final-btn-primary" id="vrm-final-explore">
+          Ver todas las propiedades
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </button>
+        <a href="https://wa.me/523221234567" class="vrm-final-btn vrm-final-btn-secondary" target="_blank" rel="noopener">
+          WhatsApp directo
+        </a>
+      </div>
+
+      <footer class="vrm-footer">
+        <span>© 2026 VRM · Vacation Rental México</span>
+        <span class="vrm-footer-sep">·</span>
+        <span>Puerto Vallarta · Riviera Nayarit</span>
+      </footer>
+    </div>
+  </section>
+
 </div>
 
 <!-- Hint eliminado -->
@@ -17426,6 +18052,14 @@ const PROPERTY_PHOTOS = {
   seeAllBtn.addEventListener('click', () => {
     openGridOverlay();
   });
+
+  // Botón del CTA final (sección narrative) también abre el grid
+  const finalExploreBtn = document.getElementById('vrm-final-explore');
+  if (finalExploreBtn) {
+    finalExploreBtn.addEventListener('click', () => {
+      openGridOverlay();
+    });
+  }
 })();
 
 // ============================================================
