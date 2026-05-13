@@ -1174,12 +1174,15 @@ const WHALE_GLB_URL = 'https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale
     const c = document.createElement('canvas');
     c.width = 1024; c.height = 512;
     const ctx = c.getContext('2d');
+    // Environment más dramático: contraste alto entre cielo profundo y horizonte ardiente
     const grad = ctx.createLinearGradient(0, 0, 0, 512);
-    grad.addColorStop(0, '#1a0c2a');
-    grad.addColorStop(0.25, '#5b3a6f');
-    grad.addColorStop(0.5, '#c47a82');
-    grad.addColorStop(0.7, '#e8b888');
-    grad.addColorStop(1, '#3a1f1a');
+    grad.addColorStop(0, '#0a0014');     // top: deep space
+    grad.addColorStop(0.2, '#2a0a3a');   // upper: indigo
+    grad.addColorStop(0.4, '#7a1a5a');   // mid: magenta deep
+    grad.addColorStop(0.55, '#ff4488');  // horizon: hot magenta
+    grad.addColorStop(0.7, '#ffaa44');   // gold
+    grad.addColorStop(0.9, '#ff5522');   // orange burn
+    grad.addColorStop(1, '#1a0008');     // bottom: deep red
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 1024, 512);
 
@@ -1202,20 +1205,35 @@ const WHALE_GLB_URL = 'https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale
     varying vec3 vViewDir;
     varying vec2 vUv;
 
+    #include <common>
+    #include <skinning_pars_vertex>
+
     void main() {
       vUv = uv;
 
-      // Ondulación sutil (efecto natación) — sólo si NO hay animación skeletal
-      vec3 pos = position;
+      // Posición base
+      vec3 transformed = position;
+      vec3 objectNormal = normal;
+
+      // Skinning: si USE_SKINNING está definido, aplicar transformación de huesos
+      #include <skinbase_vertex>
+      #include <skinnormal_vertex>
+      #include <skinning_vertex>
+      #include <defaultnormal_vertex>
+
+      // Ondulación natural — afecta los vértices según su distancia del centro,
+      // simulando el movimiento ondulatorio de natación.
       #ifdef USE_VERTEX_WAVE
-        float wave = sin(pos.x * 0.5 + uTime * 1.2) * 0.05;
-        float tailFactor = smoothstep(-0.5, 1.5, pos.x);
-        pos.y += wave * tailFactor;
+        float dist = length(transformed);
+        float wave = sin(dist * 0.4 + uTime * 2.0) * 0.08;
+        // Movimiento lateral más intenso en partes alejadas del centro (cola)
+        transformed.x += wave * 0.5;
+        transformed.y += sin(transformed.z * 0.3 + uTime * 1.8) * 0.04 * smoothstep(0.0, 5.0, length(transformed.xz));
       #endif
 
-      vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+      vec4 worldPos = modelMatrix * vec4(transformed, 1.0);
       vWorldPosition = worldPos.xyz;
-      vNormal = normalize(normalMatrix * normal);
+      vNormal = normalize(transformedNormal);
       vec4 mvPosition = viewMatrix * worldPos;
       vViewDir = normalize(-mvPosition.xyz);
       gl_Position = projectionMatrix * mvPosition;
@@ -1251,10 +1269,10 @@ const WHALE_GLB_URL = 'https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale
       float fres = fresnel(normal, viewDir, 2.0);
       float fresStrong = fresnel(normal, viewDir, 5.0);
 
-      // Chromatic aberration: cada canal con IOR distinto
-      vec3 refractR = refract(-viewDir, normal, 0.88);
+      // Chromatic aberration FUERTE: cada canal con IOR muy distinto
+      vec3 refractR = refract(-viewDir, normal, 0.82);
       vec3 refractG = refract(-viewDir, normal, 0.92);
-      vec3 refractB = refract(-viewDir, normal, 0.96);
+      vec3 refractB = refract(-viewDir, normal, 1.02);
       vec3 envR = sampleEnv(refractR);
       vec3 envG = sampleEnv(refractG);
       vec3 envB = sampleEnv(refractB);
@@ -1264,18 +1282,20 @@ const WHALE_GLB_URL = 'https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale
       vec3 reflectDir = reflect(-viewDir, normal);
       vec3 reflectedColor = sampleEnv(reflectDir);
 
-      // Iridiscencia animada
-      float iridT = fres + sin(uTime * 0.5 + vUv.x * 8.0 + vUv.y * 4.0) * 0.08;
-      vec3 iridA = mix(uColorA, uColorB, iridT);
+      // Iridiscencia INTENSA — patrón animado más visible sobre la superficie
+      float iridT = fres + sin(uTime * 0.8 + vUv.x * 14.0 + vUv.y * 8.0) * 0.18;
+      iridT += sin(uTime * 0.5 + (vUv.x + vUv.y) * 22.0) * 0.12;
+      vec3 iridA = mix(uColorA, uColorB, clamp(iridT, 0.0, 1.0));
       vec3 iridColor = mix(iridA, uColorC, fresStrong);
 
-      // Composición final
-      vec3 finalColor = refractedColor * 0.35;
-      finalColor += iridColor * (0.45 + fres * 0.55);
-      finalColor += reflectedColor * fres * 0.55;
-      finalColor += vec3(1.0, 0.95, 0.85) * fresStrong * 0.45;
+      // Composición: la iridiscencia ahora domina (no la refracción)
+      vec3 finalColor = refractedColor * 0.20;
+      finalColor += iridColor * (0.75 + fres * 0.6);
+      finalColor += reflectedColor * fres * 0.4;
+      // Highlight especular más brillante
+      finalColor += vec3(1.0, 1.0, 1.0) * fresStrong * 0.7;
 
-      float alpha = 0.80 + fres * 0.20;
+      float alpha = 0.85 + fres * 0.15;
       gl_FragColor = vec4(finalColor, alpha);
     }
   `;
@@ -1284,9 +1304,10 @@ const WHALE_GLB_URL = 'https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale
   const glassUniforms = {
     uTime: { value: 0 },
     uEnvMap2D: { value: envMap },
-    uColorA: { value: new THREE.Color(0xe8b888) },
-    uColorB: { value: new THREE.Color(0xd68bbd) },
-    uColorC: { value: new THREE.Color(0x8b6dc4) }
+    // Paleta tipo fénix Noomo: más saturada, más eléctrica
+    uColorA: { value: new THREE.Color(0xff4488) },  // magenta eléctrico
+    uColorB: { value: new THREE.Color(0x00d4ff) },  // cyan brillante
+    uColorC: { value: new THREE.Color(0xffaa44) }   // naranja saturado
   };
 
   function makeGlassMaterial(withWave) {
@@ -1461,20 +1482,31 @@ const WHALE_GLB_URL = 'https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale
         console.info('✓ GLB cargado exitosamente');
 
         // Aplicar glass material a TODOS los meshes del modelo
+        // CRÍTICO: si es SkinnedMesh (con rig de huesos), el material debe tener skinning: true
+        // sino la animación esqueletal no se aplicará y el modelo no se moverá.
+        let hasSkinnedMesh = false;
         model.traverse((child) => {
           if (child.isMesh) {
-            // Guardamos el material original por si lo necesitamos después
             child.userData.originalMaterial = child.material;
-            // Reemplazamos con glass shader (sin wave porque el GLB tiene su propia animación)
-            child.material = makeGlassMaterial(false);
+            const isSkinned = child.isSkinnedMesh === true;
+            if (isSkinned) hasSkinnedMesh = true;
+            // ShaderMaterial con skinning si el mesh está riggeado
+            const glassMat = makeGlassMaterial(false);
+            if (isSkinned) {
+              glassMat.skinning = true;
+              // En Three.js r128, también hay que setear esto en defines para compatibilidad
+              glassMat.defines = glassMat.defines || {};
+              glassMat.defines.USE_SKINNING = '';
+            }
+            child.material = glassMat;
             child.castShadow = false;
             child.receiveShadow = false;
-            // Forzar recompute de normales si el modelo no las tiene bien
             if (child.geometry) {
               child.geometry.computeVertexNormals();
             }
           }
         });
+        console.info('Modelo tiene SkinnedMesh:', hasSkinnedMesh);
 
         // Auto-fit: ajustar escala según el bounding box del modelo
         const bbox = new THREE.Box3().setFromObject(model);
@@ -1497,15 +1529,23 @@ const WHALE_GLB_URL = 'https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale
         // Si el GLB tiene animaciones, configurar mixer
         if (gltf.animations && gltf.animations.length > 0) {
           mixer = new THREE.AnimationMixer(model);
-          // Play TODAS las animaciones (la ballena usualmente solo tiene "swim")
           gltf.animations.forEach(clip => {
             const action = mixer.clipAction(clip);
             action.play();
           });
-          console.info('GLB cargado con', gltf.animations.length, 'animaciones');
+          console.info('GLB cargado con', gltf.animations.length, 'animaciones (clips:', gltf.animations.map(a => a.name).join(', '), ')');
+
+          // Si las animaciones NO son skeletal (morph targets etc), reforzar con vertex wave
+          if (!hasSkinnedMesh) {
+            console.info('Animaciones presentes pero sin skinning detectado — añadiendo vertex wave de refuerzo');
+            model.traverse((child) => {
+              if (child.isMesh) {
+                child.material = makeGlassMaterial(true);
+              }
+            });
+          }
         } else {
           console.info('GLB cargado sin animaciones — aplicando wave vertex displacement');
-          // Re-aplicar material con USE_VERTEX_WAVE para tener algo de movimiento
           model.traverse((child) => {
             if (child.isMesh) {
               child.material = makeGlassMaterial(true);
