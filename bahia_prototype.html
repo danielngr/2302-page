@@ -1503,6 +1503,32 @@
     display: block;
   }
 
+  /* PVR Airport: variante con icono de avión + tiempo de transfer */
+  .zone-label.zone-label-airport .name {
+    font-family: 'Inter Tight', sans-serif;
+    font-style: normal;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    color: rgba(255, 240, 220, 0.85);
+  }
+  .zone-label.zone-label-airport .meta {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    color: rgba(220, 160, 110, 0.85);
+    margin-top: 1px;
+  }
+  .zone-label.zone-label-airport .zone-airport-icon {
+    display: inline-block;
+    color: rgba(220, 160, 110, 0.9);
+    margin-bottom: 4px;
+    transform: rotate(-12deg);
+  }
+
   .hint {
     position: absolute;
     bottom: 28px;
@@ -9421,34 +9447,31 @@
       border-radius: 50%;
       color: rgba(255, 235, 210, 0.92);
       z-index: 7;
-      pointer-events: none;
+      pointer-events: auto;
+      cursor: pointer;
       opacity: 0;
-      transition: opacity 0.5s ease;
-      animation: edgeArrowPulse 2.4s ease-in-out infinite;
+      transition: opacity 0.5s ease, transform 0.3s ease, background 0.25s ease;
+    }
+
+    .explore-edge-arrow:active {
+      transform: translateY(-50%) scale(0.92);
+      background: rgba(220, 160, 110, 0.32);
     }
 
     .explore-edge-left {
       left: 8px;
-      animation-delay: 0s;
     }
 
     .explore-edge-right {
       right: 8px;
-      animation-delay: 1.2s;
     }
 
     /* Aparecen solo después del hero, junto con el resto del UI */
     body.hero-dismissed .explore-edge-arrow {
-      opacity: 0.85;
+      opacity: 0.8;
     }
 
-    /* Se ocultan suavemente cuando el usuario está arrastrando */
-    body.user-dragged .explore-edge-arrow {
-      opacity: 0 !important;
-      animation: none;
-    }
-
-    /* Se ocultan cuando hay una sheet abierta o el sheet de detalle */
+    /* Se ocultan cuando hay una sheet abierta */
     body.sheet-open .explore-edge-arrow,
     body.list-view-active .explore-edge-arrow {
       display: none !important;
@@ -14233,25 +14256,39 @@ addCoastalBuildings();
 // Etiquetas sutiles que identifican cada zona del paisaje. Ayudan al usuario
 // nuevo (especialmente extranjero) a ubicar geográficamente las zonas.
 // Los ángulos están calibrados para que NO se peguen al borde del viewport.
+// PVR Airport tiene flag 'airport' que lo renderiza con icono de avión + tiempo.
 const zoneData = [
   { name: 'Punta de Mita',           meta: 'Riviera Nayarit', angle: -Math.PI * 0.40 },
   { name: 'La Cruz de Huanacaxtle',  meta: 'Riviera Nayarit', angle: -Math.PI * 0.26 },
   { name: 'Bucerías',                meta: 'Costa Norte',     angle: -Math.PI * 0.13 },
   { name: 'Nuevo Vallarta',          meta: 'Nayarit',         angle: -Math.PI * 0.02 },
-  { name: 'Puerto Vallarta',         meta: 'Zona Hotelera',   angle: Math.PI * 0.10 },
-  { name: 'Mismaloya',               meta: 'Costa Sur',       angle: Math.PI * 0.24 },
-  { name: 'Yelapa',                  meta: 'Jalisco',         angle: Math.PI * 0.38 }
+  { name: 'PVR',                     meta: 'Aeropuerto · 25 min', angle: Math.PI * 0.04, airport: true },
+  { name: 'Puerto Vallarta',         meta: 'Zona Hotelera',   angle: Math.PI * 0.14 },
+  { name: 'Mismaloya',               meta: 'Costa Sur',       angle: Math.PI * 0.28 },
+  { name: 'Yelapa',                  meta: 'Jalisco',         angle: Math.PI * 0.40 }
 ];
 
 zoneData.forEach(z => {
   const el = document.createElement('div');
-  el.className = 'zone-label';
-  el.innerHTML = `<span class="name">${z.name}</span><span class="meta">${z.meta}</span>`;
+  el.className = z.airport ? 'zone-label zone-label-airport' : 'zone-label';
+  if (z.airport) {
+    // PVR con icono de avión SVG sutil
+    el.innerHTML = `
+      <span class="zone-airport-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+        </svg>
+      </span>
+      <span class="name">${z.name}</span><span class="meta">${z.meta}</span>
+    `;
+  } else {
+    el.innerHTML = `<span class="name">${z.name}</span><span class="meta">${z.meta}</span>`;
+  }
   el.style.opacity = '0';
   document.body.appendChild(el);
   z.el = el;
   // Fade in de las etiquetas con delay escalonado
-  setTimeout(() => { el.style.opacity = '0.75'; }, 2000 + zoneData.indexOf(z) * 300);
+  setTimeout(() => { el.style.opacity = z.airport ? '0.6' : '0.75'; }, 2000 + zoneData.indexOf(z) * 300);
 });
 
 const _zoneVec = new THREE.Vector3();
@@ -14263,14 +14300,13 @@ function positionZoneLabels() {
   zoneData.forEach(z => {
     _zoneVec.set(
       Math.sin(Math.PI + z.angle) * dist,
-      18,
+      65,  // Más alto en el cielo — los labels flotan arriba de las montañas/buildings
       -Math.cos(Math.PI + z.angle) * dist
     );
     _zoneVec.project(camera);
     const x = (_zoneVec.x * 0.5 + 0.5) * w;
     const y = (-_zoneVec.y * 0.5 + 0.5) * h;
-    // Más estricto: solo visible si el label entero cabe (con margen de 100px del borde
-    // por el width del label transform translate(-50%, -50%))
+    // Solo visible si el label cabe entero (margen 100px del borde)
     const visible = _zoneVec.z < 1 && x > 100 && x < w - 100;
 
     if (visible) {
@@ -15175,7 +15211,7 @@ const propertyData = (function() {
     eyebrow: 'Punta de Mita · Riviera Nayarit',
     specs: ['4 unidades disponibles', 'Punta de Mita · Riviera Nayarit', 'Desde $185/noche'],
     t: 0.13,
-    heightOffset: 45,
+    heightOffset: 38,
     units: ['211', '3N', 'G13', 'L05'],
   },
   {
@@ -15185,7 +15221,7 @@ const propertyData = (function() {
     eyebrow: 'Cruz de Huanacaxtle · Quiya',
     specs: ['8 unidades disponibles', 'Cruz de Huanacaxtle · Quiya', 'Desde $145/noche'],
     t: 0.2635,
-    heightOffset: 45,
+    heightOffset: 38,
     units: ['2005', '2302', '2403', '2701', '2705', '2801', '2905', '3004'],
   },
   {
@@ -15195,7 +15231,7 @@ const propertyData = (function() {
     eyebrow: 'Nuevo Vallarta · Flamingos',
     specs: ['4 unidades disponibles', 'Nuevo Vallarta · Flamingos', 'Desde $190/noche'],
     t: 0.38,
-    heightOffset: 45,
+    heightOffset: 38,
     units: ['6S', '9S', '10I', 'PHN'],
   },
   {
@@ -17963,6 +17999,48 @@ const PROPERTY_PHOTOS = {
   });
   setTimeout(updateCenteredCard, 200);
   setTimeout(updateCenteredCard, 800);  // re-check tras animaciones
+
+  // Flechas laterales fijas (mobile): avanzan/retroceden una card del carrusel.
+  // Son "shortcuts" para usuarios mayores o que no descubren el swipe natural.
+  const edgeLeft = document.querySelector('.explore-edge-left');
+  const edgeRight = document.querySelector('.explore-edge-right');
+
+  function advanceCarousel(direction) {
+    const cards = getCardsForCenter();
+    if (!cards.length) return;
+
+    // Encontrar la card centrada actual (.is-centered)
+    let currentIdx = cards.findIndex(c => c.classList.contains('is-centered'));
+    if (currentIdx === -1) {
+      // Si no hay centrada, calcular cuál está más cerca del centro
+      const trackRect = track.getBoundingClientRect();
+      const trackCenter = trackRect.left + trackRect.width / 2;
+      let closestDist = Infinity;
+      cards.forEach((c, i) => {
+        const r = c.getBoundingClientRect();
+        const cardCenter = r.left + r.width / 2;
+        const dist = Math.abs(cardCenter - trackCenter);
+        if (dist < closestDist) {
+          closestDist = dist;
+          currentIdx = i;
+        }
+      });
+    }
+
+    const targetIdx = Math.max(0, Math.min(cards.length - 1, currentIdx + direction));
+    if (targetIdx === currentIdx) return;
+
+    const targetCard = cards[targetIdx];
+    // scrollIntoView con block:nearest pa no scrollear el body, inline:center centra horizontalmente
+    targetCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }
+
+  if (edgeLeft) {
+    edgeLeft.addEventListener('click', () => advanceCarousel(-1));
+  }
+  if (edgeRight) {
+    edgeRight.addEventListener('click', () => advanceCarousel(1));
+  }
 
   // PERFORMANCE EN DEVICE REAL: pausar el paisaje 3D mientras el usuario hace scroll
   // horizontal en el carrusel. Auto-reanuda 200ms después de que el scroll para.
