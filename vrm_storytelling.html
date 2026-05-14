@@ -1238,40 +1238,46 @@ const bgMaterial = new THREE.ShaderMaterial({
       return c;
     }
     
-    // === GOD RAYS — rayos volumétricos desde arriba ===
-    // Crear cones de luz desde varios puntos de origen arriba
+    // === GOD RAYS — rayos verticales desde la superficie hacia el fondo ===
+    // Como luz solar real penetrando agua: caen casi vertical desde el top,
+    // distribuidos a lo largo horizontalmente, y desvanecen al descender.
     float godRays(vec2 uv, float t) {
       float rays = 0.0;
       
-      // Cada rayo: cone desde origen arriba (x,1.2) en dirección (-x,-1)
-      // El cone se modula con noise para que tenga textura de "polvo en luz"
-      for (int i = 0; i < 4; i++) {
+      // 7 rayos distribuidos por TODO el ancho del top
+      for (int i = 0; i < 7; i++) {
         float fi = float(i);
-        // Origen del rayo: arriba-derecha (Vallarta sunset hour)
-        float originX = 0.55 + fi * 0.08 + sin(t * 0.1 + fi) * 0.04;
-        vec2 origin = vec2(originX, 1.15);
-        vec2 dir = normalize(vec2(-0.15 - fi * 0.04, -1.0));
         
-        // Distancia de uv al rayo (proyección sobre la línea)
-        vec2 toUv = uv - origin;
-        float along = dot(toUv, dir);             // distancia a lo largo
-        float perpDist = abs(toUv.x - origin.x - dir.x * along);
+        // Origen distribuido a lo largo del top (de 0.08 a 0.92)
+        // con drift muy sutil (la superficie del agua ondula)
+        float originX = 0.08 + fi * 0.14 + sin(t * 0.18 + fi * 1.7) * 0.025;
         
-        // Width del rayo (se ensancha al descender)
-        float width = 0.015 + along * 0.045;
+        // Distancia perpendicular del pixel al eje vertical del rayo
+        // (rayos verticales puros = simplemente distancia en x)
+        float perpDist = abs(uv.x - originX);
+        
+        // along = profundidad (0 arriba, aumenta hacia abajo)
+        float along = 1.0 - uv.y;   // 0 en top, 1 en bottom
+        
+        // Width del rayo: estrecho arriba, se ensancha sutilmente al descender
+        // (la luz se difunde al atravesar agua)
+        float width = 0.012 + along * 0.025;
         float rayCore = smoothstep(width, 0.0, perpDist);
         
-        // Fade vertical: más fuerte arriba, desaparece abajo
-        float vertFade = smoothstep(-0.1, 1.0, along) * smoothstep(2.0, 0.3, along);
+        // ★ FADE VERTICAL — la clave del look natural:
+        // 1.0 arriba (más fuerte cerca de la "superficie")
+        // 0.0 abajo (la luz pierde fuerza con la profundidad)
+        float depthFade = smoothstep(0.95, 0.05, uv.y);   // fade exponencial al bajar
+        depthFade = depthFade * depthFade;                 // curva cuadrática = más dramático
         
-        // Animar con noise para textura de "polvo flotando en luz"
-        float dustNoise = fbm(uv * 8.0 + vec2(0.0, t * 0.4 + fi * 5.0));
+        // Textura de "polvo flotando en la luz" — noise lento vertical
+        float dustNoise = fbm(vec2(uv.x * 4.0, uv.y * 6.0 - t * 0.3 + fi * 7.3));
         rayCore *= mix(0.4, 1.0, dustNoise);
         
-        rays += rayCore * vertFade;
+        rays += rayCore * depthFade;
       }
       
-      return min(rays * 1.2, 1.0);
+      return min(rays, 1.0);
     }
     
     // === SPARKLE — partículas de luz que parpadean ===
@@ -1329,9 +1335,9 @@ const bgMaterial = new THREE.ShaderMaterial({
       vec3 finalColor = baseColor + uCausticsColor * causticsLayer;
       
       // === 3. GOD RAYS ===
-      // Cinemáticos, dramáticos como pediste
+      // Verticales, cinemáticos. Más fuertes arriba, desvaneciendo abajo.
       float rays = godRays(uv, t);
-      finalColor += uRayColor * rays * 0.55;
+      finalColor += uRayColor * rays * 0.85;
       
       // === 4. SPARKLES ===
       // Partículas de luz suspendidas
