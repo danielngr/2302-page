@@ -90,6 +90,38 @@
     mix-blend-mode: multiply;
   }
 
+  /* ============================================================
+     CURSOR RIPPLE — Efecto acuático que sigue al mouse
+     Onda de luz suave que se expande al mover el cursor.
+     Sin librerías externas — CSS puro con position fixed.
+     ============================================================ */
+  .cursor-ripple {
+    position: fixed;
+    pointer-events: none;
+    z-index: 5;
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+      rgba(255, 255, 255, 0.18) 0%,
+      rgba(220, 180, 255, 0.10) 20%,
+      rgba(140, 200, 255, 0.06) 40%,
+      transparent 70%);
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    mix-blend-mode: screen;
+    transition: opacity 1.2s ease-out, transform 1.4s cubic-bezier(0.16, 0.84, 0.30, 1);
+    filter: blur(8px);
+  }
+  .cursor-ripple.expand {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  .cursor-ripple.fade {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.2);
+  }
+
   /* LOADER */
   .loader {
     position: fixed;
@@ -950,6 +982,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 /* ============================================================
@@ -966,7 +999,7 @@ const aurora = document.getElementById('aurora');
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 0.5, 12);
+camera.position.set(0, 0.5, 9);
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -979,7 +1012,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setClearColor(0x000000, 0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
+renderer.toneMappingExposure = 1.2;
 
 /* ============================================================
    ENVIRONMENT MAP — Canvas procedural pasado por PMREMGenerator
@@ -992,21 +1025,19 @@ function makeEnvironmentTexture() {
   c.height = size;
   const ctx = c.getContext('2d');
 
-  // Fondo base suave — atardecer tipo Vallarta
+  // Fondo lavanda suave (lo que vemos detrás de la ballena)
   const baseGrad = ctx.createLinearGradient(0, 0, 0, size);
-  baseGrad.addColorStop(0, '#1a1428');
-  baseGrad.addColorStop(0.3, '#4a3060');
-  baseGrad.addColorStop(0.5, '#a06080');
-  baseGrad.addColorStop(0.7, '#e0a888');
-  baseGrad.addColorStop(0.85, '#d08068');
-  baseGrad.addColorStop(1, '#2a1820');
+  baseGrad.addColorStop(0, '#c9b0e0');
+  baseGrad.addColorStop(0.4, '#d8c8e8');
+  baseGrad.addColorStop(0.7, '#e5d8f0');
+  baseGrad.addColorStop(1, '#d0b8d8');
   ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, size * 2, size);
 
-  function drawSun(x, y, r, color) {
+  function drawSun(x, y, r, color, intensity) {
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
     g.addColorStop(0, color);
-    g.addColorStop(0.4, color.replace(/[\d.]+\)$/, '0.4)'));
+    g.addColorStop(0.5, color.replace(/[\d.]+\)$/, (intensity * 0.4).toFixed(2) + ')'));
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
     ctx.globalCompositeOperation = 'screen';
@@ -1014,15 +1045,18 @@ function makeEnvironmentTexture() {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // Sol blanco principal
-  drawSun(size * 1.0, size * 0.38, 360, 'rgba(255,255,250,0.95)');
+  // ★ SOL CENTRAL HDR MUY BRILLANTE — esto causa el bloom intenso tipo fénix
+  // Múltiples capas para que sea HDR (más allá de 1.0)
+  drawSun(size * 1.0, size * 0.40, 220, 'rgba(255,255,255,1)', 1.0);
+  drawSun(size * 1.0, size * 0.40, 150, 'rgba(255,255,255,1)', 1.0);  // core extra
+  drawSun(size * 1.0, size * 0.40, 90, 'rgba(255,255,255,1)', 1.0);   // núcleo super hot
 
-  // Soles de colores suaves — alpha más bajo para no quemar la ballena
-  drawSun(size * 0.40, size * 0.45, 280, 'rgba(255,140,200,0.7)');   // rosa
-  drawSun(size * 1.60, size * 0.50, 250, 'rgba(140,200,255,0.65)');  // cyan suave
-  drawSun(size * 0.90, size * 0.75, 280, 'rgba(255,180,120,0.6)');   // naranja calido
-  drawSun(size * 0.60, size * 0.20, 200, 'rgba(180,140,220,0.55)');  // violeta
-  drawSun(size * 1.70, size * 0.22, 180, 'rgba(200,230,200,0.4)');   // verde menta
+  // Soles de colores eléctricos para que la ballena los refleje en su iridescence
+  drawSun(size * 0.35, size * 0.50, 320, 'rgba(255,90,180,0.9)', 0.9);   // magenta
+  drawSun(size * 1.65, size * 0.50, 300, 'rgba(120,200,255,0.85)', 0.85); // cyan
+  drawSun(size * 0.90, size * 0.78, 280, 'rgba(255,180,100,0.7)', 0.7);   // naranja
+  drawSun(size * 0.55, size * 0.20, 220, 'rgba(220,140,255,0.7)', 0.7);   // violeta
+  drawSun(size * 1.55, size * 0.15, 200, 'rgba(180,255,220,0.5)', 0.5);   // verde menta
 
   const tx = new THREE.CanvasTexture(c);
   tx.mapping = THREE.EquirectangularReflectionMapping;
@@ -1075,18 +1109,18 @@ let modelLoaded = false;
 const PHYSICAL_PARAMS = {
   color: 0xffffff,
   metalness: 0,
-  roughness: 0.05,              // Más liso = reflejos más nítidos
-  transmission: 0.95,           // Casi total
-  thickness: 2.0,               // Más grueso = refracción más visible
-  ior: 1.5,                     // Cristal real
-  attenuationColor: 0xffd0e8,   // Tinte rosa más visible
-  attenuationDistance: 1.5,
-  iridescence: 1.0,             // ★★★ MÁXIMO
-  iridescenceIOR: 1.8,          // ★★★ MUY ALTO = espectro completo visible
-  iridescenceThicknessRange: [100, 800],  // ★★★ rango amplio = todos los colores
+  roughness: 0.0,               // ★ Perfectamente liso = reflejos vibrantes
+  transmission: 1.0,            // ★ Total
+  thickness: 0.8,               // ★ Capa fina = colores más eléctricos
+  ior: 1.45,
+  attenuationColor: 0xffffff,   // ★ Sin tinte interno
+  attenuationDistance: 5.0,
+  iridescence: 1.0,             // ★★★ MÁX
+  iridescenceIOR: 2.33,         // ★★★ Diamante = espectro extremo
+  iridescenceThicknessRange: [100, 500],
   clearcoat: 1.0,
-  clearcoatRoughness: 0.02,     // clearcoat muy brillante
-  envMapIntensity: 1.4,         // ★★★ Bajado de 2.5 para no sobreexponer
+  clearcoatRoughness: 0.0,      // ★ Espejo perfecto encima
+  envMapIntensity: 3.0,         // ★★★ MUY ALTO — soles dominantes
   side: THREE.DoubleSide,
   transparent: true,
   opacity: 1.0,
@@ -1176,78 +1210,10 @@ function loadGLB() {
 loadGLB();
 
 /* ============================================================
-   HORIZONTE DEL MAR — Plano sutil donde la ballena emerge
-   Una línea de luz horizontal que sugiere la superficie del agua
+   No hay burbujas ni horizonte — el fénix de Noomo flota en
+   espacio puro. Distracciones eliminadas.
    ============================================================ */
-const horizonGeom = new THREE.PlaneGeometry(60, 0.3);
-const horizonMat = new THREE.MeshBasicMaterial({
-  color: 0xffffff,
-  transparent: true,
-  opacity: 0.0,  // se anima vía updateHorizon abajo
-  blending: THREE.AdditiveBlending,
-  depthWrite: false
-});
-const horizon = new THREE.Mesh(horizonGeom, horizonMat);
-horizon.position.y = -7;  // donde la ballena emerge
-horizon.rotation.x = 0;
-scene.add(horizon);
-
-// Glow del horizonte (más amplio, más suave)
-const horizonGlowGeom = new THREE.PlaneGeometry(60, 4);
-const horizonGlowMat = new THREE.MeshBasicMaterial({
-  color: 0xffd0e8,
-  transparent: true,
-  opacity: 0.0,
-  blending: THREE.AdditiveBlending,
-  depthWrite: false
-});
-const horizonGlow = new THREE.Mesh(horizonGlowGeom, horizonGlowMat);
-horizonGlow.position.y = -7;
-scene.add(horizonGlow);
-
-/* ============================================================
-   BURBUJAS — pequeñas esferas iridiscentes que ascienden con la ballena
-   En lugar de stardust genérico, son burbujas del mar
-   ============================================================ */
-const BUBBLE_COUNT = 60;
-const bubbles = [];
-const bubbleGeom = new THREE.SphereGeometry(1, 12, 8);
-const bubbleMat = new THREE.MeshPhysicalMaterial({
-  color: 0xffffff,
-  metalness: 0,
-  roughness: 0.0,
-  transmission: 1.0,
-  thickness: 0.5,
-  ior: 1.33,  // agua
-  iridescence: 0.8,
-  iridescenceIOR: 1.3,
-  iridescenceThicknessRange: [100, 400],
-  envMapIntensity: 1.5,
-  transparent: true,
-  opacity: 0.9
-});
-
-for (let i = 0; i < BUBBLE_COUNT; i++) {
-  const bubble = new THREE.Mesh(bubbleGeom, bubbleMat);
-  const angle = Math.random() * Math.PI * 2;
-  const radius = 3 + Math.random() * 18;
-  bubble.position.set(
-    Math.cos(angle) * radius,
-    -10 + Math.random() * 18,
-    Math.sin(angle) * radius * 0.6
-  );
-  const s = 0.05 + Math.random() * 0.15;
-  bubble.scale.setScalar(s);
-  bubble.userData = {
-    speed: 0.3 + Math.random() * 0.6,
-    drift: Math.random() * Math.PI * 2,
-    initX: bubble.position.x,
-    initZ: bubble.position.z,
-    size: s
-  };
-  bubbles.push(bubble);
-  scene.add(bubble);
-}
+const bubbles = [];  // array vacío para compatibilidad con loop
 
 /* ============================================================
    POST-PROCESSING: BLOOM
@@ -1262,11 +1228,53 @@ composer.addPass(renderPass);
 
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.45,   // strength — bajado de 1.2 a 0.45
-  0.5,    // radius
-  0.92    // threshold — sube para captar SOLO los highlights muy brillantes
+  1.4,    // ★ strength alto — la ballena resplandece
+  0.85,   // radius — bloom suave y extenso
+  0.55    // threshold — capta zonas medias-altas
 );
 composer.addPass(bloomPass);
+
+// ★★★ CHROMATIC ABERRATION custom pass ★★★
+// Crea separación RGB tipo lente real — el toque cinematográfico de Noomo
+const chromaticAberrationShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uOffset: { value: new THREE.Vector2(0.0015, 0.0015) },
+    uTime: { value: 0 }
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform vec2 uOffset;
+    uniform float uTime;
+    varying vec2 vUv;
+    void main() {
+      // Distancia del centro — la aberración aumenta en bordes
+      vec2 center = vec2(0.5);
+      vec2 dir = vUv - center;
+      float dist = length(dir);
+      
+      // Aberración cromática radial
+      vec2 offset = dir * uOffset * (1.0 + dist * 2.0);
+      
+      // Cada canal con offset distinto
+      float r = texture2D(tDiffuse, vUv - offset * 1.0).r;
+      float g = texture2D(tDiffuse, vUv).g;
+      float b = texture2D(tDiffuse, vUv + offset * 1.0).b;
+      float a = texture2D(tDiffuse, vUv).a;
+      
+      gl_FragColor = vec4(r, g, b, a);
+    }
+  `
+};
+const chromaticPass = new ShaderPass(chromaticAberrationShader);
+composer.addPass(chromaticPass);
 
 const outputPass = new OutputPass();
 composer.addPass(outputPass);
@@ -1307,12 +1315,12 @@ const WHALE_PATH = [
 ];
 
 const CAMERA_PATH = [
-  { sp: 0.00, z: 11, y:  0,    fov: 45 },
-  { sp: 0.25, z: 12, y:  0,    fov: 45 },
-  { sp: 0.50, z: 11, y:  0.3,  fov: 43 },
-  { sp: 0.62, z: 14, y:  0.5,  fov: 48 },  // pull back en la zona distante
-  { sp: 0.88, z:  9, y:  0.2,  fov: 42 },  // close-up
-  { sp: 1.00, z: 12, y:  0,    fov: 45 }
+  { sp: 0.00, z: 9,  y:  0,    fov: 45 },
+  { sp: 0.25, z: 10, y:  0,    fov: 45 },
+  { sp: 0.50, z: 9,  y:  0.3,  fov: 43 },
+  { sp: 0.62, z: 12, y:  0.5,  fov: 48 },
+  { sp: 0.88, z: 7,  y:  0.2,  fov: 42 },
+  { sp: 1.00, z: 10, y:  0,    fov: 45 }
 ];
 
 function lerp(a, b, t) { return a + (b - a) * t; }
@@ -1435,24 +1443,9 @@ function animate() {
   }
   camera.lookAt(0, 0, 0);
 
-  // ★★★ Burbujas — time-based porque NO son la ballena ★★★
-  for (const bubble of bubbles) {
-    bubble.position.y += bubble.userData.speed * dt * 1.5;
-    bubble.position.x = bubble.userData.initX + Math.sin(t * 0.5 + bubble.userData.drift) * 0.5;
-    bubble.position.z = bubble.userData.initZ + Math.cos(t * 0.4 + bubble.userData.drift) * 0.3;
-    if (bubble.position.y > 12) {
-      bubble.position.y = -10 - Math.random() * 5;
-      bubble.userData.initX = (Math.random() - 0.5) * 30;
-      bubble.userData.initZ = (Math.random() - 0.5) * 15;
-    }
-  }
+  // (sin partículas distrayentes — el fénix de Noomo flota en pureza)
 
-  // ★★★ Horizonte del mar — visible al inicio y final ★★★
-  let horizonOp = 0;
-  if (sp < 0.15) horizonOp = (1.0 - sp / 0.15) * 0.6;
-  else if (sp > 0.92) horizonOp = ((sp - 0.92) / 0.08) * 0.4;
-  horizonMat.opacity = horizonOp;
-  horizonGlowMat.opacity = horizonOp * 0.6;
+  // (Horizon y burbujas eliminadas — no se ajustan al feel Noomo)
 
   // ★★★ Aurora ★★★
   if (aurora) {
@@ -1482,6 +1475,78 @@ window.addEventListener('resize', () => {
 });
 
 animate();
+</script>
+
+<script>
+/* ============================================================
+   CURSOR RIPPLE EFFECT
+   Crea ondas suaves de luz que siguen el movimiento del cursor,
+   dando sensación acuática. Inspirado en Noomo storytelling.
+   ============================================================ */
+(function() {
+  const RIPPLE_POOL_SIZE = 12;  // pool de ripples reciclables
+  const ripples = [];
+  let rippleIdx = 0;
+  let lastEmit = 0;
+  const EMIT_INTERVAL = 80;  // ms entre ripples — controla densidad
+  
+  // Crear pool
+  for (let i = 0; i < RIPPLE_POOL_SIZE; i++) {
+    const r = document.createElement('div');
+    r.className = 'cursor-ripple';
+    document.body.appendChild(r);
+    ripples.push({ el: r, state: 'idle', timeout1: null, timeout2: null });
+  }
+  
+  function emit(x, y) {
+    const r = ripples[rippleIdx];
+    rippleIdx = (rippleIdx + 1) % RIPPLE_POOL_SIZE;
+    
+    // Limpiar timeouts previos
+    if (r.timeout1) clearTimeout(r.timeout1);
+    if (r.timeout2) clearTimeout(r.timeout2);
+    
+    // Reset
+    r.el.classList.remove('expand', 'fade');
+    r.el.style.left = x + 'px';
+    r.el.style.top = y + 'px';
+    
+    // Force reflow para que el reset sea efectivo
+    void r.el.offsetWidth;
+    
+    // Expandir
+    r.el.classList.add('expand');
+    
+    // Después de aparecer, fade out
+    r.timeout1 = setTimeout(() => {
+      r.el.classList.add('fade');
+      r.el.classList.remove('expand');
+    }, 100);
+    
+    // Limpiar después de la animación
+    r.timeout2 = setTimeout(() => {
+      r.el.classList.remove('fade');
+    }, 1500);
+  }
+  
+  // Detectar si es mobile (sin mouse)
+  const isMobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  if (isMobile) return;  // no ripples en mobile
+  
+  // Mousemove handler con throttling
+  window.addEventListener('mousemove', (e) => {
+    const now = Date.now();
+    if (now - lastEmit > EMIT_INTERVAL) {
+      lastEmit = now;
+      emit(e.clientX, e.clientY);
+    }
+  }, { passive: true });
+  
+  // Emit ripple grande al click
+  window.addEventListener('click', (e) => {
+    emit(e.clientX, e.clientY);
+  }, { passive: true });
+})();
 </script>
 
 <script>
