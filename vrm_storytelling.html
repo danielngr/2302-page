@@ -1278,63 +1278,78 @@ const WHALE_GLB_URL = 'https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale
       return texture2D(uEnvMap2D, vec2(u, v)).rgb;
     }
 
-    // Thin-film interference: color depende del ángulo de visión
-    // (efecto pompa de jabón / perla / aceite sobre agua)
-    // hue se genera matemáticamente sin samplear environment
-    vec3 hueToRgb(float h) {
-      // h in [0, 1]
-      float r = abs(h * 6.0 - 3.0) - 1.0;
-      float g = 2.0 - abs(h * 6.0 - 2.0);
-      float b = 2.0 - abs(h * 6.0 - 4.0);
-      return clamp(vec3(r, g, b), 0.0, 1.0);
+    // Conversión HSV → RGB suave (mejor que las hueToRgb crudas)
+    vec3 hsv2rgb(vec3 c) {
+      vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+      vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+      return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
     }
 
-    vec3 thinFilm(float angle) {
-      // Cycle a través del espectro completo según el ángulo
-      // Múltiples ciclos = más iridiscencia visible
-      float hue = fract(angle * 2.5 + 0.55);
-      vec3 color = hueToRgb(hue);
-      // Saturación reducida en zonas centrales (efecto perla suave)
-      return mix(vec3(0.95, 0.9, 1.0), color, 0.55);
+    // Thin-film interference suave (color iridiscente que cicla por el espectro)
+    vec3 thinFilm(float angle, float saturation, float lightness) {
+      float hue = fract(angle);
+      return hsv2rgb(vec3(hue, saturation, lightness));
     }
 
     void main() {
       vec3 normal = normalize(vNormal);
       vec3 viewDir = normalize(vViewDir);
 
-      float NdotV = max(dot(normal, viewDir), 0.0);
+      float NdotV = clamp(dot(normal, viewDir), 0.0, 1.0);
       float fres = 1.0 - NdotV;
-      float fresStrong = pow(fres, 4.0);
 
-      // Variación adicional según posición mundial — pa que cada zona tenga
-      // su propio patrón iridiscente como si fueran capas de espesor distinto
-      float angleVariation = sin(vWorldPosition.x * 0.3 + uTime * 0.4)
-                           + cos(vWorldPosition.y * 0.4 + uTime * 0.3)
-                           + sin(vWorldPosition.z * 0.5);
-      angleVariation *= 0.08;
+      // ====== 1. REFRACCIÓN (la base "vidrio") ======
+      // Sampleamos el ambiente refractado a través de la ballena
+      vec3 refractDir = refract(-viewDir, normal, 0.85);
+      vec3 refractedColor = sampleEnv(refractDir);
+      // El "vidrio limpio" es lavanda claro porque eso es lo que hay detrás
+      vec3 glassBase = mix(vec3(0.95, 0.92, 0.98), refractedColor, 0.6);
 
-      // Thin-film color: base de la iridiscencia
-      vec3 filmColor = thinFilm(NdotV + angleVariation);
+      // ====== 2. REFLEXIÓN del environment ======
+      vec3 reflectDir = reflect(-viewDir, normal);
+      vec3 reflectedColor = sampleEnv(reflectDir);
 
-      // Segundo pattern superpuesto (más sutil) para riqueza visual
-      vec3 filmColor2 = thinFilm(NdotV * 1.4 + angleVariation * 2.0 + 0.33);
-      filmColor = mix(filmColor, filmColor2, 0.4);
+      // ====== 3. THIN-FILM iridiscente (la magia Noomo) ======
+      // El ángulo NdotV controla el "espesor" percibido del film
+      // Múltiples ciclos = arcoíris visible
+      float filmAngle = NdotV * 2.2 + sin(vWorldPosition.x * 0.4 + uTime * 0.3) * 0.15
+                                    + cos(vWorldPosition.y * 0.5 + uTime * 0.25) * 0.10;
+      vec3 filmColor = thinFilm(filmAngle, 0.82, 1.0);
 
-      // Highlight especular muy concentrado en bordes (rim glow)
-      float rim = pow(fres, 2.5);
+      // Segunda capa de iridiscencia (interferencia secundaria, más sutil)
+      float filmAngle2 = NdotV * 4.5 + uTime * 0.15;
+      vec3 filmColor2 = thinFilm(filmAngle2, 0.5, 1.0);
+      vec3 iridescent = mix(filmColor, filmColor2, 0.35);
 
-      // Composición final
-      vec3 finalColor = filmColor;
-      // Bloom blanco en bordes
-      finalColor += vec3(1.0) * rim * 0.5;
-      // Súper brillo en bordes extremos
-      finalColor += vec3(1.0) * fresStrong * 0.8;
+      // ====== 4. LIGHTING SUAVE (volumen, no shading duro) ======
+      // Simulamos una luz cenital pa que la ballena tenga forma
+      vec3 lightDir = normalize(vec3(0.3, 1.0, 0.5));
+      float diffuse = clamp(dot(normal, lightDir) * 0.5 + 0.5, 0.0, 1.0);  // wrap lighting suave
+      diffuse = pow(diffuse, 0.8);  // realzar zonas medias
 
-      // Saturar un poco
-      finalColor = mix(vec3(dot(finalColor, vec3(0.3, 0.59, 0.11))), finalColor, 1.2);
+      // ====== 5. COMPOSICIÓN FINAL ======
+      // Base: vidrio refractado modulado por la luz suave
+      vec3 finalColor = glassBase * (0.4 + diffuse * 0.6);
 
-      // Más opaco en zonas frontales, más translúcido en bordes (sentido de glass real)
-      float alpha = 0.85 + rim * 0.15;
+      // La iridiscencia se MEZCLA con el vidrio (no reemplaza)
+      // Más fuerte donde hay fresnel (bordes)
+      float iridMix = 0.35 + fres * 0.55;
+      finalColor = mix(finalColor, finalColor + iridescent * 0.9, iridMix);
+
+      // Reflexión del entorno (sutil en superficies frontales, fuerte en bordes)
+      finalColor = mix(finalColor, reflectedColor, fres * 0.25);
+
+      // Highlight especular blanco brillante (rim glow)
+      float rim = pow(fres, 3.0);
+      finalColor += vec3(1.0) * rim * 0.65;
+
+      // Sweet spot blanco en los puntos más brillantes
+      float hotspot = pow(fres, 6.0);
+      finalColor += vec3(1.0) * hotspot * 0.6;
+
+      // Alpha: más transparente en zonas frontales (efecto vidrio)
+      // Más opaco en bordes (donde la iridiscencia da color sólido)
+      float alpha = 0.75 + fres * 0.25;
 
       gl_FragColor = vec4(finalColor, alpha);
     }
@@ -1524,26 +1539,24 @@ const WHALE_GLB_URL = 'https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale
         // Aplicar glass material a TODOS los meshes del modelo
         // CRÍTICO: si es SkinnedMesh (con rig de huesos), el material debe tener skinning: true
         // sino la animación esqueletal no se aplicará y el modelo no se moverá.
+        // CRÍTICO 2: NO recomputar normales — las del GLB están suavizadas por el autor.
+        // Si se recomputan se vuelven "face normals" planas que crean cuadrados visibles.
         let hasSkinnedMesh = false;
         model.traverse((child) => {
           if (child.isMesh) {
             child.userData.originalMaterial = child.material;
             const isSkinned = child.isSkinnedMesh === true;
             if (isSkinned) hasSkinnedMesh = true;
-            // ShaderMaterial con skinning si el mesh está riggeado
             const glassMat = makeGlassMaterial(false);
             if (isSkinned) {
               glassMat.skinning = true;
-              // En Three.js r128, también hay que setear esto en defines para compatibilidad
               glassMat.defines = glassMat.defines || {};
               glassMat.defines.USE_SKINNING = '';
             }
             child.material = glassMat;
             child.castShadow = false;
             child.receiveShadow = false;
-            if (child.geometry) {
-              child.geometry.computeVertexNormals();
-            }
+            // NO computeVertexNormals — preservamos las del GLB que están suavizadas
           }
         });
         console.info('Modelo tiene SkinnedMesh:', hasSkinnedMesh);
