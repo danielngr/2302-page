@@ -2671,12 +2671,13 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     'top: 0', 'left: 0',
     'width: 100vw', 'height: 100vh',
     'pointer-events: none',
-    'z-index: 9996',
-    'mix-blend-mode: screen'   // la tinta brillante suma al fondo
+    'z-index: 9996'
+    // Sin mix-blend-mode — el shader maneja su propio alpha
   ].join(';');
   document.body.appendChild(canvas);
 
-  const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+  const glOpts = { alpha: true, premultipliedAlpha: false, antialias: false, depth: false, stencil: false };
+  const gl = canvas.getContext('webgl2', glOpts) || canvas.getContext('webgl', glOpts);
   if (!gl) {
     console.warn('[VRM] WebGL no soportado — fluid sim deshabilitado');
     return;
@@ -2873,6 +2874,9 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   `;
 
   // DISPLAY: renderiza la tinta con aberración cromática
+  // ★ CLAVE: el alpha del output = luminancia de la tinta.
+  // Zonas sin tinta (negras) = totalmente transparentes (no afectan al fondo).
+  // Solo donde hay tinta de verdad se ve el efecto.
   const displayShader = `
     precision highp float;
     varying vec2 vUv;
@@ -2889,7 +2893,9 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       float lum = dot(c, vec3(0.299, 0.587, 0.114));
       c = mix(vec3(lum), c, 1.4);
       
-      gl_FragColor = vec4(c * 1.2, 1.0);
+      // ★ Alpha = luminancia → zonas sin tinta son transparentes
+      float alpha = clamp(lum * 8.0, 0.0, 1.0);
+      gl_FragColor = vec4(c * 1.2, alpha);
     }
   `;
 
@@ -3207,13 +3213,23 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     dye.swap();
 
     // 9. DISPLAY — render final con aberración cromática
+    // Clear el canvas a transparente (importante: alpha = 0)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    
+    // Habilitar blending para que las zonas con alpha < 1 se mezclen con el fondo HTML
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    
     gl.useProgram(displayProg.program);
     bindQuad(displayProg.program);
     gl.uniform2f(displayProg.uniforms['texelSize'], 1 / canvas.width, 1 / canvas.height);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, dye.read.tex);
     gl.uniform1i(displayProg.uniforms['uTexture'], 0);
-    blit(null);   // a pantalla
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     requestAnimationFrame(step);
   }
