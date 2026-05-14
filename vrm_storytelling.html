@@ -1959,9 +1959,9 @@ const waterShader = {
     tDiffuse: { value: null },
     uWaterTexture: { value: waterTexture.texture },
     uTime: { value: 0 },
-    uStrength: { value: 0.55 },          // MÁXIMO visible
-    uChromaStrength: { value: 0.10 },    // MÁXIMO visible
-    uTurbulence: { value: 2.5 }          // MÁXIMO visible
+    uStrength: { value: 0.16 },          // Distorsión visible pero elegante
+    uChromaStrength: { value: 0.030 },   // Aberración cromática sutil pero perceptible
+    uTurbulence: { value: 0.8 }          // Turbulencia notable solo donde hay flow
   },
   vertexShader: `
     varying vec2 vUv;
@@ -2027,7 +2027,8 @@ const waterShader = {
       // El noise se anima con uTime → la turbulencia "fluye" sola.
       float n1 = fbm(vUv * 8.0 + uTime * 0.3 + dir * 2.0);
       float n2 = fbm(vUv * 8.0 - uTime * 0.25 + 19.7);
-      vec2 turbOffset = vec2(n1 - 0.5, n2 - 0.5) * force * uStrength * uTurbulence;
+      // Turbulence con falloff cuadrático: solo zonas con flow alto se turban
+      vec2 turbOffset = vec2(n1 - 0.5, n2 - 0.5) * (force * force) * uStrength * uTurbulence;
       distortedUv += turbOffset;
       
       // === 3. ABERRACIÓN CROMÁTICA PRISMÁTICA ===
@@ -2058,15 +2059,12 @@ const waterShader = {
     }
   `
 };
-const waterPass = new ShaderPass(waterShader);
-composer.addPass(waterPass);
+// waterShader / waterPass eliminados: no producían el look de filamentos iridiscentes.
+// El efecto del cursor se construye como overlay 2D fullscreen al final del archivo
+// (IridescentTrail). Permite filamentos con color/aberración cromática visible sobre todo.
 
 const outputPass = new OutputPass();
 composer.addPass(outputPass);
-
-// El efecto iridiscente del cursor se renderiza como overlay 2D fullscreen
-// (no como pass del composer WebGL), porque el composer solo afecta al canvas
-// de la ballena, no al resto del DOM. Ver bloque al final del archivo.
 
 /* ============================================================
    COREOGRAFÍA — La ballena nada por la escena
@@ -2277,10 +2275,9 @@ function animate() {
   if (mixer) mixer.update(dt);
 
   // ★★★ Actualizar WaterTexture cada frame (los ripples envejecen) ★★★
+  // (legacy — la WaterTexture la usa nada ahora; podríamos remover pero
+  //  preservamos el llamado por si más adelante hookeamos otro shader)
   waterTexture.update();
-  
-  // ★ Animar la turbulencia del waterShader (flow noise se "mueve" solo)
-  waterShader.uniforms.uTime.value = t;
   
   // ★ Actualizar el shader del fondo animado (god rays + caustics + sparkles)
   bgMaterial.uniforms.uTime.value = t;
@@ -2643,8 +2640,216 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
    — se implementará tras confirmar dirección con el usuario.)
    ============================================================ */
 
+/* ============================================================
+   IRIDESCENT INK TRAIL — Sistema de partículas iridiscentes del cursor
+   
+   Canvas 2D overlay sobre el WebGL que dibuja filamentos iridiscentes
+   tipo "tinta en agua" arrastrados por el cursor. Cada partícula tiene:
+   
+   • Posición + velocidad (heredada del cursor + perturbada por curl noise)
+   • Edad y color iridiscente único (HSL shifteado por edad)
+   • Trail: cada frame dibuja una LÍNEA desde su posición previa a la actual
+     (no solo un punto) → esto genera los FILAMENTOS visibles
+   • Curl noise = swirls/vórtices que mantienen las partículas en movimiento
+     orgánico aún después de que el cursor se detuvo
+   
+   Mix-blend-mode: screen → los colores SUMAN al fondo, brillan sobre cualquier
+   contenido sin taparlo.
+   ============================================================ */
+(() => {
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
 
+  // Canvas overlay fullscreen
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = [
+    'position: fixed',
+    'top: 0', 'left: 0',
+    'width: 100vw', 'height: 100vh',
+    'pointer-events: none',
+    'z-index: 9997'
+    // sin mix-blend-mode — los filamentos se pintan tal cual, máxima visibilidad
+  ].join(';');
+  document.body.appendChild(canvas);
 
+  console.log('%c[VRM] TRAIL CANVAS CREATED — should be visible at z-index 9997', 'color:#fff;background:#a020c0;padding:6px 10px;border-radius:4px;font-weight:bold;font-size:14px;');
+
+  const ctx = canvas.getContext('2d');
+  let w = 0, h = 0;
+  let dpr = 1;
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = window.innerWidth;
+    h = window.innerHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Pool de partículas — TODO subido para máxima visibilidad
+  const particles = [];
+  const MAX_PARTICLES = 800;
+  const PARTICLE_LIFE = 240;     // ~4 segundos
+  const SPAWN_PER_MOVE = 8;      // doble que antes
+
+  // Estado del cursor
+  let mouseX = -100, mouseY = -100;
+  let lastMouseX = -100, lastMouseY = -100;
+  let mouseVelX = 0, mouseVelY = 0;
+
+  window.addEventListener('mousemove', (e) => {
+    // Velocidad del cursor (smoothed)
+    mouseVelX = mouseVelX * 0.6 + (e.clientX - mouseX) * 0.4;
+    mouseVelY = mouseVelY * 0.6 + (e.clientY - mouseY) * 0.4;
+    lastMouseX = mouseX;
+    lastMouseY = mouseY;
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+
+    // Spawnea N partículas en la posición del cursor
+    for (let i = 0; i < SPAWN_PER_MOVE; i++) {
+      if (particles.length >= MAX_PARTICLES) particles.shift();  // FIFO si lleno
+
+      // Variación angular pequeña respecto a la dirección del movimiento
+      const angleVariation = (Math.random() - 0.5) * 0.4;
+      const cos = Math.cos(angleVariation), sin = Math.sin(angleVariation);
+      const baseVx = mouseVelX * 0.4;   // hereda velocidad del cursor (reducida)
+      const baseVy = mouseVelY * 0.4;
+      const vx = baseVx * cos - baseVy * sin;
+      const vy = baseVx * sin + baseVy * cos;
+
+      // Pequeño jitter inicial en la posición
+      const jx = (Math.random() - 0.5) * 8;
+      const jy = (Math.random() - 0.5) * 8;
+
+      particles.push({
+        x: e.clientX + jx,
+        y: e.clientY + jy,
+        prevX: e.clientX + jx,
+        prevY: e.clientY + jy,
+        vx: vx + (Math.random() - 0.5) * 2,
+        vy: vy + (Math.random() - 0.5) * 2,
+        age: 0,
+        life: PARTICLE_LIFE + Math.random() * 40,
+        hue: 200 + Math.random() * 160,
+        size: 3.0 + Math.random() * 3.5,     // ★ subido 1.5→3.0 (líneas más gruesas)
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+  }, { passive: true });
+
+  console.log('%c[VRM] Iridescent ink trail ACTIVE', 'color:#fff;background:#5030a0;padding:4px 8px;border-radius:4px;font-weight:bold;');
+
+  // Curl noise — genera vectores de velocidad que forman vórtices/swirls
+  // (Derivada parcial de un campo escalar de noise)
+  function hash(x, y) {
+    let h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+    return h - Math.floor(h);
+  }
+  function noise2D(x, y) {
+    const ix = Math.floor(x), iy = Math.floor(y);
+    const fx = x - ix, fy = y - iy;
+    const ux = fx * fx * (3 - 2 * fx);
+    const uy = fy * fy * (3 - 2 * fy);
+    const a = hash(ix, iy);
+    const b = hash(ix + 1, iy);
+    const c = hash(ix, iy + 1);
+    const d = hash(ix + 1, iy + 1);
+    return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+  }
+  function curlNoise(x, y, t) {
+    // Derivada numérica del noise para producir un campo vectorial sin divergencia
+    const eps = 0.5;
+    const n1 = noise2D(x + eps, y + t * 0.3);
+    const n2 = noise2D(x - eps, y + t * 0.3);
+    const n3 = noise2D(x, y + eps + t * 0.3);
+    const n4 = noise2D(x, y - eps + t * 0.3);
+    // Curl: (∂n/∂y, -∂n/∂x)
+    return {
+      cx: (n3 - n4) / (2 * eps),
+      cy: -(n1 - n2) / (2 * eps)
+    };
+  }
+
+  let startTime = performance.now();
+
+  function loop() {
+    const t = (performance.now() - startTime) * 0.001;
+
+    // Fade trail — limpia con alpha bajo para crear motion blur natural
+    // (los filamentos previos persisten un poco antes de desaparecer)
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0,0,0,0.10)';   // 0.10 = decae en ~10 frames
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'lighter';   // luego sumamos luz
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.age++;
+      if (p.age > p.life) {
+        particles.splice(i, 1);
+        continue;
+      }
+
+      // Apply curl noise — los vórtices que mantienen el movimiento orgánico
+      const curl = curlNoise(p.x * 0.008, p.y * 0.008, t);
+      // Fuerza del curl decae con la edad (más caos al inicio, más calma al final)
+      const curlStrength = (1 - p.age / p.life) * 3.5;
+      p.vx += curl.cx * curlStrength;
+      p.vy += curl.cy * curlStrength;
+
+      // Damping — fricción suave para que las partículas no aceleren al infinito
+      p.vx *= 0.96;
+      p.vy *= 0.96;
+
+      // Guardar posición previa (para dibujar el filamento como línea)
+      p.prevX = p.x;
+      p.prevY = p.y;
+      // Actualizar posición
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Color iridiscente que cambia con la edad
+      const lifeT = p.age / p.life;
+      const hue = (p.hue + lifeT * 60 + Math.sin(t + p.phase) * 20) % 360;
+      const fade = 1 - lifeT;
+      const easedFade = fade * fade;  // cubic ease out
+
+      // ABERRACIÓN CROMÁTICA: dibujamos 3 trazos con offsets diferentes en R/G/B
+      // (técnica clásica para simular dispersión prismática)
+      const lineWidth = p.size * easedFade;
+
+      // Canal magenta/rojo (offset positivo en X de velocidad)
+      ctx.strokeStyle = `hsla(${hue - 20}, 95%, 65%, ${easedFade * 0.55})`;
+      ctx.lineWidth = lineWidth;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(p.prevX + 1.2, p.prevY);
+      ctx.lineTo(p.x + 1.2, p.y);
+      ctx.stroke();
+
+      // Canal cyan/verde (sin offset, centro)
+      ctx.strokeStyle = `hsla(${hue}, 95%, 70%, ${easedFade * 0.70})`;
+      ctx.beginPath();
+      ctx.moveTo(p.prevX, p.prevY);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+
+      // Canal azul (offset negativo)
+      ctx.strokeStyle = `hsla(${hue + 20}, 95%, 65%, ${easedFade * 0.55})`;
+      ctx.beginPath();
+      ctx.moveTo(p.prevX - 1.2, p.prevY);
+      ctx.lineTo(p.x - 1.2, p.y);
+      ctx.stroke();
+    }
+
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
 </script>
 
 </body>
