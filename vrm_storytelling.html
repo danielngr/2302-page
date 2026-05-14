@@ -1824,6 +1824,15 @@ const CAMERA_PATH = [
   { sp: 1.00, z: 10, y:  0,    fov: 44 }
 ];
 
+// Pre-inicializa el yaw del whaleGroup para que arranque ya mirando hacia adelante.
+// Sin esto, el lerp angular puede tardar 1s en girarla 180° al cargar.
+// Usamos la dirección del path en sp=0 (de WHALE_PATH[0] a WHALE_PATH[1])
+// con el mismo +PI que el loop de animación.
+{
+  const a = WHALE_PATH[0], b = WHALE_PATH[1];
+  whaleGroup.rotation.y = Math.atan2(b.x - a.x, b.z - a.z) + Math.PI;
+}
+
 /* ============================================================
    PATH SYSTEM con CatmullRomCurve3
    
@@ -1966,9 +1975,12 @@ function animate() {
 
   // Orientación: la ballena mira hacia donde va el path
   // (siempre hacia adelante, nunca hacia atrás)
-  // El modelo de pepetrincado tiene la cabeza apuntando a un eje específico,
-  // necesitamos ajustar el offset según cómo viene del GLB.
-  const targetYaw = Math.atan2(swim.dx, swim.dz);
+  //
+  // FIX: atan2(swim.dx, swim.dz) orienta el frente del grupo hacia +dz,
+  // pero el modelo dentro del grupo tiene su cabeza apuntando al lado opuesto
+  // (combinado con el offset de model.rotation.y al cargar el GLB).
+  // Sumar PI invierte 180° el yaw → la cabeza queda al frente del movimiento.
+  const targetYaw = Math.atan2(swim.dx, swim.dz) + Math.PI;
 
   // Pitch: cuánto sube/baja (atenuado para que no se vea cabezona)
   const horizSpeed = Math.sqrt(swim.dx * swim.dx + swim.dz * swim.dz);
