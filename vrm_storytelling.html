@@ -1161,15 +1161,13 @@ function makeEnvironmentTexture() {
   c.height = size;
   const ctx = c.getContext('2d');
 
-  // ★ Environment equirectangular — paleta cyan/azul cristal (Swarovski blue)
-  // Lo que la ballena REFLEJA en su superficie. Si esto es violeta, el cristal
-  // se ve violeta. Lo enfriamos a azul-cyan para look de cristal facetado.
+  // ★ Environment equirectangular — paleta azul SATURADA (deep blue crystal)
   const baseGrad = ctx.createLinearGradient(0, 0, 0, size);
-  baseGrad.addColorStop(0.00, '#7898c8');   // top: azul medio
-  baseGrad.addColorStop(0.35, '#a0c0e0');   // upper-mid: azul cyan
-  baseGrad.addColorStop(0.55, '#c8d8e8');   // mid: azul claro pastel
-  baseGrad.addColorStop(0.75, '#d8e4ec');   // horizon: casi blanco azulado
-  baseGrad.addColorStop(1.00, '#5878a0');   // bottom: azul profundo
+  baseGrad.addColorStop(0.00, '#4878b0');   // top: azul medio saturado
+  baseGrad.addColorStop(0.35, '#6890c8');   // upper-mid: azul cyan
+  baseGrad.addColorStop(0.55, '#88b0d8');   // mid: azul claro
+  baseGrad.addColorStop(0.75, '#a8c4e0');   // horizon: azul pastel
+  baseGrad.addColorStop(1.00, '#305880');   // bottom: azul muy profundo
   ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, size * 2, size);
 
@@ -1184,17 +1182,17 @@ function makeEnvironmentTexture() {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // ★ SOL blanco pequeño en la esquina — coincide con el background
+  // ★ SOL blanco pequeño en la esquina
   drawSun(size * 1.64, size * 0.18, 220, 'rgba(255,255,255,0.85)', 0.85);
   drawSun(size * 1.64, size * 0.18, 110, 'rgba(255,255,255,1)', 1.0);
   drawSun(size * 1.64, size * 0.18, 50,  'rgba(255,255,255,1)', 1.0);
 
-  // Manchas de azul/cyan saturadas — son los que aparecen en los reflejos cristalinos
-  drawSun(size * 0.50, size * 0.30, 380, 'rgba(140,180,230,0.60)', 0.60); // azul medio
-  drawSun(size * 1.30, size * 0.40, 380, 'rgba(160,200,240,0.55)', 0.55); // azul cyan
-  drawSun(size * 0.30, size * 0.60, 320, 'rgba(120,200,240,0.55)', 0.55); // cyan brillante
-  drawSun(size * 1.10, size * 0.65, 320, 'rgba(180,210,240,0.50)', 0.50); // azul claro
-  drawSun(size * 0.85, size * 0.80, 380, 'rgba(100,160,210,0.50)', 0.50); // azul profundo
+  // Manchas azul saturado — los colores que aparecen en los reflejos del cristal azul
+  drawSun(size * 0.50, size * 0.30, 380, 'rgba(80,140,210,0.65)', 0.65);  // azul saturado izq
+  drawSun(size * 1.30, size * 0.40, 380, 'rgba(100,160,220,0.60)', 0.60); // azul cyan
+  drawSun(size * 0.30, size * 0.60, 320, 'rgba(60,180,230,0.60)', 0.60);  // cyan eléctrico
+  drawSun(size * 1.10, size * 0.65, 320, 'rgba(120,180,230,0.55)', 0.55); // azul medio
+  drawSun(size * 0.85, size * 0.80, 380, 'rgba(40,100,170,0.55)', 0.55);  // azul profundo
   
   // Highlights blancos puntuales — los "diamantes" de las facetas
   drawSun(size * 0.70, size * 0.25, 180, 'rgba(255,255,255,0.55)', 0.55);
@@ -1224,25 +1222,25 @@ pmremGenerator.dispose();
    puro. Esto hace que el cristal lea como SWAROVSKI (azul facetado)
    en lugar de cuarzo amatista (violeta).
    ============================================================ */
-scene.add(new THREE.AmbientLight(0xb8d8f0, 0.55));  // ambient azul cyan claro
+scene.add(new THREE.AmbientLight(0x6090c8, 0.55));  // ambient azul saturado
 
-// Key light: blanco frío puro desde donde está el sol
-const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+// Key light: blanco con tinte cyan (no puro blanco, para no lavar el azul)
+const keyLight = new THREE.DirectionalLight(0xe8f4ff, 0.95);
 keyLight.position.set(5, 6, 4);
 scene.add(keyLight);
 
-// Rim light cyan eléctrico — el "halo" del lado opuesto que separa la silueta
-const rimLight = new THREE.DirectionalLight(0x60c0f0, 1.4);
+// Rim light cyan eléctrico saturado — el "halo" del lado opuesto
+const rimLight = new THREE.DirectionalLight(0x40a0e8, 1.5);
 rimLight.position.set(-6, 3, -2);
 scene.add(rimLight);
 
-// Bottom fill azul profundo — base fría
-const bottomLight = new THREE.DirectionalLight(0x6090c0, 0.50);
+// Bottom fill azul profundo saturado — base fría intensa
+const bottomLight = new THREE.DirectionalLight(0x3060a0, 0.55);
 bottomLight.position.set(0, -4, 3);
 scene.add(bottomLight);
 
-// Top fill blanco azulado — refuerza el brillo de cristal
-const fillLight = new THREE.DirectionalLight(0xd8e8f8, 0.55);
+// Top fill cyan claro — refuerza el brillo de cristal azul
+const fillLight = new THREE.DirectionalLight(0xa0d0f0, 0.60);
 fillLight.position.set(1, 5, -6);
 scene.add(fillLight);
 
@@ -1392,28 +1390,29 @@ const iceNormalTexture = createIceNormalMap();
    El normalMap es lo único pintado: da micro-relieve cristalino.
    ============================================================ */
 const PHYSICAL_PARAMS = {
-  // ★ Color base: azul cristal hielo (Swarovski blue diamond)
-  color: 0xb8d8ec,
+  // ★ Color base: AZUL fuerte saturado (más vibrante que antes)
+  color: 0x70a8d8,
   
-  // ★ TRANSMISIÓN 0.40 — diamante facetado tiene MENOS transmission que vidrio liso
-  // (las facetas reflejan más de lo que dejan pasar — efecto diamante)
-  transmission: 0.40,
-  thickness: 1.0,
-  ior: 1.7,                       // ★ ior alto — refracción tipo diamante (real ~2.4, exageramos)
-  attenuationColor: 0x88b0d0,    // tinte azul claro del interior
-  attenuationDistance: 1.0,
+  // ★ TRANSMISIÓN 0.30 — bajamos para que el AZUL del cristal domine
+  // Si transmission es muy alto, el cristal se vuelve "vidrio transparente"
+  // y pierde el color. Bajando se mantiene el cuerpo azul saturado.
+  transmission: 0.30,
+  thickness: 1.2,
+  ior: 1.7,
+  attenuationColor: 0x3070a8,    // ★ azul profundo saturado — el cristal SE TIÑE azul fuerte por dentro
+  attenuationDistance: 0.7,       // ★ menor distancia = tinte más concentrado
   
-  // ★ IRIDESCENCIA: subtle rainbow flash en las facetas (como un diamante real)
+  // ★ IRIDESCENCIA — flash arcoíris sutil en las facetas
   iridescence: 0.7,
   iridescenceIOR: 1.4,
   iridescenceThicknessRange: [300, 700],
   
   // ★ CLEARCOAT máximo — barniz perfecto sobre las facetas
   clearcoat: 1.0,
-  clearcoatRoughness: 0.0,        // ★ CERO — espejo perfecto en cada faceta
+  clearcoatRoughness: 0.0,
   
-  metalness: 0.25,                // ★ subido — reflejos definidos (las facetas necesitan esto)
-  roughness: 0.05,                // ★ casi cero — espejo facetado
+  metalness: 0.30,                // ★ subido — reflejos más definidos sobre azul saturado
+  roughness: 0.05,
   
   // ★ NO normalMap — las facetas reales del flat shading reemplazan al normal
   // map procedural. Combinar ambos ensucia el look (compiten por simular relieve).
