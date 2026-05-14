@@ -1824,8 +1824,11 @@ class IridescentTrailTexture {
       const ry = point.y - this.last.y;
       const dist = Math.sqrt(rx * rx + ry * ry);
       if (dist > 0) { vx = rx / dist; vy = ry / dist; }
-      // Fuerza más generosa que waterTexture — queremos estelas visibles
-      force = Math.min(0.5 + dist * 80, 1);
+      // ★ DEBUG: piso de fuerza alto (0.8) — siempre escribe visible
+      force = Math.min(0.8 + dist * 80, 1);
+    } else {
+      // Primer punto: también con fuerza
+      force = 0.8;
     }
     this.last = { x: point.x, y: point.y };
     this.points.push({ x: point.x, y: point.y, age: 0, force, vx, vy });
@@ -1882,15 +1885,16 @@ class IridescentTrailTexture {
 }
 
 const iridescentTrail = new IridescentTrailTexture();
+console.log('%c[VRM] Iridescent trail loaded — move cursor to test', 'color: #b8d8ec; font-weight: bold; padding: 4px 8px; background: #4a3470; border-radius: 4px;');
 
 const iridescentTrailShader = {
   uniforms: {
     tDiffuse: { value: null },
     uTrail: { value: iridescentTrail.texture },
     uTime: { value: 0 },
-    uStrength: { value: 0.04 },           // distorsión del fondo
-    uChromaStrength: { value: 0.025 },    // aberración cromática en estela
-    uIridescenceStrength: { value: 0.5 }  // intensidad del shift iridiscente
+    uStrength: { value: 0.12 },           // ★ DEBUG: 3x más fuerte (0.04 → 0.12)
+    uChromaStrength: { value: 0.08 },     // ★ DEBUG: 3x más aberración (0.025 → 0.08)
+    uIridescenceStrength: { value: 1.2 }  // ★ DEBUG: máx visible (0.5 → 1.2)
   },
   vertexShader: `
     varying vec2 vUv;
