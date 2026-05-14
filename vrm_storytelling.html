@@ -3171,16 +3171,15 @@ function loadGLB() {
       console.info('SkinnedMesh detectado:', hasSkinnedMesh, '· Materials:', whaleMaterials.length);
 
       // Auto-fit
-      // CALIBRADO: targetSize=7 — balance para ballena que nada por toda
-      // la página. Lo suficientemente grande para verse cinematográfica en
-      // la apertura (z=-2, cruzando detrás del logo), y lo suficientemente
-      // chica en zonas lejanas (z=-9, escala perspectiva ~30% del tamaño
-      // hero por la distancia). En pose hero (z=2.8, distancia 6.7) la
-      // ballena ocupa ~30% del viewport — al lado del logo VRM, no encima.
+      // CALIBRADO: targetSize=4.0 — sobrio, premium. La ballena enmarcada
+      // por el logo VRM en el hero (logo ~3.5u ancho desktop / 2.94u móvil),
+      // la ballena ~4u por dimensión: asoma por los lados sin tapar el logo.
+      // Al fondo (z=-6), perspectiva reduce a ~1.7u efectivos en pantalla =
+      // presencia ambiente sutil, no protagonista.
       const bbox = new THREE.Box3().setFromObject(model);
       const size = bbox.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
-      const targetSize = 7.0;
+      const targetSize = 4.0;
       const scale = targetSize / maxDim;
       model.scale.setScalar(scale);
       const center = bbox.getCenter(new THREE.Vector3()).multiplyScalar(scale);
@@ -3638,39 +3637,51 @@ composer.addPass(outputPass);
    - Z varía mucho (-12 a +3) para usar profundidad como recurso, no solo XY
    ════════════════════════════════════════════════════════════════════════ */
 
-const _heroXScale = isMobile ? 0.50 : 1.0;
-const _heroYOffset = isMobile ? 0.40 : 0.0;
+/* ════════════════════════════════════════════════════════════════════════
+   METÁFORA: VRM es el cristal de un acuario. La ballena vive del otro lado.
+
+   La ballena Swarovski se ve enmarcada por el logo VRM en el hero. Asoma
+   por los costados, por arriba, por abajo de las letras — el logo le da
+   composición. Durante el scroll, vive a distintas profundidades del
+   "acuario", a veces cerca del cristal (presencia), a veces al fondo
+   (atmósfera). Vuelve a su pose hero en el cierre.
+
+   Calibración geométrica:
+   - Cámara móvil: z=13.5, FOV=55° → half_height ≈ 7.03u, half_width ≈ 3.34u
+     · Logo VRM mobile (44vw × ~37vw) → ~2.94u × ~2.46u en z=0
+     · Logo centrado horizontalmente, posicionado alto (margin-top 90px sobre flex-start)
+     · Centro vertical del logo en y_mundo ≈ +2.8
+
+   - Cámara desktop: z=9.5, FOV=42° → half_height ≈ 3.65u, half_width ≈ 6.49u
+     · Logo VRM desktop (clamp 32vw, max 520px) → ~3.5u × ~2.88u
+     · Centro del logo en y_mundo ≈ 0 (cover usa justify-content: center)
+
+   - targetSize=4.0 (en el GLB loader): ballena ocupa ~4u de mundo.
+     Mayor que el logo en ambos casos → asoma por los lados, no se esconde.
+   ════════════════════════════════════════════════════════════════════════ */
+
+// Y_OFFSET del centro del logo VRM en coordenadas mundo.
+// Móvil: el logo está alto en el viewport (~30% desde top) → y positivo.
+// Desktop: el logo está centrado → y ≈ 0.
+const _logoYWorld = isMobile ? 2.8 : 0.0;
+
+// X_SCALE comprime trayectoria lateral en móvil (viewport portrait estrecho).
+// 1.0 en desktop = libertad total; 0.45 en móvil = casi siempre cerca del centro.
+const _xScale = isMobile ? 0.45 : 1.0;
+
+// Helper para construir keyframes. Aplica el x_scale y suma el offset Y
+// del logo en móvil — los keyframes se escriben en "coordenadas de logo"
+// (y=0 = altura del logo), y luego se convierten a mundo.
+const _kf = (sp, xLogo, yLogo, z) => ({
+  sp,
+  x: xLogo * _xScale,
+  y: yLogo + _logoYWorld,
+  z
+});
 
 // ════════════════════════════════════════════════════════════════════════
-// POSE HERO MEMORABLE — Diagonal con cola sobre VRM
+// CÁMARA — estática cinematográfica, no se mueve
 // ════════════════════════════════════════════════════════════════════════
-// La posición es ARRIBA del centro vertical (y positivo alto) para que el
-// centro de la ballena esté por encima del logo. Como rotamos diagonalmente
-// (pitch+yaw), la cola (extremo +Z local del modelo, pero después de la
-// rotación del whaleGroup queda apuntando hacia arriba-izquierda) sobresale
-// por encima del logo VRM. La cabeza apunta hacia abajo-derecha.
-//
-// CRÍTICO: el yaw/pitch de esta pose se construye con un lookAtTarget
-// específico (no con el path-following normal). Eso vive en _heroQuatBase.
-
-const HERO_POSE = {
-  x: 0.5 * _heroXScale,   // ligeramente a la derecha del centro
-  y: 1.8 + _heroYOffset,  // ALTO — centro de ballena por encima del logo
-  z: 1.5,                 // distancia media
-  // Nota: el roll real lo da la combinación pitch+yaw del lookAt diagonal
-  roll: 0.0
-};
-
-// Target del lookAt para la pose hero — punto en el espacio donde la cabeza
-// "apunta". Está abajo-derecha del centro de la ballena → cabeza inclinada
-// hacia abajo-derecha → cola hacia arriba-izquierda (sobre el logo VRM).
-const HERO_LOOK_TARGET = {
-  x: HERO_POSE.x + 1.8,    // hacia la derecha del centro de la ballena
-  y: HERO_POSE.y - 2.5,    // y muy abajo — pitch fuerte hacia abajo
-  z: HERO_POSE.z + 0.5     // ligeramente hacia adelante (cámara)
-};
-
-// Cámara estática cinematográfica
 const _camZOff = isMobile ? 4 : 0;
 const _camFovOff = isMobile ? 13 : 0;
 const CAMERA_HERO = {
@@ -3680,107 +3691,91 @@ const CAMERA_HERO = {
 };
 
 // ════════════════════════════════════════════════════════════════════════
-// QUATERNION HERO BASE — calculado UNA vez. Es el "atractor" de rotación
-// cuando la ballena está en pose hero (sp ≈ 0).
+// PATH EDITORIAL — la ballena vive en el acuario detrás del cristal VRM
 // ════════════════════════════════════════════════════════════════════════
-const _heroQuatBase = (() => {
-  const eye = new THREE.Vector3(HERO_POSE.x, HERO_POSE.y, HERO_POSE.z);
-  const tgt = new THREE.Vector3(HERO_LOOK_TARGET.x, HERO_LOOK_TARGET.y, HERO_LOOK_TARGET.z);
-  const m = new THREE.Matrix4().lookAt(eye, tgt, new THREE.Vector3(0, 1, 0));
-  const q = new THREE.Quaternion().setFromRotationMatrix(m);
-  return q;
-})();
-
-// ════════════════════════════════════════════════════════════════════════
-// PATH EDITORIAL — keyframes refinados, sin reversas, cambios graduales
-// ════════════════════════════════════════════════════════════════════════
-const _kf = (sp, x, y, z, roll) => ({
-  sp,
-  x: x * _heroXScale,
-  y: y + _heroYOffset,
-  z,
-  roll
-});
+//
+// Coordenadas en este array están en "espacio del logo":
+//   x=0 → centrada con el logo VRM
+//   y=0 → altura del centro vertical del logo
+//   z=+1 → cerca del cristal (delante de él, donde se ve completa)
+//   z=0  → a la altura del cristal (las letras la enmarcan)
+//   z=-3 → media distancia, presencia ambiente
+//   z=-7 → lejos al fondo, casi imperceptible
+//
+// Cadencia: lejos / cerca / lejos / cerca. Cada cambio toma 15-25% de
+// scroll mínimo → todo lento, premium, con peso.
 
 const WHALE_PATH = [
-  // ═══════ ACTO 0: HERO POSE DIAGONAL (0-8%) ═══════
-  // Casi no se mueve — solo respira en su pose memorable
-  _kf(0.00,  0.5, 1.8, 1.5,  0.0),
-  _kf(0.04,  0.4, 1.7, 1.4,  0.0),
-  _kf(0.08,  0.2, 1.5, 1.0, -0.02),
+  // ═══════ HERO (sp 0-10%) ═══════
+  // Pose memorable: ballena cerca del cristal, centrada con el logo.
+  // z=+0.5 → delante del cristal, su cuerpo se ve a través/alrededor del logo.
+  _kf(0.00,  0.0,  0.0,  0.5),
+  _kf(0.05,  0.0,  0.0,  0.6),    // respira (z varía 0.1 en 5%)
+  _kf(0.10,  0.1, -0.1,  0.4),    // empieza a alejarse muy levemente
 
-  // ═══════ ACTO 1: BAJADA ELEGANTE A LA IZQUIERDA (8-25%) ═══════
-  // Empieza el descenso. Va hacia la izquierda gradualmente.
-  // Cambio sutil: x 0.2 → -1.5 en 17% (no abrupto)
-  _kf(0.13, -0.5, 1.0, 0.3, -0.04),
-  _kf(0.18, -1.5, 0.4,-0.5, -0.06),
-  _kf(0.25, -2.2,-0.2,-1.5, -0.08),
+  // ═══════ REIMAGINE + INICIO PHILOSOPHY (sp 10-25%) ═══════
+  // Se aleja al fondo, se vuelve presencia ambiente. Sutil deriva lateral.
+  _kf(0.18,  0.3, -0.3, -2.0),
+  _kf(0.25,  0.5, -0.5, -3.5),
 
-  // ═══════ ACTO 2: CONTINÚA AL FONDO IZQUIERDO (25-40%) ═══════
-  // Sigue bajando y profundizando — NO cambia de dirección, solo continúa
-  _kf(0.30, -2.6,-0.8,-3.0, -0.06),
-  _kf(0.35, -2.9,-1.3,-5.0, -0.02),
-  _kf(0.40, -3.0,-1.7,-7.0,  0.02),
+  // ═══════ PHILOSOPHY + WHY DIRECT (sp 25-40%) ═══════
+  // Vuelve a acercarse pero por el lateral izquierdo. No tapa texto,
+  // solo aparece como "pasaje" de presencia.
+  _kf(0.32, -1.0, -0.4, -1.5),
+  _kf(0.40, -2.0, -0.3, -0.5),    // cerca del cristal por la izquierda
 
-  // ═══════ ACTO 3: SERPENTINA POR LATERALES PROFUNDOS (40-65%) ═══════
-  // Aquí necesitamos cruzar de izquierda a derecha, pero MUY GRADUAL.
-  // 6 keyframes en 25% = densidad alta → curvas anchas sin esquinas.
-  // El movimiento es S-shape suave, no zigzag.
-  _kf(0.45, -2.8,-2.0,-8.5,  0.06),
-  _kf(0.50, -1.5,-2.1,-9.0,  0.08),  // empieza a cruzar el centro
-  _kf(0.55,  0.0,-2.0,-9.0,  0.08),  // pasando por el centro fondo
-  _kf(0.60,  1.5,-1.9,-8.5,  0.06),
-  _kf(0.65,  2.8,-1.5,-7.0,  0.02),
+  // ═══════ PROPERTIES — PULSO 1 (sp 40-50%) ═══════
+  // CADENCIA: pulso lejos. Se aleja al fondo central.
+  _kf(0.47, -1.0, -0.5, -5.0),
+  _kf(0.50,  0.0, -0.6, -6.0),    // punto más lejos del primer pulso
 
-  // ═══════ ACTO 4: REASCENSO POR LA DERECHA (65-75%) ═══════
-  // De fondo derecho profundo, asciende hacia frente y arriba
-  _kf(0.69,  3.4,-0.6,-4.5, -0.02),
-  _kf(0.72,  3.6, 0.5,-2.5, -0.06),
-  _kf(0.75,  3.3, 1.5,-1.0, -0.08),
+  // ═══════ PROPERTIES — PULSO 2 (sp 50-62%) ═══════
+  // Pulso cerca. Aparece por la derecha junto al cristal.
+  _kf(0.56,  1.5, -0.3, -2.0),
+  _kf(0.62,  2.0, -0.2, -0.5),    // cerca del cristal por la derecha
 
-  // ═══════ ACTO 5: POR ARRIBA DEL GRID (75-87%) ═══════
-  // Cruza de derecha a izquierda POR ENCIMA del contenido (y altos)
-  _kf(0.79,  1.8, 2.3, 0.0, -0.06),
-  _kf(0.83, -0.2, 2.5, 0.5, -0.04),
-  _kf(0.87, -1.8, 2.0, 0.0, -0.06),
+  // ═══════ PROPERTIES — PULSO 3 (sp 62-72%) ═══════
+  // Pulso lejos otra vez. Cruzando hacia la izquierda al fondo.
+  _kf(0.68,  0.8, -0.5, -4.5),
+  _kf(0.72, -0.5, -0.6, -6.0),
 
-  // ═══════ ACTO 6: DESCENSO A REVIEWS (87-93%) ═══════
-  // Baja elegantemente al centro-medio
-  _kf(0.90, -1.0, 0.8,-2.0, -0.10),
-  _kf(0.93,  0.3, 0.4,-3.2, -0.12),
+  // ═══════ GRID PROPERTIES — PULSO 4 (sp 72-85%) ═══════
+  // Último pulso cercano: arriba del grid (y positivo).
+  _kf(0.78, -1.5, +0.5, -2.0),
+  _kf(0.83, -0.5, +0.8, -1.0),    // cerca del cristal arriba-izquierda
+  _kf(0.86,  0.5, +0.6, -1.5),
 
-  // ═══════ ACTO 7: CIERRE CINEMATOGRÁFICO (93-100%) ═══════
-  // Pose final distante, derecha
-  _kf(0.97,  1.6, 0.3,-3.8, -0.14),
-  _kf(1.00,  2.4, 0.1,-4.2, -0.14)
+  // ═══════ REVIEWS (sp 85-95%) ═══════
+  // Se aleja para no distraer del texto largo. Presencia mínima.
+  _kf(0.90,  0.3, -0.2, -4.0),
+  _kf(0.95,  0.1, -0.1, -2.5),    // empieza a acercarse para el cierre
+
+  // ═══════ FINAL CTA (sp 95-100%) ═══════
+  // VUELVE A LA POSE HERO. Cierre del círculo narrativo.
+  _kf(0.98,  0.05, 0.0,  0.3),
+  _kf(1.00,  0.0,  0.0,  0.5)     // exacto igual al hero
 ];
 
 // ════════════════════════════════════════════════════════════════════════
-// APERTURA CINEMATOGRÁFICA — Path independiente basado en TIEMPO
+// APERTURA CINEMATOGRÁFICA — Emergencia lenta de la niebla del agua
 // ════════════════════════════════════════════════════════════════════════
-// La ballena cae desde arriba del frame, hace un arco amplio sobre el
-// logo VRM, y se asienta en pose diagonal. NO usa scroll, solo `elapsed`.
+// No "explota", no "cruza", no hay flash. Es un descubrimiento gradual.
+// La ballena estaba ahí desde antes, simplemente se acerca al cristal
+// mientras tu ojo empieza a percibirla.
+//
+// Empieza muy al fondo (z=-10), centrada con el logo. Se acerca en línea
+// recta sin desviarse. La cámara nunca se mueve. La opacidad sube de 0 a 1
+// con la cercanía (no es un fade, es niebla disipándose).
 
-// Posición desde donde EMERGE: arriba, ligeramente atrás, fuera del frame
 const REVEAL_FROM = {
-  x: -2.0 * _heroXScale,   // arriba-izquierda fuera del frame
-  y: 5.5 + _heroYOffset,   // muy arriba del viewport
-  z: -2.0,                 // detrás del plano del logo
+  x: 0.0,
+  y: 0.0 + _logoYWorld,
+  z: -10.0,    // muy al fondo, casi invisible por la profundidad
 };
 
-// Punto medio del arco — pasa por arriba del logo, en altura máxima
-const REVEAL_MID = {
-  x: 0.0,                  // sobre el centro del logo
-  y: 3.2 + _heroYOffset,   // alto pero ya bajando hacia hero
-  z: -1.0,                 // detrás del logo (cola por encima)
-};
-
-// Final del arco — donde aterriza antes del settle a pose hero
-const REVEAL_LAND = {
-  x: HERO_POSE.x - 0.3,
-  y: HERO_POSE.y + 0.6,
-  z: HERO_POSE.z - 0.2,
-};
+// El punto final del reveal es exactamente el WHALE_PATH[0] (hero pose).
+// No hay arco, no hay desvío. Línea recta, sutilísima curvatura por la
+// respiración y el drift orgánico que se aplican siempre.
 
 // ════════════════════════════════════════════════════════════════════════
 // SISTEMA DE ROTACIÓN — Variables auxiliares persistentes
@@ -3796,16 +3791,22 @@ const _whaleQuatSecondary = new THREE.Quaternion();
 const _whaleEulerRoll = new THREE.Euler(0, 0, 0, 'XYZ');
 const _whaleQuatRoll = new THREE.Quaternion();
 
-const _lastValidSwim = { dx: 0, dy: -0.3, dz: 0.95 };  // dirección inicial: hacia adelante-abajo
+// Dirección de natación: la ballena ENTRA al cristal en el hero, así que
+// inicialmente apunta hacia +z (hacia la cámara).
+const _lastValidSwim = { dx: 0, dy: 0, dz: 1 };
 let _smoothedBank = 0;
 
-// Pre-inicialización: arranca arriba del frame, invisible
+// ════════════════════════════════════════════════════════════════════════
+// PRE-INICIALIZACIÓN — ballena arranca al fondo, invisible
+// ════════════════════════════════════════════════════════════════════════
 whaleGroup.position.set(REVEAL_FROM.x, REVEAL_FROM.y, REVEAL_FROM.z);
 whaleGroup.scale.setScalar(0);
-// Quaternion inicial: apuntando hacia abajo-adelante (donde va a caer)
 {
+  // Apunta hacia +z (cámara) desde el inicio. Como la cabeza del modelo
+  // está orientada a -Z después del rotation.y=-PI/2, un lookAt en +z
+  // hace que mire hacia el espectador (correcto para entrar al cristal).
   const initEye = new THREE.Vector3(REVEAL_FROM.x, REVEAL_FROM.y, REVEAL_FROM.z);
-  const initTarget = new THREE.Vector3(REVEAL_MID.x, REVEAL_MID.y, REVEAL_MID.z);
+  const initTarget = new THREE.Vector3(0, _logoYWorld, 0); // hacia la pose hero
   const initMat = new THREE.Matrix4().lookAt(initEye, initTarget, _whaleUp);
   whaleGroup.quaternion.setFromRotationMatrix(initMat);
 }
@@ -3821,14 +3822,14 @@ function easeInOutCubic(t) {
 // ════════════════════════════════════════════════════════════════════════
 // CURVA SPLINE — interpolación suave continua del WHALE_PATH
 // ════════════════════════════════════════════════════════════════════════
+// Tension bajo (0.3) → curvas anchas, sin esquinas agudas en keyframes.
 const _whaleVecs = WHALE_PATH.map(p => new THREE.Vector3(p.x, p.y, p.z));
 const _whaleCurve = new THREE.CatmullRomCurve3(_whaleVecs, false, 'catmullrom', 0.3);
-const _whaleRolls = WHALE_PATH.map(p => p.roll);
 
 /**
- * Obtiene posición + roll en el path para un sp dado (0..1).
- * Usa smootherstep dentro de cada segmento para suavizar la velocidad
- * cerca de los keyframes, evitando la sensación de "snap" a un punto.
+ * Obtiene posición en el path para un sp dado (0..1).
+ * Usa smootherstep dentro de cada segmento → velocidad suavizada cerca
+ * de los keyframes. No devuelve roll (el roll se calcula del banking).
  */
 function getPathPoint(path, sp) {
   let prevIdx = 0;
@@ -3844,8 +3845,7 @@ function getPathPoint(path, sp) {
   const localT = range > 0 ? smootherstep((sp - path[prevIdx].sp) / range) : 0;
   const tCurve = (prevIdx + localT) / (path.length - 1);
   const pos = _whaleCurve.getPoint(Math.max(0, Math.min(1, tCurve)));
-  const roll = lerp(_whaleRolls[prevIdx], _whaleRolls[nextIdx], localT);
-  return { x: pos.x, y: pos.y, z: pos.z, roll };
+  return { x: pos.x, y: pos.y, z: pos.z };
 }
 
 /**
@@ -3905,82 +3905,29 @@ if (!isTouchDevice) {
 }
 
 /* ════════════════════════════════════════════════════════════════════════
-   BLOOM FLASH — pulso de bloom que ilumina el logo VRM
-   ════════════════════════════════════════════════════════════════════════ */
-const BLOOM_BASE = 0.26;
-const BLOOM_PEAK = 1.30;
-const FLASH_START_TIME = 2.6;
-const FLASH_DURATION = 1.2;
-let _flashFired = false;
-
-/* ════════════════════════════════════════════════════════════════════════
-   APERTURA CINEMATOGRÁFICA — Tiempos (segundos desde modelLoaded)
+   APERTURA — Emergencia lenta y reverencial
    ════════════════════════════════════════════════════════════════════════
-   La apertura tiene 3 fases con quaternions lookAt específicos para que
-   la ballena se vea creíble en cada momento:
+   No hay flash, no hay arco, no hay actos. La ballena estaba en las
+   profundidades del agua (z=-10) y se acerca al cristal lentamente.
 
-     0.0–0.5    Negro (escala 0, ballena cargada pero invisible)
-     0.5–2.2    DESCIENDE: cae desde REVEAL_FROM (arriba-izq, fuera del
-                frame) hacia REVEAL_MID (pasando sobre el logo). lookAt
-                target adelante-abajo → ballena diagonal apuntando hacia
-                abajo, como si "cayera" hacia el logo.
-     2.2–3.4    ARCO HERO: hace un arco amplio sobre el logo, la cola pasa
-                por encima de las letras VRM. Posición se mueve de
-                REVEAL_MID hacia REVEAL_LAND. lookAt se rota gradualmente
-                hacia el HERO_LOOK_TARGET (la pose memorable).
-     3.4–4.6    SETTLE: desde REVEAL_LAND hasta HERO_POSE. Quaternion
-                ya en HERO_QUAT, solo se afina la posición y se aplican
-                las capas de vida sutil.
-     4.6+       LOCKED. El scroll y el path toman el control.
+   Tiempos (segundos desde modelLoaded):
+     0.0 - 0.6   Invisible (escala 0). Espera que el loader/eyebrow/logo
+                  empiecen a establecerse (logo VRM aparece a CSS 2.4s
+                  del DOM, pero el modelo carga en paralelo así que
+                  alineamos a partir de modelLoaded).
+     0.6 - 4.5   Emergencia lenta: escala 0 → 1, posición REVEAL_FROM →
+                  WHALE_PATH[0]. Es un crossfade lento de presencia.
+                  La opacidad sigue la escala (la "niebla" disipa).
+     4.5 +       Control completo del path de scroll.
 
-   Importante: durante toda la apertura, la rotación se calcula con un
-   slerp suave entre los quaternions intermedios — nunca hay un "snap".  */
-const OPENING_DESC_START = 0.5;
-const OPENING_DESC_END = 2.2;
-const OPENING_ARC_END = 3.4;
-const OPENING_SETTLE_END = 4.6;
-const OPENING_END = 4.6;
-
+   La cámara nunca se mueve. El bloom queda en 0.26 fijo siempre.
+   ════════════════════════════════════════════════════════════════════════ */
+const OPENING_START = 0.6;
+const OPENING_END = 4.5;
 let revealStartTime = null;
 
-/* ════════════════════════════════════════════════════════════════════════
-   QUATERNIONS INTERMEDIOS DE APERTURA
-   ════════════════════════════════════════════════════════════════════════
-   Construidos una vez al cargar. Son los "atractores" de rotación en
-   cada momento de la apertura. El slerp temporal interpola suavemente
-   entre ellos durante la animación.                                     */
-
-// Quaternion del descenso: la ballena cae diagonalmente, cabeza hacia
-// abajo-adelante, cola hacia atrás-arriba
-function _buildOpeningQuat(eyePos, targetPos, rollRad) {
-  const eye = new THREE.Vector3(eyePos.x, eyePos.y, eyePos.z);
-  const tgt = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
-  const m = new THREE.Matrix4().lookAt(eye, tgt, new THREE.Vector3(0, 1, 0));
-  const q = new THREE.Quaternion().setFromRotationMatrix(m);
-  if (rollRad) {
-    const rollQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, rollRad, 'XYZ'));
-    q.multiply(rollQ);
-  }
-  return q;
-}
-
-// Quaternion en la cima del descenso: mira hacia adelante-abajo
-const _quatDescend = _buildOpeningQuat(
-  REVEAL_FROM,
-  { x: REVEAL_MID.x + 0.5, y: REVEAL_MID.y - 1.5, z: REVEAL_MID.z + 0.5 },
-  -0.05
-);
-
-// Quaternion en el punto medio del arco (sobre el logo): cabeza inclinada
-// hacia abajo-derecha, cola hacia arriba-izquierda (sobre el logo)
-const _quatArc = _buildOpeningQuat(
-  REVEAL_MID,
-  { x: REVEAL_MID.x + 2.0, y: REVEAL_MID.y - 2.5, z: REVEAL_MID.z + 1.0 },
-  0.0
-);
-
-// Quaternion final = el HERO base (calculado arriba)
-// _heroQuatBase ya existe.
+// Bloom calmado — sin flash dramático. Solo iridiscencia natural.
+bloomPass.strength = 0.26;
 
 function animate() {
   const dt = clock.getDelta();
@@ -3995,7 +3942,7 @@ function animate() {
   const sp = scrollProgress;
 
   // ════════════════════════════════════════════════════════════════════
-  // GATING — esperar a que el modelo cargue antes de empezar la apertura
+  // GATING — el reveal arranca cuando modelLoaded === true
   // ════════════════════════════════════════════════════════════════════
   if (modelLoaded && revealStartTime === null) {
     revealStartTime = performance.now() / 1000;
@@ -4004,206 +3951,162 @@ function animate() {
     ? 0
     : performance.now() / 1000 - revealStartTime;
 
-  // ════════════════════════════════════════════════════════════════════
-  // FLASH BLOOM
-  // ════════════════════════════════════════════════════════════════════
-  if (!_flashFired && revealStartTime !== null && elapsed > FLASH_START_TIME) {
-    _flashFired = true;
-  }
-  let bloomTarget = BLOOM_BASE;
-  if (_flashFired) {
-    const flashLocal = (elapsed - FLASH_START_TIME) / FLASH_DURATION;
-    if (flashLocal < 1.0) {
-      const bell = Math.sin(flashLocal * Math.PI);
-      bloomTarget = BLOOM_BASE + (BLOOM_PEAK - BLOOM_BASE) * bell;
-    }
-  }
-  bloomPass.strength += (bloomTarget - bloomPass.strength) * Math.min(1, dt * 4.0);
-
-  // ════════════════════════════════════════════════════════════════════
-  // CAPAS DE VIDA SUTIL — multi-frecuencia desincronizada
-  // ════════════════════════════════════════════════════════════════════
-  const dorsalBob = Math.sin(t * 0.55 + 1.9) * 0.020;
-  const tailUndulation = Math.sin(t * 0.95 + 0.4) * 0.030;
-  const microShimmer = Math.sin(t * 2.1 + 4.3) * 0.006;
-  const cinematicRoll = Math.sin(t * 0.78 + 2.7) * 0.030;
-
-  const driftX = (Math.sin(t * 0.43 + 1.1) + Math.sin(t * 0.31 + 4.2) * 0.6) * 0.030;
-  const driftY = (Math.sin(t * 0.37 + 2.7) + Math.sin(t * 0.29 + 0.8) * 0.6) * 0.025;
-  const driftZ = Math.sin(t * 0.41 + 3.3) * 0.040;
-
-  const breath = 1.0 + Math.sin(t * 0.42) * 0.006;
-
-  // ════════════════════════════════════════════════════════════════════
-  // DETERMINAR POSICIÓN + QUATERNION TARGET
-  // 
-  // Tres ramas:
-  //   A) revealStartTime === null → modelo cargando, congelado en REVEAL_FROM
-  //   B) elapsed < OPENING_END → apertura cinematográfica activa
-  //   C) elapsed >= OPENING_END → path de scroll domina
-  // ════════════════════════════════════════════════════════════════════
-  let targetPosX, targetPosY, targetPosZ;
-  let targetQuat = null;
-  let inOpening = true;
-  let useHeroQuat = false;  // si true, el quaternion target es _heroQuatBase
-
-  if (revealStartTime === null) {
-    // ━━━ RAMA A: cargando ━━━
-    targetPosX = REVEAL_FROM.x;
-    targetPosY = REVEAL_FROM.y;
-    targetPosZ = REVEAL_FROM.z;
-    targetQuat = _quatDescend;
+  // Reveal progress: 0 (invisible al fondo) → 1 (en pose hero)
+  let revealProgress;
+  if (revealStartTime === null || elapsed < OPENING_START) {
+    revealProgress = 0;
   } else if (elapsed < OPENING_END) {
-    // ━━━ RAMA B: apertura cinematográfica ━━━
-
-    if (elapsed < OPENING_DESC_END) {
-      // FASE 1: DESCIENDE de REVEAL_FROM a REVEAL_MID
-      const localT = (elapsed - OPENING_DESC_START) / (OPENING_DESC_END - OPENING_DESC_START);
-      const k = Math.max(0, Math.min(1, localT));
-      const ek = easeOutCubic(k);
-      targetPosX = lerp(REVEAL_FROM.x, REVEAL_MID.x, ek);
-      targetPosY = lerp(REVEAL_FROM.y, REVEAL_MID.y, ek);
-      targetPosZ = lerp(REVEAL_FROM.z, REVEAL_MID.z, ek);
-      // Slerp del quaternion: empieza en _quatDescend, hacia _quatArc al final
-      targetQuat = new THREE.Quaternion();
-      targetQuat.slerpQuaternions(_quatDescend, _quatArc, ek * 0.6);
-
-    } else if (elapsed < OPENING_ARC_END) {
-      // FASE 2: ARCO sobre el logo (REVEAL_MID → REVEAL_LAND)
-      const localT = (elapsed - OPENING_DESC_END) / (OPENING_ARC_END - OPENING_DESC_END);
-      const k = Math.max(0, Math.min(1, localT));
-      const ek = easeInOutCubic(k);
-      // Arco curvo: añade un "peak" vertical sobre el logo
-      const archHeight = Math.sin(k * Math.PI) * 0.6;
-      targetPosX = lerp(REVEAL_MID.x, REVEAL_LAND.x, ek);
-      targetPosY = lerp(REVEAL_MID.y, REVEAL_LAND.y, ek) + archHeight;
-      targetPosZ = lerp(REVEAL_MID.z, REVEAL_LAND.z, ek);
-      // Quaternion: rota desde _quatArc hacia _heroQuatBase
-      targetQuat = new THREE.Quaternion();
-      targetQuat.slerpQuaternions(_quatArc, _heroQuatBase, ek);
-
-    } else {
-      // FASE 3: SETTLE (REVEAL_LAND → HERO_POSE)
-      const localT = (elapsed - OPENING_ARC_END) / (OPENING_SETTLE_END - OPENING_ARC_END);
-      const k = Math.max(0, Math.min(1, localT));
-      const ek = easeInOutCubic(k);
-      targetPosX = lerp(REVEAL_LAND.x, HERO_POSE.x, ek);
-      targetPosY = lerp(REVEAL_LAND.y, HERO_POSE.y, ek);
-      targetPosZ = lerp(REVEAL_LAND.z, HERO_POSE.z, ek);
-      // Quaternion: ya en _heroQuatBase desde inicio del settle
-      targetQuat = _heroQuatBase;
-    }
+    const localT = (elapsed - OPENING_START) / (OPENING_END - OPENING_START);
+    revealProgress = smootherstep(localT);  // curva super suave, sin acelerones
   } else {
-    // ━━━ RAMA C: path de scroll ━━━
-    inOpening = false;
-    const pathPose = getPathPoint(WHALE_PATH, sp);
-    targetPosX = pathPose.x;
-    targetPosY = pathPose.y;
-    targetPosZ = pathPose.z;
-
-    // En la zona hero (sp < 0.06) usamos el quaternion hero fijo —
-    // garantiza la pose memorable. Más allá, usamos lookAt(swim direction).
-    if (sp < 0.06) {
-      // Pose hero memorable bloqueada
-      targetQuat = _heroQuatBase;
-      useHeroQuat = true;
-    } else {
-      // Path normal: usar dirección de natación
-      // Transición suave de quaternion hero → path lookAt entre sp 0.04 y 0.10
-      const pathSwim = getSwimDirection(WHALE_PATH, sp);
-      const swimLen = Math.hypot(pathSwim.dx, pathSwim.dy, pathSwim.dz);
-      let useDx, useDy, useDz;
-      if (swimLen > 0.02) {
-        useDx = pathSwim.dx / swimLen;
-        useDy = pathSwim.dy / swimLen;
-        useDz = pathSwim.dz / swimLen;
-        _lastValidSwim.dx = useDx;
-        _lastValidSwim.dy = useDy;
-        _lastValidSwim.dz = useDz;
-      } else {
-        useDx = _lastValidSwim.dx;
-        useDy = _lastValidSwim.dy;
-        useDz = _lastValidSwim.dz;
-      }
-      _whaleEye.set(targetPosX, targetPosY, targetPosZ);
-      _whaleTarget.set(targetPosX + useDx, targetPosY + useDy, targetPosZ + useDz);
-      _whaleMatTarget.lookAt(_whaleEye, _whaleTarget, _whaleUp);
-      const pathQuat = new THREE.Quaternion().setFromRotationMatrix(_whaleMatTarget);
-
-      // Mezcla con _heroQuatBase si estamos cerca de sp=0.06 (transición suave)
-      if (sp < 0.10) {
-        const blend = smoothstep((sp - 0.06) / 0.04);
-        targetQuat = new THREE.Quaternion();
-        targetQuat.slerpQuaternions(_heroQuatBase, pathQuat, blend);
-      } else {
-        targetQuat = pathQuat;
-      }
-    }
+    revealProgress = 1;
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // APLICAR POSICIÓN — lerp temporal con peso cinematográfico
+  // CAPAS DE VIDA SUTIL — multi-frecuencia, fases desincronizadas
   // 
-  // El drift orgánico se aplica encima cuando NO estamos en apertura,
-  // porque la apertura tiene su propia coreografía precisa que un drift
-  // estropearía. En scroll: drift completo.
+  // Estos valores SIEMPRE están activos (la ballena vive incluso quieta).
+  // Amplitudes pequeñas (≤0.04u/0.03rad) para que sea sutil, no payaso.
   // ════════════════════════════════════════════════════════════════════
-  const driftMix = inOpening ? 0.2 : 1.0;
-  const finalX = targetPosX + driftX * driftMix;
-  const finalY = targetPosY + driftY * driftMix;
-  const finalZ = targetPosZ + driftZ * driftMix;
+  const dorsalBob = Math.sin(t * 0.55 + 1.9) * 0.018;
+  const tailUndulation = Math.sin(t * 0.85 + 0.4) * 0.025;
+  const microShimmer = Math.sin(t * 2.1 + 4.3) * 0.005;
+  const cinematicRoll = Math.sin(t * 0.62 + 2.7) * 0.022;
 
-  const posLerp = inOpening
-    ? Math.min(1, dt * 4.5)   // apertura: responsivo (sigue la coreografía)
-    : Math.min(1, dt * 2.5);  // scroll: peso cinematográfico
+  // Drift orgánico de posición (Perlin approx con suma de senos)
+  const driftX = (Math.sin(t * 0.37 + 1.1) + Math.sin(t * 0.29 + 4.2) * 0.6) * 0.025;
+  const driftY = (Math.sin(t * 0.33 + 2.7) + Math.sin(t * 0.27 + 0.8) * 0.6) * 0.020;
+  const driftZ = Math.sin(t * 0.41 + 3.3) * 0.030;
+
+  const breath = 1.0 + Math.sin(t * 0.38) * 0.005;
+
+  // ════════════════════════════════════════════════════════════════════
+  // DETERMINAR POSICIÓN TARGET — pure scroll path después del reveal.
+  // Durante el reveal, lerp lineal entre REVEAL_FROM y WHALE_PATH[0].
+  // ════════════════════════════════════════════════════════════════════
+  const heroPathPose = getPathPoint(WHALE_PATH, sp);
+  let targetPosX, targetPosY, targetPosZ;
+
+  if (revealProgress < 1.0) {
+    // Reveal en progreso: ballena emerge del fondo hacia la pose hero
+    const k = revealProgress;
+    targetPosX = lerp(REVEAL_FROM.x, heroPathPose.x, k);
+    targetPosY = lerp(REVEAL_FROM.y, heroPathPose.y, k);
+    targetPosZ = lerp(REVEAL_FROM.z, heroPathPose.z, k);
+  } else {
+    // Reveal completo: scroll path domina
+    targetPosX = heroPathPose.x;
+    targetPosY = heroPathPose.y;
+    targetPosZ = heroPathPose.z;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // QUATERNION TARGET — lookAt en la dirección de natación.
+  //
+  // La ballena siempre mira HACIA donde nada. Durante el reveal, eso
+  // significa "hacia el cristal" (z=+0.5). En scroll, sigue la derivada
+  // del path. Sin "pose hero memorable" forzada — la pose natural es
+  // simplemente "la ballena viendo hacia donde va".
+  // ════════════════════════════════════════════════════════════════════
+  let swimDx, swimDy, swimDz;
+
+  if (revealProgress < 1.0) {
+    // Durante reveal, dirección de natación: REVEAL_FROM → hero
+    swimDx = heroPathPose.x - REVEAL_FROM.x;
+    swimDy = heroPathPose.y - REVEAL_FROM.y;
+    swimDz = heroPathPose.z - REVEAL_FROM.z;
+  } else {
+    // En scroll, derivada del path
+    const pathSwim = getSwimDirection(WHALE_PATH, sp);
+    swimDx = pathSwim.dx;
+    swimDy = pathSwim.dy;
+    swimDz = pathSwim.dz;
+  }
+
+  const swimLen = Math.hypot(swimDx, swimDy, swimDz);
+  let useDx, useDy, useDz;
+  if (swimLen > 0.001) {
+    useDx = swimDx / swimLen;
+    useDy = swimDy / swimLen;
+    useDz = swimDz / swimLen;
+    _lastValidSwim.dx = useDx;
+    _lastValidSwim.dy = useDy;
+    _lastValidSwim.dz = useDz;
+  } else {
+    useDx = _lastValidSwim.dx;
+    useDy = _lastValidSwim.dy;
+    useDz = _lastValidSwim.dz;
+  }
+
+  _whaleEye.set(targetPosX, targetPosY, targetPosZ);
+  _whaleTarget.set(targetPosX + useDx, targetPosY + useDy, targetPosZ + useDz);
+  _whaleMatTarget.lookAt(_whaleEye, _whaleTarget, _whaleUp);
+  _whaleQuatTarget.setFromRotationMatrix(_whaleMatTarget);
+
+  // ════════════════════════════════════════════════════════════════════
+  // APLICAR POSICIÓN — lerp suave + drift orgánico encima
+  // 
+  // Drift es ±0.03u, completamente sutil. Le da "vida" al estar quieta
+  // (en la pose hero) sin que se note como movimiento intencional.
+  // ════════════════════════════════════════════════════════════════════
+  const finalX = targetPosX + driftX;
+  const finalY = targetPosY + driftY;
+  const finalZ = targetPosZ + driftZ;
+
+  // Lerp temporal lento — peso cinematográfico, no jitter.
+  const posLerp = Math.min(1, dt * 2.0);
   whaleGroup.position.x += (finalX - whaleGroup.position.x) * posLerp;
   whaleGroup.position.y += (finalY - whaleGroup.position.y) * posLerp;
   whaleGroup.position.z += (finalZ - whaleGroup.position.z) * posLerp;
 
   // ════════════════════════════════════════════════════════════════════
-  // APLICAR ROTACIÓN — construir final con roll cinematográfico + 
-  // secondary motion, slerp suave hacia el quaternion target.
+  // APLICAR ROTACIÓN — lookAt swim + banking + secondary motion
   // 
-  // Limite de velocidad angular para evitar giros bruscos / efecto trompo.
+  // Banking dinámico: cuando el path cambia de dirección lateralmente,
+  // la ballena se inclina ligeramente (como un avión en curva). Esto
+  // hace que los giros se vean orgánicos, no robóticos.
   // ════════════════════════════════════════════════════════════════════
-  _whaleQuatFinal.copy(targetQuat);
+  _whaleQuatFinal.copy(_whaleQuatTarget);
 
-  // Banking dinámico solo en scroll path (no en apertura ni hero pose)
+  // Banking dinámico calculado solo cuando hay path (no en reveal)
   let dynamicBank = 0;
-  if (!inOpening && !useHeroQuat && sp > 0.08) {
-    const lookahead = Math.min(0.999, sp + 0.04);
+  if (revealProgress >= 1.0) {
+    const lookahead = Math.min(0.999, sp + 0.05);
     const swimAhead = getSwimDirection(WHALE_PATH, lookahead);
-    const pathSwim = getSwimDirection(WHALE_PATH, sp);
-    const yawNow = Math.atan2(pathSwim.dx, pathSwim.dz);
+    const yawNow = Math.atan2(useDx, useDz);
     const yawAhead = Math.atan2(swimAhead.dx, swimAhead.dz);
     let yawDelta = yawAhead - yawNow;
     while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
     while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
-    const BANK_INTENSITY = 1.0;
-    const BANK_MAX = Math.PI / 7;  // ~25° max — más conservador
+    const BANK_INTENSITY = 0.9;
+    const BANK_MAX = Math.PI / 8;  // ~22° max — muy conservador, ballena real
     dynamicBank = -yawDelta * BANK_INTENSITY;
     if (dynamicBank > BANK_MAX) dynamicBank = BANK_MAX;
     if (dynamicBank < -BANK_MAX) dynamicBank = -BANK_MAX;
   }
 
-  const targetBank = dynamicBank + cinematicRoll * (inOpening ? 0.3 : 1.0);
+  const targetBank = dynamicBank + cinematicRoll;
   _smoothedBank += (targetBank - _smoothedBank) * Math.min(1, dt * 2.0);
 
   _whaleEulerRoll.set(0, 0, _smoothedBank, 'XYZ');
   _whaleQuatRoll.setFromEuler(_whaleEulerRoll);
   _whaleQuatFinal.multiply(_whaleQuatRoll);
 
-  // Secondary motion: respiración del lomo + ondulación natural de la cola
+  // Secondary motion: respiración + cola natural (escalado por reveal)
   _whaleEulerSecondary.set(
-    dorsalBob + microShimmer,
-    tailUndulation,
+    (dorsalBob + microShimmer) * revealProgress,
+    tailUndulation * revealProgress,
     0,
     'XYZ'
   );
   _whaleQuatSecondary.setFromEuler(_whaleEulerSecondary);
   _whaleQuatFinal.multiply(_whaleQuatSecondary);
 
-  // Slerp con limitación de velocidad angular — sin giros bruscos
+  // Slerp con limitación de velocidad angular — sin giros bruscos.
+  // Velocidad MUY baja: 0.5 rad/s = ~29°/s. Para una ballena de 30T es
+  // exactamente la cadencia esperada. Aumenta sutilmente durante reveal
+  // para que la apertura no se sienta congelada.
+  const MAX_ANGULAR_SPEED = revealProgress < 1.0 ? 0.9 : 0.5;
   const dotProduct = Math.abs(
     whaleGroup.quaternion.x * _whaleQuatFinal.x +
     whaleGroup.quaternion.y * _whaleQuatFinal.y +
@@ -4212,47 +4115,32 @@ function animate() {
   );
   const clampedDot = Math.max(-1, Math.min(1, dotProduct));
   const angleToTarget = 2 * Math.acos(clampedDot);
-
-  // Velocidad angular máxima: más alta en apertura (precisa), 
-  // más baja en scroll (cinematográfica con peso)
-  const MAX_ANGULAR_SPEED = inOpening ? 2.0 : 0.7;  // rad/s
   const maxRotationThisFrame = MAX_ANGULAR_SPEED * dt;
   let slerpFactor;
   if (angleToTarget > maxRotationThisFrame && angleToTarget > 0.001) {
     slerpFactor = maxRotationThisFrame / angleToTarget;
   } else {
-    slerpFactor = Math.min(1, dt * 3.5);
+    slerpFactor = Math.min(1, dt * 2.5);
   }
   whaleGroup.quaternion.slerp(_whaleQuatFinal, slerpFactor);
 
   // ════════════════════════════════════════════════════════════════════
-  // SCALE — reveal fade-in + breath. Sin scroll fade (siempre presente).
+  // SCALE — reveal progresivo × breath
   // ════════════════════════════════════════════════════════════════════
-  let revealScale;
-  if (revealStartTime === null) {
-    revealScale = 0;
-  } else if (elapsed < OPENING_DESC_START) {
-    revealScale = 0;
-  } else if (elapsed < OPENING_DESC_END) {
-    const localT = (elapsed - OPENING_DESC_START) / (OPENING_DESC_END - OPENING_DESC_START);
-    revealScale = easeOutCubic(Math.max(0, Math.min(1, localT)));
-  } else {
-    revealScale = 1.0;
-  }
-  whaleGroup.scale.setScalar(revealScale * breath);
+  whaleGroup.scale.setScalar(revealProgress * breath);
 
   // ════════════════════════════════════════════════════════════════════
-  // OPACIDAD — siempre 100% (la ballena nunca desaparece, te acompaña)
-  // Solo el reveal modula 0→1 durante la apertura.
+  // OPACIDAD — sigue el reveal (la "niebla" disipa).
+  // Una vez completo: opacity 1.0 siempre, la ballena nunca desaparece.
   // ════════════════════════════════════════════════════════════════════
   if (whaleMaterials.length > 0) {
     for (let i = 0; i < whaleMaterials.length; i++) {
-      whaleMaterials[i].opacity = revealScale;
+      whaleMaterials[i].opacity = revealProgress;
     }
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // LUCES ROTANDO — iridiscencia viva (siguen la posición de la ballena)
+  // LUCES — orbita lenta de iridiscencia (siguen la posición de la ballena)
   // ════════════════════════════════════════════════════════════════════
   const LIGHT_ORBIT_PERIOD = 30.0;
   const lightAngle = (t / LIGHT_ORBIT_PERIOD) * Math.PI * 2;
@@ -4265,7 +4153,7 @@ function animate() {
   rimLight.position.z = whaleGroup.position.z + Math.sin(rimAngle) * lightRadius * 0.3;
 
   // ════════════════════════════════════════════════════════════════════
-  // CÁMARA estática — lerp por si llega aquí con valores diferentes
+  // CÁMARA estática
   // ════════════════════════════════════════════════════════════════════
   camera.position.z += (CAMERA_HERO.z - camera.position.z) * Math.min(1, dt * 1.5);
   camera.position.y += (CAMERA_HERO.y - camera.position.y) * Math.min(1, dt * 1.5);
@@ -4276,7 +4164,7 @@ function animate() {
   camera.lookAt(0, 0, 0);
 
   // ════════════════════════════════════════════════════════════════════
-  // AURORA ambiente
+  // AURORA ambiente — atenuada por scroll, no afecta la ballena
   // ════════════════════════════════════════════════════════════════════
   if (aurora) {
     let auroraOp;
