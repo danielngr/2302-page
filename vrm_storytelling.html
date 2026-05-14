@@ -3,30 +3,78 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#050308">
+<meta name="theme-color" content="#0A1428">
 <title>VRM · La bahía como debe ser</title>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
-<!-- Fontshare Boska — display serif premium tipo Hermès/editorial -->
-<link href="https://api.fontshare.com/v2/css?f[]=boska@900,700,500i,500,400i,400,300i,300&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+<!-- Fontshare: Boska (display editorial) + Satoshi (UI/body)
+     Cargado vía Image() probe: si el dominio es alcanzable, inyectamos el link.
+     Sandboxes con CSP estricta no alcanzan Fontshare → caemos limpio a Times / system. -->
+<script>
+  (function(){
+    var FONTSHARE_URL = 'https://api.fontshare.com/v2/css?f%5B%5D=boska@900,700,500i,500,400i,400,300i,300&f%5B%5D=satoshi@900,700,500,400,300&display=swap';
+    // Probar conectividad con una imagen 1x1 al mismo dominio (errores de Image() son locales)
+    var probe = new Image();
+    probe.onload = probe.onerror = function(ev){
+      // Solo inyectar si la carga NO falló por red (onerror con stack vacío = bloqueo CSP)
+      if (ev && ev.type === 'error') return; // sandbox bloquea → silencio
+      var l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = FONTSHARE_URL;
+      document.head.appendChild(l);
+    };
+    // Trigger probe — fontshare devuelve 200 para favicon.ico
+    probe.src = 'https://api.fontshare.com/favicon.ico?_p=' + Date.now();
+  })();
+</script>
 
 <style>
   :root {
-    --ink: #050308;
-    --ink-soft: #0c0712;
-    --paper: #f5ede0;
-    --gold: #d4a274;
-    --gold-bright: #e8b888;
-    --coral: #e89a82;
-    --aurora-1: #8b6dc4;
-    --aurora-2: #d68bbd;
-    --whisper: rgba(245, 237, 224, 0.55);
-    --rule: rgba(245, 237, 224, 0.10);
-    --font-display: 'Cormorant Garamond', 'Times New Roman', serif;
-    --font-body: 'Inter Tight', system-ui, sans-serif;
+    /* ─────────────────────────────────────────────────────────
+       PALETA BAHÍA — fuente de verdad
+       ───────────────────────────────────────────────────────── */
+    /* Base (80%) */
+    --abyss:     #0A1428;
+    --marine:    #1A2E48;
+    --mist:      #E8E4DA;
+    --sand:      #C5BBA8;
+    --stone:     #3A4A60;
+
+    /* Acentos (20%) */
+    --coral:     #D97757;
+    --cyan-deep: #4A8FB5;
+    --gold:      #B89668;
+    --gold-soft: #C8A87C;
+    --wa-green:  #25D366;
+
+    /* Aliases semánticos */
+    --bg:        var(--marine);
+    --bg-deep:   var(--abyss);
+    --text:      var(--mist);
+    --text-mute: var(--sand);
+    --accent:    var(--coral);
+    --price:     var(--gold);
+
+    /* ─────────────────────────────────────────────────────────
+       ALIASES LEGACY — preservan compatibilidad con el ~250+
+       usos a lo largo del archivo. Mapean a la paleta Bahía:
+       ───────────────────────────────────────────────────────── */
+    --ink:         var(--abyss);             /* era #050308 → Abyss */
+    --ink-soft:    var(--marine);            /* era #0c0712 → Marine */
+    --paper:       var(--mist);              /* era #f5ede0 → Mist (off-white cálido) */
+    --gold-bright: var(--gold-soft);         /* highlights de gold */
+    --aurora-1:    var(--cyan-deep);         /* gradients atmosféricos: cyan-deep en vez de púrpura */
+    --aurora-2:    #6FA8C8;                  /* cyan-deep más claro para gradients */
+    --whisper:     rgba(232, 228, 218, 0.58);
+    --rule:        rgba(232, 228, 218, 0.10);
+
+    /* Tipografía Bahía: Boska + Satoshi */
+    --font-display: 'Boska', 'Times New Roman', serif;
+    --font-body:    'Satoshi', system-ui, -apple-system, sans-serif;
+
+    /* Curva editorial (sin cambios) */
     --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
   }
   *, *::before, *::after { box-sizing: border-box; }
@@ -35,9 +83,9 @@
     margin: 0; padding: 0;
     /* Fondo del body — un gradient sutil que complementa la aurora del cover */
     background: linear-gradient(180deg,
-      #1a1428 0%,       /* arriba: cae a oscuro lavanda al salir del cover */
-      #050308 25%,      /* primera sección: prácticamente negro */
-      #050308 100%);    /* resto: negro */
+      #1A2E48 0%,       /* arriba: Marine (Bahía) — sale del cover */
+      #0A1428 25%,      /* primera sección: Abyss */
+      #0A1428 100%);    /* resto: Abyss */
     color: var(--paper);
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
@@ -121,7 +169,7 @@
     align-items: center;
     justify-content: space-between;
     pointer-events: none;
-    mix-blend-mode: difference;
+    /* mix-blend-mode removido (fix A.1) — causaba duplicado/sombra rara en nav-links */
   }
   .nav > * { pointer-events: auto; }
   .nav-brand {
@@ -141,21 +189,24 @@
     width: 18px; height: 1px;
     background: var(--paper);
   }
+  /* Nav-link: clean, sin sombras (fix A.1) */
   .nav-links {
     display: flex;
     gap: 32px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
-    letter-spacing: 0.32em;
+    letter-spacing: 0.28em;
     text-transform: uppercase;
   }
   .nav-link {
-    color: var(--paper);
+    color: var(--sand);
     text-decoration: none;
-    opacity: 0.7;
-    transition: opacity 0.3s ease;
+    opacity: 0.88;
+    transition: opacity 0.3s ease, color 0.3s ease;
+    text-shadow: none;
+    filter: none;
   }
-  .nav-link:hover { opacity: 1; }
+  .nav-link:hover { opacity: 1; color: var(--mist); }
   @media (max-width: 768px) {
     .nav { padding: 20px 24px; }
     .nav-links { display: none; }
@@ -178,22 +229,22 @@
     align-items: center;
     position: relative;
     padding: 100px 24px 100px;
-    color: rgba(245, 245, 242, 0.96);
+    color: rgba(232, 228, 218, 0.96);
     overflow: hidden;
   }
 
-  /* Eyebrow arriba: BAHÍA DE BANDERAS · DESDE 2018 */
+  /* Eyebrow arriba: BANDERAS BAY · SINCE 2018 */
   .cover-eyebrow-top {
     position: absolute;
     top: 90px;
     left: 50%;
     transform: translateX(-50%);
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
     font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.42em;
     text-transform: uppercase;
-    color: rgba(245, 245, 242, 0.55);
+    color: rgba(232, 228, 218, 0.55);
     opacity: 0;
     animation: ru 1.4s var(--ease-soft) 2.0s forwards;
     z-index: 5;
@@ -211,12 +262,12 @@
     z-index: 3;
   }
   .cover-mark {
-    font-family: 'Boska', 'Cormorant Garamond', serif;
+    font-family: 'Boska', 'Times New Roman', serif;
     font-weight: 900;
     font-style: normal;
     font-size: clamp(180px, 32vw, 520px);
     line-height: 0.82;
-    color: rgba(245, 245, 242, 0.97);
+    color: rgba(232, 228, 218, 0.97);
     margin: 0;
     letter-spacing: -0.04em;
     text-align: center;
@@ -232,20 +283,21 @@
     transform: translateY(20px);
   }
 
-  /* Subtítulo abajo — restraint */
+  /* Sub-título abajo — restraint */
   .cover-content {
-    margin-top: 28px;
+    margin-top: 80px;
     text-align: center;
     z-index: 3;
     position: relative;
   }
   .cover-title {
-    font-family: 'Boska', 'Cormorant Garamond', serif;
+    font-family: 'Boska', 'Times New Roman', serif;
     font-weight: 400;
     font-style: italic;
     font-size: clamp(22px, 2.4vw, 36px);
     line-height: 1.15;
-    color: rgba(245, 245, 242, 0.88);
+    color: rgba(232, 228, 218, 0.96);
+    text-shadow: 0 2px 12px rgba(10, 20, 40, 0.4);
     margin: 0;
     letter-spacing: 0.01em;
   }
@@ -261,7 +313,18 @@
   .cover-title .line:nth-child(1) { animation-delay: 3.4s; }
   .cover-title .line:nth-child(2) {
     animation-delay: 3.6s;
-    color: rgba(220, 200, 240, 0.88);
+  }
+  /* Sub-tagline en español debajo del título principal (fix B.1) */
+  .cover-subtitle {
+    font-family: 'Boska', 'Times New Roman', serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: clamp(15px, 1.6vw, 22px);
+    line-height: 1.2;
+    color: rgba(197, 187, 168, 0.70);
+    margin: 12px 0 0;
+    letter-spacing: 0.01em;
+    text-shadow: 0 1px 8px rgba(10, 20, 40, 0.3);
   }
 
   /* Scroll cue abajo */
@@ -282,17 +345,17 @@
     display: flex;
     align-items: center;
     gap: 14px;
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
     font-size: 9px;
     font-weight: 500;
     letter-spacing: 0.42em;
     text-transform: uppercase;
-    color: rgba(245, 245, 242, 0.55);
+    color: rgba(232, 228, 218, 0.55);
   }
   .cover-cue-star::before, .cover-cue-star::after {
     content: '✦';
     font-size: 9px;
-    color: rgba(245, 245, 242, 0.45);
+    color: rgba(232, 228, 218, 0.45);
     animation: sp 3s ease-in-out infinite;
   }
   @keyframes sp {
@@ -301,7 +364,7 @@
   }
   .cover-cue-line {
     width: 1px; height: 40px;
-    background: linear-gradient(180deg, rgba(245, 245, 242, 0.5) 0%, transparent 100%);
+    background: linear-gradient(180deg, rgba(232, 228, 218, 0.5) 0%, transparent 100%);
   }
   @keyframes ru { to { opacity: 1; transform: translateY(0); } }
   
@@ -336,7 +399,7 @@
     }
     /* Subtítulo: más prominente en mobile, queda visible bajo el VRM */
     .cover-content {
-      margin-top: 36px;
+      margin-top: 60px;
       padding: 0 24px;
     }
     .cover-title {
@@ -655,13 +718,24 @@
     background: var(--gold-bright); border-color: var(--gold-bright); transform: translateY(-2px);
   }
   .btn-secondary {
-    background: transparent; color: var(--paper); border-color: rgba(245, 237, 224, 0.32);
+    background: transparent; color: var(--paper); border-color: rgba(232, 228, 218, 0.32);
   }
   .btn-secondary:hover { border-color: var(--gold-bright); color: var(--gold-bright); }
   .final-rule { width: 80px; height: 1px; background: var(--gold); margin: 0 0 32px; }
   .final-caption {
     font-family: var(--font-display); font-style: italic; font-size: 18px;
-    color: var(--whisper); max-width: 480px; margin: 0; line-height: 1.55;
+    color: var(--whisper); max-width: 480px; margin: 0; line-height: 1.55;  }
+  /* Signature quote en español (carácter de marca, fix B.8) */
+  .final-signature {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 1.4;
+    color: rgba(197, 187, 168, 0.60);
+    margin: 18px 0 0;
+    letter-spacing: 0.01em;
+    max-width: 480px;
   }
   @media (max-width: 768px) {
     .final { padding: 100px 24px; }
@@ -693,9 +767,9 @@
   .footer-social:hover { color: var(--gold-bright); }
   .model-credit {
     font-size: 8px; letter-spacing: 0.3em; text-transform: uppercase;
-    color: rgba(245, 237, 224, 0.3); margin-top: 8px;
+    color: rgba(232, 228, 218, 0.3); margin-top: 8px;
   }
-  .model-credit a { color: rgba(245, 237, 224, 0.4); text-decoration: none; }
+  .model-credit a { color: rgba(232, 228, 218, 0.4); text-decoration: none; }
   .model-credit a:hover { color: var(--gold); }
   @media (max-width: 768px) {
     .footer { padding: 48px 24px; }
@@ -753,8 +827,8 @@
   }
   .cursor-ring.is-hover {
     width: 72px; height: 72px;
-    border-color: rgba(245, 237, 224, 0.6);
-    background: rgba(245, 237, 224, 0.08);
+    border-color: rgba(232, 228, 218, 0.6);
+    background: rgba(232, 228, 218, 0.08);
   }
   .cursor-dot.is-hover {
     opacity: 0;
@@ -835,7 +909,7 @@
     left: 50%;
     top: 50%;
     white-space: nowrap;
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Boska', 'Times New Roman', serif;
     font-weight: 400;
     font-style: italic;
     font-size: clamp(220px, 32vw, 480px);
@@ -870,13 +944,13 @@
     margin-top: 32px;
     font-size: clamp(16px, 1.4vw, 19px);
     line-height: 1.65;
-    color: rgba(245,245,242,0.72);
-    font-family: 'Cormorant Garamond', serif;
+    color: rgba(232, 228, 218, 0.72);
+    font-family: 'Boska', 'Times New Roman', serif;
     font-weight: 400;
   }
   .properties-intro-caption em {
     font-style: italic;
-    color: rgba(245,245,242,0.92);
+    color: rgba(232, 228, 218, 0.92);
   }
 
   /* ============ HERO EDITORIAL ============ */
@@ -909,34 +983,34 @@
   .prop-feature-content { padding: 40px 0; max-width: 540px; }
 
   .prop-feature-eyebrow {
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
     font-size: 12px;
     letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: rgba(245,245,242,0.55);
+    color: rgba(232, 228, 218, 0.55);
     margin-bottom: 28px;
   }
 
   .prop-feature-title {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Boska', 'Times New Roman', serif;
     font-weight: 500;
     font-size: clamp(54px, 7vw, 96px);
     line-height: 0.95;
     letter-spacing: -0.02em;
     margin: 0 0 36px;
-    color: rgba(245,245,242,0.96);
+    color: rgba(232, 228, 218, 0.96);
   }
   .prop-feature-title em {
     font-style: italic;
     font-weight: 400;
-    color: rgba(245,245,242,0.78);
+    color: rgba(232, 228, 218, 0.78);
   }
 
   .prop-feature-desc {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Boska', 'Times New Roman', serif;
     font-size: clamp(17px, 1.5vw, 21px);
     line-height: 1.65;
-    color: rgba(245,245,242,0.78);
+    color: rgba(232, 228, 218, 0.78);
     margin: 0 0 40px;
     font-weight: 400;
   }
@@ -945,24 +1019,24 @@
     display: flex;
     gap: 50px;
     padding: 28px 0;
-    border-top: 1px solid rgba(245,245,242,0.12);
-    border-bottom: 1px solid rgba(245,245,242,0.12);
+    border-top: 1px solid rgba(232, 228, 218, 0.12);
+    border-bottom: 1px solid rgba(232, 228, 218, 0.12);
     margin-bottom: 40px;
   }
   .prop-stat { display: flex; flex-direction: column; gap: 4px; }
   .prop-stat-num {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Boska', 'Times New Roman', serif;
     font-size: 32px;
     font-weight: 500;
-    color: rgba(245,245,242,0.95);
+    color: rgba(232, 228, 218, 0.95);
     line-height: 1;
   }
   .prop-stat-label {
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
     font-size: 11px;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: rgba(245,245,242,0.55);
+    color: rgba(232, 228, 218, 0.55);
   }
 
   .prop-feature-cta {
@@ -974,18 +1048,18 @@
   }
   .prop-feature-price { display: flex; flex-direction: column; gap: 2px; }
   .prop-price-amount {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Boska', 'Times New Roman', serif;
     font-size: 38px;
     font-weight: 500;
-    color: rgba(245,245,242,0.95);
+    color: rgba(232, 228, 218, 0.95);
     line-height: 1;
   }
   .prop-price-unit {
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
     font-size: 11px;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: rgba(245,245,242,0.55);
+    color: rgba(232, 228, 218, 0.55);
   }
 
   @media (max-width: 900px) {
@@ -997,9 +1071,133 @@
     .prop-feature-stats { gap: 30px; padding: 22px 0; }
   }
 
+  /* ============ SEARCH BAR FECHAS + HUÉSPEDES ============ */
+  .prop-search-bar {
+    margin: 160px var(--side) 40px;
+    max-width: 1100px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .prop-search-inner {
+    display: flex;
+    align-items: stretch;
+    background: rgba(26, 46, 72, 0.4);
+    border: 1px solid rgba(197, 187, 168, 0.18);
+    border-radius: 100px;
+    padding: 8px 10px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    transition: border-color 0.3s var(--ease-soft);
+  }
+  .prop-search-inner:hover {
+    border-color: rgba(197, 187, 168, 0.32);
+  }
+  .prop-search-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 24px;
+    cursor: pointer;
+    border-radius: 100px;
+    transition: background 0.3s var(--ease-soft);
+  }
+  .prop-search-field:hover {
+    background: rgba(232, 228, 218, 0.04);
+  }
+  .prop-search-field-guests { flex: 0.8; }
+  .prop-search-label {
+    font-family: 'Satoshi', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: rgba(232, 228, 218, 0.55);
+    margin-bottom: 4px;
+  }
+  .prop-search-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: rgba(232, 228, 218, 0.96);
+    font-family: 'Satoshi', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+    width: 100%;
+    color-scheme: dark;
+  }
+  .prop-search-input::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+    opacity: 0.6;
+    cursor: pointer;
+  }
+  .prop-search-divider {
+    width: 1px;
+    background: rgba(197, 187, 168, 0.16);
+    margin: 8px 0;
+  }
+  .prop-search-clear {
+    align-self: center;
+    margin: 0 6px 0 4px;
+    width: 40px;
+    height: 40px;
+    background: rgba(217, 119, 87, 0.18);
+    border: 1px solid rgba(217, 119, 87, 0.32);
+    color: var(--coral);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.25s var(--ease-soft);
+  }
+  .prop-search-clear:hover {
+    background: rgba(217, 119, 87, 0.32);
+    transform: scale(1.05);
+  }
+  .prop-search-status {
+    margin-top: 16px;
+    font-family: 'Satoshi', sans-serif;
+    font-size: 13px;
+    color: rgba(197, 187, 168, 0.78);
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  .prop-search-status .accent {
+    color: var(--coral);
+    font-weight: 500;
+  }
+
+  @media (max-width: 768px) {
+    .prop-search-bar { margin: 100px 20px 30px; }
+    .prop-search-inner {
+      flex-direction: column;
+      border-radius: 24px;
+      padding: 4px;
+      gap: 2px;
+    }
+    .prop-search-field {
+      padding: 14px 20px;
+      border-radius: 20px;
+    }
+    .prop-search-divider {
+      width: 100%;
+      height: 1px;
+      margin: 0 0;
+    }
+    .prop-search-clear {
+      align-self: stretch;
+      width: auto;
+      height: 44px;
+      border-radius: 20px;
+      margin: 4px 0 0;
+    }
+  }
+
   /* ============ GRID CON FILTROS ============ */
   .prop-grid-section {
-    margin-top: 200px;
+    margin-top: 60px;
     padding: 0 var(--side);
   }
   .prop-grid-header {
@@ -1011,16 +1209,16 @@
     flex-wrap: wrap;
   }
   .prop-grid-title {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Boska', 'Times New Roman', serif;
     font-size: clamp(36px, 4vw, 56px);
     font-weight: 500;
     line-height: 1.05;
     letter-spacing: -0.02em;
     margin: 18px 0 0;
-    color: rgba(245,245,242,0.94);
+    color: rgba(232, 228, 218, 0.94);
     max-width: 540px;
   }
-  .prop-grid-title em { font-style: italic; color: rgba(245,245,242,0.72); }
+  .prop-grid-title em { font-style: italic; color: rgba(232, 228, 218, 0.72); }
 
   .prop-filters {
     display: flex;
@@ -1029,9 +1227,9 @@
   }
   .prop-filter {
     background: transparent;
-    border: 1px solid rgba(245,245,242,0.18);
-    color: rgba(245,245,242,0.72);
-    font-family: 'Inter Tight', sans-serif;
+    border: 1px solid rgba(232, 228, 218, 0.18);
+    color: rgba(232, 228, 218, 0.72);
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
     font-size: 13px;
     font-weight: 400;
     letter-spacing: 0.04em;
@@ -1041,13 +1239,13 @@
     transition: all 0.3s var(--ease-soft);
   }
   .prop-filter:hover {
-    border-color: rgba(245,245,242,0.40);
-    color: rgba(245,245,242,0.95);
+    border-color: rgba(232, 228, 218, 0.40);
+    color: rgba(232, 228, 218, 0.95);
   }
   .prop-filter.active {
-    background: rgba(245,245,242,0.95);
+    background: rgba(232, 228, 218, 0.95);
     color: #0d1428;
-    border-color: rgba(245,245,242,0.95);
+    border-color: rgba(232, 228, 218, 0.95);
   }
 
   .prop-grid {
@@ -1083,25 +1281,25 @@
 
   .prop-card-info { display: flex; flex-direction: column; gap: 6px; }
   .prop-card-zone {
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
     font-size: 11px;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: rgba(245,245,242,0.55);
+    color: rgba(232, 228, 218, 0.55);
   }
   .prop-card-name {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Boska', 'Times New Roman', serif;
     font-size: 24px;
     font-weight: 500;
-    color: rgba(245,245,242,0.95);
+    color: rgba(232, 228, 218, 0.95);
     line-height: 1.1;
   }
   .prop-card-meta {
     display: flex;
     gap: 8px;
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
     font-size: 13px;
-    color: rgba(245,245,242,0.62);
+    color: rgba(232, 228, 218, 0.62);
     margin: 4px 0 8px;
   }
   .prop-card-price {
@@ -1111,15 +1309,15 @@
     margin-top: 4px;
   }
   .prop-card-price .amount {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Boska', 'Times New Roman', serif;
     font-size: 22px;
     font-weight: 500;
-    color: rgba(245,245,242,0.95);
+    color: rgba(232, 228, 218, 0.95);
   }
   .prop-card-price .unit {
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
     font-size: 12px;
-    color: rgba(245,245,242,0.55);
+    color: rgba(232, 228, 218, 0.55);
   }
 
   .prop-grid-footer {
@@ -1143,7 +1341,7 @@
     color: #0a1828;
     border-radius: 100px;
     text-decoration: none;
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
     font-size: 14px;
     font-weight: 600;
     letter-spacing: 0.01em;
@@ -1375,18 +1573,209 @@
     }
   }
 </style>
+
+<!-- ============================================================
+     SUPABASE CLIENT + AVAILABILITY HELPERS
+     ============================================================
+     · Cliente inicializado con publishable key (segura para frontend)
+     · loadAvailability(unitId): devuelve Set de fechas YYYY-MM-DD bloqueadas
+     · preloadAvailability(ids[]): batch loading para el grid
+     · isUnitAvailableInRange(unitId, checkin, checkout): check overlap
+     · Cache 5min — evita re-queries excesivos
+     · Fix timezone: manipulación de fechas como string, sin Date
+     ============================================================ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function() {
+  const SUPABASE_URL = 'https://grsykedeppdwenpfxlfh.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm';
+  const CACHE_TTL_MS = 5 * 60 * 1000;
+
+  window.availabilityCache = window.availabilityCache || {};
+
+  function _initSupabaseClient() {
+    if (window.supabase && !window.vrmSupabase) {
+      window.vrmSupabase = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY
+      );
+    }
+  }
+  if (window.supabase) _initSupabaseClient();
+  else document.addEventListener('DOMContentLoaded', _initSupabaseClient);
+
+  // Fecha YYYY-MM-DD del día siguiente (string ops, sin Date — fix timezone)
+  function _nextDay(yyyyMmDd) {
+    const y = parseInt(yyyyMmDd.slice(0, 4), 10);
+    const m = parseInt(yyyyMmDd.slice(5, 7), 10);
+    const d = parseInt(yyyyMmDd.slice(8, 10), 10);
+    const daysInMonth = new Date(y, m, 0).getDate(); // último día del mes
+    if (d < daysInMonth) {
+      return `${yyyyMmDd.slice(0, 8)}${String(d + 1).padStart(2, '0')}`;
+    } else if (m < 12) {
+      return `${y}-${String(m + 1).padStart(2, '0')}-01`;
+    } else {
+      return `${y + 1}-01-01`;
+    }
+  }
+
+  // Hoy en YYYY-MM-DD (zona local pero solo cogemos el "día" textual)
+  function _todayISO() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+
+  // Expandir rango [check_in, check_out) en Set de fechas bloqueadas
+  function _expandRange(checkIn, checkOut, blocked) {
+    let cur = checkIn;
+    while (cur < checkOut) {
+      blocked.add(cur);
+      cur = _nextDay(cur);
+    }
+  }
+
+  // ───── loadAvailability(unitId) → Set<YYYY-MM-DD> ─────
+  window.loadAvailability = async function(unitId) {
+    if (!unitId) return new Set();
+
+    if (!window.vrmSupabase) {
+      _initSupabaseClient();
+      if (!window.vrmSupabase) {
+        await new Promise(resolve => {
+          let tries = 0;
+          const tick = () => {
+            _initSupabaseClient();
+            if (window.vrmSupabase || tries > 20) return resolve();
+            tries++;
+            setTimeout(tick, 100);
+          };
+          tick();
+        });
+      }
+      if (!window.vrmSupabase) return new Set();
+    }
+
+    const cached = window.availabilityCache[unitId];
+    if (cached && (Date.now() - cached.ts) < CACHE_TTL_MS) {
+      return cached.blocked;
+    }
+
+    try {
+      const today = _todayISO();
+      const { data, error } = await window.vrmSupabase
+        .from('public_availability')
+        .select('check_in, check_out')
+        .eq('unit_id', unitId)
+        .gte('check_out', today);
+
+      if (error) {
+        console.warn('[VRM] loadAvailability error:', error.message);
+        return new Set();
+      }
+
+      const blocked = new Set();
+      (data || []).forEach(b => _expandRange(b.check_in, b.check_out, blocked));
+      window.availabilityCache[unitId] = { blocked, ts: Date.now() };
+      return blocked;
+    } catch (e) {
+      console.warn('[VRM] loadAvailability exception:', e.message);
+      return new Set();
+    }
+  };
+
+  // ───── preloadAvailability(unitIds[]) — batch ─────
+  window.preloadAvailability = async function(unitIds) {
+    if (!Array.isArray(unitIds) || unitIds.length === 0) return;
+    if (!window.vrmSupabase) {
+      _initSupabaseClient();
+      if (!window.vrmSupabase) return;
+    }
+
+    const now = Date.now();
+    const toFetch = unitIds.filter(id => {
+      const cached = window.availabilityCache[id];
+      return !cached || (now - cached.ts) > CACHE_TTL_MS;
+    });
+    if (toFetch.length === 0) return;
+
+    try {
+      const today = _todayISO();
+      const { data, error } = await window.vrmSupabase
+        .from('public_availability')
+        .select('unit_id, check_in, check_out')
+        .in('unit_id', toFetch)
+        .gte('check_out', today);
+
+      if (error) {
+        console.warn('[VRM] preloadAvailability error:', error.message);
+        return;
+      }
+
+      const grouped = {};
+      toFetch.forEach(id => grouped[id] = new Set());
+      (data || []).forEach(b => {
+        if (!grouped[b.unit_id]) grouped[b.unit_id] = new Set();
+        _expandRange(b.check_in, b.check_out, grouped[b.unit_id]);
+      });
+      Object.keys(grouped).forEach(id => {
+        window.availabilityCache[id] = { blocked: grouped[id], ts: now };
+      });
+    } catch (e) {
+      console.warn('[VRM] preloadAvailability exception:', e.message);
+    }
+  };
+
+  // ───── isUnitAvailableInRange(unitId, checkin, checkout) → bool ─────
+  // checkin inclusive, checkout exclusive (mismo modelo que Airbnb/iCal)
+  window.isUnitAvailableInRange = async function(unitId, checkin, checkout) {
+    if (!unitId || !checkin || !checkout) return true;
+    const blocked = await window.loadAvailability(unitId);
+    let cur = checkin;
+    while (cur < checkout) {
+      if (blocked.has(cur)) return false;
+      cur = _nextDay(cur);
+    }
+    return true;
+  };
+
+  // Helper público — formatear YYYY-MM-DD a "May 22, 2026"
+  window.formatDateLong = function(yyyyMmDd) {
+    if (!yyyyMmDd) return '';
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'];
+    const y = parseInt(yyyyMmDd.slice(0, 4), 10);
+    const m = parseInt(yyyyMmDd.slice(5, 7), 10);
+    const d = parseInt(yyyyMmDd.slice(8, 10), 10);
+    return `${months[m - 1]} ${d}, ${y}`;
+  };
+
+  // Helper público — calcular noches entre fechas (string-safe)
+  window.calcNights = function(checkin, checkout) {
+    if (!checkin || !checkout) return 0;
+    let nights = 0;
+    let cur = checkin;
+    while (cur < checkout) {
+      nights++;
+      cur = _nextDay(cur);
+    }
+    return nights;
+  };
+
+})();
+</script>
+
 </head>
 <body>
 
   <!-- WhatsApp floating CTA — siempre visible (la ventaja real sobre Airbnb) -->
-  <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20una%20propiedad%20en%20Bah%C3%ADa%20de%20Banderas"
+  <a href="https://wa.me/15559472509?text=Hi!%20I'm%20interested%20in%20a%20property%20in%20Bah%C3%ADa%20de%20Banderas"
      class="wa-floating" target="_blank" rel="noopener" aria-label="Contactar por WhatsApp">
     <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413"/>
     </svg>
     <div class="wa-floating-text">
       WhatsApp 24/7
-      <small>Respuesta inmediata</small>
+      <small>Real human, fast reply</small>
     </div>
   </a>
 
@@ -1408,9 +1797,9 @@
        Sincronizado con scrollProgress vía window.__vrmScroll
        =========================================================== -->
   <div class="whale-anchor-overlay" id="whale-anchor-overlay" aria-hidden="true">
-    <div class="whale-anchor-word" data-anchor="bahia">Bahía</div>
-    <div class="whale-anchor-word" data-anchor="casas">Casas</div>
-    <div class="whale-anchor-word" data-anchor="vive">Vive</div>
+    <div class="whale-anchor-word" data-anchor="bahia">Arrive</div>
+    <div class="whale-anchor-word" data-anchor="casas">Settle</div>
+    <div class="whale-anchor-word" data-anchor="vive">Stay</div>
   </div>
   <div class="aurora" id="aurora"></div>
   <div class="grain"></div>
@@ -1420,13 +1809,13 @@
       <span class="mark"></span>VRM
     </a>
     <div class="nav-links">
-      <a href="#properties" class="nav-link">Propiedades</a>
-      <a href="#final" class="nav-link">Contacto</a>
+      <a href="#properties" class="nav-link">Properties</a>
+      <a href="#final" class="nav-link">Contact</a>
     </div>
   </nav>
 
   <section class="cover">
-    <div class="cover-eyebrow-top">Bahía de Banderas · Desde 2018</div>
+    <div class="cover-eyebrow-top">Banderas Bay · Since 2018</div>
 
     <div class="cover-mark-wrap">
       <h1 class="cover-mark" aria-label="VRM">VRM</h1>
@@ -1434,12 +1823,13 @@
 
     <div class="cover-content">
       <p class="cover-title" data-split-text data-split-stagger="40" data-split-delay="3400">
-        <span class="line">La bahía</span> <span class="line">que se habita</span>
+        <span class="line">Direct from</span> <span class="line">the bay.</span>
       </p>
+      <p class="cover-subtitle">La bahía que se habita</p>
     </div>
 
     <div class="cover-cue">
-      <div class="cover-cue-star">Scroll para descubrir</div>
+      <div class="cover-cue-star">Scroll to explore</div>
       <div class="cover-cue-line"></div>
     </div>
   </section>
@@ -1447,36 +1837,35 @@
   <section class="section-block reimagine">
     <div class="section-block-inner">
       <p class="reimagine-text" data-split-text data-split-stagger="35" data-split-trigger="scroll">
-        <span class="pri">Reimagina</span>
-        <span class="sec">la bahía.</span>
+        <span class="pri">Banderas Bay,</span>
+        <span class="sec">done right.</span>
       </p>
       <p class="reimagine-caption reveal reveal-d2">
-        70 casas curadas en Puerto Vallarta y Riviera Nayarit. Cada una visitada,
-        fotografiada y mantenida por nosotros. Sin algoritmos.
+        70 curated homes along Puerto Vallarta and Riviera Nayarit. Booked through the people who actually live here.
       </p>
     </div>
   </section>
 
   <section class="section-block philosophy">
     <div class="section-block-inner">
-      <div class="section-eyebrow reveal">— Nuestra filosofía</div>
+      <div class="section-eyebrow reveal">— What sets us apart</div>
       <h2 class="philosophy-title reveal reveal-d1" data-split-text data-split-stagger="30" data-split-trigger="scroll">
-        Las mejores casas <em>de la bahía,</em><br>
-        atendidas por <em>personas</em><br>
-        que viven aquí.
+        No middlemen.<br>
+        <em>No call centers.</em><br>
+        Just neighbors.
       </h2>
       <div class="stats">
         <div class="stat-item reveal reveal-d1">
           <div class="stat-num">2018</div>
-          <div class="stat-label">Operando<br>en la bahía</div>
+          <div class="stat-label">Operating<br>in the bay</div>
         </div>
         <div class="stat-item reveal reveal-d2">
           <div class="stat-num">70+</div>
-          <div class="stat-label">Propiedades<br>curadas</div>
+          <div class="stat-label">Curated<br>homes</div>
         </div>
         <div class="stat-item reveal reveal-d3">
           <div class="stat-num">4.83</div>
-          <div class="stat-label">★ · 517<br>huéspedes felices</div>
+          <div class="stat-label">★ · 517<br>guests · avg rating</div>
         </div>
       </div>
     </div>
@@ -1490,13 +1879,12 @@
        ========================================================= -->
   <section class="properties" id="properties">
     <div class="properties-intro">
-      <div class="section-eyebrow reveal">— Casas destacadas</div>
+      <div class="section-eyebrow reveal">— Featured stays</div>
       <h2 class="section-title reveal reveal-d1" data-split-text data-split-stagger="32" data-split-trigger="scroll">
-        Una selección<br><em>cuidadosamente curada.</em>
+        Hand-picked,<br><em>year after year.</em>
       </h2>
       <p class="properties-intro-caption reveal reveal-d2">
-        Cuatro casas que definen la bahía. Conocemos cada cuarto, cada vista, cada
-        anfitrión. <em>Y si no encaja, te recomendamos otra.</em>
+        Four homes that define the bay. We know every room, every view, every host. <em>If it doesn't fit, we'll point you elsewhere.</em>
       </p>
     </div>
 
@@ -1515,18 +1903,18 @@
           </h3>
           <p class="prop-feature-desc">El departamento más solicitado del complejo. Tercer piso con vista directa al mar, terraza amplia, las amenities del resort Vallarta Gardens (alberca infinity, spa, restaurante). Cinco minutos caminando al puerto de La Cruz y su mercado dominical de productores locales.</p>
           <div class="prop-feature-stats">
-            <div class="prop-stat"><span class="prop-stat-num">6</span><span class="prop-stat-label">Huéspedes</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">2</span><span class="prop-stat-label">Recámaras</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">2</span><span class="prop-stat-label">Baños</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">6</span><span class="prop-stat-label">Guests</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">2</span><span class="prop-stat-label">Bedrooms</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">2</span><span class="prop-stat-label">Baths</span></div>
           </div>
           <div class="prop-feature-cta">
             <div class="prop-feature-price">
               <span class="prop-price-amount">$200</span>
-              <span class="prop-price-unit">USD · noche</span>
+              <span class="prop-price-unit">USD · night</span>
             </div>
-            <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Vallarta%20Gardens%202302"
-               class="btn btn-primary" target="_blank" rel="noopener">
-              Consultar disponibilidad
+            <a href="vrm_property.html?id=2302"
+               class="btn btn-primary">
+              Check availability
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
           </div>
@@ -1545,18 +1933,18 @@
           </h3>
           <p class="prop-feature-desc">Piso seis frente al campo de golf de Nuevo Vallarta. Tres recámaras, cocina abierta, terraza con sala exterior. Cinco minutos del aeropuerto y diez del Malecón. Los snowbirds canadienses repiten año tras año por las amenities del condo y la cercanía al hospital.</p>
           <div class="prop-feature-stats">
-            <div class="prop-stat"><span class="prop-stat-num">6</span><span class="prop-stat-label">Huéspedes</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">3</span><span class="prop-stat-label">Recámaras</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">2</span><span class="prop-stat-label">Baños</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">6</span><span class="prop-stat-label">Guests</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">3</span><span class="prop-stat-label">Bedrooms</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">2</span><span class="prop-stat-label">Baths</span></div>
           </div>
           <div class="prop-feature-cta">
             <div class="prop-feature-price">
               <span class="prop-price-amount">$190</span>
-              <span class="prop-price-unit">USD · noche</span>
+              <span class="prop-price-unit">USD · night</span>
             </div>
-            <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Mar%C3%ADtima%206S"
-               class="btn btn-primary" target="_blank" rel="noopener">
-              Consultar disponibilidad
+            <a href="vrm_property.html?id=6S"
+               class="btn btn-primary">
+              Check availability
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
           </div>
@@ -1575,18 +1963,18 @@
           </h3>
           <p class="prop-feature-desc">Dentro del fraccionamiento residencial más exclusivo de la Riviera. Acceso directo a playa privada, alberca semi-olímpica, club de playa con restaurante. Tres recámaras grandes, perfecto para familias o dos parejas que prefieren espacio antes que pasillos de hotel.</p>
           <div class="prop-feature-stats">
-            <div class="prop-stat"><span class="prop-stat-num">7</span><span class="prop-stat-label">Huéspedes</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">3</span><span class="prop-stat-label">Recámaras</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">3</span><span class="prop-stat-label">Baños</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">7</span><span class="prop-stat-label">Guests</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">3</span><span class="prop-stat-label">Bedrooms</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">3</span><span class="prop-stat-label">Baths</span></div>
           </div>
           <div class="prop-feature-cta">
             <div class="prop-feature-price">
               <span class="prop-price-amount">$220</span>
-              <span class="prop-price-unit">USD · noche</span>
+              <span class="prop-price-unit">USD · night</span>
             </div>
-            <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Bolongo%20211"
-               class="btn btn-primary" target="_blank" rel="noopener">
-              Consultar disponibilidad
+            <a href="vrm_property.html?id=211"
+               class="btn btn-primary">
+              Check availability
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
           </div>
@@ -1605,18 +1993,18 @@
           </h3>
           <p class="prop-feature-desc">El penthouse de Marítima — seis recámaras en dos pisos con vista 270° a la bahía y al campo de golf. Hot tub en la terraza superior, comedor para doce. Para celebraciones, reuniones familiares grandes, o grupos que vienen a casarse en Vallarta.</p>
           <div class="prop-feature-stats">
-            <div class="prop-stat"><span class="prop-stat-num">12</span><span class="prop-stat-label">Huéspedes</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">6</span><span class="prop-stat-label">Recámaras</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">4</span><span class="prop-stat-label">Baños</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">12</span><span class="prop-stat-label">Guests</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">6</span><span class="prop-stat-label">Bedrooms</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">4</span><span class="prop-stat-label">Baths</span></div>
           </div>
           <div class="prop-feature-cta">
             <div class="prop-feature-price">
               <span class="prop-price-amount">$380</span>
-              <span class="prop-price-unit">USD · noche</span>
+              <span class="prop-price-unit">USD · night</span>
             </div>
-            <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Mar%C3%ADtima%20Penthouse"
-               class="btn btn-primary" target="_blank" rel="noopener">
-              Consultar disponibilidad
+            <a href="vrm_property.html?id=PHN"
+               class="btn btn-primary">
+              Check availability
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
           </div>
@@ -1625,138 +2013,173 @@
 
     </div>
 
-    <!-- ============== GRID COMPLETO con FILTROS ============== -->
+    <!-- ============== SEARCH BAR — FECHAS + HUÉSPEDES ============== -->
+    <div class="prop-search-bar" id="prop-search-bar">
+      <div class="prop-search-inner">
+        <label class="prop-search-field">
+          <span class="prop-search-label">Check-in</span>
+          <input type="date" id="search-checkin" class="prop-search-input" />
+        </label>
+        <div class="prop-search-divider"></div>
+        <label class="prop-search-field">
+          <span class="prop-search-label">Check-out</span>
+          <input type="date" id="search-checkout" class="prop-search-input" />
+        </label>
+        <div class="prop-search-divider"></div>
+        <label class="prop-search-field prop-search-field-guests">
+          <span class="prop-search-label">Guests</span>
+          <select id="search-guests" class="prop-search-input">
+            <option value="0">Any</option>
+            <option value="2">2 guests</option>
+            <option value="4">4 guests</option>
+            <option value="6">6 guests</option>
+            <option value="8">8 guests</option>
+            <option value="10">10 guests</option>
+            <option value="12">12 guests</option>
+          </select>
+        </label>
+        <button class="prop-search-clear" id="search-clear" type="button" aria-label="Clear search filters" hidden>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="prop-search-status" id="search-status" hidden></div>
+    </div>
+
+    <!-- ============== GRID COMPLETO con FILTROS ============== --->
     <div class="prop-grid-section">
       <div class="prop-grid-header">
         <div>
-          <div class="section-eyebrow reveal">— Catálogo</div>
-          <h3 class="prop-grid-title reveal reveal-d1">Las 10 más solicitadas <em>esta temporada</em></h3>
+          <div class="section-eyebrow reveal">— The catalog</div>
+          <h3 class="prop-grid-title reveal reveal-d1">The 10 most <em>requested this season.</em></h3>
         </div>
         <div class="prop-filters reveal reveal-d2">
-          <button class="prop-filter active" data-filter="all">Todas</button>
-          <button class="prop-filter" data-filter="couple">Parejas</button>
-          <button class="prop-filter" data-filter="family">Familias</button>
-          <button class="prop-filter" data-filter="group">Grupos</button>
-          <button class="prop-filter" data-filter="oceanfront">Frente al mar</button>
+          <button class="prop-filter active" data-filter="all">All</button>
+          <button class="prop-filter" data-filter="couple">Couples</button>
+          <button class="prop-filter" data-filter="family">Families</button>
+          <button class="prop-filter" data-filter="group">Groups</button>
+          <button class="prop-filter" data-filter="oceanfront">Oceanfront</button>
         </div>
       </div>
 
       <div class="prop-grid" id="prop-grid">
-        <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Vallarta%20Gardens%202302" target="_blank" rel="noopener"
-           class="prop-card reveal" data-tags="family,oceanfront">
+        <a href="vrm_property.html?id=2302"
+           class="prop-card reveal" data-tags="family,oceanfront" data-unit-id="2302" data-capacity="6">
           <div class="prop-card-photo"><img src="https://i.imgur.com/e8ObYP6.jpeg" alt="Vallarta Gardens 2302" loading="lazy"></div>
           <div class="prop-card-info">
             <div class="prop-card-zone">La Cruz de Huanacaxtle</div>
             <div class="prop-card-name">Vallarta Gardens 2302</div>
-            <div class="prop-card-meta"><span>6 huéspedes</span><span>·</span><span>2 rec</span></div>
-            <div class="prop-card-price"><span class="amount">$200</span><span class="unit">/noche</span></div>
+            <div class="prop-card-meta"><span>6 guests</span><span>·</span><span>2 bedrooms</span></div>
+            <div class="prop-card-price"><span class="amount">$200</span><span class="unit">/ night</span></div>
           </div>
         </a>
 
-        <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Mar%C3%ADtima%206S" target="_blank" rel="noopener"
-           class="prop-card reveal" data-tags="family">
+        <a href="vrm_property.html?id=6S"
+           class="prop-card reveal" data-tags="family" data-unit-id="6S" data-capacity="6">
           <div class="prop-card-photo"><img src="https://i.imgur.com/HtlrbEg.jpeg" alt="Marítima 6S" loading="lazy"></div>
           <div class="prop-card-info">
             <div class="prop-card-zone">Nuevo Vallarta · Flamingos</div>
             <div class="prop-card-name">Marítima 6S</div>
-            <div class="prop-card-meta"><span>6 huéspedes</span><span>·</span><span>3 rec</span></div>
-            <div class="prop-card-price"><span class="amount">$190</span><span class="unit">/noche</span></div>
+            <div class="prop-card-meta"><span>6 guests</span><span>·</span><span>3 bedrooms</span></div>
+            <div class="prop-card-price"><span class="amount">$190</span><span class="unit">/ night</span></div>
           </div>
         </a>
 
-        <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Bolongo%20211" target="_blank" rel="noopener"
-           class="prop-card reveal" data-tags="family">
+        <a href="vrm_property.html?id=211"
+           class="prop-card reveal" data-tags="family" data-unit-id="211" data-capacity="7">
           <div class="prop-card-photo"><img src="https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/a2cbb607-d8f6-476d-b001-46d7baf3104c.jpeg?im_w=720" alt="Bolongo 211" loading="lazy"></div>
           <div class="prop-card-info">
             <div class="prop-card-zone">Punta de Mita · Riviera Nayarit</div>
             <div class="prop-card-name">Bolongo 211</div>
-            <div class="prop-card-meta"><span>7 huéspedes</span><span>·</span><span>3 rec</span></div>
-            <div class="prop-card-price"><span class="amount">$220</span><span class="unit">/noche</span></div>
+            <div class="prop-card-meta"><span>7 guests</span><span>·</span><span>3 bedrooms</span></div>
+            <div class="prop-card-price"><span class="amount">$220</span><span class="unit">/ night</span></div>
           </div>
         </a>
 
-        <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Mar%C3%ADtima%20Penthouse" target="_blank" rel="noopener"
-           class="prop-card reveal" data-tags="group">
+        <a href="vrm_property.html?id=PHN"
+           class="prop-card reveal" data-tags="group" data-unit-id="PHN" data-capacity="12">
           <div class="prop-card-photo"><img src="https://i.imgur.com/xhooPKT.jpeg" alt="Marítima Penthouse" loading="lazy"></div>
           <div class="prop-card-info">
             <div class="prop-card-zone">Nuevo Vallarta · Flamingos</div>
             <div class="prop-card-name">Marítima Penthouse</div>
-            <div class="prop-card-meta"><span>12 huéspedes</span><span>·</span><span>6 rec</span></div>
-            <div class="prop-card-price"><span class="amount">$380</span><span class="unit">/noche</span></div>
+            <div class="prop-card-meta"><span>12 guests</span><span>·</span><span>6 bedrooms</span></div>
+            <div class="prop-card-price"><span class="amount">$380</span><span class="unit">/ night</span></div>
           </div>
         </a>
 
-        <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Vallarta%20Gardens%202403" target="_blank" rel="noopener"
-           class="prop-card reveal" data-tags="couple,family,oceanfront">
+        <a href="vrm_property.html?id=2403"
+           class="prop-card reveal" data-tags="couple,family,oceanfront" data-unit-id="2403" data-capacity="4">
           <div class="prop-card-photo"><img src="https://i.imgur.com/RV3b2sb.jpeg" alt="Vallarta Gardens 2403" loading="lazy"></div>
           <div class="prop-card-info">
             <div class="prop-card-zone">La Cruz de Huanacaxtle</div>
             <div class="prop-card-name">Vallarta Gardens 2403</div>
-            <div class="prop-card-meta"><span>4 huéspedes</span><span>·</span><span>2 rec</span></div>
-            <div class="prop-card-price"><span class="amount">$185</span><span class="unit">/noche</span></div>
+            <div class="prop-card-meta"><span>4 guests</span><span>·</span><span>2 bedrooms</span></div>
+            <div class="prop-card-price"><span class="amount">$185</span><span class="unit">/ night</span></div>
           </div>
         </a>
 
-        <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Bolongo%20L05" target="_blank" rel="noopener"
-           class="prop-card reveal" data-tags="group,oceanfront">
+        <a href="vrm_property.html?id=L05"
+           class="prop-card reveal" data-tags="group,oceanfront" data-unit-id="L05" data-capacity="10">
           <div class="prop-card-photo"><img src="https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/d4b94467-3074-4e98-a72c-e22aabce372b.jpeg?im_w=720" alt="Bolongo L05" loading="lazy"></div>
           <div class="prop-card-info">
             <div class="prop-card-zone">Punta de Mita · Riviera Nayarit</div>
             <div class="prop-card-name">Bolongo L05</div>
-            <div class="prop-card-meta"><span>10 huéspedes</span><span>·</span><span>4 rec</span></div>
-            <div class="prop-card-price"><span class="amount">$295</span><span class="unit">/noche</span></div>
+            <div class="prop-card-meta"><span>10 guests</span><span>·</span><span>4 bedrooms</span></div>
+            <div class="prop-card-price"><span class="amount">$295</span><span class="unit">/ night</span></div>
           </div>
         </a>
 
-        <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Bolongo%20G13" target="_blank" rel="noopener"
-           class="prop-card reveal" data-tags="group,oceanfront">
+        <a href="vrm_property.html?id=G13"
+           class="prop-card reveal" data-tags="group,oceanfront" data-unit-id="G13" data-capacity="10">
           <div class="prop-card-photo"><img src="https://i.imgur.com/ThY3A8L.jpeg" alt="Bolongo G13" loading="lazy"></div>
           <div class="prop-card-info">
             <div class="prop-card-zone">Punta de Mita · Riviera Nayarit</div>
             <div class="prop-card-name">Bolongo G13</div>
-            <div class="prop-card-meta"><span>10 huéspedes</span><span>·</span><span>4 rec</span></div>
-            <div class="prop-card-price"><span class="amount">$280</span><span class="unit">/noche</span></div>
+            <div class="prop-card-meta"><span>10 guests</span><span>·</span><span>4 bedrooms</span></div>
+            <div class="prop-card-price"><span class="amount">$280</span><span class="unit">/ night</span></div>
           </div>
         </a>
 
-        <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Mar%C3%ADtima%209S" target="_blank" rel="noopener"
-           class="prop-card reveal" data-tags="family,group">
+        <a href="vrm_property.html?id=9S"
+           class="prop-card reveal" data-tags="family,group" data-unit-id="9S" data-capacity="8">
           <div class="prop-card-photo"><img src="https://i.imgur.com/sgXZxMP.jpeg" alt="Marítima 9S" loading="lazy"></div>
           <div class="prop-card-info">
             <div class="prop-card-zone">Nuevo Vallarta · Flamingos</div>
             <div class="prop-card-name">Marítima 9S</div>
-            <div class="prop-card-meta"><span>8 huéspedes</span><span>·</span><span>3 rec</span></div>
-            <div class="prop-card-price"><span class="amount">$215</span><span class="unit">/noche</span></div>
+            <div class="prop-card-meta"><span>8 guests</span><span>·</span><span>3 bedrooms</span></div>
+            <div class="prop-card-price"><span class="amount">$215</span><span class="unit">/ night</span></div>
           </div>
         </a>
 
-        <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Bolongo%203N" target="_blank" rel="noopener"
-           class="prop-card reveal" data-tags="couple,family">
+        <a href="vrm_property.html?id=3N"
+           class="prop-card reveal" data-tags="couple,family" data-unit-id="3N" data-capacity="4">
           <div class="prop-card-photo"><img src="https://a0.muscache.com/im/pictures/hosting/Hosting-1483418374242300943/original/5bdb38b9-52f2-4a2d-8e95-43b8fd972de7.jpeg?im_w=720" alt="Bolongo 3N" loading="lazy"></div>
           <div class="prop-card-info">
             <div class="prop-card-zone">Punta de Mita · Riviera Nayarit</div>
             <div class="prop-card-name">Bolongo 3N</div>
-            <div class="prop-card-meta"><span>4 huéspedes</span><span>·</span><span>2 rec</span></div>
-            <div class="prop-card-price"><span class="amount">$185</span><span class="unit">/noche</span></div>
+            <div class="prop-card-meta"><span>4 guests</span><span>·</span><span>2 bedrooms</span></div>
+            <div class="prop-card-price"><span class="amount">$185</span><span class="unit">/ night</span></div>
           </div>
         </a>
 
-        <a href="https://wa.me/15559472509?text=Hola%2C%20me%20interesa%20Vallarta%20Gardens%203004" target="_blank" rel="noopener"
-           class="prop-card reveal" data-tags="family">
+        <a href="vrm_property.html?id=3004"
+           class="prop-card reveal" data-tags="family" data-unit-id="3004" data-capacity="6">
           <div class="prop-card-photo"><img src="https://i.imgur.com/JV7Bscs.jpeg" alt="Vallarta Gardens 3004" loading="lazy"></div>
           <div class="prop-card-info">
             <div class="prop-card-zone">La Cruz de Huanacaxtle</div>
             <div class="prop-card-name">Vallarta Gardens 3004</div>
-            <div class="prop-card-meta"><span>6 huéspedes</span><span>·</span><span>2 rec</span></div>
-            <div class="prop-card-price"><span class="amount">$230</span><span class="unit">/noche</span></div>
+            <div class="prop-card-meta"><span>6 guests</span><span>·</span><span>2 bedrooms</span></div>
+            <div class="prop-card-price"><span class="amount">$230</span><span class="unit">/ night</span></div>
           </div>
         </a>
       </div>
 
       <div class="prop-grid-footer">
-        <a href="https://wa.me/15559472509?text=Hola%2C%20quisiera%20ver%20todas%20las%20propiedades%20disponibles"
+        <a href="https://wa.me/15559472509?text=Hi!%20I'd%20like%20to%20see%20all%20available%20homes"
            class="btn btn-secondary" target="_blank" rel="noopener">
-          Ver las 70 propiedades por WhatsApp
+          Browse all 70 homes on WhatsApp
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </a>
       </div>
@@ -1769,38 +2192,36 @@
         <div class="review-mark">"</div>
         <blockquote class="review-text">
           Llegamos a Vallarta cansados y Rodrigo nos recibió en la casa con todo
-          listo. Sentimos que <em>reservamos con un amigo,</em> no con una empresa.
+          listo. <em>Sentimos que reservamos con un amigo,</em> no con una empresa.
         </blockquote>
         <div class="review-attr">
-          <span class="review-attr-name">Mariana L.</span>
+          <span class="review-attr-name">Margaret &amp; David K.</span>
           <span class="review-attr-sep">—</span>
-          <span class="review-attr-property">Quiya 2403</span>
+          <span class="review-attr-property">Toronto · January 2026</span>
         </div>
       </div>
 
       <div class="review reveal">
         <div class="review-mark">"</div>
         <blockquote class="review-text">
-          Vista perfecta al mar, la cocina equipada con todo. Detalles que solo un
-          equipo <em>que vive ahí</em> podría conocer. Ya estamos planeando regresar.
+          Es la cuarta vez que rentamos con VRM. La diferencia es la gente — siempre disponibles, siempre honestos sobre qué casa nos conviene. <em>Ya somos amigos.</em>
         </blockquote>
         <div class="review-attr">
-          <span class="review-attr-name">Carlos & Elena</span>
+          <span class="review-attr-name">Robert M.</span>
           <span class="review-attr-sep">—</span>
-          <span class="review-attr-property">Marítima 6S</span>
+          <span class="review-attr-property">Calgary · March 2026</span>
         </div>
       </div>
 
       <div class="review reveal">
         <div class="review-mark">"</div>
         <blockquote class="review-text">
-          Tercera vez reservando con VRM. La diferencia con Airbnb es enorme:
-          atención directa, precio justo, y <em>siempre alguien al teléfono.</em>
+          We've stayed in many vacation rentals across Mexico. VRM's attention to detail and local knowledge stands apart. <em>They know which restaurant to recommend, where the fresh tuna is.</em>
         </blockquote>
         <div class="review-attr">
-          <span class="review-attr-name">Daniel R.</span>
+          <span class="review-attr-name">Linda &amp; Tom W.</span>
           <span class="review-attr-sep">—</span>
-          <span class="review-attr-property">Bolongo · Punta de Mita</span>
+          <span class="review-attr-property">Vancouver · December 2025</span>
         </div>
       </div>
     </div>
@@ -1808,25 +2229,25 @@
 
   <section class="final" id="final">
     <h2 class="final-title reveal">
-      ¿Listo para<br><em>conocer la bahía?</em>
+      We'll send you<br><em>elsewhere if we should.</em>
     </h2>
     <div class="final-actions reveal reveal-d1">
       <a href="#properties" class="btn btn-primary">
-        Ver propiedades
+        Browse stays
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <line x1="5" y1="12" x2="19" y2="12"/>
           <polyline points="12 5 19 12 12 19"/>
         </svg>
       </a>
       <a href="https://wa.me/523221234567" class="btn btn-secondary" target="_blank" rel="noopener">
-        WhatsApp directo
+        WhatsApp Rodrigo
       </a>
     </div>
     <div class="final-rule"></div>
     <p class="final-caption">
-      Estamos en Vallarta, esperándote.<br>
-      Atendemos en español, inglés e italiano.
+      Based in Vallarta. We answer in English, Spanish, and Italian.
     </p>
+    <p class="final-signature">“Si la casa no encaja contigo, te recomendamos otra.”</p>
   </section>
 
   <footer class="footer">
@@ -2010,14 +2431,14 @@ const bgMaterial = new THREE.ShaderMaterial({
   uniforms: {
     uTime: { value: 0 },
     uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-    // Paleta tropical submarina real (inspirada en foto National Geographic):
-    // cyan claro arriba → cyan medio → azul medio → azul profundo
-    // SIN abismo negro — agua tropical clara, no batiscafo
-    uColorSurface: { value: new THREE.Color(0x88c8d8) },  // cyan claro turquesa arriba
-    uColorUpper:   { value: new THREE.Color(0x4090b0) },  // cyan medio
-    uColorMid:     { value: new THREE.Color(0x1f6890) },  // azul cyan
-    uColorDeep:    { value: new THREE.Color(0x0c3870) },  // azul profundo (no negro)
-    uRayColor:     { value: new THREE.Color(0xeaf4ff) }   // rayos blanco frío sutil
+    // Paleta Bahía submarina:
+    // Abyss (fondo) → Marine → Stone (medio) → Stone-cyan blend (arriba)
+    // Destellos Cyan Deep en god rays — sutiles, no flash.
+    uColorSurface: { value: new THREE.Color(0x4A6688) },  // top: stone + lift cyan (luz dispersa)
+    uColorUpper:   { value: new THREE.Color(0x3A4A60) },  // Stone
+    uColorMid:     { value: new THREE.Color(0x1A2E48) },  // Marine
+    uColorDeep:    { value: new THREE.Color(0x0A1428) },  // Abyss
+    uRayColor:     { value: new THREE.Color(0x4A8FB5) }   // Cyan Deep (destellos sutiles)
   },
   vertexShader: `
     varying vec2 vUv;
@@ -2147,13 +2568,14 @@ const bgMaterial = new THREE.ShaderMaterial({
       vec3 finalColor = baseColor;
       
       // === 2. SOFT GOD RAYS ===
-      // Aditivos, sutiles, atmosféricos
+      // Destellos Cyan Deep — sutiles, casi imperceptibles. Como Cyan Deep
+      // es más saturado que el blanco-frío anterior, bajamos el multiplier.
       float rays = softRays(uv, t);
-      finalColor += uRayColor * rays * 0.35;
+      finalColor += uRayColor * rays * 0.22;
       
       // === 3. PARTÍCULAS DE PLANCTON ===
       float p = particles(uv, t);
-      finalColor += vec3(0.95, 0.98, 1.0) * p * 0.5;
+      finalColor += vec3(0.91, 0.89, 0.85) * p * 0.5;  // tinte Mist neutro
       
       // === 4. ATMOSPHERIC FOG con profundidad ===
       // La parte de abajo gana azul (el "velo" del agua tropical)
@@ -2960,11 +3382,12 @@ const WHALE_PATH = [
   // 58% — Centro fondo, ya muy lejos
   { sp: 0.58, x:  1,   y: -2.5,  z:  -12, roll:  0.10 },
   
-  // 70% — Empieza a regresar desde la derecha-fondo
-  { sp: 0.70, x:  4,   y: -2,    z:  -9, roll:  0.08 },
+  // 70% — Empieza a regresar (fix A.4: ELEVADA para cruzar el TÍTULO grande
+  //        del grid "The 10 most requested", no los filtros de abajo)
+  { sp: 0.70, x:  4,   y:  1.0,  z:  -8, roll:  0.08 },
   
-  // 80% — Acercándose por la derecha
-  { sp: 0.80, x:  3,   y: -1,    z:  -4, roll:  0.04 },
+  // 80% — Acercándose por la derecha, sigue alta sobre los filtros
+  { sp: 0.80, x:  3,   y:  0.5,  z:  -4, roll:  0.04 },
   
   // 90% — Cerca, cruzando hacia centro de nuevo
   { sp: 0.90, x:  1,   y:  0,    z:   0, roll: -0.02 },
@@ -3351,24 +3774,168 @@ animate();
   update();
 })();
 
-// PROPERTY GRID FILTERS
+// ============================================================
+// PROPERTY GRID FILTERS — sistema combinado:
+//   · Tag filter (All / Couples / Families / Groups / Oceanfront)
+//   · Capacity filter (search bar guests select)
+//   · Availability range filter (search bar checkin/checkout)
+//
+// Estado central: filterState{ tag, capacity, checkin, checkout }
+// Aplica todos los filtros en orden y muestra/oculta cards.
+// ============================================================
 (() => {
   const filters = document.querySelectorAll('.prop-filter');
   const cards = document.querySelectorAll('#prop-grid .prop-card');
   if (!filters.length || !cards.length) return;
 
+  const checkinInput  = document.getElementById('search-checkin');
+  const checkoutInput = document.getElementById('search-checkout');
+  const guestsSelect  = document.getElementById('search-guests');
+  const clearBtn      = document.getElementById('search-clear');
+  const statusEl      = document.getElementById('search-status');
+
+  const state = {
+    tag: 'all',
+    capacity: 0,
+    checkin: null,
+    checkout: null,
+  };
+
+  // Preload availability de todas las units al cargar (warmup cache)
+  const allUnitIds = Array.from(cards)
+    .map(c => c.dataset.unitId)
+    .filter(Boolean);
+  if (window.preloadAvailability) {
+    window.preloadAvailability(allUnitIds).catch(() => {});
+  }
+
+  // Bound check-out al check-in mínimo y check-in al hoy
+  function _todayISO() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+  if (checkinInput)  checkinInput.min  = _todayISO();
+  if (checkoutInput) checkoutInput.min = _todayISO();
+
+  function updateStatusMessage(matchCount, totalCount, hasDateFilter) {
+    if (!statusEl) return;
+    const anyActive = state.tag !== 'all' || state.capacity > 0 || hasDateFilter;
+    if (!anyActive) {
+      statusEl.hidden = true;
+      return;
+    }
+    statusEl.hidden = false;
+    if (matchCount === 0) {
+      statusEl.innerHTML = `No homes match these filters. <span class="accent">Try different dates or fewer guests.</span>`;
+    } else if (matchCount === totalCount) {
+      statusEl.innerHTML = `<span class="accent">${matchCount}</span> homes available`;
+    } else {
+      statusEl.innerHTML = `<span class="accent">${matchCount}</span> of ${totalCount} homes match`;
+    }
+  }
+
+  function updateClearButton() {
+    if (!clearBtn) return;
+    const anyDateFilter = !!(state.checkin || state.checkout || state.capacity > 0);
+    clearBtn.hidden = !anyDateFilter;
+  }
+
+  async function applyFilters() {
+    const hasDateFilter = !!(state.checkin && state.checkout);
+    let matchCount = 0;
+    const totalCount = cards.length;
+
+    // Loading indicator si hay filtro de fechas
+    if (hasDateFilter && statusEl) {
+      statusEl.hidden = false;
+      statusEl.innerHTML = `<span class="accent">Checking availability…</span>`;
+    }
+
+    // Aplicar filtros card por card
+    for (const card of cards) {
+      const tags = (card.dataset.tags || '').split(',').map(t => t.trim());
+      const capacity = parseInt(card.dataset.capacity || '0', 10);
+      const unitId = card.dataset.unitId;
+
+      let visible = true;
+
+      // 1. Tag filter
+      if (state.tag !== 'all' && !tags.includes(state.tag)) {
+        visible = false;
+      }
+      // 2. Capacity filter
+      if (visible && state.capacity > 0 && capacity < state.capacity) {
+        visible = false;
+      }
+      // 3. Availability filter (chequea contra Supabase)
+      if (visible && hasDateFilter && unitId && window.isUnitAvailableInRange) {
+        try {
+          const available = await window.isUnitAvailableInRange(
+            unitId, state.checkin, state.checkout
+          );
+          if (!available) visible = false;
+        } catch (e) {
+          // En caso de error de red, no escondemos (fail-open)
+          console.warn('[VRM] availability check failed for', unitId, e.message);
+        }
+      }
+
+      card.classList.toggle('filtered-out', !visible);
+      if (visible) matchCount++;
+    }
+
+    updateStatusMessage(matchCount, totalCount, hasDateFilter);
+    updateClearButton();
+  }
+
+  // ─── Listeners de filter pills (tag) ───
   filters.forEach(btn => {
     btn.addEventListener('click', () => {
       filters.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const filter = btn.dataset.filter;
-      cards.forEach(card => {
-        const tags = (card.dataset.tags || '').split(',').map(t => t.trim());
-        const visible = filter === 'all' || tags.includes(filter);
-        card.classList.toggle('filtered-out', !visible);
-      });
+      state.tag = btn.dataset.filter;
+      applyFilters();
     });
   });
+
+  // ─── Listeners de search bar ───
+  if (checkinInput) {
+    checkinInput.addEventListener('change', () => {
+      state.checkin = checkinInput.value || null;
+      // Asegurar checkout > checkin
+      if (state.checkin && checkoutInput) {
+        checkoutInput.min = state.checkin;
+        if (state.checkout && state.checkout <= state.checkin) {
+          checkoutInput.value = '';
+          state.checkout = null;
+        }
+      }
+      applyFilters();
+    });
+  }
+  if (checkoutInput) {
+    checkoutInput.addEventListener('change', () => {
+      state.checkout = checkoutInput.value || null;
+      applyFilters();
+    });
+  }
+  if (guestsSelect) {
+    guestsSelect.addEventListener('change', () => {
+      state.capacity = parseInt(guestsSelect.value, 10) || 0;
+      applyFilters();
+    });
+  }
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      if (checkinInput)  checkinInput.value  = '';
+      if (checkoutInput) checkoutInput.value = '';
+      if (guestsSelect)  guestsSelect.value  = '0';
+      state.checkin = null;
+      state.checkout = null;
+      state.capacity = 0;
+      applyFilters();
+    });
+  }
 })();
 
 // LOADER fade out
