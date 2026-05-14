@@ -1785,216 +1785,12 @@ const waterShader = {
 const waterPass = new ShaderPass(waterShader);
 composer.addPass(waterPass);
 
-/* ============================================================
-   IRIDESCENT TRAIL — Estela iridiscente que sigue al cursor
-   
-   Capa independiente del waterShader. Mientras waterShader hace
-   distorsión sutil del viewport (ripples cortos), este shader crea
-   una ESTELA visible tipo "petróleo en agua / membrana iridiscente"
-   que dura 2-3 segundos y muestra aberración cromática prismática.
-   
-   Anatomía:
-   • IridescentTrailTexture: canvas que captura el cursor con vida larga
-   • Shader: combina flow noise + chromatic aberration extrema en zonas
-     donde la textura del trail tiene fuerza > 0
-   ============================================================ */
-class IridescentTrailTexture {
-  constructor() {
-    this.size = 128;
-    this.points = [];
-    this.maxAge = 150;       // ~2.5s a 60fps
-    this.radius = 0.18;
-    this.last = null;
-    
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = this.canvas.height = this.size;
-    this.ctx = this.canvas.getContext('2d');
-    this.ctx.fillStyle = 'black';
-    this.ctx.fillRect(0, 0, this.size, this.size);
-    
-    this.texture = new THREE.Texture(this.canvas);
-    this.texture.minFilter = THREE.LinearFilter;
-    this.texture.magFilter = THREE.LinearFilter;
-  }
-  
-  addPoint(point) {
-    let force = 0, vx = 0, vy = 0;
-    if (this.last) {
-      const rx = point.x - this.last.x;
-      const ry = point.y - this.last.y;
-      const dist = Math.sqrt(rx * rx + ry * ry);
-      if (dist > 0) { vx = rx / dist; vy = ry / dist; }
-      // ★ DEBUG: piso de fuerza alto (0.8) — siempre escribe visible
-      force = Math.min(0.8 + dist * 80, 1);
-    } else {
-      // Primer punto: también con fuerza
-      force = 0.8;
-    }
-    this.last = { x: point.x, y: point.y };
-    this.points.push({ x: point.x, y: point.y, age: 0, force, vx, vy });
-  }
-  
-  update() {
-    this.ctx.fillStyle = 'black';
-    this.ctx.fillRect(0, 0, this.size, this.size);
-    
-    for (let i = this.points.length - 1; i >= 0; i--) {
-      const p = this.points[i];
-      p.age++;
-      if (p.age > this.maxAge) {
-        this.points.splice(i, 1);
-        continue;
-      }
-      this.drawPoint(p);
-    }
-    this.texture.needsUpdate = true;
-  }
-  
-  drawPoint(p) {
-    const ctx = this.ctx;
-    const size = this.size;
-    const x = p.x * size;
-    const y = p.y * size;
-    
-    // Decay con easing — la estela se desvanece suavemente
-    const lifeProgress = p.age / this.maxAge;
-    const intensity = 1 - lifeProgress;
-    const eased = intensity * intensity * intensity;   // cubic ease out
-    
-    // Canal R = dirección X, G = dirección Y, B = fuerza
-    const red = Math.round(((p.vx + 1) / 2) * 255);
-    const green = Math.round(((p.vy + 1) / 2) * 255);
-    const blue = Math.round(p.force * eased * 255);
-    
-    // Radio que decae lentamente al inicio (mantiene la "boluta" visible)
-    // y crece sutilmente al envejecer (estela se difumina)
-    const radius = this.radius * size * (1 + lifeProgress * 1.2);
-    
-    const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    grad.addColorStop(0,   `rgba(${red},${green},${blue},${eased})`);
-    grad.addColorStop(0.6, `rgba(${red},${green},${blue},${eased * 0.3})`);
-    grad.addColorStop(1,   'rgba(0,0,0,0)');
-    
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-  }
-}
-
-const iridescentTrail = new IridescentTrailTexture();
-console.log('%c[VRM] Iridescent trail loaded — move cursor to test', 'color: #b8d8ec; font-weight: bold; padding: 4px 8px; background: #4a3470; border-radius: 4px;');
-
-const iridescentTrailShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    uTrail: { value: iridescentTrail.texture },
-    uTime: { value: 0 },
-    uStrength: { value: 0.12 },           // ★ DEBUG: 3x más fuerte (0.04 → 0.12)
-    uChromaStrength: { value: 0.08 },     // ★ DEBUG: 3x más aberración (0.025 → 0.08)
-    uIridescenceStrength: { value: 1.2 }  // ★ DEBUG: máx visible (0.5 → 1.2)
-  },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform sampler2D tDiffuse;
-    uniform sampler2D uTrail;
-    uniform float uTime;
-    uniform float uStrength;
-    uniform float uChromaStrength;
-    uniform float uIridescenceStrength;
-    varying vec2 vUv;
-    
-    // Hash y noise procedural — el "flow" iridiscente de membrana
-    float hash(vec2 p) {
-      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-    }
-    float noise(vec2 p) {
-      vec2 i = floor(p);
-      vec2 f = fract(p);
-      vec2 u = f * f * (3.0 - 2.0 * f);
-      return mix(mix(hash(i + vec2(0, 0)), hash(i + vec2(1, 0)), u.x),
-                 mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y);
-    }
-    // FBM (fractal brownian motion) para textura turbulenta tipo petróleo
-    float fbm(vec2 p) {
-      float v = 0.0;
-      float a = 0.5;
-      for (int i = 0; i < 4; i++) {
-        v += a * noise(p);
-        p *= 2.0;
-        a *= 0.5;
-      }
-      return v;
-    }
-    
-    void main() {
-      // Leer la textura del trail (RG = dirección, B = fuerza)
-      vec4 trailInfo = texture2D(uTrail, vec2(vUv.x, 1.0 - vUv.y));
-      vec2 dir = trailInfo.rg * 2.0 - 1.0;
-      float force = trailInfo.b;
-      
-      // Si no hay trail acá, render sin tocar (optimización)
-      if (force < 0.005) {
-        gl_FragColor = texture2D(tDiffuse, vUv);
-        return;
-      }
-      
-      // === DISTORSIÓN del fondo ===
-      // El fondo se desplaza ligero en dirección del flujo + perturbado por noise
-      vec2 flowOffset = dir * force * uStrength;
-      float n1 = fbm(vUv * 8.0 + uTime * 0.15 + dir * 0.5);
-      float n2 = fbm(vUv * 8.0 - uTime * 0.12 + 13.7);
-      vec2 noiseOffset = vec2(n1 - 0.5, n2 - 0.5) * force * uStrength * 1.5;
-      vec2 distortedUv = vUv + flowOffset + noiseOffset;
-      
-      // === ABERRACIÓN CROMÁTICA prismática ===
-      // Cada canal RGB con offset diferente — fuerte SOLO en zonas con force
-      float chroma = uChromaStrength * force;
-      vec2 chromaDir = normalize(dir + vec2(0.001));
-      float r = texture2D(tDiffuse, distortedUv + chromaDir * chroma * 1.5).r;
-      float g = texture2D(tDiffuse, distortedUv).g;
-      float b = texture2D(tDiffuse, distortedUv - chromaDir * chroma * 1.5).b;
-      vec3 baseColor = vec3(r, g, b);
-      
-      // === FLOW NOISE iridiscente — la "membrana de petróleo" ===
-      // Un patrón de noise que se mueve con el flujo, coloreado en bandas iridiscentes
-      float flowPattern = fbm(vUv * 12.0 + dir * uTime * 0.4 + force * 3.0);
-      
-      // Bandas iridiscentes basadas en el flow pattern
-      // sin() con offsets diferentes por canal → arcoíris suave
-      vec3 iridescence = vec3(
-        sin(flowPattern * 6.28 + 0.0) * 0.5 + 0.5,
-        sin(flowPattern * 6.28 + 2.094) * 0.5 + 0.5,
-        sin(flowPattern * 6.28 + 4.188) * 0.5 + 0.5
-      );
-      // Suavizar — no queremos colores saturados puros, tipo pastel
-      iridescence = mix(vec3(0.85), iridescence, 0.7);
-      
-      // Mezcla la iridescencia SOBRE el fondo distorsionado
-      // Más visible donde hay más force (estela reciente)
-      float visibility = force * uIridescenceStrength;
-      vec3 finalColor = mix(baseColor, baseColor * iridescence, visibility);
-      
-      // Toque de brillo (highlight de la membrana)
-      finalColor += vec3(force * 0.08);
-      
-      gl_FragColor = vec4(finalColor, 1.0);
-    }
-  `
-};
-const iridescentTrailPass = new ShaderPass(iridescentTrailShader);
-composer.addPass(iridescentTrailPass);
-
 const outputPass = new OutputPass();
 composer.addPass(outputPass);
+
+// El efecto iridiscente del cursor se renderiza como overlay 2D fullscreen
+// (no como pass del composer WebGL), porque el composer solo afecta al canvas
+// de la ballena, no al resto del DOM. Ver bloque al final del archivo.
 
 /* ============================================================
    COREOGRAFÍA — La ballena nada por la escena
@@ -2190,14 +1986,11 @@ let assembleProgress = 0;
 const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 if (!isTouchDevice) {
   window.addEventListener('mousemove', (ev) => {
-    const point = {
+    // Coordenadas normalizadas 0..1
+    waterTexture.addPoint({
       x: ev.clientX / window.innerWidth,
       y: ev.clientY / window.innerHeight
-    };
-    // Ambos shaders reciben el mismo punto — waterShader hace distorsión sutil,
-    // iridescentTrail hace la estela iridiscente larga
-    waterTexture.addPoint(point);
-    iridescentTrail.addPoint(point);
+    });
   }, { passive: true });
 }
 
@@ -2209,10 +2002,6 @@ function animate() {
 
   // ★★★ Actualizar WaterTexture cada frame (los ripples envejecen) ★★★
   waterTexture.update();
-  // ★ Actualizar también la estela iridiscente (vida más larga ~2.5s)
-  iridescentTrail.update();
-  // Time uniform para el flow noise del shader iridiscente
-  iridescentTrailShader.uniforms.uTime.value = t;
 
   // Lerp suave del scroll target (solo eso)
   scrollProgress += (scrollTarget - scrollProgress) * 0.06;
@@ -2565,6 +2354,140 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     }
   });
 })();
+
+/* ============================================================
+   IRIDESCENT TRAIL OVERLAY — Estela iridiscente del cursor
+   
+   Canvas 2D fullscreen position:fixed que pinta encima de TODO
+   el DOM (no como WebGL postprocess, que solo afecta a la ballena).
+   
+   Por qué overlay en lugar de shader: el cursor pasa por encima
+   de aurora + secciones + textos. Un overlay 2D los ve todos.
+   
+   Técnica: cada movimiento del cursor inscribe un punto en una lista.
+   Los puntos viven ~2.5s. Cada frame, se redibujan todos los puntos
+   en cascada con gradientes radiales coloreados por edad, simulando
+   bandas iridiscentes con sin/cos shifted.
+   ============================================================ */
+(() => {
+  // Touch devices no tienen cursor → skip
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+  // Canvas overlay fullscreen — encima de todo, sin interferir con clicks
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = [
+    'position: fixed',
+    'top: 0', 'left: 0',
+    'width: 100vw', 'height: 100vh',
+    'pointer-events: none',
+    'z-index: 9998',                  // debajo del cursor (9999) pero arriba de TODO lo demás
+    'mix-blend-mode: screen'          // suma luz al fondo — bandas brillantes sin tapar contenido
+  ].join(';');
+  document.body.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d');
+  let w = 0, h = 0;
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = window.innerWidth;
+    h = window.innerHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.scale(dpr, dpr);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Buffer de puntos del trail
+  const points = [];
+  const MAX_AGE = 150;        // frames de vida (~2.5s a 60fps)
+  const SPAWN_RADIUS = 80;    // tamaño del "blob" en pixels
+
+  let lastPoint = null;
+  window.addEventListener('mousemove', (e) => {
+    let vx = 0, vy = 0;
+    if (lastPoint) {
+      const dx = e.clientX - lastPoint.x;
+      const dy = e.clientY - lastPoint.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len > 0) { vx = dx / len; vy = dy / len; }
+    }
+    lastPoint = { x: e.clientX, y: e.clientY };
+    points.push({
+      x: e.clientX,
+      y: e.clientY,
+      vx, vy,
+      age: 0
+    });
+  }, { passive: true });
+
+  console.log('%c[VRM] Iridescent OVERLAY active', 'color:#fff;background:#4a3470;padding:4px 8px;border-radius:4px;font-weight:bold;');
+
+  // Loop de pintado
+  function loop() {
+    // Limpiar con un alpha bajo crea fade natural (efecto motion blur sutil)
+    // Pero queremos limpiar todo porque los puntos ya se desvanecen solos.
+    ctx.clearRect(0, 0, w, h);
+
+    for (let i = points.length - 1; i >= 0; i--) {
+      const p = points[i];
+      p.age++;
+      if (p.age > MAX_AGE) {
+        points.splice(i, 1);
+        continue;
+      }
+
+      const lifeT = p.age / MAX_AGE;        // 0 → 1
+      const fade = 1 - lifeT;
+      const eased = fade * fade;            // cubic ease out
+      const radius = SPAWN_RADIUS * (1 + lifeT * 0.6);
+
+      // Bandas iridiscentes — el color depende de la EDAD y la DIRECCIÓN
+      // sin() con offsets diferentes por canal → arcoíris suave pastel
+      const phase = p.age * 0.08 + (p.vx + p.vy) * 0.5;
+      const r = Math.round((Math.sin(phase + 0.0) * 0.4 + 0.6) * 255);
+      const g = Math.round((Math.sin(phase + 2.094) * 0.4 + 0.6) * 255);
+      const b = Math.round((Math.sin(phase + 4.188) * 0.4 + 0.6) * 255);
+
+      // Gradiente radial con falloff suave
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
+      grad.addColorStop(0,    `rgba(${r},${g},${b},${eased * 0.45})`);
+      grad.addColorStop(0.3,  `rgba(${r},${g},${b},${eased * 0.28})`);
+      grad.addColorStop(0.7,  `rgba(${r},${g},${b},${eased * 0.10})`);
+      grad.addColorStop(1,    'rgba(0,0,0,0)');
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Halo de aberración cromática — 2 círculos pequeños desplazados
+      // en rojo y cyan separados, simulando dispersión prismática
+      if (eased > 0.3) {
+        const shift = 8 * eased;
+        const haloAlpha = eased * 0.25;
+
+        // Rojo desplazado
+        ctx.fillStyle = `rgba(255,150,200,${haloAlpha})`;
+        ctx.beginPath();
+        ctx.arc(p.x + p.vx * shift, p.y + p.vy * shift, radius * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cyan desplazado al lado opuesto
+        ctx.fillStyle = `rgba(150,220,255,${haloAlpha})`;
+        ctx.beginPath();
+        ctx.arc(p.x - p.vx * shift, p.y - p.vy * shift, radius * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+
 </script>
 
 </body>
