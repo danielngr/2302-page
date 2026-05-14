@@ -1851,10 +1851,10 @@ class WaterTexture {
         vx = relativeX / distance;
         vy = relativeY / distance;
       }
-      // Fuerza más generosa — siempre escribe visible
-      force = Math.min(0.55 + distance * 100, 1);
+      // Fuerza alta y con piso mínimo para máxima visibilidad
+      force = Math.min(0.9 + distance * 100, 1);
     } else {
-      force = 0.55;
+      force = 0.9;
     }
     this.last = { x: point.x, y: point.y };
     
@@ -1959,9 +1959,9 @@ const waterShader = {
     tDiffuse: { value: null },
     uWaterTexture: { value: waterTexture.texture },
     uTime: { value: 0 },
-    uStrength: { value: 0.14 },          // distorsión principal
-    uChromaStrength: { value: 0.020 },   // aberración cromática prismática
-    uTurbulence: { value: 0.6 }          // intensidad de turbulencia secundaria
+    uStrength: { value: 0.55 },          // MÁXIMO visible
+    uChromaStrength: { value: 0.10 },    // MÁXIMO visible
+    uTurbulence: { value: 2.5 }          // MÁXIMO visible
   },
   vertexShader: `
     varying vec2 vUv;
@@ -2010,8 +2010,9 @@ const waterShader = {
       vec2 dir = waterInfo.rg * 2.0 - 1.0;
       float force = waterInfo.b;
       
-      // Si no hay flow aquí, render sin tocar (optimización)
-      if (force < 0.003) {
+      // Si NO hay flow visible aquí, render sin tocar (optimización)
+      // Threshold muy bajo (0.001) para asegurar máxima visibilidad
+      if (force < 0.001) {
         gl_FragColor = texture2D(tDiffuse, vUv);
         return;
       }
