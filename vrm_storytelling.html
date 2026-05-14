@@ -3707,23 +3707,27 @@ if (!isTouchDevice) {
    ============================================================ */
 const BLOOM_BASE = 0.26;       // bloom calmado en idle
 const BLOOM_PEAK = 1.05;       // pico del flash dorado
-const FLASH_START_TIME = 1.4;  // segundos después de inicio del animate
+const FLASH_START_TIME = 1.4;  // segundos después del INICIO del reveal (no del script)
 const FLASH_DURATION = 0.9;    // duración del flash
 let _flashFired = false;
 
 /* ============================================================
    ANIMATION LOOP — pose hero esculpida + capas de vida sutil
+
+   CRÍTICO: el reveal NO arranca cuando se ejecuta el script — arranca
+   cuando el GLB termina de cargar. Si el modelo tarda 2s en bajar, el
+   reveal debe esperar a tener algo que revelar. Sin esto, la ballena
+   aparece de golpe a tamaño completo cuando carga (porque el "reveal"
+   ya terminó en tiempo abstracto sin haber renderizado nada visible).
    ============================================================ */
 
-// Captura el momento en que arranca el animate — referencia para el reveal.
-const animateStartTime = performance.now() / 1000;
+// Se setea a performance.now()/1000 EN EL FRAME en que el modelo carga.
+// Hasta entonces, el reveal está "congelado en t=0" (escala 0, invisible).
+let revealStartTime = null;
 
 function animate() {
   const dt = clock.getDelta();
   const t = clock.getElapsedTime();
-
-  // Tiempo desde que arrancó el animate (en segundos) — para la apertura.
-  const elapsed = performance.now() / 1000 - animateStartTime;
 
   if (mixer) mixer.update(dt);
 
@@ -3743,8 +3747,30 @@ function animate() {
   _mouseNorm.y += (_mouseTarget.y - _mouseNorm.y) * Math.min(1, dt * 2.0);
 
   // ════════════════════════════════════════════════════════════════════
-  // APERTURA CINEMATOGRÁFICA — 4 capas en secuencia (0–3.5s):
-  //   0.0–0.6s  Silencio negro (lerp invisible hacia 0, ya estamos en 0)
+  // GATING DEL REVEAL: solo arranca cuando el modelo está cargado.
+  // 
+  // Si `modelLoaded` es false (el GLB aún no terminó de descargar):
+  //   - revealStartTime sigue siendo null
+  //   - elapsed = 0
+  //   - revealProgress = 0
+  //   - revealEased = 0
+  //   - targetScale = 0 → ballena invisible mientras carga
+  // 
+  // En el momento exacto que modelLoaded pasa a true, capturamos el tiempo
+  // de inicio del reveal. A partir de ese frame, elapsed crece y la ballena
+  // emerge cinemáticamente desde el fondo.
+  // ════════════════════════════════════════════════════════════════════
+  if (modelLoaded && revealStartTime === null) {
+    revealStartTime = performance.now() / 1000;
+  }
+  const elapsed = revealStartTime === null
+    ? 0
+    : performance.now() / 1000 - revealStartTime;
+
+  // ════════════════════════════════════════════════════════════════════
+  // APERTURA CINEMATOGRÁFICA — 4 capas en secuencia (medido desde
+  // revealStartTime, NO desde el inicio del script):
+  //   0.0–0.6s  Silencio negro (escala = 0, ballena invisible)
   //   0.6–1.4s  REVEAL — emerge del fondo. Posición y scale del REVEAL_FROM
   //             hacia HERO_POSE. Easing easeOutCubic.
   //   1.4–2.3s  FLASH — bloom pulsa BLOOM_BASE → BLOOM_PEAK → BLOOM_BASE
@@ -3759,8 +3785,8 @@ function animate() {
   revealProgress = Math.max(0, Math.min(1, revealProgress));
   const revealEased = easeOutCubic(revealProgress);
 
-  // FLASH de bloom
-  if (!_flashFired && elapsed > FLASH_START_TIME) {
+  // FLASH de bloom — también gated por revealStartTime
+  if (!_flashFired && revealStartTime !== null && elapsed > FLASH_START_TIME) {
     _flashFired = true;
   }
   let bloomTarget = BLOOM_BASE;
@@ -3828,35 +3854,45 @@ function animate() {
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // POSICIÓN — Reveal lerp + drift + scroll-aware shift
+  // POSICIÓN — Durante el reveal usamos asignación DIRECTA (no lerp).
+  // El easeOutCubic ya provee el suavizado cinematográfico. Un lerp
+  // adicional encima causaba saltos transitorios al cambiar revealEased
+  // rápidamente. Después del reveal (revealEased >= 1.0), aplicamos drift
+  // orgánico encima del hero pose, también de forma directa.
   // ════════════════════════════════════════════════════════════════════
-  // Posición target: lerp desde REVEAL_FROM (durante reveal) hacia HERO_POSE
-  const targetX = lerp(REVEAL_FROM.x, HERO_POSE.x, revealEased) + driftX * scrollFade;
-  const targetY = lerp(REVEAL_FROM.y, HERO_POSE.y, revealEased) + driftY * scrollFade;
-  const targetZ = lerp(REVEAL_FROM.z, HERO_POSE.z, revealEased) + driftZ * scrollFade;
+  const baseX = lerp(REVEAL_FROM.x, HERO_POSE.x, revealEased);
+  const baseY = lerp(REVEAL_FROM.y, HERO_POSE.y, revealEased);
+  const baseZ = lerp(REVEAL_FROM.z, HERO_POSE.z, revealEased);
 
-  // Lerp suave hacia target (ballena tiene masa, no es nervioso)
-  whaleGroup.position.x += (targetX - whaleGroup.position.x) * Math.min(1, dt * 4.0);
-  whaleGroup.position.y += (targetY - whaleGroup.position.y) * Math.min(1, dt * 4.0);
-  whaleGroup.position.z += (targetZ - whaleGroup.position.z) * Math.min(1, dt * 4.0);
+  // Drift solo se aplica una vez que el reveal está esencialmente completo,
+  // multiplicado por la fracción del reveal para que entre suavemente.
+  const driftFactor = revealEased * scrollFade;
+
+  whaleGroup.position.x = baseX + driftX * driftFactor;
+  whaleGroup.position.y = baseY + driftY * driftFactor;
+  whaleGroup.position.z = baseZ + driftZ * driftFactor;
 
   // ════════════════════════════════════════════════════════════════════
   // ROTACIÓN — quaternion hero base + roll cinematográfico + secondary + head tilt
   // 
   // Construimos cada frame desde cero para evitar drift acumulativo.
+  // Durante el reveal, el slerp suave hacia el target hace que la rotación
+  // se establezca cinemáticamente. Pre-init nos puso ya en la pose base,
+  // así que el slerp solo añade los secundarios poco a poco.
   // ════════════════════════════════════════════════════════════════════
   // Empezar con el quaternion hero base (fijo, calculado una vez)
   _whaleQuatFinal.copy(_heroQuatBase);
 
-  // Aplicar roll cinematográfico (eje Z local) — ±2°
-  _whaleEulerRoll.set(0, 0, cinematicRoll, 'XYZ');
+  // Aplicar roll cinematográfico (eje Z local) — ±2°, atenuado durante reveal
+  _whaleEulerRoll.set(0, 0, cinematicRoll * revealEased, 'XYZ');
   _whaleQuatRoll.setFromEuler(_whaleEulerRoll);
   _whaleQuatFinal.multiply(_whaleQuatRoll);
 
   // Aplicar secondary motion (pitch dorsal + tail yaw + head tilt al mouse)
+  // También atenuado por revealEased para que entre orgánicamente.
   _whaleEulerSecondary.set(
-    dorsalBob + microShimmer + headTiltX,
-    tailUndulation + headTiltY,
+    (dorsalBob + microShimmer + headTiltX) * revealEased,
+    (tailUndulation + headTiltY) * revealEased,
     0,
     'XYZ'
   );
@@ -3867,11 +3903,19 @@ function animate() {
   whaleGroup.quaternion.slerp(_whaleQuatFinal, Math.min(1, dt * 3.0));
 
   // ════════════════════════════════════════════════════════════════════
-  // SCALE — reveal scale × breath × scroll fade
+  // SCALE — ASIGNACIÓN DIRECTA, sin lerp adicional.
+  // 
+  // `revealEased` ya es nuestro suavizado cinematográfico (easeOutCubic).
+  // El doble lerp (easing × lerp temporal) causaba transitorios visibles:
+  // la ballena "saltaba a diminuto" antes de estabilizarse. Quitamos el
+  // lerp y usamos el valor de easeOutCubic directamente.
+  //
+  // breath y scrollFade son multiplicadores adicionales — operan en
+  // rangos muy pequeños (breath ±0.6%, scrollFade rampea suavemente),
+  // así que no necesitan suavizado propio.
   // ════════════════════════════════════════════════════════════════════
-  const targetScale = revealEased * breath * scrollFade;
-  const currentScale = whaleGroup.scale.x;
-  whaleGroup.scale.setScalar(currentScale + (targetScale - currentScale) * Math.min(1, dt * 5));
+  const finalScale = revealEased * breath * scrollFade;
+  whaleGroup.scale.setScalar(finalScale);
 
   // ════════════════════════════════════════════════════════════════════
   // LUCES ROTANDO — la "vida iridiscente real" del cristal.
