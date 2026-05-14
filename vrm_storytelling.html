@@ -191,10 +191,25 @@
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-end;
-    padding: 0 64px 80px;
+    justify-content: space-between;
+    padding: 120px 64px 80px;
     color: #1a1828;
+  }
+  .cover-mark-container {
+    text-align: center;
+    opacity: 0;
+    animation: ru 1.4s var(--ease-soft) 2.2s forwards;
+  }
+  .cover-mark {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-style: italic;
+    font-size: clamp(120px, 18vw, 280px);
+    line-height: 0.85;
+    color: #1a1828;
+    margin: 0;
+    letter-spacing: 0.02em;
+    text-shadow: 0 0 60px rgba(255, 255, 255, 0.6);
   }
   .cover-content {
     max-width: 1400px;
@@ -207,36 +222,32 @@
     letter-spacing: 0.5em;
     text-transform: uppercase;
     color: #1a1828;
-    margin-bottom: 32px;
-    opacity: 0;
-    transform: translateY(20px);
-    animation: ru 1.2s var(--ease-soft) 2.4s forwards;
+    margin-bottom: 24px;
+    opacity: 0.65;
   }
   .cover-title {
     font-family: var(--font-display);
     font-weight: 300;
-    font-size: clamp(64px, 13vw, 220px);
-    line-height: 0.88;
+    font-size: clamp(48px, 9vw, 140px);
+    line-height: 0.92;
     color: #1a1828;
     margin: 0;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
   }
   .cover-title .line {
     display: block;
     opacity: 0;
-    transform: translateY(60px);
-    animation: ru 1.8s var(--ease-soft) forwards;
+    transform: translateY(40px);
+    animation: ru 1.6s var(--ease-soft) forwards;
   }
   .cover-title .line:nth-child(1) {
-    animation-delay: 2.6s;
+    animation-delay: 3.0s;
     font-weight: 300;
-    color: #1a1828;
   }
   .cover-title .line:nth-child(2) {
-    animation-delay: 2.9s;
+    animation-delay: 3.3s;
     font-style: italic;
     font-weight: 400;
-    margin-left: clamp(40px, 8vw, 160px);
     color: #ffffff;
     text-shadow:
       0 0 30px rgba(255, 255, 255, 0.5),
@@ -282,9 +293,9 @@
   }
   @keyframes ru { to { opacity: 1; transform: translateY(0); } }
   @media (max-width: 768px) {
-    .cover { padding: 0 24px 100px; }
+    .cover { padding: 90px 24px 90px; }
+    .cover-mark { font-size: clamp(90px, 24vw, 160px); }
     .cover-eyebrow { font-size: 9px; letter-spacing: 0.4em; margin-bottom: 20px; }
-    .cover-title .line:nth-child(2) { margin-left: 30px; }
     .cover-cue { bottom: 24px; }
     .cover-cue-star { font-size: 8px; letter-spacing: 0.36em; }
   }
@@ -664,15 +675,18 @@
   </nav>
 
   <section class="cover">
-    <div class="cover-content">
+    <div class="cover-mark-container">
       <div class="cover-eyebrow">Bahía de Banderas · Desde 2018</div>
+      <div class="cover-mark">VRM</div>
+    </div>
+    <div class="cover-content">
       <h1 class="cover-title">
         <span class="line">La bahía</span>
         <span class="line">que se habita</span>
       </h1>
     </div>
     <div class="cover-cue">
-      <div class="cover-cue-star">Scroll para sentir</div>
+      <div class="cover-cue-star">Scroll para descubrir</div>
       <div class="cover-cue-line"></div>
     </div>
   </section>
@@ -1120,8 +1134,15 @@ function loadGLB() {
       const center = bbox.getCenter(new THREE.Vector3()).multiplyScalar(scale);
       model.position.sub(center);
 
-      // Orientación inicial 3/4 view
-      // Sin orientación inicial fija — los keyframes la controlan
+      // ★★★ CORRECCIÓN DE ORIENTACIÓN DEL MODELO ★★★
+      // El modelo de pepetrincado tiene su "cabeza" apuntando hacia un eje.
+      // Necesitamos que apunte hacia +Z (hacia adelante en nuestra escena).
+      // Después de inspeccionar el modelo, ajustamos este offset si la ballena
+      // se ve "de espaldas" o "de lado" cuando debería estar de frente.
+      // Si la cabeza apunta a +X originalmente, rotamos -90° en Y.
+      // Si apunta a -X, rotamos +90° en Y. Etc.
+      model.rotation.y = -Math.PI / 2;  // ajuste común: si cabeza a +X → rotar para que apunte a -Z (hacia cámara cuando nada hacia atrás)
+
       whaleGroup.add(model);
 
       // Animation mixer
@@ -1253,48 +1274,45 @@ composer.addPass(outputPass);
 /* ============================================================
    COREOGRAFÍA — La ballena nada por la escena
    
-   La ballena se mueve como un ser vivo: siempre con dirección,
-   con curvas amplias, sin giros bruscos. Visible desde el inicio.
-   
-   El SISTEMA: usamos un "path" en el espacio 3D (curva spline)
-   que la ballena recorre. Su orientación se calcula automáticamente
-   en función de la dirección del path → nada siempre hacia adelante.
+   PRINCIPIO: la ballena se mueve en una trayectoria continua,
+   siempre hacia adelante (sin reversa), sin saltos abruptos.
+   El tiempo NO afecta la posición — solo el scroll.
    ============================================================ */
 
-// Puntos del recorrido en orden de scroll. La ballena nada a través de ellos.
-// [scrollProgress, posX, posY, posZ, scale, rollZ]
-// rollZ = banking (inclinación lateral al girar, como un avión)
+// Trayectoria 3D — puntos continuos sin saltos
+// La ballena empieza ASOMANDO desde la derecha (solo cola visible)
+// luego entra al frame nadando hacia el centro
+// luego serpentea suavemente hasta salir por la izquierda
 const WHALE_PATH = [
-  // Punto 0: Asoma desde abajo-izquierda del frame al cargar
-  { sp: 0.00, x: -3,   y: -5.5, z: -2,  scale: 1.0, roll:  0.20 },
-  // Sube en curva hacia el centro
-  { sp: 0.08, x: -1,   y: -2,   z: -1,  scale: 1.0, roll:  0.12 },
-  // Centro de la escena, posición de "revelación"
-  { sp: 0.18, x:  0.5, y:  0,   z:  0,  scale: 1.0, roll: -0.05 },
-  // Cruza hacia la derecha (Reimagina)
-  { sp: 0.32, x:  3.5, y:  0.8, z: -1,  scale: 1.0, roll: -0.18 },
-  // Sube hacia la izquierda (Filosofía)
-  { sp: 0.45, x: -2.5, y:  1.8, z:  1,  scale: 1.05, roll:  0.20 },
-  // Distancia, esquina superior derecha (Propiedades)
-  { sp: 0.58, x:  4.5, y:  3,   z: -4,  scale: 0.65, roll: -0.10 },
-  // Vuelve cerca al centro-izquierda (Reviews)
-  { sp: 0.72, x: -2,   y: -0.3, z:  0.5,scale: 1.0, roll:  0.12 },
-  // Aleja a la derecha (Equipo)
-  { sp: 0.85, x:  3,   y:  1.5, z: -3,  scale: 0.75, roll: -0.10 },
-  // Gigante de frente (Final)
-  { sp: 0.95, x:  0,   y:  0.5, z:  3,  scale: 1.35, roll:  0.0 },
-  // Desciende hacia las profundidades
-  { sp: 1.00, x:  0,   y: -5,   z:  1,  scale: 1.2, roll:  0.15 }
+  // 0% — Cola asomando desde la derecha (cuerpo fuera de pantalla)
+  { sp: 0.00, x:  9,    y: -1.5, z: -3,   scale: 1.0,  roll:  0.0 },
+  // 5% — Empieza a entrar, todavía mayormente fuera
+  { sp: 0.05, x:  7,    y: -1.2, z: -2.5, scale: 1.0,  roll:  0.0 },
+  // 15% — Cuerpo entrando al frame
+  { sp: 0.15, x:  4,    y: -0.5, z: -1.5, scale: 1.0,  roll: -0.05 },
+  // 25% — En posición media derecha
+  { sp: 0.25, x:  2,    y:  0,   z: -0.5, scale: 1.0,  roll: -0.08 },
+  // 38% — Cruzando el centro
+  { sp: 0.38, x:  0,    y:  0.5, z:  0,   scale: 1.0,  roll: -0.1 },
+  // 50% — Centro-izquierda, ligero sube
+  { sp: 0.50, x: -2,    y:  1.0, z:  0,   scale: 1.05, roll: -0.05 },
+  // 62% — Alejándose hacia distancia (escala más pequeña, Z negativo)
+  { sp: 0.62, x: -3.5,  y:  1.5, z: -2,   scale: 0.85, roll:  0.02 },
+  // 75% — Vuelve a primer plano hacia el centro-izquierda
+  { sp: 0.75, x: -1.5,  y:  0.5, z:  1,   scale: 1.0,  roll:  0.05 },
+  // 88% — Vista grande de frente, posición central
+  { sp: 0.88, x: -0.5,  y:  0.2, z:  2.5, scale: 1.15, roll:  0.08 },
+  // 100% — Sale por la izquierda hacia el horizonte
+  { sp: 1.00, x: -8,    y: -0.5, z:  1,   scale: 1.0,  roll:  0.05 }
 ];
 
 const CAMERA_PATH = [
   { sp: 0.00, z: 11, y:  0,    fov: 45 },
-  { sp: 0.18, z: 13, y:  0,    fov: 45 },
-  { sp: 0.45, z: 10, y:  0.5,  fov: 42 },
-  { sp: 0.58, z: 17, y: -0.5,  fov: 50 },
-  { sp: 0.72, z: 11, y:  0,    fov: 45 },
-  { sp: 0.95, z:  8, y:  0.5,  fov: 42 },
-  { sp: 1.00, z: 11, y:  0,    fov: 45 }
+  { sp: 0.25, z: 12, y:  0,    fov: 45 },
+  { sp: 0.50, z: 11, y:  0.3,  fov: 43 },
+  { sp: 0.62, z: 14, y:  0.5,  fov: 48 },  // pull back en la zona distante
+  { sp: 0.88, z:  9, y:  0.2,  fov: 42 },  // close-up
+  { sp: 1.00, z: 12, y:  0,    fov: 45 }
 ];
 
 function lerp(a, b, t) { return a + (b - a) * t; }
@@ -1317,26 +1335,22 @@ function getPathPoint(path, sp) {
     if (key === 'sp') continue;
     result[key] = lerp(prev[key], next[key], localT);
   }
-  // Guardar también el "siguiente punto" para calcular dirección
-  result._next = next;
-  result._prev = prev;
-  result._localT = localT;
   return result;
 }
 
 /**
- * Calcula la dirección "hacia donde nada" la ballena.
- * Usa el punto actual + un punto adelante en el path.
+ * Devuelve dirección de natación derivando posiciones de path.
+ * Esto es lo que hace que la ballena SIEMPRE mire hacia adelante.
  */
 function getSwimDirection(path, sp) {
-  // Mirar un poco adelante en el path para saber hacia dónde va
-  const ahead = Math.min(1, sp + 0.04);
-  const current = getPathPoint(path, sp);
+  const ahead = Math.min(0.999, sp + 0.02);
+  const behind = Math.max(0.001, sp - 0.02);
   const future = getPathPoint(path, ahead);
+  const past = getPathPoint(path, behind);
   return {
-    dx: future.x - current.x,
-    dy: future.y - current.y,
-    dz: future.z - current.z
+    dx: future.x - past.x,
+    dy: future.y - past.y,
+    dz: future.z - past.z
   };
 }
 let scrollProgress = 0;
@@ -1360,72 +1374,68 @@ function animate() {
 
   if (mixer) mixer.update(dt);
 
+  // Lerp suave del scroll target (solo eso)
   scrollProgress += (scrollTarget - scrollProgress) * 0.06;
   assembleProgress = Math.min(1, assembleProgress + dt * 0.5);
   const ae = 1 - Math.pow(1 - assembleProgress, 3);
 
   const sp = scrollProgress;
 
-  // ★★★ NATACIÓN NATURAL ★★★
-  // La ballena sigue un path 3D. Su orientación se calcula
-  // automáticamente desde la dirección del path (siempre nada hacia adelante).
+  // ★★★ MOVIMIENTO SCROLL-LOCKED PURO ★★★
+  // La posición DEPENDE SOLO DEL SCROLL. Sin sin/cos en posición global.
+  // Esto evita el efecto "se mueve sola hacia atrás".
   const pose = getPathPoint(WHALE_PATH, sp);
   const swim = getSwimDirection(WHALE_PATH, sp);
 
-  // Variaciones orgánicas sutiles (respiración, cabeceo, ondulación)
-  const headBob = Math.sin(t * 0.8) * 0.04;
-  const tailSway = Math.sin(t * 0.6) * 0.06;
-  const breathe = Math.sin(t * 0.45) * 0.25;
+  // Orientación: la ballena mira hacia donde va el path
+  // (siempre hacia adelante, nunca hacia atrás)
+  // El modelo de pepetrincado tiene la cabeza apuntando a un eje específico,
+  // necesitamos ajustar el offset según cómo viene del GLB.
+  const targetYaw = Math.atan2(swim.dx, swim.dz);
 
-  // Orientación = mirar hacia donde va el path
-  // El modelo está orientado con cabeza hacia +X (lo verificamos visualmente)
-  // atan2(dx, dz) da el yaw correcto
-  const targetYaw = Math.atan2(swim.dx, swim.dz) - Math.PI / 2 + tailSway;
-
-  // Pitch (mirar arriba/abajo) — atenuado para no exagerar
+  // Pitch: cuánto sube/baja (atenuado para que no se vea cabezona)
   const horizSpeed = Math.sqrt(swim.dx * swim.dx + swim.dz * swim.dz);
-  const targetPitch = -Math.atan2(swim.dy, Math.max(0.01, horizSpeed) * 5) + headBob;
+  const targetPitch = -Math.atan2(swim.dy, Math.max(0.01, horizSpeed) * 4);
 
-  // Roll (banking lateral del path)
+  // Roll: banking lateral del path
   const targetRoll = pose.roll;
 
-  // Posiciones objetivo
+  // Posiciones objetivo (SIN sinusoides, scroll-locked puro)
   const targetX = pose.x;
-  const targetY = pose.y + breathe;
+  const targetY = pose.y;
   const targetZ = pose.z;
 
-  // Aplicar TODO con lerp suave
-  whaleGroup.position.x += (targetX - whaleGroup.position.x) * 0.06;
-  whaleGroup.position.y += (targetY - whaleGroup.position.y) * 0.06;
-  whaleGroup.position.z += (targetZ - whaleGroup.position.z) * 0.06;
+  // Lerp suave hacia el target — esto da fluidez sin movimiento parásito
+  whaleGroup.position.x += (targetX - whaleGroup.position.x) * 0.08;
+  whaleGroup.position.y += (targetY - whaleGroup.position.y) * 0.08;
+  whaleGroup.position.z += (targetZ - whaleGroup.position.z) * 0.08;
 
-  // Función helper para interpolar ángulos respetando wrap-around
   function lerpAngle(current, target, factor) {
     let diff = target - current;
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
     return current + diff * factor;
   }
-  whaleGroup.rotation.y = lerpAngle(whaleGroup.rotation.y, targetYaw, 0.05);
-  whaleGroup.rotation.x = lerpAngle(whaleGroup.rotation.x, targetPitch, 0.05);
-  whaleGroup.rotation.z = lerpAngle(whaleGroup.rotation.z, targetRoll, 0.04);
+  whaleGroup.rotation.y = lerpAngle(whaleGroup.rotation.y, targetYaw, 0.06);
+  whaleGroup.rotation.x = lerpAngle(whaleGroup.rotation.x, targetPitch, 0.06);
+  whaleGroup.rotation.z = lerpAngle(whaleGroup.rotation.z, targetRoll, 0.05);
 
   // Scale con assemble inicial
   const targetScale = pose.scale * ae;
   const currentScale = whaleGroup.scale.x;
   whaleGroup.scale.setScalar(currentScale + (targetScale - currentScale) * 0.06);
 
-  // ★★★ CÁMARA — recorrido propio ★★★
+  // ★★★ CÁMARA — scroll-locked también ★★★
   const cam = getPathPoint(CAMERA_PATH, sp);
-  camera.position.z += (cam.z - camera.position.z) * 0.04;
-  camera.position.y += (cam.y - camera.position.y) * 0.04;
+  camera.position.z += (cam.z - camera.position.z) * 0.05;
+  camera.position.y += (cam.y - camera.position.y) * 0.05;
   if (cam.fov && Math.abs(camera.fov - cam.fov) > 0.1) {
-    camera.fov += (cam.fov - camera.fov) * 0.04;
+    camera.fov += (cam.fov - camera.fov) * 0.05;
     camera.updateProjectionMatrix();
   }
   camera.lookAt(0, 0, 0);
 
-  // ★★★ Burbujas: ascienden lentamente, reset cuando salen arriba ★★★
+  // ★★★ Burbujas — time-based porque NO son la ballena ★★★
   for (const bubble of bubbles) {
     bubble.position.y += bubble.userData.speed * dt * 1.5;
     bubble.position.x = bubble.userData.initX + Math.sin(t * 0.5 + bubble.userData.drift) * 0.5;
@@ -1437,25 +1447,25 @@ function animate() {
     }
   }
 
-  // ★★★ Horizonte del mar ★★★
+  // ★★★ Horizonte del mar — visible al inicio y final ★★★
   let horizonOp = 0;
-  if (sp < 0.20) horizonOp = (1.0 - sp / 0.20) * 0.7;
-  else if (sp > 0.92) horizonOp = ((sp - 0.92) / 0.08) * 0.5;
+  if (sp < 0.15) horizonOp = (1.0 - sp / 0.15) * 0.6;
+  else if (sp > 0.92) horizonOp = ((sp - 0.92) / 0.08) * 0.4;
   horizonMat.opacity = horizonOp;
   horizonGlowMat.opacity = horizonOp * 0.6;
 
-  // ★★★ Aurora dinámica ★★★
+  // ★★★ Aurora ★★★
   if (aurora) {
     let auroraOp;
-    if (sp < 0.25) auroraOp = 1.0 - sp * 1.2;
-    else if (sp < 0.70) auroraOp = 0.7 - (sp - 0.25) * 1.55;
-    else auroraOp = (sp - 0.70) * 1.5;
+    if (sp < 0.25) auroraOp = 1.0 - sp * 1.6;       // fade out al scrollear
+    else if (sp < 0.70) auroraOp = Math.max(0, 0.6 - (sp - 0.25) * 1.4);
+    else auroraOp = (sp - 0.70) * 1.5;              // vuelve al final
     aurora.style.opacity = String(Math.max(0, Math.min(1, auroraOp)));
   }
 
   // ★★★ Canvas siempre visible ★★★
   let canvasOp = 1.0;
-  if (sp > 0.20 && sp < 0.95) canvasOp = 0.85;
+  if (sp > 0.20 && sp < 0.95) canvasOp = 0.9;
   canvas.style.opacity = String(canvasOp);
 
   composer.render();
