@@ -1047,19 +1047,26 @@ pmremGenerator.dispose();
    ILUMINACIÓN COMPLEMENTARIA
    El environment hace casi todo, pero añadimos luces para volumen
    ============================================================ */
-scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+scene.add(new THREE.AmbientLight(0xaabbdd, 0.45));  // ambient con tinte azul claro
 
-const keyLight = new THREE.DirectionalLight(0xffffff, 2.0);
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
 keyLight.position.set(5, 8, 6);
 scene.add(keyLight);
 
-const rimLight = new THREE.DirectionalLight(0xff88cc, 1.5);
+// Rim light cyan eléctrico (en lugar de rosa) - para tema cristal
+const rimLight = new THREE.DirectionalLight(0x66aaff, 1.6);
 rimLight.position.set(-8, 4, -2);
 scene.add(rimLight);
 
-const bottomLight = new THREE.DirectionalLight(0x88ccff, 1.0);
+// Bottom light azul profundo - da volumen abajo
+const bottomLight = new THREE.DirectionalLight(0x2244aa, 0.8);
 bottomLight.position.set(0, -6, 4);
 scene.add(bottomLight);
+
+// Fill light desde atrás-arriba con tono lavanda iridiscente
+const fillLight = new THREE.DirectionalLight(0xccaaff, 0.7);
+fillLight.position.set(2, 5, -8);
+scene.add(fillLight);
 
 /* ============================================================
    GROUP DE LA BALLENA
@@ -1075,44 +1082,146 @@ let modelLoaded = false;
    Estos son los valores mágicos que producen el efecto vidrio
    iridiscente perlado que ves en Noomo.
    ============================================================ */
-const PHYSICAL_PARAMS = {
-  color: 0x88ccff,              // Azul cristal hielo
-  metalness: 0,
-  roughness: 0.08,              // Ligera variación de superficie (no espejo perfecto)
-  transmission: 0.92,           // Translucencia alta
-  thickness: 1.0,
-  ior: 1.45,
-  attenuationColor: 0x3a7adb,   // Tinte azul profundo que da el color "agua"
-  attenuationDistance: 1.5,
+/* ============================================================
+   TÉCNICA NOOMO — Texturas iridiscentes generadas proceduralmente
+   
+   Noomo NO usa MeshPhysicalMaterial con iridescencia procedural.
+   Usa texturas PINTADAS aplicadas como map + normalMap sobre un GLB
+   con MeshStandardMaterial. Esto da control total sobre el look.
+   
+   Generamos las texturas aquí mismo con canvas 2D:
+   - createIridescentColorMap() → gradientes azul/cyan/violeta/rosa
+   - createIceNormalMap() → relieves tipo hielo cristalino
+   ============================================================ */
+
+function createIridescentColorMap() {
+  const size = 1024;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
   
-  // ★★★ IRIDESCENCIA — colores cambiantes en superficie ★★★
-  iridescence: 1.0,             // Máxima — pero balanceada con el azul
-  iridescenceIOR: 1.5,
-  iridescenceThicknessRange: [200, 600],
+  // Base: gradiente lineal diagonal — azul profundo → cyan → violeta → rosa pastel
+  // Imita el look "hielo iridiscente" de Noomo
+  const baseGrad = ctx.createLinearGradient(0, 0, size, size);
+  baseGrad.addColorStop(0.00, '#2a4a8a');   // azul profundo
+  baseGrad.addColorStop(0.25, '#5a8acc');   // azul medio
+  baseGrad.addColorStop(0.45, '#88c8e8');   // cyan claro
+  baseGrad.addColorStop(0.60, '#c8d8f0');   // azul lavanda
+  baseGrad.addColorStop(0.75, '#d8a8d8');   // violeta pastel
+  baseGrad.addColorStop(0.90, '#e8b8c8');   // rosa pastel
+  baseGrad.addColorStop(1.00, '#88a8d8');   // vuelve a azul
+  ctx.fillStyle = baseGrad;
+  ctx.fillRect(0, 0, size, size);
   
-  // ★★★ CLEARCOAT — capa de barniz brillante encima ★★★
-  clearcoat: 1.0,
-  clearcoatRoughness: 0.0,      // Espejo perfecto en el clearcoat
+  // Banda iridiscente horizontal (efecto "petroleo en agua")
+  // Añade otra capa con blend mode screen para mezclar colores
+  const horizGrad = ctx.createLinearGradient(0, 0, 0, size);
+  horizGrad.addColorStop(0.0, 'rgba(120,200,255,0)');
+  horizGrad.addColorStop(0.3, 'rgba(180,140,220,0.4)');
+  horizGrad.addColorStop(0.5, 'rgba(255,200,220,0.5)');
+  horizGrad.addColorStop(0.7, 'rgba(140,220,255,0.4)');
+  horizGrad.addColorStop(1.0, 'rgba(80,140,220,0)');
+  ctx.globalCompositeOperation = 'screen';
+  ctx.fillStyle = horizGrad;
+  ctx.fillRect(0, 0, size, size);
   
-  // ★★★ SHEEN — halo suave en bordes, como microfibra/perla ★★★
-  // Esto es lo que hace que se vea "viva" en los bordes
-  sheen: 1.0,                   // Activa sheen
-  sheenColor: 0xaaddff,         // Color del sheen (azul claro luminoso)
-  sheenRoughness: 0.25,         // Sheen rugoso = halo difuso
+  // "Manchas" de color para variación orgánica (estilo perla/ópalo)
+  ctx.globalCompositeOperation = 'overlay';
+  for (let i = 0; i < 12; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = 80 + Math.random() * 200;
+    const hue = Math.random() * 360;
+    const blob = ctx.createRadialGradient(x, y, 0, x, y, r);
+    blob.addColorStop(0, `hsla(${hue}, 70%, 75%, 0.35)`);
+    blob.addColorStop(1, 'hsla(0,0%,0%,0)');
+    ctx.fillStyle = blob;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  ctx.globalCompositeOperation = 'source-over';
   
-  // ★★★ SPECULAR — control fino de los reflejos ★★★
-  specularIntensity: 1.0,
-  specularColor: 0xffffff,
+  const tx = new THREE.CanvasTexture(c);
+  tx.colorSpace = THREE.SRGBColorSpace;
+  tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
+  return tx;
+}
+
+function createIceNormalMap() {
+  const size = 512;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
   
-  // ★★★ EMISSIVE — la ballena emite luz propia desde dentro ★★★
-  // Esto es CLAVE para el feel "mágico" — no solo refleja, emite
-  emissive: 0x1a4a8a,           // Azul medio que glows desde dentro
-  emissiveIntensity: 0.15,      // Sutil, no abusar
+  // Base neutra (sin desplazamiento)
+  ctx.fillStyle = 'rgb(128,128,255)';
+  ctx.fillRect(0, 0, size, size);
   
-  envMapIntensity: 1.6,
+  // Patrones de "grietas" tipo hielo cristalino
+  // Líneas con perturbación que simulan cracks de hielo
+  for (let i = 0; i < 35; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const len = 80 + Math.random() * 180;
+    const angle = Math.random() * Math.PI * 2;
+    
+    ctx.strokeStyle = `rgba(${100 + Math.random() * 60}, ${100 + Math.random() * 60}, 255, ${0.3 + Math.random() * 0.4})`;
+    ctx.lineWidth = 0.5 + Math.random() * 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    
+    // Línea con jitter (no recta)
+    let curX = x, curY = y;
+    const segments = 6;
+    for (let s = 0; s < segments; s++) {
+      const segL = len / segments;
+      curX += Math.cos(angle + (Math.random() - 0.5) * 0.5) * segL;
+      curY += Math.sin(angle + (Math.random() - 0.5) * 0.5) * segL;
+      ctx.lineTo(curX, curY);
+    }
+    ctx.stroke();
+  }
+  
+  // Burbujas/manchas suaves (irregularidades de superficie)
+  for (let i = 0; i < 80; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = 4 + Math.random() * 16;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(160,160,255,0.4)');
+    g.addColorStop(1, 'rgba(128,128,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  
+  const tx = new THREE.CanvasTexture(c);
+  tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
+  return tx;
+}
+
+// Generar las texturas UNA VEZ
+const irisColorTexture = createIridescentColorMap();
+const iceNormalTexture = createIceNormalMap();
+
+/* ============================================================
+   MATERIAL ESTILO NOOMO
+   MeshStandardMaterial simple, ligero, con texturas pintadas.
+   Sin iridescence/transmission/sheen costosos.
+   ============================================================ */
+const STANDARD_PARAMS = {
+  map: irisColorTexture,        // Textura iridiscente pintada
+  normalMap: iceNormalTexture,  // Relieves de hielo
+  normalScale: new THREE.Vector2(0.4, 0.4),
+  
+  metalness: 0.15,              // Ligero metálico para reflejos cristalinos
+  roughness: 0.25,              // Brillante pero no espejo
+  
+  // Emisión sutil — la ballena tiene luz interior
+  emissive: 0x224488,
+  emissiveIntensity: 0.12,
+  emissiveMap: irisColorTexture, // El emissive usa el mismo color iridiscente
+  
+  envMapIntensity: 1.4,
   side: THREE.DoubleSide,
-  transparent: true,
-  opacity: 1.0,
 };
 
 /* ============================================================
@@ -1128,21 +1237,21 @@ function loadGLB() {
       const model = gltf.scene;
       console.info('✓ GLB cargado');
 
-      // Aplicar MeshPhysicalMaterial con iridescencia a todos los meshes
+      // ★★★ TÉCNICA NOOMO: MeshStandardMaterial con texturas pintadas ★★★
       let hasSkinnedMesh = false;
       model.traverse((child) => {
         if (child.isMesh) {
           const isSkinned = child.isSkinnedMesh === true;
           if (isSkinned) hasSkinnedMesh = true;
 
-          // MeshPhysicalMaterial respeta skinning automáticamente en r158
-          // y tiene iridescencia built-in
-          const physMat = new THREE.MeshPhysicalMaterial(PHYSICAL_PARAMS);
+          // MeshStandardMaterial — soporta skinning + es mucho más barato
+          // que Physical. La iridescencia viene de la TEXTURA, no del shader.
+          const mat = new THREE.MeshStandardMaterial(STANDARD_PARAMS);
 
-          child.material = physMat;
+          child.material = mat;
           child.castShadow = false;
           child.receiveShadow = false;
-          // NO recomputar normales — preservar las del autor (suavizadas)
+          // NO recomputar normales — preservar las del autor
         }
       });
       console.info('SkinnedMesh detectado:', hasSkinnedMesh);
@@ -1308,8 +1417,8 @@ class WaterTexture {
         vx = relativeX / distance;
         vy = relativeY / distance;
       }
-      // Fuerza = clamp a un máximo razonable
-      force = Math.min(distance * 80, 1);
+      // Fuerza alta y con piso mínimo para que SIEMPRE sea visible
+      force = Math.min(0.4 + distance * 100, 1);
     }
     this.last = { x: point.x, y: point.y };
     
@@ -1352,31 +1461,32 @@ class WaterTexture {
     const x = p.x * size;
     const y = p.y * size;
     
-    // Decae la opacidad conforme envejece, suavemente
+    // Decae con la edad
     const lifeProgress = p.age / this.maxAge;
     const intensity = 1 - lifeProgress;
-    const easedIntensity = intensity * intensity;  // ease out cuadrado
+    const easedIntensity = intensity * intensity;
     
-    const offset = size * 5;  // offset para mapear vx/vy [-1,1] → color [0,1]
+    // RGB: R/G = dirección (centered en 0.5), B = fuerza
+    const red = Math.round(((p.vx + 1) / 2) * 255);
+    const green = Math.round(((p.vy + 1) / 2) * 255);
+    const blue = Math.round(p.force * easedIntensity * 255);
     
-    // Encode info en RGB channels:
-    // R, G = dirección del movimiento (mapeado a [0,1])
-    // B = fuerza/intensidad del ripple
-    const red = ((p.vx + 1) / 2) * 255;
-    const green = ((p.vy + 1) / 2) * 255;
-    const blue = p.force * easedIntensity * 255;
+    // Radio crece con la edad (como ripple expandiéndose)
+    const radius = this.radius * size * (1 + lifeProgress * 0.8);
     
-    const radius = this.radius * size * (1 + lifeProgress * 0.5);  // crece un poco
+    // Dibujar gradiente radial DIRECTAMENTE (sin shadow tricks)
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    grad.addColorStop(0, `rgba(${red},${green},${blue},${easedIntensity})`);
+    grad.addColorStop(0.5, `rgba(${red},${green},${blue},${easedIntensity * 0.4})`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
     
-    ctx.shadowOffsetX = offset;
-    ctx.shadowOffsetY = offset;
-    ctx.shadowBlur = radius;
-    ctx.shadowColor = `rgba(${red.toFixed(0)},${green.toFixed(0)},${blue.toFixed(0)},${easedIntensity.toFixed(3)})`;
-    
+    // Modo "lighter" para que los círculos se sumen (no se sobrescriban)
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.fillStyle = 'rgba(255,0,0,1)';  // necesario para que shadow renderice
-    ctx.rect(-offset - radius, -offset - radius, 1, 1);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
   }
 }
 
