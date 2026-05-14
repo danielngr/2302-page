@@ -1146,23 +1146,20 @@ function makeAuroraBackgroundTexture() {
 }
 
 /* ============================================================
-   FONDO ANIMADO — Escena de agua premium con god rays + caustics
+   FONDO ANIMADO — Profundidad oceánica misteriosa con god rays
    
-   En lugar de scene.background con una textura estática, montamos
-   una escena adicional: un quad fullscreen con un fragment shader
-   que dibuja:
+   Diseño:
+   • SIN superficie visible (no caustics arriba) — solo profundidad
+   • Gradient atmosférico vertical: lavanda → cyan → turquesa → casi-negro
+   • God rays como DISPERSIÓN volumétrica (luz chocando con partículas)
+     no como triángulos geométricos. Cada rayo se modula con noise para
+     verse como "polvo iluminado" descendiendo.
+   • Partículas flotantes con drift orgánico hacia arriba (como en agua real)
+   • Vignette + atmospheric fog que separa el plano del fondo
    
-   • Gradiente vertical: lavanda arriba → turquesa cyan profundo abajo
-   • Caustics: patrón ondulante orgánico (Voronoi-like noise animado)
-   • God rays: rayos volumétricos descendiendo desde arriba-derecha
-   • Sparkle particles: chispas suspendidas que parpadean
-   • Grain sutil: textura de película
-   
-   Se renderiza con un RenderPass dedicado al inicio del composer,
-   ANTES del renderPass principal (ballena). La ballena queda encima.
+   Filosofía: más mood que realismo. Aesop submarino, no documental.
    ============================================================ */
 
-// Escena de fondo dedicada
 const bgScene = new THREE.Scene();
 const bgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
@@ -1171,12 +1168,13 @@ const bgMaterial = new THREE.ShaderMaterial({
   uniforms: {
     uTime: { value: 0 },
     uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-    // Colores principales — paleta lavanda → turquesa profundo
-    uTopColor:    { value: new THREE.Color(0x9c8cc8) },  // lavanda saturado arriba
-    uMidColor:    { value: new THREE.Color(0x6090b8) },  // azul transición
-    uBottomColor: { value: new THREE.Color(0x1a5878) },  // turquesa cyan profundo abajo
-    uRayColor:    { value: new THREE.Color(0xfff0e0) },  // god rays cálidos blanco-dorado
-    uCausticsColor: { value: new THREE.Color(0xa8e0f0) } // caustics turquesa claro
+    // Paleta vertical: lavanda → cyan medio → turquesa → casi-negro
+    uColorTop:    { value: new THREE.Color(0x9c8cc8) },  // lavanda VRM (preserva branding)
+    uColorUpper:  { value: new THREE.Color(0x4a78a8) },  // azul medio transición
+    uColorMid:    { value: new THREE.Color(0x1a6890) },  // cyan turquesa
+    uColorDeep:   { value: new THREE.Color(0x083050) },  // azul muy profundo
+    uColorAbyss:  { value: new THREE.Color(0x020a18) },  // casi negro al fondo
+    uRayColor:    { value: new THREE.Color(0xe8f4ff) }   // rayos blanco azulado frío
   },
   vertexShader: `
     varying vec2 vUv;
@@ -1190,15 +1188,16 @@ const bgMaterial = new THREE.ShaderMaterial({
     
     uniform float uTime;
     uniform vec2 uResolution;
-    uniform vec3 uTopColor;
-    uniform vec3 uMidColor;
-    uniform vec3 uBottomColor;
+    uniform vec3 uColorTop;
+    uniform vec3 uColorUpper;
+    uniform vec3 uColorMid;
+    uniform vec3 uColorDeep;
+    uniform vec3 uColorAbyss;
     uniform vec3 uRayColor;
-    uniform vec3 uCausticsColor;
     
     varying vec2 vUv;
     
-    // === HASH y NOISE procedural ===
+    // === HASH y NOISE ===
     float hash(vec2 p) {
       return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
     }
@@ -1211,7 +1210,6 @@ const bgMaterial = new THREE.ShaderMaterial({
                  mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), u.x), u.y);
     }
     
-    // FBM — varias octavas de noise sumadas para textura orgánica
     float fbm(vec2 p) {
       float v = 0.0;
       float a = 0.5;
@@ -1223,135 +1221,149 @@ const bgMaterial = new THREE.ShaderMaterial({
       return v;
     }
     
-    // === CAUSTICS — patrón cruzado de luces ondulantes ===
-    // Técnica: dos capas de noise en direcciones cruzadas multiplicadas
-    // dan ese patrón "rejilla orgánica" característico del fondo submarino
-    float caustics(vec2 uv, float t) {
-      vec2 p1 = uv * 5.0 + vec2(t * 0.08, t * 0.06);
-      vec2 p2 = uv * 5.0 + vec2(-t * 0.07, t * 0.05) + 19.7;
-      
-      float n1 = fbm(p1);
-      float n2 = fbm(p2);
-      
-      // El cruce de los dos patrones crea líneas brillantes
-      float c = pow(1.0 - abs(n1 - n2), 6.0);
-      return c;
-    }
-    
-    // === GOD RAYS — rayos verticales desde la superficie hacia el fondo ===
-    // Como luz solar real penetrando agua: caen casi vertical desde el top,
-    // distribuidos a lo largo horizontalmente, y desvanecen al descender.
+    // === GOD RAYS — dispersión volumétrica (no líneas geométricas) ===
+    // Técnica: cada rayo es una franja vertical anche-arriba/angosta-abajo,
+    // pero su INTENSIDAD se modula con noise vertical de baja frecuencia.
+    // Resultado: el rayo parece "destellos de luz en polvo flotando",
+    // no un triángulo plano.
     float godRays(vec2 uv, float t) {
-      float rays = 0.0;
+      float totalRays = 0.0;
       
-      // 7 rayos distribuidos por TODO el ancho del top
-      for (int i = 0; i < 7; i++) {
+      // 8 rayos distribuidos a lo largo del top
+      for (int i = 0; i < 8; i++) {
         float fi = float(i);
         
-        // Origen distribuido a lo largo del top (de 0.08 a 0.92)
-        // con drift muy sutil (la superficie del agua ondula)
-        float originX = 0.08 + fi * 0.14 + sin(t * 0.18 + fi * 1.7) * 0.025;
+        // Posición X del rayo en el top (distribuidos 0.05 a 0.95)
+        // con drift orgánico animado (la superficie invisible "respira")
+        float originX = 0.05 + fi * 0.128 + sin(t * 0.13 + fi * 1.9) * 0.022;
         
-        // Distancia perpendicular del pixel al eje vertical del rayo
-        // (rayos verticales puros = simplemente distancia en x)
-        float perpDist = abs(uv.x - originX);
+        // Tilt mínimo para que no todos sean perfectamente verticales
+        // (variación sutil por rayo, mas natural)
+        float tilt = (hash(vec2(fi, 7.3)) - 0.5) * 0.08;
         
-        // along = profundidad (0 arriba, aumenta hacia abajo)
-        float along = 1.0 - uv.y;   // 0 en top, 1 en bottom
+        // Distancia perpendicular del pixel al eje del rayo
+        // Con tilt: el eje del rayo no es vertical puro, sino con inclinación tilt
+        float depthFromTop = 1.0 - uv.y;  // 0 arriba, 1 abajo
+        float rayCenterX = originX + tilt * depthFromTop;
+        float perpDist = abs(uv.x - rayCenterX);
         
         // Width del rayo: estrecho arriba, se ensancha sutilmente al descender
-        // (la luz se difunde al atravesar agua)
-        float width = 0.012 + along * 0.025;
-        float rayCore = smoothstep(width, 0.0, perpDist);
+        // (la luz se difunde con la profundidad)
+        float baseWidth = 0.008 + depthFromTop * 0.030;
         
-        // ★ FADE VERTICAL — la clave del look natural:
-        // 1.0 arriba (más fuerte cerca de la "superficie")
-        // 0.0 abajo (la luz pierde fuerza con la profundidad)
-        float depthFade = smoothstep(0.95, 0.05, uv.y);   // fade exponencial al bajar
-        depthFade = depthFade * depthFade;                 // curva cuadrática = más dramático
+        // Core del rayo: smoothstep para edges suaves
+        float rayCore = smoothstep(baseWidth, 0.0, perpDist);
         
-        // Textura de "polvo flotando en la luz" — noise lento vertical
-        float dustNoise = fbm(vec2(uv.x * 4.0, uv.y * 6.0 - t * 0.3 + fi * 7.3));
-        rayCore *= mix(0.4, 1.0, dustNoise);
+        // ★ FADE EXPONENCIAL CON LA PROFUNDIDAD ★
+        // Los rayos son DRAMÁTICOS arriba y se DESVANECEN al fondo
+        // como la luz solar real perdiendo intensidad en el agua
+        float depthFade = pow(1.0 - depthFromTop, 1.8);  // curva exponencial
         
-        rays += rayCore * depthFade;
+        // ★ NOISE VERTICAL que modula la intensidad del rayo ★
+        // Esto es lo que hace que se vea como "polvo iluminado" en lugar
+        // de un triángulo geométrico. Las zonas brillantes son "particles
+        // capturando luz", las zonas oscuras son "huecos sin polvo".
+        // Frecuencia diferente por rayo + animación en Y
+        float dustFreq = 12.0 + fi * 3.0;
+        float dustNoise = fbm(vec2(uv.x * 4.0, uv.y * dustFreq - t * 0.4 + fi * 11.0));
+        dustNoise = pow(dustNoise, 1.5);  // contraste — zonas brillantes más definidas
+        
+        // Combinar: rayCore × depthFade × dustNoise
+        // Sin dustNoise sería plano. Con dustNoise tiene textura volumétrica.
+        float intensity = rayCore * depthFade * mix(0.3, 1.2, dustNoise);
+        
+        totalRays += intensity;
       }
       
-      return min(rays, 1.0);
+      return min(totalRays, 1.5);
     }
     
-    // === SPARKLE — partículas de luz que parpadean ===
-    float sparkles(vec2 uv, float t) {
-      vec2 cell = floor(uv * 60.0);
-      vec2 cellUv = fract(uv * 60.0);
+    // === PARTÍCULAS FLOTANTES ===
+    // Pequeñas chispas suspendidas en el agua que driftan lentamente
+    // hacia arriba (como burbujas microscópicas o plancton iluminado).
+    float particles(vec2 uv, float t) {
+      // Drift hacia arriba — restamos t a uv.y para simular movimiento ascendente
+      vec2 driftUv = vec2(uv.x, uv.y + t * 0.012);
+      
+      vec2 cell = floor(driftUv * 80.0);
+      vec2 cellUv = fract(driftUv * 80.0);
       
       float h = hash(cell);
-      // Solo ~3% de las celdas tienen sparkle
-      if (h < 0.97) return 0.0;
+      // Solo ~2% de las celdas tienen partícula
+      if (h < 0.98) return 0.0;
       
       // Posición aleatoria dentro de la celda
-      vec2 sparklePos = vec2(hash(cell + 1.3), hash(cell + 4.7));
+      vec2 particlePos = vec2(hash(cell + 2.1), hash(cell + 5.7));
       
-      // Parpadeo: sin con offset random por celda
-      float blink = sin(t * 3.0 + h * 100.0) * 0.5 + 0.5;
-      blink = pow(blink, 8.0);
+      // Parpadeo individual con frecuencia única por partícula
+      float blink = sin(t * 2.5 + h * 100.0) * 0.5 + 0.5;
+      blink = pow(blink, 3.0);
       
-      // Dot pequeño en la posición aleatoria
-      float d = distance(cellUv, sparklePos);
-      float dot = smoothstep(0.04, 0.0, d);
+      // Falloff radial
+      float d = distance(cellUv, particlePos);
+      float dot = smoothstep(0.05, 0.0, d);
       
-      return dot * blink;
+      // Más visibles arriba (donde hay más luz)
+      float visibility = smoothstep(0.0, 0.7, uv.y);
+      
+      return dot * blink * visibility;
     }
     
     void main() {
       vec2 uv = vUv;
       float t = uTime;
       
-      // === 1. GRADIENT VERTICAL base — lavanda → cyan ===
-      // Tres-stop gradient con curva suave
+      // === 1. GRADIENT VERTICAL ATMOSFÉRICO ===
+      // 5 stops para curva natural de profundidad:
+      // 1.0 (top)    → lavanda VRM
+      // 0.75         → azul medio
+      // 0.45         → turquesa cyan
+      // 0.20         → azul muy profundo
+      // 0.0 (bottom) → casi negro abismal
       vec3 baseColor;
-      if (uv.y > 0.55) {
-        // Top: lavanda → azul transición
-        float k = smoothstep(0.55, 1.0, uv.y);
-        baseColor = mix(uMidColor, uTopColor, k);
+      if (uv.y > 0.75) {
+        float k = smoothstep(0.75, 1.0, uv.y);
+        baseColor = mix(uColorUpper, uColorTop, k);
+      } else if (uv.y > 0.45) {
+        float k = smoothstep(0.45, 0.75, uv.y);
+        baseColor = mix(uColorMid, uColorUpper, k);
+      } else if (uv.y > 0.20) {
+        float k = smoothstep(0.20, 0.45, uv.y);
+        baseColor = mix(uColorDeep, uColorMid, k);
       } else {
-        // Bottom: azul transición → turquesa profundo
-        float k = smoothstep(0.0, 0.55, uv.y);
-        baseColor = mix(uBottomColor, uMidColor, k);
+        float k = smoothstep(0.0, 0.20, uv.y);
+        baseColor = mix(uColorAbyss, uColorDeep, k);
       }
       
-      // Variación horizontal sutil para que no sea totalmente vertical
-      // (un toque rosa-coral abajo-izquierda como Vallarta hint)
-      float hSway = sin(uv.x * 3.14 + t * 0.1) * 0.05;
-      baseColor = mix(baseColor, baseColor + vec3(0.05, 0.02, -0.02), hSway * (1.0 - uv.y));
+      // Sutil variación horizontal — el agua "respira" lateralmente
+      float hSway = sin(uv.x * 2.5 + t * 0.08) * 0.5 + 0.5;
+      baseColor = mix(baseColor, baseColor * 1.08, hSway * 0.3);
       
-      // === 2. CAUSTICS ===
-      // Más intensos abajo (donde está el "fondo del mar")
-      // Más sutiles arriba (donde está la superficie/cielo)
-      float causticsFade = smoothstep(0.7, 0.0, uv.y);
-      float causticsLayer = caustics(uv, t) * causticsFade * 0.55;
+      vec3 finalColor = baseColor;
       
-      // Mezclar caustics como luz aditiva
-      vec3 finalColor = baseColor + uCausticsColor * causticsLayer;
-      
-      // === 3. GOD RAYS ===
-      // Verticales, cinemáticos. Más fuertes arriba, desvaneciendo abajo.
+      // === 2. GOD RAYS ===
+      // Aplicados con additive blending — suman luz al fondo
       float rays = godRays(uv, t);
-      finalColor += uRayColor * rays * 0.85;
+      finalColor += uRayColor * rays * 0.45;
       
-      // === 4. SPARKLES ===
-      // Partículas de luz suspendidas
-      float sparkleAmount = sparkles(uv, t);
-      finalColor += vec3(1.0, 0.95, 0.92) * sparkleAmount * 0.9;
+      // === 3. PARTÍCULAS ===
+      float p = particles(uv, t);
+      finalColor += vec3(0.95, 1.0, 1.0) * p * 0.7;
       
-      // === 5. VIGNETTE sutil — los bordes ligeramente más oscuros ===
-      // (centra la atención en el centro de la escena)
+      // === 4. ATMOSPHERIC FOG ===
+      // Reduce contraste con la profundidad para simular el "velo" del agua
+      // (la luz se dispersa, las cosas lejanas pierden definición)
+      float fogAmount = (1.0 - uv.y) * 0.15;
+      finalColor = mix(finalColor, uColorDeep, fogAmount);
+      
+      // === 5. VIGNETTE ===
+      // Esquinas ligeramente más oscuras — centra la atención
       vec2 vigUv = uv - 0.5;
-      float vignette = 1.0 - dot(vigUv, vigUv) * 0.6;
+      float vignette = 1.0 - dot(vigUv, vigUv) * 0.7;
       finalColor *= vignette;
       
-      // === 6. GRAIN — textura de película sutil ===
-      float grain = hash(uv * uResolution + t) * 0.04 - 0.02;
+      // === 6. GRAIN sutil ===
+      float grain = hash(uv * uResolution + t) * 0.03 - 0.015;
       finalColor += vec3(grain);
       
       gl_FragColor = vec4(finalColor, 1.0);
@@ -1367,7 +1379,7 @@ bgScene.add(bgMesh);
 // Quitamos scene.background — ahora se renderiza con bgScene aparte
 scene.background = null;
 
-console.log('%c[VRM] Premium water background active', 'color:#fff;background:#1a5878;padding:4px 8px;border-radius:4px;font-weight:bold;');
+console.log('%c[VRM] Deep ocean background v2 active', 'color:#fff;background:#0a4870;padding:4px 8px;border-radius:4px;font-weight:bold;');
 
 /* ============================================================
    ENVIRONMENT MAP — para reflexiones PBR (iridescencia, transmission)
@@ -1381,13 +1393,15 @@ function makeEnvironmentTexture() {
   c.height = size;
   const ctx = c.getContext('2d');
 
-  // ★ Environment equirectangular — paleta azul SATURADA (deep blue crystal)
+  // ★ Environment equirectangular — match con el deep ocean shader
+  // Lo que la ballena REFLEJA debe coincidir con el agua donde está.
+  // Si esto es lavanda y el fondo es turquesa profundo, la ballena se ve fuera de lugar.
   const baseGrad = ctx.createLinearGradient(0, 0, 0, size);
-  baseGrad.addColorStop(0.00, '#4878b0');   // top: azul medio saturado
-  baseGrad.addColorStop(0.35, '#6890c8');   // upper-mid: azul cyan
-  baseGrad.addColorStop(0.55, '#88b0d8');   // mid: azul claro
-  baseGrad.addColorStop(0.75, '#a8c4e0');   // horizon: azul pastel
-  baseGrad.addColorStop(1.00, '#305880');   // bottom: azul muy profundo
+  baseGrad.addColorStop(0.00, '#7c84b8');   // top: lavanda atenuada (matches shader top)
+  baseGrad.addColorStop(0.30, '#4a78a8');   // upper-mid: azul medio
+  baseGrad.addColorStop(0.55, '#1a6890');   // mid: cyan turquesa
+  baseGrad.addColorStop(0.75, '#0a4470');   // lower: azul profundo
+  baseGrad.addColorStop(1.00, '#020a18');   // bottom: abismo
   ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, size * 2, size);
 
@@ -1402,22 +1416,26 @@ function makeEnvironmentTexture() {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // ★ SOL blanco pequeño en la esquina
-  drawSun(size * 1.64, size * 0.18, 220, 'rgba(255,255,255,0.85)', 0.85);
-  drawSun(size * 1.64, size * 0.18, 110, 'rgba(255,255,255,1)', 1.0);
-  drawSun(size * 1.64, size * 0.18, 50,  'rgba(255,255,255,1)', 1.0);
-
-  // Manchas azul saturado — los colores que aparecen en los reflejos del cristal azul
-  drawSun(size * 0.50, size * 0.30, 380, 'rgba(80,140,210,0.65)', 0.65);  // azul saturado izq
-  drawSun(size * 1.30, size * 0.40, 380, 'rgba(100,160,220,0.60)', 0.60); // azul cyan
-  drawSun(size * 0.30, size * 0.60, 320, 'rgba(60,180,230,0.60)', 0.60);  // cyan eléctrico
-  drawSun(size * 1.10, size * 0.65, 320, 'rgba(120,180,230,0.55)', 0.55); // azul medio
-  drawSun(size * 0.85, size * 0.80, 380, 'rgba(40,100,170,0.55)', 0.55);  // azul profundo
+  // ★ Highlights blanco-cyan distribuidos arriba (simulan god rays en el reflejo)
+  drawSun(size * 0.30, size * 0.15, 180, 'rgba(232,244,255,0.9)', 0.9);
+  drawSun(size * 0.60, size * 0.18, 200, 'rgba(232,244,255,0.85)', 0.85);
+  drawSun(size * 1.00, size * 0.12, 220, 'rgba(232,244,255,0.95)', 0.95);
+  drawSun(size * 1.40, size * 0.20, 180, 'rgba(232,244,255,0.8)', 0.8);
+  drawSun(size * 1.75, size * 0.16, 200, 'rgba(232,244,255,0.85)', 0.85);
   
-  // Highlights blancos puntuales — los "diamantes" de las facetas
-  drawSun(size * 0.70, size * 0.25, 180, 'rgba(255,255,255,0.55)', 0.55);
-  drawSun(size * 1.45, size * 0.55, 160, 'rgba(255,255,255,0.50)', 0.50);
-  drawSun(size * 0.40, size * 0.45, 140, 'rgba(220,240,255,0.45)', 0.45);
+  // Manchas turquesa/cyan saturadas en zona media (reflejos del agua)
+  drawSun(size * 0.40, size * 0.42, 380, 'rgba(60,140,200,0.55)', 0.55);
+  drawSun(size * 1.10, size * 0.48, 380, 'rgba(40,160,210,0.55)', 0.55);
+  drawSun(size * 1.60, size * 0.40, 320, 'rgba(80,170,220,0.50)', 0.50);
+  
+  // Profundidad abajo (los reflejos de abajo son oscuros)
+  drawSun(size * 0.60, size * 0.78, 340, 'rgba(20,80,140,0.50)', 0.50);
+  drawSun(size * 1.30, size * 0.82, 340, 'rgba(15,60,120,0.50)', 0.50);
+  
+  // Puntos brillantes pequeños — partículas suspendidas reflejadas en el cristal
+  drawSun(size * 0.85, size * 0.55, 80, 'rgba(255,255,255,0.7)', 0.7);
+  drawSun(size * 1.25, size * 0.30, 70, 'rgba(255,255,255,0.65)', 0.65);
+  drawSun(size * 0.50, size * 0.65, 60, 'rgba(255,255,255,0.6)', 0.6);
 
   const tx = new THREE.CanvasTexture(c);
   tx.mapping = THREE.EquirectangularReflectionMapping;
@@ -1442,26 +1460,26 @@ pmremGenerator.dispose();
    puro. Esto hace que el cristal lea como SWAROVSKI (azul facetado)
    en lugar de cuarzo amatista (violeta).
    ============================================================ */
-scene.add(new THREE.AmbientLight(0x6090c8, 0.55));  // ambient azul saturado
+scene.add(new THREE.AmbientLight(0x4878a0, 0.45));  // ambient azul medio submarino
 
-// Key light: blanco con tinte cyan (no puro blanco, para no lavar el azul)
-const keyLight = new THREE.DirectionalLight(0xe8f4ff, 0.95);
-keyLight.position.set(5, 6, 4);
+// Key light: blanco azulado frío desde MUY arriba (los god rays son la fuente)
+const keyLight = new THREE.DirectionalLight(0xe8f4ff, 1.2);
+keyLight.position.set(2, 8, 3);   // alto en y para simular fuente lejana arriba
 scene.add(keyLight);
 
 // Rim light cyan eléctrico saturado — el "halo" del lado opuesto
-const rimLight = new THREE.DirectionalLight(0x40a0e8, 1.5);
+const rimLight = new THREE.DirectionalLight(0x40a0e8, 1.3);
 rimLight.position.set(-6, 3, -2);
 scene.add(rimLight);
 
-// Bottom fill azul profundo saturado — base fría intensa
-const bottomLight = new THREE.DirectionalLight(0x3060a0, 0.55);
-bottomLight.position.set(0, -4, 3);
+// Bottom fill azul MUY profundo — la oscuridad del abismo abajo
+const bottomLight = new THREE.DirectionalLight(0x103060, 0.40);
+bottomLight.position.set(0, -5, 2);
 scene.add(bottomLight);
 
-// Top fill cyan claro — refuerza el brillo de cristal azul
-const fillLight = new THREE.DirectionalLight(0xa0d0f0, 0.60);
-fillLight.position.set(1, 5, -6);
+// Fill atrás cyan-blanco — refuerza highlights de cristal facetado
+const fillLight = new THREE.DirectionalLight(0xa8d0e8, 0.55);
+fillLight.position.set(1, 4, -6);
 scene.add(fillLight);
 
 /* ============================================================
