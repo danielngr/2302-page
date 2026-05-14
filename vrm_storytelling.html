@@ -980,7 +980,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setClearColor(0x000000, 0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
+renderer.toneMappingExposure = 1.05;
 
 /* ============================================================
    ENVIRONMENT MAP — Canvas procedural pasado por PMREMGenerator
@@ -1076,20 +1076,40 @@ let modelLoaded = false;
    iridiscente perlado que ves en Noomo.
    ============================================================ */
 const PHYSICAL_PARAMS = {
-  color: 0x88ccff,              // ★ Azul cristal hielo
+  color: 0x88ccff,              // Azul cristal hielo
   metalness: 0,
-  roughness: 0.05,
-  transmission: 0.9,            // Translúcido pero no totalmente
-  thickness: 1.2,
+  roughness: 0.08,              // Ligera variación de superficie (no espejo perfecto)
+  transmission: 0.92,           // Translucencia alta
+  thickness: 1.0,
   ior: 1.45,
-  attenuationColor: 0x4488dd,   // ★ Tinte azul profundo que aparece con grosor
-  attenuationDistance: 1.8,
-  iridescence: 0.75,            // Iridescencia presente pero no domina
+  attenuationColor: 0x3a7adb,   // Tinte azul profundo que da el color "agua"
+  attenuationDistance: 1.5,
+  
+  // ★★★ IRIDESCENCIA — colores cambiantes en superficie ★★★
+  iridescence: 1.0,             // Máxima — pero balanceada con el azul
   iridescenceIOR: 1.5,
   iridescenceThicknessRange: [200, 600],
+  
+  // ★★★ CLEARCOAT — capa de barniz brillante encima ★★★
   clearcoat: 1.0,
-  clearcoatRoughness: 0.02,
-  envMapIntensity: 1.8,
+  clearcoatRoughness: 0.0,      // Espejo perfecto en el clearcoat
+  
+  // ★★★ SHEEN — halo suave en bordes, como microfibra/perla ★★★
+  // Esto es lo que hace que se vea "viva" en los bordes
+  sheen: 1.0,                   // Activa sheen
+  sheenColor: 0xaaddff,         // Color del sheen (azul claro luminoso)
+  sheenRoughness: 0.25,         // Sheen rugoso = halo difuso
+  
+  // ★★★ SPECULAR — control fino de los reflejos ★★★
+  specularIntensity: 1.0,
+  specularColor: 0xffffff,
+  
+  // ★★★ EMISSIVE — la ballena emite luz propia desde dentro ★★★
+  // Esto es CLAVE para el feel "mágico" — no solo refleja, emite
+  emissive: 0x1a4a8a,           // Azul medio que glows desde dentro
+  emissiveIntensity: 0.15,      // Sutil, no abusar
+  
+  envMapIntensity: 1.6,
   side: THREE.DoubleSide,
   transparent: true,
   opacity: 1.0,
@@ -1197,9 +1217,9 @@ composer.addPass(renderPass);
 
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.75,   // strength moderado
-  0.7,    // radius
-  0.65    // threshold
+  0.9,    // strength medio-alto para que el halo se vea
+  0.95,   // radius alto = halo MUY suave y extenso
+  0.78    // threshold alto = solo highlights muy brillantes brillan
 );
 composer.addPass(bloomPass);
 
@@ -1373,7 +1393,7 @@ const waterShader = {
   uniforms: {
     tDiffuse: { value: null },          // El viewport actual
     uWaterTexture: { value: waterTexture.texture },  // Nuestra textura de ripples
-    uStrength: { value: 0.05 }          // Intensidad global del efecto
+    uStrength: { value: 0.035 }         // Sutil — no debe distraer
   },
   vertexShader: `
     varying vec2 vUv;
@@ -1468,36 +1488,87 @@ const CAMERA_PATH = [
   { sp: 1.00, z: 11, y:  0,    fov: 45 }
 ];
 
+/* ============================================================
+   PATH SYSTEM con CatmullRomCurve3
+   
+   En lugar de interpolar punto-a-punto con smoothstep (que crea
+   "esquinas" sutiles en cada keyframe), usamos una spline continua
+   de Three.js. La ballena viaja por una CURVA SUAVE de verdad,
+   sin saltos derivacionales.
+   ============================================================ */
+
+// Construir vectores Three.js para la curva
+const _whaleVecs = WHALE_PATH.map(p => new THREE.Vector3(p.x, p.y, p.z));
+const _whaleCurve = new THREE.CatmullRomCurve3(_whaleVecs, false, 'catmullrom', 0.5);
+
+// Roll y scale por separado (no espaciales, así que mantenemos interpolación)
+const _whaleRolls = WHALE_PATH.map(p => p.roll);
+const _whaleScales = WHALE_PATH.map(p => p.scale);
+const _whaleSps = WHALE_PATH.map(p => p.sp);
+
 function lerp(a, b, t) { return a + (b - a) * t; }
 function smoothstep(t) { return t * t * (3 - 2 * t); }
 
-function getPathPoint(path, sp) {
-  let prev = path[0];
-  let next = path[path.length - 1];
-  for (let i = 0; i < path.length - 1; i++) {
-    if (sp >= path[i].sp && sp <= path[i + 1].sp) {
-      prev = path[i];
-      next = path[i + 1];
+// Easing más sofisticado que smoothstep
+// Smootherstep (Perlin) = 6t^5 - 15t^4 + 10t^3
+function smootherstep(t) {
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+// Para roll y scale (no espaciales): interpolar entre los 2 keyframes vecinos
+function getScalarValue(values, sps, sp) {
+  let prevIdx = 0;
+  let nextIdx = values.length - 1;
+  for (let i = 0; i < sps.length - 1; i++) {
+    if (sp >= sps[i] && sp <= sps[i + 1]) {
+      prevIdx = i;
+      nextIdx = i + 1;
       break;
     }
   }
-  const range = next.sp - prev.sp;
-  const localT = range > 0 ? smoothstep((sp - prev.sp) / range) : 0;
-  const result = {};
-  for (const key in prev) {
-    if (key === 'sp') continue;
-    result[key] = lerp(prev[key], next[key], localT);
+  const range = sps[nextIdx] - sps[prevIdx];
+  const localT = range > 0 ? smootherstep((sp - sps[prevIdx]) / range) : 0;
+  return lerp(values[prevIdx], values[nextIdx], localT);
+}
+
+function getPathPoint(path, sp) {
+  // Mapear sp [0,1] → t en la curva (también [0,1])
+  // Pero queremos que respete los timing de los keyframes...
+  // Solución: convertir sp a t-curva basado en posición de keyframes
+  
+  // Encontrar entre qué keyframes está
+  let prevIdx = 0;
+  let nextIdx = path.length - 1;
+  for (let i = 0; i < path.length - 1; i++) {
+    if (sp >= path[i].sp && sp <= path[i + 1].sp) {
+      prevIdx = i;
+      nextIdx = i + 1;
+      break;
+    }
   }
-  return result;
+  const range = path[nextIdx].sp - path[prevIdx].sp;
+  const localT = range > 0 ? smootherstep((sp - path[prevIdx].sp) / range) : 0;
+  
+  // t global en la curva: entre prevIdx y nextIdx con smootherstep
+  const tCurve = (prevIdx + localT) / (path.length - 1);
+  
+  // Obtener posición en la curva
+  const pos = _whaleCurve.getPoint(Math.max(0, Math.min(1, tCurve)));
+  
+  // Roll y scale interpolados linealmente (con smoother)
+  const roll = lerp(_whaleRolls[prevIdx], _whaleRolls[nextIdx], localT);
+  const scale = lerp(_whaleScales[prevIdx], _whaleScales[nextIdx], localT);
+  
+  return { x: pos.x, y: pos.y, z: pos.z, roll, scale };
 }
 
 /**
- * Devuelve dirección de natación derivando posiciones de path.
- * Esto es lo que hace que la ballena SIEMPRE mire hacia adelante.
+ * Devuelve dirección de natación.
+ * Usa derivada de la curva en lugar de diferencia finita — más preciso.
  */
 function getSwimDirection(path, sp) {
-  const ahead = Math.min(0.999, sp + 0.02);
-  const behind = Math.max(0.001, sp - 0.02);
+  const ahead = Math.min(0.999, sp + 0.015);
+  const behind = Math.max(0.001, sp - 0.015);
   const future = getPathPoint(path, ahead);
   const past = getPathPoint(path, behind);
   return {
@@ -1506,6 +1577,30 @@ function getSwimDirection(path, sp) {
     dz: future.z - past.z
   };
 }
+/**
+ * Camera path: estructura más simple, interpolación con smootherstep
+ */
+function getCameraPoint(sp) {
+  let prevIdx = 0;
+  let nextIdx = CAMERA_PATH.length - 1;
+  for (let i = 0; i < CAMERA_PATH.length - 1; i++) {
+    if (sp >= CAMERA_PATH[i].sp && sp <= CAMERA_PATH[i + 1].sp) {
+      prevIdx = i;
+      nextIdx = i + 1;
+      break;
+    }
+  }
+  const prev = CAMERA_PATH[prevIdx];
+  const next = CAMERA_PATH[nextIdx];
+  const range = next.sp - prev.sp;
+  const localT = range > 0 ? smootherstep((sp - prev.sp) / range) : 0;
+  return {
+    z: lerp(prev.z, next.z, localT),
+    y: lerp(prev.y, next.y, localT),
+    fov: lerp(prev.fov, next.fov, localT)
+  };
+}
+
 let scrollProgress = 0;
 let scrollTarget = 0;
 function updateScroll() {
@@ -1571,12 +1666,20 @@ function animate() {
   // Roll: banking lateral del path
   const targetRoll = pose.roll;
 
-  // Posiciones objetivo (SIN sinusoides, scroll-locked puro)
+  // ★★★ SECONDARY MOTION — micro-vida orgánica ★★★
+  // La ballena nunca está completamente "quieta" en sus rotaciones.
+  // Estas son ondulaciones SUTILES que NO afectan posición global
+  // (no rompen el scroll-locked feel) pero le dan alma.
+  const tailUndulation = Math.sin(t * 1.2) * 0.04;          // ondulación de cola (yaw)
+  const dorsalBob = Math.sin(t * 0.9 + 1.5) * 0.03;         // sube y baja (pitch)
+  const subtleSway = Math.sin(t * 0.7 + 3.0) * 0.025;       // micro-roll
+  
+  // Posiciones objetivo
   const targetX = pose.x;
   const targetY = pose.y;
   const targetZ = pose.z;
 
-  // Lerp suave hacia el target — esto da fluidez sin movimiento parásito
+  // Lerp suave hacia el target
   whaleGroup.position.x += (targetX - whaleGroup.position.x) * 0.08;
   whaleGroup.position.y += (targetY - whaleGroup.position.y) * 0.08;
   whaleGroup.position.z += (targetZ - whaleGroup.position.z) * 0.08;
@@ -1587,17 +1690,19 @@ function animate() {
     while (diff < -Math.PI) diff += Math.PI * 2;
     return current + diff * factor;
   }
-  whaleGroup.rotation.y = lerpAngle(whaleGroup.rotation.y, targetYaw, 0.06);
-  whaleGroup.rotation.x = lerpAngle(whaleGroup.rotation.x, targetPitch, 0.06);
-  whaleGroup.rotation.z = lerpAngle(whaleGroup.rotation.z, targetRoll, 0.05);
+  // Aplicar rotación con secondary motion sumado
+  whaleGroup.rotation.y = lerpAngle(whaleGroup.rotation.y, targetYaw + tailUndulation, 0.06);
+  whaleGroup.rotation.x = lerpAngle(whaleGroup.rotation.x, targetPitch + dorsalBob, 0.06);
+  whaleGroup.rotation.z = lerpAngle(whaleGroup.rotation.z, targetRoll + subtleSway, 0.05);
 
   // Scale con assemble inicial
   const targetScale = pose.scale * ae;
   const currentScale = whaleGroup.scale.x;
   whaleGroup.scale.setScalar(currentScale + (targetScale - currentScale) * 0.06);
 
-  // ★★★ CÁMARA — scroll-locked también ★★★
-  const cam = getPathPoint(CAMERA_PATH, sp);
+  // ★★★ CÁMARA — interpolación entre keyframes ★★★
+  // (Path camera es estructura diferente — interpolación simple)
+  const cam = getCameraPoint(sp);
   camera.position.z += (cam.z - camera.position.z) * 0.05;
   camera.position.y += (cam.y - camera.position.y) * 0.05;
   if (cam.fov && Math.abs(camera.fov - cam.fov) > 0.1) {
