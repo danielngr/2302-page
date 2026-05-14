@@ -3576,106 +3576,186 @@ composer.addPass(outputPass);
    Espacio: X (-8 a +8 laterales), Y (-3 a +3 vertical),
    Z (-15 al fondo, +5 al frente)
    ============================================================ */
+// ════════════════════════════════════════════════════════════════════════
+// COREOGRAFÍA CINEMATOGRÁFICA — mapeada al contenido del documento
+// ════════════════════════════════════════════════════════════════════════
+// 
+// PRINCIPIO RECTOR: la ballena NUNCA tapa imágenes ni distrae texto crítico.
+// 
+// Mapeo de zonas (calibrado al contenido real):
+//   0-11%   COVER         → ★ PROTAGONISTA hero arriba-derecha
+//   11-16%  REIMAGINE     → deriva sutil
+//   16-23%  PHILOSOPHY    → banking suave a izquierda, baja
+//   23-30%  WHY DIRECT    → pausa escénica izquierda
+//   30-65%  PROPERTIES    → EVADE lateral (imágenes pesadas)
+//   65-70%  SEARCH BAR    → transición ascendente
+//   70-85%  GRID          → EVADE arriba/abajo (más imágenes)
+//   85-94%  REVIEWS       → reaparece elegante
+//   94-100% FINAL CTA     → ★ POSE FINAL estatua viva, centrada
+//
+// 19 keyframes (vs 11 anterior) para curva más suave en CatmullRom.
+// ════════════════════════════════════════════════════════════════════════
+
+// Factor de escala lateral para mobile — comprime las x amplias
+// para que la ballena nunca se salga del viewport portrait.
+// Desktop: 1.0 (sin cambio). Mobile: 0.6 (60% del ancho lateral).
+const _whaleXScale = isMobile ? 0.62 : 1.0;
+
+// Helper para aplicar el scale al construir keyframes
+const _kf = (sp, x, y, z, roll) => ({ sp, x: x * _whaleXScale, y, z, roll });
+
 const WHALE_PATH = [
-  // ★★★ COREOGRAFÍA CINEMATOGRÁFICA — 3 ACTOS ★★★
-  //
-  // ACTO 1 (0-15%): ENTRADA HERO — la ballena entra como portada, se posa
-  //                  ligeramente a la derecha del logo VRM. Roll suave que
-  //                  exhibe el lomo iridiscente. Esta es LA PRIMERA IMAGEN
-  //                  que ve el visitante — debe vivir aquí ~10% del scroll.
-  //
-  // ACTO 2 (15-65%): DESCENSO OCEÁNICO — arco amplio en S, roll dramático
-  //                   al curvear (banking real), close-up al medio,
-  //                   nada paralela al usuario en el grid.
-  //
-  // ACTO 3 (65-100%): REGRESO + POSE FINAL — sube en espiral por la derecha,
-  //                    pose final 3/4 girada hacia viewer con tail flip
-  //                    arqueada arriba. Esta es LA PORTADA FINAL.
-  // ─────────────────────────────────────────────────────────────
+  // ───────── ACTO 1: HERO DE APERTURA (0-11%) ─────────
+  // La ballena PROTAGONIZA. Pose 3/4 arriba-derecha junto al logo VRM.
+  // Casi no se mueve — vive ahí. Solo respiración y micro-deriva.
 
-  // ─── ACTO 1: ENTRADA HERO ───
-  // 0% — Ballena flota arriba-derecha, ligeramente girada hacia el viewer
-  //       (NO de cola, NO de frente plano — 3/4 elegante)
-  //       Esta es LA PORTADA. La ballena vive aquí hasta sp=0.10.
-  { sp: 0.00, x:  1.8, y:  1.0,  z:   3.5, roll: -0.18 },
+  // 0% — Pose hero exacta arriba-derecha del logo VRM
+  _kf(0.00,  2.0, 0.9, 3.2, -0.12),
+  // 5% — Micro-deriva suave (la ballena "respira" en su sitio)
+  _kf(0.05,  1.8, 1.0, 3.4, -0.14),
+  // 11% — Empieza a deslizarse muy gentilmente
+  _kf(0.11,  1.4, 0.7, 2.6, -0.10),
 
-  // 6% — Sutil deriva hacia el centro mientras el visitante aún no scrollea
-  //      (este punto se ve principalmente como respiración hero)
-  { sp: 0.06, x:  1.2, y:  0.9,  z:   3.2, roll: -0.22 },
+  // ───────── ACTO 2: DERIVA EDITORIAL (11-30%) ─────────
+  // 16% — Cruza por izquierda del centro, descendiendo
+  _kf(0.16,  0.0, 0.3, 1.8, -0.06),
+  // 23% — Sigue bajando, hacia izquierda (zona PHILOSOPHY)
+  _kf(0.23, -1.8,-0.5, 0.5, -0.10),
+  // 30% — Pausa escénica al lado izquierdo abajo (zona WHY DIRECT)
+  _kf(0.30, -2.6,-1.2,-1.0, -0.04),
 
-  // 14% — Aún en pose hero pero comenzando a deslizarse a la izquierda
-  //       (anticipa el descenso de Acto 2)
-  { sp: 0.14, x:  0.0, y:  0.6,  z:   2.5, roll: -0.15 },
+  // ───────── ACTO 3: EVASIÓN DE IMÁGENES (30-65%) ─────────
+  // Zona PROPERTIES con 4 hero editorial GRANDES.
+  // Movimiento por LATERALES en profundidad negativa — no tapa fotos.
 
-  // ─── ACTO 2: DESCENSO OCEÁNICO ───
-  // 24% — Cruza al lado izquierdo, ya descendiendo
-  //       (curva de entrada al descenso — banking marcado a la izquierda)
-  { sp: 0.24, x: -2.5, y: -0.5,  z:   1.5, roll: -0.32 },
+  // 38% — Lateral profundo izquierdo (lejos)
+  _kf(0.38, -3.5,-1.6,-4.5,  0.02),
+  // 48% — Curva amplia HACIA EL FONDO (gran arco bajo el grid editorial)
+  _kf(0.48, -1.5,-2.4,-8.0,  0.08),
+  // 58% — Sale por la derecha pero MUY al fondo
+  _kf(0.58,  1.8,-2.2,-7.5,  0.12),
+  // 65% — Lateral derecho profundo, subiendo gradualmente
+  _kf(0.65,  3.2,-1.0,-5.5,  0.10),
 
-  // 35% — Close-up dramático: cerca de la cámara, gran tamaño en pantalla
-  //       (el momento "wow" de mitad del scroll)
-  { sp: 0.35, x: -2.0, y: -1.4,  z:   4.5, roll: -0.20 },
+  // ───────── ACTO 4: ARRIBA DEL GRID (65-85%) ─────────
+  // Zona GRID de 10 cards — pasa POR ARRIBA del título "The 10 most",
+  // NO al nivel de las cards.
 
-  // 46% — Empieza a alejarse, curva amplia hacia el fondo
-  { sp: 0.46, x: -1.0, y: -2.0,  z:  -2,   roll:  0.08 },
+  // 70% — Asciende por derecha, por encima del grid
+  _kf(0.70,  4.0, 1.8,-4.0,  0.06),
+  // 76% — Cruza horizontalmente hacia centro POR ARRIBA
+  _kf(0.76,  2.0, 2.2,-2.0, -0.02),
+  // 82% — Sigue por arriba, descendiendo gradualmente
+  _kf(0.82,  0.0, 1.6, 0.0, -0.06),
 
-  // 56% — En el fondo, cruzando hacia derecha (banking opuesto)
-  //       Visible PARALELA al usuario en el grid de propiedades
-  { sp: 0.56, x:  1.5, y: -2.3,  z:  -7,   roll:  0.28 },
+  // ───────── ACTO 5: REAPARICIÓN (85-94%) ─────────
+  // Zona REVIEWS — texto largo, vuelve al centro elegantemente.
+  _kf(0.88, -0.8, 0.8, 1.5, -0.08),
+  _kf(0.94,  0.3, 0.6, 2.5, -0.10),
 
-  // ─── ACTO 3: REGRESO + POSE FINAL ───
-  // 68% — Comienza el ascenso por la derecha (espiral hacia adelante)
-  //       ELEVADA para que cruce por encima del título "The 10 most requested"
-  { sp: 0.68, x:  4.5, y:  1.2,  z:  -5,   roll:  0.22 },
-
-  // 78% — Sigue subiendo, acercándose al viewer
-  { sp: 0.78, x:  3.5, y:  1.5,  z:  -1,   roll:  0.15 },
-
-  // 88% — Curva final hacia centro, aún elevada
-  { sp: 0.88, x:  1.5, y:  1.2,  z:   1,   roll:  0.05 },
-
-  // 95% — Pose final aproximándose: 3/4 girada mirando viewer
-  //       Lomo arqueado, cola hacia abajo (preparando "tail flip")
-  { sp: 0.95, x:  0.5, y:  0.8,  z:   3,   roll: -0.10 },
-
-  // 100% — POSE FINAL HERO: ballena flota centrada, 3/4 hacia viewer
-  //        Cola arqueada arriba (la "exhibe" — pose de estatua viva)
-  //        Mantenida estática para que el cliente se quede ahí
-  { sp: 1.00, x:  0.0, y:  0.6,  z:   3.5, roll: -0.18 }
+  // ───────── ACTO 6: POSE FINAL ESTATUA VIVA (94-100%) ─────────
+  // CTA final — flota centrada, 3/4 hacia viewer, ligero arqueo.
+  _kf(0.97,  0.1, 0.7, 3.1, -0.14),
+  _kf(1.00,  0.0, 0.75,3.3, -0.16)
 ];
 
-// ★ Camera path adaptado: en mobile alejamos z y ampliamos FOV
-// para que la ballena se vea entera en portrait viewport
-const _camZOff = isMobile ? 4 : 0;     // mobile: 4 unidades más atrás
-const _camFovOff = isMobile ? 13 : 0;  // mobile: FOV +13° más amplio
+// ════════════════════════════════════════════════════════════════════════
+// CAMERA PATH — se mueve para componer cada acto cinematográficamente
+// ════════════════════════════════════════════════════════════════════════
+const _camZOff = isMobile ? 4 : 0;
+const _camFovOff = isMobile ? 13 : 0;
 
 const CAMERA_PATH = [
-  // ★★★ CÁMARA CINEMATOGRÁFICA — se mueve para componer cada acto ★★★
-  // En Acto 1 (hero): cámara estable, FOV un poco más cerrado (más cinemático)
-  // En Acto 2 (descent): FOV se abre para el close-up al 35%
-  // En Acto 3 (regreso): FOV se cierra de nuevo para la pose final estatua
+  // Hero: FOV cerrado (cinemático), ballena enmarcada con logo
+  { sp: 0.00, z:  9.5 + _camZOff, y:  0.3, fov: 42 + _camFovOff },
+  { sp: 0.11, z: 10.0 + _camZOff, y:  0.2, fov: 43 + _camFovOff },
 
-  { sp: 0.00, z: 9.5 + _camZOff,  y:  0.2,  fov: 42 + _camFovOff },  // hero: cerrado
-  { sp: 0.14, z: 10  + _camZOff,  y:  0.1,  fov: 44 + _camFovOff },
-  { sp: 0.35, z: 8.5 + _camZOff,  y: -0.3,  fov: 48 + _camFovOff },  // close-up dramático
-  { sp: 0.56, z: 11  + _camZOff,  y: -0.5,  fov: 46 + _camFovOff },
-  { sp: 0.78, z: 10  + _camZOff,  y:  0.4,  fov: 47 + _camFovOff },
-  { sp: 0.95, z: 9.5 + _camZOff,  y:  0.3,  fov: 43 + _camFovOff },
-  { sp: 1.00, z: 9.5 + _camZOff,  y:  0.2,  fov: 42 + _camFovOff }   // final: cerrado de nuevo
+  // Editorial: FOV un poco más abierto, cámara siguiendo a la ballena
+  { sp: 0.23, z: 10.5 + _camZOff, y: -0.1, fov: 46 + _camFovOff },
+  { sp: 0.30, z: 11.0 + _camZOff, y: -0.4, fov: 47 + _camFovOff },
+
+  // Evasión de imágenes: cámara más amplia (ve toda la escena)
+  // pero el sujeto está LEJOS, así que se ve pequeño
+  { sp: 0.48, z: 12.0 + _camZOff, y: -0.6, fov: 50 + _camFovOff },
+
+  // Sale de las imágenes: cámara empieza a recomponer
+  { sp: 0.65, z: 11.5 + _camZOff, y:  0.0, fov: 48 + _camFovOff },
+
+  // Por arriba del grid: cámara mira ligeramente hacia arriba
+  { sp: 0.76, z: 10.5 + _camZOff, y:  0.6, fov: 46 + _camFovOff },
+
+  // Reaparición: cámara recompone hacia retrato cinematográfico
+  { sp: 0.88, z: 10.0 + _camZOff, y:  0.3, fov: 44 + _camFovOff },
+
+  // Pose final: cierre cinematográfico, FOV cerrado como el hero
+  { sp: 0.97, z:  9.5 + _camZOff, y:  0.2, fov: 42 + _camFovOff },
+  { sp: 1.00, z:  9.5 + _camZOff, y:  0.2, fov: 41 + _camFovOff }
 ];
 
-// Pre-inicializa el yaw del whaleGroup para que arranque ya mirando hacia adelante.
-// Sin esto, el lerp angular puede tardar 1s en girarla 180° al cargar.
-// Usamos la dirección del path en sp=0 (de WHALE_PATH[0] a WHALE_PATH[1])
-// con el mismo +PI que el loop de animación.
+// ════════════════════════════════════════════════════════════════════════
+// SISTEMA DE ROTACIÓN PROFESIONAL — Quaternion + Slerp + Banking aditivo
+// ════════════════════════════════════════════════════════════════════════
+// PROBLEMA QUE RESUELVE:
+//   El sistema Euler + lerp por eje (rotation.y separado de rotation.z)
+//   permite que el yaw target salte 180° cuando atan2 cambia de signo,
+//   causando que la ballena "gire sobre sí misma como un trompo".
+//
+// SOLUCIÓN:
+//   1. Construimos un quaternion target desde una Matrix4.lookAt usando
+//      un vector "up" estable. Esto siempre representa una rotación
+//      válida sin gimbal lock.
+//   2. Slerp temporal hacia el target — interpolación esférica garantizada
+//      por el camino más corto en 4D (no en cada eje por separado).
+//   3. Roll (banking) se aplica DESPUÉS del slerp como rotación local
+//      sobre el eje Z del whaleGroup ya orientado.
+//   4. Secondary motion se aplica como pequeñas rotaciones locales aditivas.
+// ════════════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════════════
+// SISTEMA DE ROTACIÓN PROFESIONAL — Variables auxiliares
+// ════════════════════════════════════════════════════════════════════════
+// Objetos persistentes para evitar allocations en el animate loop.
+const _whaleQuatTarget = new THREE.Quaternion();
+const _whaleMatTarget = new THREE.Matrix4();
+const _whaleEye = new THREE.Vector3();
+const _whaleTarget = new THREE.Vector3();
+const _whaleUp = new THREE.Vector3(0, 1, 0);
+const _whaleEulerBank = new THREE.Euler(0, 0, 0, 'XYZ');
+const _whaleQuatBank = new THREE.Quaternion();
+const _whaleQuatSecondary = new THREE.Quaternion();
+const _whaleEulerSecondary = new THREE.Euler(0, 0, 0, 'XYZ');
+
+// Smoothed banking — persiste entre frames, no salta abruptamente
+let _smoothedBank = 0;
+
+// ════════════════════════════════════════════════════════════════════════
+// PRE-INICIALIZACIÓN — la ballena arranca EXACTAMENTE en pose hero correcta
+// ════════════════════════════════════════════════════════════════════════
+// Calculamos el quaternion inicial usando el mismo sistema lookAt
+// para que NO haya "vuelo" desde el origen ni rotación abrupta al cargar.
 {
   const a = WHALE_PATH[0], b = WHALE_PATH[1];
-  whaleGroup.rotation.y = Math.atan2(b.x - a.x, b.z - a.z) + Math.PI;
-  // ★ También pre-aplicar el roll del frame 0 (pose hero artística)
-  whaleGroup.rotation.z = a.roll;
-  // ★ Y la posición exacta del frame 0 para que aparezca en pose hero perfecta
-  // (sin "vuelo" desde el origen)
+  // Posición exacta del frame 0
   whaleGroup.position.set(a.x, a.y, a.z);
+
+  // Dirección de natación inicial: de a hacia b
+  const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+  const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+
+  // Eye = posición, target = eye - direction (cabeza apunta a -Z)
+  const initEye = new THREE.Vector3(a.x, a.y, a.z);
+  const initTarget = new THREE.Vector3(a.x - dx / len, a.y - dy / len, a.z - dz / len);
+  const initUp = new THREE.Vector3(0, 1, 0);
+  const initMat = new THREE.Matrix4().lookAt(initEye, initTarget, initUp);
+  whaleGroup.quaternion.setFromRotationMatrix(initMat);
+
+  // Aplicar el roll artístico inicial como rotación local
+  const initRollEuler = new THREE.Euler(0, 0, a.roll, 'XYZ');
+  const initRollQuat = new THREE.Quaternion().setFromEuler(initRollEuler);
+  whaleGroup.quaternion.multiply(initRollQuat);
+
+  // Inicializar el smoothed bank con el roll artístico del frame 0
+  _smoothedBank = a.roll;
 }
 
 /* ============================================================
@@ -3819,92 +3899,116 @@ function animate() {
 
   const sp = scrollProgress;
 
-  // ★★★ MOVIMIENTO SCROLL-LOCKED PURO ★★★
+  // ★★★ MOVIMIENTO SCROLL-LOCKED ★★★
   const pose = getPathPoint(WHALE_PATH, sp);
   const swim = getSwimDirection(WHALE_PATH, sp);
 
-  // Yaw: orienta la cabeza hacia donde va el path
-  const targetYaw = Math.atan2(swim.dx, swim.dz) + Math.PI;
-
-  // Pitch: cuánto sube/baja
-  const horizSpeed = Math.sqrt(swim.dx * swim.dx + swim.dz * swim.dz);
-  const targetPitch = -Math.atan2(swim.dy, Math.max(0.01, horizSpeed) * 4);
-
-  // ★★★ ROLL DINÁMICO BASADO EN CAMBIO DE YAW ★★★
-  // Como una ballena real (o avión): cuando gira a la derecha, se inclina a la derecha.
-  // El roll deriva del cambio actual de yaw. NUNCA se voltea de panza (siempre |roll| < PI/3).
+  // ───────── 1. CONSTRUIR QUATERNION TARGET DESDE lookAt ─────────
+  // Posicionamos un punto "eye" en la posición actual de la ballena
+  // y un "target" un paso adelante en la dirección de natación.
+  // La Matrix4.lookAt construye una rotación bien definida desde estos
+  // 3 vectores (eye, target, up), sin gimbal lock ni saltos abruptos.
   //
-  // Calculamos lookahead: el yaw "futuro" en sp+epsilon vs el actual.
-  // Si va a girar mucho, banking más fuerte.
-  const lookahead = Math.min(1, sp + 0.04);
+  // El +PI virtual: si nuestro modelo tiene la cabeza apuntando a -Z por
+  // convención, debemos invertir la dirección de natación. Lo conseguimos
+  // poniendo el target ATRÁS del eye (eye - swim), no adelante.
+  _whaleEye.set(pose.x, pose.y, pose.z);
+  // Normalizar dirección de natación (evita problemas si swim es muy pequeño)
+  const swimLen = Math.sqrt(swim.dx * swim.dx + swim.dy * swim.dy + swim.dz * swim.dz);
+  if (swimLen > 0.0001) {
+    // target = eye - swim_normalizado (modelo cabeza -Z se ve correctamente)
+    _whaleTarget.set(
+      pose.x - swim.dx / swimLen,
+      pose.y - swim.dy / swimLen,
+      pose.z - swim.dz / swimLen
+    );
+  } else {
+    // Sin movimiento — usar dirección anterior (target apenas adelante en -Z)
+    _whaleTarget.set(pose.x, pose.y, pose.z - 1);
+  }
+  _whaleMatTarget.lookAt(_whaleEye, _whaleTarget, _whaleUp);
+  _whaleQuatTarget.setFromRotationMatrix(_whaleMatTarget);
+
+  // ───────── 2. CALCULAR BANKING (roll dinámico) ─────────
+  // Comparamos la dirección actual de natación con la futura (lookahead)
+  // para saber cuánto va a girar. Si gira a la derecha, banking a la derecha.
+  // CALIBRADO: banking más conservador que antes (35° max) — una ballena
+  // real NO se inclina 60°. Más realista, menos teatral.
+  const lookahead = Math.min(0.999, sp + 0.05);
   const swimAhead = getSwimDirection(WHALE_PATH, lookahead);
-  const yawAhead = Math.atan2(swimAhead.dx, swimAhead.dz) + Math.PI;
-  let yawDelta = yawAhead - targetYaw;
+
+  // Yaw actual y futuro como ángulos (solo para calcular delta de giro)
+  const yawNow = Math.atan2(swim.dx, swim.dz);
+  const yawAhead = Math.atan2(swimAhead.dx, swimAhead.dz);
+  let yawDelta = yawAhead - yawNow;
   while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
   while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
 
-  // Roll: signo invertido para que gire en la dirección correcta de banking real.
-  // Magnitude clamped — una ballena viva NO se voltea de panza.
-  // CALIBRADO: subido de 1.8 → 2.4 para que el banking se sienta más cinemático
-  // en los giros amplios del descenso. Sigue protegido por BANK_MAX.
-  const BANK_INTENSITY = 2.4;          // qué tanto se inclina al girar (más dramático)
-  const BANK_MAX = Math.PI / 3;        // clamp: 60° max — más dramático pero no volteada
-  let dynamicRoll = -yawDelta * BANK_INTENSITY;
-  if (dynamicRoll > BANK_MAX) dynamicRoll = BANK_MAX;
-  if (dynamicRoll < -BANK_MAX) dynamicRoll = -BANK_MAX;
+  const BANK_INTENSITY = 1.6;          // calibrado (ballena real, no avión cazas)
+  const BANK_MAX = Math.PI / 5.2;      // ~35° max — clamp realista
+  let dynamicBank = -yawDelta * BANK_INTENSITY;
+  if (dynamicBank > BANK_MAX) dynamicBank = BANK_MAX;
+  if (dynamicBank < -BANK_MAX) dynamicBank = -BANK_MAX;
 
-  // El roll del keyframe se mezcla con el dynamic (75% dinámico, 25% keyframe artístico)
-  // Más peso a lo dinámico = banking se siente más natural y reactivo
-  const targetRoll = dynamicRoll * 0.75 + pose.roll * 0.25;
+  // Mezcla con keyframe artístico (45% dinámico, 55% artístico)
+  // El roll artístico de los keyframes da la "personalidad" de la pose
+  const targetBank = dynamicBank * 0.45 + pose.roll * 0.55;
 
-  // ★★★ SECONDARY MOTION — micro-vida orgánica multi-frecuencia ★★★
-  // Combinación de 3 frecuencias distintas crea movimiento NO ROBÓTICO.
-  // Cada armónico tiene su propia fase (offset) para que nunca alineen.
-  // Amplitudes calibradas para verse VIVA pero no exagerada.
+  // SMOOTHING TEMPORAL del banking — evita saltos en transiciones de curva
+  // dt-aware: factor 0.04 a 60fps ≈ 1 segundo para alcanzar el target
+  _smoothedBank += (targetBank - _smoothedBank) * Math.min(1, dt * 2.5);
 
-  // Ondulación de cola — frecuencia base (la "natación")
-  const tailUndulation = Math.sin(t * 1.4) * 0.085;
-  // Sub-armónico lento — el "balance" general del cuerpo
-  const bodySway = Math.sin(t * 0.55 + 1.7) * 0.045;
-  // Sub-armónico medio — sube y baja con la respiración
-  const dorsalBob = Math.sin(t * 0.92 + 2.3) * 0.055;
-  // Micro-temblor rápido — vida sutil (chispa de cristal moviéndose)
-  const microShimmer = Math.sin(t * 2.3 + 4.1) * 0.018;
+  // ───────── 3. SECONDARY MOTION — micro-vida orgánica ─────────
+  // Multi-frecuencia armónica con fases no alineadas. Amplitudes
+  // conservadoras (~0.04 max) para verse VIVA sin distorsionar la pose.
 
-  // ★ "RESPIRACIÓN" — escala muy sutil que sube y baja cada 4 segundos
-  // Le da sensación de criatura viva, no estatua flotando
-  const breath = 1.0 + Math.sin(t * 0.42) * 0.012;
-  
-  // Posiciones objetivo
-  const targetX = pose.x;
-  const targetY = pose.y;
-  const targetZ = pose.z;
+  // Cola/yaw: ondulación lateral suave (la natación natural)
+  const tailUndulation = Math.sin(t * 1.3) * 0.045;
+  // Pitch: respiración del lomo, frecuencia distinta
+  const dorsalBob = Math.sin(t * 0.78 + 1.9) * 0.030;
+  // Body sway lento — el balance general
+  const bodySway = Math.sin(t * 0.42 + 2.7) * 0.025;
+  // Micro-shimmer rápido — vida sutil
+  const microShimmer = Math.sin(t * 2.1 + 4.3) * 0.012;
 
-  // Lerp suave hacia el target
-  whaleGroup.position.x += (targetX - whaleGroup.position.x) * 0.08;
-  whaleGroup.position.y += (targetY - whaleGroup.position.y) * 0.08;
-  whaleGroup.position.z += (targetZ - whaleGroup.position.z) * 0.08;
+  // "RESPIRACIÓN" — escala oscila ±0.8% (más sutil que antes)
+  const breath = 1.0 + Math.sin(t * 0.42) * 0.008;
 
-  function lerpAngle(current, target, factor) {
-    let diff = target - current;
-    while (diff > Math.PI) diff -= Math.PI * 2;
-    while (diff < -Math.PI) diff += Math.PI * 2;
-    return current + diff * factor;
-  }
-  // Aplicar rotación con secondary motion multi-frecuencia
-  // Yaw: tail undulation (la cola "barre" lateral) + body sway sutil
-  whaleGroup.rotation.y = lerpAngle(whaleGroup.rotation.y, targetYaw + tailUndulation + bodySway * 0.4, 0.06);
-  // Pitch: dorsal bob (respiración del lomo) + micro-shimmer (chispa)
-  whaleGroup.rotation.x = lerpAngle(whaleGroup.rotation.x, targetPitch + dorsalBob + microShimmer, 0.06);
-  // Roll: lerp un poco más lento que yaw para que el banking se sienta natural (la ballena
-  // "delaya" la inclinación al inicio del giro y la mantiene un instante después)
-  whaleGroup.rotation.z = lerpAngle(whaleGroup.rotation.z, targetRoll + bodySway, 0.045);
+  // ───────── 4. SLERP TEMPORAL HACIA EL TARGET ─────────
+  // Slerp con factor dt-aware. A 60fps con dt=0.016, factor=0.10
+  // significa que tardamos ~10 frames (167ms) en alcanzar el target.
+  // ESTO ES LO QUE ELIMINA LOS GIROS SOBRE SÍ MISMA: el quaternion
+  // siempre toma el camino más corto en 4D, no en cada eje por separado.
+  const slerpFactor = Math.min(1, dt * 6.0);
+  whaleGroup.quaternion.slerp(_whaleQuatTarget, slerpFactor);
 
-  // Scale: ramp del assemble inicial × breath orgánica
-  // breath modula la escala constantemente para que la ballena RESPIRE
+  // ───────── 5. APLICAR BANKING + SECONDARY MOTION LOCAL ─────────
+  // El banking y secondary motion se aplican como rotaciones LOCALES
+  // sobre el quaternion ya orientado por el slerp. Esto es como
+  // "inclinar la nave mientras vuela" — independiente de la dirección.
+  _whaleEulerBank.set(0, 0, _smoothedBank + bodySway, 'XYZ');
+  _whaleQuatBank.setFromEuler(_whaleEulerBank);
+  whaleGroup.quaternion.multiply(_whaleQuatBank);
+
+  // Secondary motion: yaw (cola) + pitch (lomo) + shimmer
+  _whaleEulerSecondary.set(
+    dorsalBob + microShimmer,
+    tailUndulation,
+    0,
+    'XYZ'
+  );
+  _whaleQuatSecondary.setFromEuler(_whaleEulerSecondary);
+  whaleGroup.quaternion.multiply(_whaleQuatSecondary);
+
+  // ───────── 6. POSICIÓN — lerp suave hacia target ─────────
+  whaleGroup.position.x += (pose.x - whaleGroup.position.x) * Math.min(1, dt * 5);
+  whaleGroup.position.y += (pose.y - whaleGroup.position.y) * Math.min(1, dt * 5);
+  whaleGroup.position.z += (pose.z - whaleGroup.position.z) * Math.min(1, dt * 5);
+
+  // ───────── 7. SCALE — assemble + respiración ─────────
   const targetScale = ae * breath;
   const currentScale = whaleGroup.scale.x;
-  whaleGroup.scale.setScalar(currentScale + (targetScale - currentScale) * 0.06);
+  whaleGroup.scale.setScalar(currentScale + (targetScale - currentScale) * Math.min(1, dt * 4));
 
   // ★★★ CÁMARA — interpolación entre keyframes ★★★
   // (Path camera es estructura diferente — interpolación simple)
