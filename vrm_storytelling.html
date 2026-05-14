@@ -1067,14 +1067,14 @@ function makeAuroraBackgroundTexture() {
   c.width = w; c.height = h;
   const ctx = c.getContext('2d');
 
-  // Gradiente vertical base (cielo) — paleta más saturada para que se vea viva
+  // Gradiente vertical base (cielo) — paleta lavanda saturada uniforme
   const baseGrad = ctx.createLinearGradient(0, 0, 0, h);
   baseGrad.addColorStop(0.00, '#a888d0');   // top: lavanda saturada vibrante
   baseGrad.addColorStop(0.30, '#b89cd8');   // upper-mid: lavanda media
-  baseGrad.addColorStop(0.50, '#d8b8e0');   // mid: rosa-lavanda
-  baseGrad.addColorStop(0.65, '#e0c8d8');   // mid-low: rosa pálido cálido
-  baseGrad.addColorStop(0.85, '#a8c0dc');   // azul cyan claro
-  baseGrad.addColorStop(1.00, '#7c98c0');   // bottom: azul-lavanda profundo
+  baseGrad.addColorStop(0.50, '#c8a8de');   // mid: lavanda
+  baseGrad.addColorStop(0.65, '#d0b4d8');   // mid-low: rosa-lavanda
+  baseGrad.addColorStop(0.85, '#b0b8d8');   // azul lavanda
+  baseGrad.addColorStop(1.00, '#8898c0');   // bottom: azul profundo
   ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, w, h);
 
@@ -1089,23 +1089,22 @@ function makeAuroraBackgroundTexture() {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // ★ SOL BLANCO CENTRAL MUCHO MÁS INTENSO — backlight para destacar la ballena
-  // Triple capa concéntrica para crear blow-out real
-  radial(w * 0.5, h * 0.40, 800, 'rgba(255,250,245,0.85)', 0.85);  // halo amplio
-  radial(w * 0.5, h * 0.40, 500, 'rgba(255,255,255,1)', 1.0);      // halo medio brillante
-  radial(w * 0.5, h * 0.40, 280, 'rgba(255,255,255,1)', 1.0);      // núcleo
-  radial(w * 0.5, h * 0.40, 130, 'rgba(255,255,255,1)', 1.0);      // blow-out central
+  // ★ SOL pequeño en esquina superior derecha — acento, NO protagonista
+  // Antes estaba al centro y aplastaba la ballena. Ahora es solo un detalle de luz.
+  radial(w * 0.82, h * 0.18, 280, 'rgba(255,250,245,0.7)', 0.7);
+  radial(w * 0.82, h * 0.18, 140, 'rgba(255,255,255,0.85)', 0.85);
+  radial(w * 0.82, h * 0.18, 60,  'rgba(255,255,255,1)',    1.0);   // núcleo pequeño
 
-  // Halos coloridos alrededor del sol — refuerzan la sensación iridiscente
-  radial(w * 0.32, h * 0.55, 520, 'rgba(200,160,230,0.55)', 0.55);  // lavanda izq
-  radial(w * 0.68, h * 0.55, 520, 'rgba(160,200,240,0.55)', 0.55);  // azul der
-  radial(w * 0.20, h * 0.25, 380, 'rgba(240,180,220,0.45)', 0.45);  // rosa-magenta izq sup
-  radial(w * 0.80, h * 0.25, 380, 'rgba(180,210,240,0.45)', 0.45);  // cyan der sup
-  radial(w * 0.50, h * 0.88, 420, 'rgba(200,170,220,0.40)', 0.40);  // lavanda baja
+  // Halos de color difuso por toda la composición (uniforme, sin centro fuerte)
+  radial(w * 0.25, h * 0.30, 480, 'rgba(180,150,220,0.45)', 0.45);  // lavanda izq sup
+  radial(w * 0.65, h * 0.45, 520, 'rgba(170,140,210,0.40)', 0.40);  // lavanda centro
+  radial(w * 0.20, h * 0.75, 420, 'rgba(160,180,230,0.40)', 0.40);  // azul izq inf
+  radial(w * 0.78, h * 0.78, 380, 'rgba(190,160,220,0.35)', 0.35);  // lavanda der inf
+  radial(w * 0.50, h * 0.92, 460, 'rgba(140,160,210,0.40)', 0.40);  // azul abajo
 
-  // Toques coral pastel (calidez sutil — Vallarta sunset hour)
-  radial(w * 0.78, h * 0.16, 280, 'rgba(255,200,190,0.40)', 0.40);
-  radial(w * 0.22, h * 0.70, 280, 'rgba(255,205,215,0.35)', 0.35);
+  // Toques coral pastel muy sutiles (la cosa de Vallarta) — apenas perceptibles
+  radial(w * 0.35, h * 0.50, 320, 'rgba(255,200,210,0.18)', 0.18);
+  radial(w * 0.70, h * 0.25, 240, 'rgba(255,210,200,0.20)', 0.20);
 
   // GRAIN sutil — replica el `.grain` del CSS pero dentro del canvas
   const grainPasses = 3000;
@@ -1142,15 +1141,14 @@ function makeEnvironmentTexture() {
   c.height = size;
   const ctx = c.getContext('2d');
 
-  // ★ AURORA PASTEL (paleta Noomo): rosa → lavanda → cyan → blanco
-  // Este es el environment que el cristal REFRACTA. Lo que veas aquí
-  // es lo que verás en la ballena. Por eso son colores y no negro.
+  // ★ Environment equirectangular — los colores que la ballena REFLEJA en su superficie
+  // Paleta lavanda saturada uniforme, con sun pequeño en la esquina (no centro)
   const baseGrad = ctx.createLinearGradient(0, 0, 0, size);
-  baseGrad.addColorStop(0.00, '#c8b0e0');   // top: lavanda saturada (techo del cielo)
-  baseGrad.addColorStop(0.35, '#d8c8e8');   // upper-mid: lavanda pastel
-  baseGrad.addColorStop(0.55, '#e8d8e8');   // mid: rosa-lavanda blanquecino
-  baseGrad.addColorStop(0.72, '#dce8f0');   // horizon: cyan muy claro
-  baseGrad.addColorStop(1.00, '#b8c8e0');   // bottom: azul-lavanda
+  baseGrad.addColorStop(0.00, '#a888d0');   // top: lavanda saturada
+  baseGrad.addColorStop(0.35, '#b89cd8');   // upper-mid
+  baseGrad.addColorStop(0.55, '#c8a8de');   // mid: lavanda
+  baseGrad.addColorStop(0.75, '#d0b4d8');   // horizon: rosa lavanda
+  baseGrad.addColorStop(1.00, '#8898c0');   // bottom: azul profundo
   ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, size * 2, size);
 
@@ -1165,23 +1163,21 @@ function makeEnvironmentTexture() {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // ★ SOL BLANCO PRINCIPAL — equivalente al sun blanco central del cover Noomo
-  // Más grande y más intenso que antes — es la fuente de los highlights blancos
-  drawSun(size * 1.0, size * 0.35, 420, 'rgba(255,255,255,1)', 1.0);
-  drawSun(size * 1.0, size * 0.35, 220, 'rgba(255,255,255,1)', 1.0);
-  drawSun(size * 1.0, size * 0.35, 100, 'rgba(255,255,255,1)', 1.0);  // núcleo blow-out
+  // ★ SOL pequeño en la esquina — coincide con el background
+  drawSun(size * 1.64, size * 0.18, 220, 'rgba(255,250,245,0.85)', 0.85);
+  drawSun(size * 1.64, size * 0.18, 110, 'rgba(255,255,255,1)', 1.0);
+  drawSun(size * 1.64, size * 0.18, 50,  'rgba(255,255,255,1)', 1.0);
 
-  // Halos iridiscentes alrededor del sol — rosa/lavanda/cyan (los colores que vimos en Noomo)
-  drawSun(size * 1.0, size * 0.35, 560, 'rgba(255,220,235,0.55)', 0.55);  // halo rosa
-  drawSun(size * 0.65, size * 0.55, 380, 'rgba(200,180,230,0.65)', 0.65); // lavanda
-  drawSun(size * 1.35, size * 0.55, 380, 'rgba(180,210,240,0.65)', 0.65); // azul pastel
-  drawSun(size * 0.45, size * 0.30, 240, 'rgba(230,200,230,0.55)', 0.55); // rosa-lavanda
-  drawSun(size * 1.55, size * 0.30, 240, 'rgba(200,220,245,0.55)', 0.55); // cyan claro
-  drawSun(size * 0.95, size * 0.70, 320, 'rgba(220,210,240,0.50)', 0.50); // lavanda baja
+  // Manchas de color saturadas alrededor — son los que aparecen en los reflejos
+  drawSun(size * 0.50, size * 0.30, 380, 'rgba(180,150,220,0.60)', 0.60); // lavanda izq
+  drawSun(size * 1.30, size * 0.40, 380, 'rgba(170,140,210,0.55)', 0.55); // lavanda centro
+  drawSun(size * 0.30, size * 0.60, 320, 'rgba(160,180,230,0.50)', 0.50); // azul
+  drawSun(size * 1.10, size * 0.65, 320, 'rgba(200,160,230,0.50)', 0.50); // violeta
+  drawSun(size * 0.85, size * 0.80, 380, 'rgba(140,160,210,0.50)', 0.50); // azul bajo
   
-  // Toque coral pastel (un breath de calidez para que no sea solo frío)
-  drawSun(size * 1.45, size * 0.20, 200, 'rgba(255,210,200,0.40)', 0.40);
-  drawSun(size * 0.55, size * 0.70, 200, 'rgba(255,215,225,0.35)', 0.35);
+  // Toques rosa-coral (highlights iridiscentes en el cristal)
+  drawSun(size * 0.70, size * 0.45, 240, 'rgba(255,180,200,0.40)', 0.40);
+  drawSun(size * 1.45, size * 0.55, 200, 'rgba(255,200,210,0.35)', 0.35);
 
   const tx = new THREE.CanvasTexture(c);
   tx.mapping = THREE.EquirectangularReflectionMapping;
@@ -1200,31 +1196,31 @@ envTexture.dispose();
 pmremGenerator.dispose();
 
 /* ============================================================
-   ILUMINACIÓN COMPLEMENTARIA — Match a la aurora pastel
+   ILUMINACIÓN COMPLEMENTARIA — Luces violetas/azules saturadas
    
-   En el sitio Noomo NO hay sombras duras: la criatura está bañada en
-   luz ambiente. Bajamos las directionales para que el environment map
-   (PMREM) sea el protagonista de la iluminación.
+   Sin sol central, la iluminación viene del environment + estas
+   directionales. Colores saturados (no blanco) para empujar el
+   tinte violeta/azul/rosa de la ballena cristalina.
    ============================================================ */
-scene.add(new THREE.AmbientLight(0xe8d8e8, 0.55));  // ambient con tinte rosa-lavanda
+scene.add(new THREE.AmbientLight(0xb898d8, 0.55));  // ambient lavanda saturado
 
-// Key light: tenue, color del sol (cálido suave) — solo da volumen, no sombras
-const keyLight = new THREE.DirectionalLight(0xfff0e8, 0.6);
-keyLight.position.set(3, 6, 4);
+// Key light: violeta-rosa cálido desde arriba-derecha (donde está el sol)
+const keyLight = new THREE.DirectionalLight(0xffd8e8, 0.85);
+keyLight.position.set(5, 6, 4);
 scene.add(keyLight);
 
-// Rim light lavanda — el "halo" del lado opuesto
-const rimLight = new THREE.DirectionalLight(0xc8a8e0, 0.85);
+// Rim light azul-violeta intenso desde el lado opuesto (separa silueta del fondo)
+const rimLight = new THREE.DirectionalLight(0x8870d0, 1.2);
 rimLight.position.set(-6, 3, -2);
 scene.add(rimLight);
 
-// Bottom fill rosa pálido — un toque de calidez por debajo
-const bottomLight = new THREE.DirectionalLight(0xf0d8d8, 0.35);
+// Bottom fill rosa-coral pálido — hint de calidez por debajo
+const bottomLight = new THREE.DirectionalLight(0xf0c0d0, 0.45);
 bottomLight.position.set(0, -4, 3);
 scene.add(bottomLight);
 
-// Top fill cyan claro — refuerza el techo iridiscente
-const fillLight = new THREE.DirectionalLight(0xb8d8f0, 0.4);
+// Top fill azul lavanda — refuerza el shift de color iridiscente
+const fillLight = new THREE.DirectionalLight(0xa0a8e0, 0.55);
 fillLight.position.set(1, 5, -6);
 scene.add(fillLight);
 
@@ -1374,38 +1370,39 @@ const iceNormalTexture = createIceNormalMap();
    El normalMap es lo único pintado: da micro-relieve cristalino.
    ============================================================ */
 const PHYSICAL_PARAMS = {
-  // Color base: lavanda pastel saturado. El environment refleja encima.
-  // Más saturado que antes para que la silueta lea sobre la aurora brillante.
-  color: 0xd8c0e8,
+  // ★ Color base: lavanda saturado profundo — NO blanco
+  // Sin esto la ballena sale blanca/lavada. Queremos cristal con personalidad.
+  color: 0x9870c8,
   
-  // ★ TRANSMISIÓN: 0.40 (bajado desde 0.55) — cristal con cuerpo visible
-  // Sobre fondo claro, transmission alto hace que la ballena desaparezca.
-  transmission: 0.40,
-  thickness: 1.0,
-  ior: 1.45,
-  attenuationColor: 0xb098d8,   // tinte lavanda saturado del interior
-  attenuationDistance: 1.2,
+  // ★ TRANSMISIÓN 0.30 — cristal con cuerpo sólido pero translúcido
+  // Bajamos más para que no se evapore sobre fondo claro
+  transmission: 0.30,
+  thickness: 1.4,
+  ior: 1.5,
+  attenuationColor: 0x6840a8,    // tinte violeta profundo del interior (la luz pasa y se tiñe morada)
+  attenuationDistance: 0.8,
   
-  // ★ IRIDESCENCIA — efecto petróleo en agua que cambia con el ángulo
-  iridescence: 0.85,
-  iridescenceIOR: 1.35,
-  iridescenceThicknessRange: [120, 700],
+  // ★ IRIDESCENCIA al máximo — el shift de color violeta→azul→rosa
+  // Esto es lo que hace que la silueta cambie de color en bordes y centros
+  iridescence: 1.0,
+  iridescenceIOR: 1.4,
+  iridescenceThicknessRange: [200, 900],   // rango amplio = más shift visible
   
-  // ★ CLEARCOAT — barniz brillante encima, da highlights "wet"
-  clearcoat: 0.85,
-  clearcoatRoughness: 0.12,
+  // ★ CLEARCOAT — barniz brillante encima
+  clearcoat: 0.9,
+  clearcoatRoughness: 0.10,
   
-  metalness: 0.05,
-  roughness: 0.20,
+  metalness: 0.10,
+  roughness: 0.18,
   
   // ★ Normal map procedural — micro-relieve cristalino
   normalMap: iceNormalTexture,
-  normalScale: new THREE.Vector2(0.25, 0.25),  // sutil — no queremos rugosidad fuerte
+  normalScale: new THREE.Vector2(0.45, 0.45),  // ★ subido — más detalle de superficie cristalina
   clearcoatNormalMap: iceNormalTexture,
-  clearcoatNormalScale: new THREE.Vector2(0.15, 0.15),
+  clearcoatNormalScale: new THREE.Vector2(0.30, 0.30),
   
-  // El env map domina la iluminación
-  envMapIntensity: 1.6,
+  // ★ El env map domina la iluminación — subido para reflejos más vivos
+  envMapIntensity: 2.2,
   
   // Render ambos lados — necesario para transmission (la luz entra y sale)
   side: THREE.DoubleSide,
@@ -1517,13 +1514,12 @@ composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 const renderPass = new RenderPass(scene, camera);
 composer.addPass(renderPass);
 
-// Bloom — el sol brillante central va a florecer naturalmente
-// Threshold alto para que solo el sol (y los highlights wet de la ballena) emita
+// Bloom sutil — el sol ahora es acento pequeño, el bloom solo refuerza highlights
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.45,   // strength medio
-  0.85,   // radius amplio para halo del sol
-  0.78    // threshold ALTO — solo blanco puro brilla (no toda la aurora)
+  0.30,   // strength bajo — solo halo del sol pequeño y bordes wet
+  0.70,
+  0.82    // threshold ALTO — solo blow-outs reales brillan
 );
 composer.addPass(bloomPass);
 
