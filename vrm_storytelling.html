@@ -2641,65 +2641,70 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
    ============================================================ */
 
 /* ============================================================
-   GEL CURSOR — Mancha de "gasolina" transparente refractante
+   FLUID SIMULATION — Navier-Stokes en GPU (Stam 1999 + Dobryakov)
    
-   Approach: SVG filter feDisplacementMap + feTurbulence aplicado a
-   un elemento que SIGUE al cursor con lag suave. Resultado:
-   • Una zona transparente alrededor del cursor que REFRACTA el fondo
-   • Iridiscencia tipo arcoíris (rosa/cyan/amarillo) sobre la zona
-   • Sigue al cursor con delay suave → se siente fluido, no rígido
-   • Sin pintar líneas — es una distorsión del DOM detrás
+   Sistema completo de fluid simulation usando WebGL con render targets
+   ping-pong. Resuelve las ecuaciones de Navier-Stokes incompresibles:
    
-   Técnica: usamos backdrop-filter: blur + un canvas que pinta un blob
-   con gradient iridiscente y mix-blend-mode: overlay. Se siente como
-   gel transparente con tinte de gasolina.
+   ∂u/∂t + (u·∇)u = -∇p + ν∇²u + f
+   ∇·u = 0
+   
+   Pipeline por frame:
+   1. SPLAT     — cursor inyecta velocidad + tinta donde pasa
+   2. ADVECTION — la velocidad y la tinta se mueven por el campo
+   3. DIVERGENCE — calcula ∇·u (no debería ser 0 en fluido incompresible)
+   4. PRESSURE  — resuelve ∇²p = ∇·u con 20 iteraciones de Jacobi
+   5. GRADIENT  — resta ∇p de la velocidad para hacer ∇·u = 0
+   6. DISPLAY   — renderiza la tinta con aberración cromática
+   
+   La tinta hereda el campo de velocidad → se mueve como humo en agua,
+   formando vórtices y swirls orgánicos exactamente como en el demo
+   referencia.
    ============================================================ */
 (() => {
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
 
-  // Capa 1: blob con BACKDROP-FILTER que distorsiona el fondo
-  // Esto es lo que da el feeling "gel" — refracta lo que hay detrás
-  const gel = document.createElement('div');
-  gel.style.cssText = [
-    'position: fixed',
-    'pointer-events: none',
-    'width: 320px',
-    'height: 320px',
-    'border-radius: 50%',
-    'left: 0', 'top: 0',
-    'transform: translate(-50%, -50%) translate(-1000px, -1000px)',  // off-screen al inicio
-    'z-index: 9996',
-    // ★ Backdrop filter: la magia del "gel" — distorsiona+blur el fondo
-    'backdrop-filter: blur(3px) saturate(1.4) hue-rotate(0deg)',
-    '-webkit-backdrop-filter: blur(3px) saturate(1.4) hue-rotate(0deg)',
-    // ★ Tinte iridiscente gasolina: gradient conic suave
-    'background: radial-gradient(circle at 40% 40%, ' +
-      'rgba(255,150,200,0.10) 0%, ' +     // rosa centro
-      'rgba(150,200,255,0.08) 30%, ' +    // cyan
-      'rgba(200,255,180,0.06) 55%, ' +    // verde-amarillo
-      'rgba(180,150,255,0.05) 75%, ' +    // violeta
-      'rgba(0,0,0,0) 90%)',
-    'mix-blend-mode: screen',
-    'will-change: transform, backdrop-filter',
-    'transition: backdrop-filter 0.3s ease-out'
-  ].join(';');
-  document.body.appendChild(gel);
-
-  // Capa 2: canvas overlay para los "swirls" iridiscentes que persisten
-  // como rastro corto detrás del cursor (motion blur natural del gel)
+  // Canvas overlay fullscreen dedicado para la fluid sim
   const canvas = document.createElement('canvas');
   canvas.style.cssText = [
     'position: fixed',
     'top: 0', 'left: 0',
     'width: 100vw', 'height: 100vh',
     'pointer-events: none',
-    'z-index: 9995',
-    'mix-blend-mode: overlay',
-    'opacity: 0.55'
+    'z-index: 9996',
+    'mix-blend-mode: screen'   // la tinta brillante suma al fondo
   ].join(';');
   document.body.appendChild(canvas);
 
-  const ctx = canvas.getContext('2d');
+  const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+  if (!gl) {
+    console.warn('[VRM] WebGL no soportado — fluid sim deshabilitado');
+    return;
+  }
+
+  const isWebGL2 = !!canvas.getContext('webgl2');
+  // Para WebGL1 necesitamos extensions para float textures
+  if (!isWebGL2) {
+    const ext = gl.getExtension('OES_texture_half_float');
+    const extLinear = gl.getExtension('OES_texture_half_float_linear');
+    if (!ext) {
+      console.warn('[VRM] Half float textures no soportadas — fluid sim deshabilitado');
+      return;
+    }
+  }
+
+  // Resolución de la simulación (más baja = más rápido, menos detalle)
+  const SIM_RES = 128;       // resolución del campo de velocidad/presión
+  const DYE_RES = 512;       // resolución de la tinta (visual)
+
+  // Parámetros físicos
+  const DENSITY_DISSIPATION = 0.97;     // qué tan rápido decae la tinta
+  const VELOCITY_DISSIPATION = 0.985;   // qué tan rápido decae la velocidad
+  const PRESSURE_ITERATIONS = 20;       // iteraciones de Jacobi para presión
+  const CURL = 30;                      // fuerza de los vórtices
+  const SPLAT_RADIUS = 0.0025;          // tamaño del splat (en NDC²)
+  const SPLAT_FORCE = 6000;             // intensidad del impulso
+
   let w = 0, h = 0, dpr = 1;
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -2709,85 +2714,511 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     canvas.height = h * dpr;
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   resize();
   window.addEventListener('resize', resize);
 
-  console.log('%c[VRM] Gel cursor (gasoline blob) ACTIVE', 'color:#fff;background:#a060ff;padding:6px 10px;border-radius:4px;font-weight:bold;font-size:14px;');
+  // ===========================================
+  // SHADERS GLSL
+  // ===========================================
 
-  // Estado del cursor (raw + smoothed con lag)
-  let rawX = -1000, rawY = -1000;
-  let smoothX = -1000, smoothY = -1000;
-  let velocity = 0;
-  let hueShift = 0;
+  const vertexShader = `
+    attribute vec2 aPosition;
+    varying vec2 vUv;
+    varying vec2 vL, vR, vT, vB;
+    uniform vec2 texelSize;
+    void main() {
+      vUv = aPosition * 0.5 + 0.5;
+      vL = vUv - vec2(texelSize.x, 0.0);
+      vR = vUv + vec2(texelSize.x, 0.0);
+      vT = vUv + vec2(0.0, texelSize.y);
+      vB = vUv - vec2(0.0, texelSize.y);
+      gl_Position = vec4(aPosition, 0.0, 1.0);
+    }
+  `;
 
-  // Trail: array de posiciones recientes del cursor
-  // Se dibujan como manchitas que se desvanecen → motion blur del gel
-  const trail = [];
-  const TRAIL_MAX = 24;
+  // SPLAT: inyecta una "gota" de color/velocidad
+  const splatShader = `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D uTarget;
+    uniform float aspectRatio;
+    uniform vec3 color;
+    uniform vec2 point;
+    uniform float radius;
+    void main() {
+      vec2 p = vUv - point;
+      p.x *= aspectRatio;
+      vec3 splat = exp(-dot(p, p) / radius) * color;
+      vec3 base = texture2D(uTarget, vUv).xyz;
+      gl_FragColor = vec4(base + splat, 1.0);
+    }
+  `;
+
+  // ADVECTION: mueve un campo (tinta o velocidad) por el campo de velocidad
+  const advectionShader = `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D uVelocity;
+    uniform sampler2D uSource;
+    uniform vec2 texelSize;
+    uniform float dt;
+    uniform float dissipation;
+    void main() {
+      vec2 coord = vUv - dt * texture2D(uVelocity, vUv).xy * texelSize;
+      vec4 result = texture2D(uSource, coord);
+      float decay = 1.0 + dissipation * dt;
+      gl_FragColor = result / decay;
+    }
+  `;
+
+  // DIVERGENCE: ∇·u
+  const divergenceShader = `
+    precision highp float;
+    varying vec2 vUv;
+    varying vec2 vL, vR, vT, vB;
+    uniform sampler2D uVelocity;
+    void main() {
+      float L = texture2D(uVelocity, vL).x;
+      float R = texture2D(uVelocity, vR).x;
+      float T = texture2D(uVelocity, vT).y;
+      float B = texture2D(uVelocity, vB).y;
+      vec2 C = texture2D(uVelocity, vUv).xy;
+      if (vL.x < 0.0) L = -C.x;
+      if (vR.x > 1.0) R = -C.x;
+      if (vT.y > 1.0) T = -C.y;
+      if (vB.y < 0.0) B = -C.y;
+      float div = 0.5 * (R - L + T - B);
+      gl_FragColor = vec4(div, 0.0, 0.0, 1.0);
+    }
+  `;
+
+  // PRESSURE: resuelve ∇²p = ∇·u via Jacobi iteration
+  const pressureShader = `
+    precision highp float;
+    varying vec2 vUv;
+    varying vec2 vL, vR, vT, vB;
+    uniform sampler2D uPressure;
+    uniform sampler2D uDivergence;
+    void main() {
+      float L = texture2D(uPressure, vL).x;
+      float R = texture2D(uPressure, vR).x;
+      float T = texture2D(uPressure, vT).x;
+      float B = texture2D(uPressure, vB).x;
+      float C = texture2D(uPressure, vUv).x;
+      float divergence = texture2D(uDivergence, vUv).x;
+      float pressure = (L + R + B + T - divergence) * 0.25;
+      gl_FragColor = vec4(pressure, 0.0, 0.0, 1.0);
+    }
+  `;
+
+  // GRADIENT SUBTRACT: resta ∇p de la velocidad
+  const gradientSubtractShader = `
+    precision highp float;
+    varying vec2 vUv;
+    varying vec2 vL, vR, vT, vB;
+    uniform sampler2D uPressure;
+    uniform sampler2D uVelocity;
+    void main() {
+      float L = texture2D(uPressure, vL).x;
+      float R = texture2D(uPressure, vR).x;
+      float T = texture2D(uPressure, vT).x;
+      float B = texture2D(uPressure, vB).x;
+      vec2 velocity = texture2D(uVelocity, vUv).xy;
+      velocity.xy -= vec2(R - L, T - B);
+      gl_FragColor = vec4(velocity, 0.0, 1.0);
+    }
+  `;
+
+  // CURL: calcula vorticidad ω = ∂v/∂x - ∂u/∂y
+  const curlShader = `
+    precision highp float;
+    varying vec2 vUv;
+    varying vec2 vL, vR, vT, vB;
+    uniform sampler2D uVelocity;
+    void main() {
+      float L = texture2D(uVelocity, vL).y;
+      float R = texture2D(uVelocity, vR).y;
+      float T = texture2D(uVelocity, vT).x;
+      float B = texture2D(uVelocity, vB).x;
+      float vorticity = R - L - T + B;
+      gl_FragColor = vec4(0.5 * vorticity, 0.0, 0.0, 1.0);
+    }
+  `;
+
+  // VORTICITY: aplica fuerza confinada para preservar vórtices
+  const vorticityShader = `
+    precision highp float;
+    varying vec2 vUv;
+    varying vec2 vL, vR, vT, vB;
+    uniform sampler2D uVelocity;
+    uniform sampler2D uCurl;
+    uniform float curl;
+    uniform float dt;
+    void main() {
+      float L = texture2D(uCurl, vL).x;
+      float R = texture2D(uCurl, vR).x;
+      float T = texture2D(uCurl, vT).x;
+      float B = texture2D(uCurl, vB).x;
+      float C = texture2D(uCurl, vUv).x;
+      vec2 force = 0.5 * vec2(abs(T) - abs(B), abs(R) - abs(L));
+      force /= length(force) + 0.0001;
+      force *= curl * C;
+      force.y *= -1.0;
+      vec2 velocity = texture2D(uVelocity, vUv).xy;
+      velocity += force * dt;
+      velocity = min(max(velocity, -1000.0), 1000.0);
+      gl_FragColor = vec4(velocity, 0.0, 1.0);
+    }
+  `;
+
+  // DISPLAY: renderiza la tinta con aberración cromática
+  const displayShader = `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D uTexture;
+    uniform vec2 texelSize;
+    void main() {
+      // Aberración cromática: cada canal con offset diferente
+      vec3 c;
+      c.r = texture2D(uTexture, vUv + texelSize * 2.0).r;
+      c.g = texture2D(uTexture, vUv).g;
+      c.b = texture2D(uTexture, vUv - texelSize * 2.0).b;
+      
+      // Boost de saturación e intensidad
+      float lum = dot(c, vec3(0.299, 0.587, 0.114));
+      c = mix(vec3(lum), c, 1.4);
+      
+      gl_FragColor = vec4(c * 1.2, 1.0);
+    }
+  `;
+
+  // ===========================================
+  // COMPILER & PROGRAM SETUP
+  // ===========================================
+
+  function compileShader(type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      console.error('[VRM] Shader compile error:', gl.getShaderInfoLog(shader), source);
+      return null;
+    }
+    return shader;
+  }
+
+  function createProgram(fragSource) {
+    const vs = compileShader(gl.VERTEX_SHADER, vertexShader);
+    const fs = compileShader(gl.FRAGMENT_SHADER, fragSource);
+    if (!vs || !fs) return null;
+    const program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error('[VRM] Program link error:', gl.getProgramInfoLog(program));
+      return null;
+    }
+    // Cache uniforms
+    const uniforms = {};
+    const count = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
+    for (let i = 0; i < count; i++) {
+      const info = gl.getActiveUniform(program, i);
+      uniforms[info.name] = gl.getUniformLocation(program, info.name);
+    }
+    return { program, uniforms };
+  }
+
+  const splatProg = createProgram(splatShader);
+  const advProg = createProgram(advectionShader);
+  const divProg = createProgram(divergenceShader);
+  const pressureProg = createProgram(pressureShader);
+  const gradProg = createProgram(gradientSubtractShader);
+  const curlProg = createProgram(curlShader);
+  const vortProg = createProgram(vorticityShader);
+  const displayProg = createProgram(displayShader);
+
+  if (!splatProg || !advProg || !divProg || !pressureProg ||
+      !gradProg || !curlProg || !vortProg || !displayProg) {
+    console.error('[VRM] Fluid sim shader compilation failed');
+    return;
+  }
+
+  // Quad fullscreen (dos triángulos)
+  const quadBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+
+  function bindQuad(prog) {
+    const loc = gl.getAttribLocation(prog, 'aPosition');
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(loc);
+  }
+
+  // ===========================================
+  // FRAMEBUFFERS (render targets)
+  // ===========================================
+
+  // Half float type
+  let internalFormat, format, type;
+  if (isWebGL2) {
+    gl.getExtension('EXT_color_buffer_float');
+    gl.getExtension('OES_texture_float_linear');
+    internalFormat = gl.RGBA16F;
+    format = gl.RGBA;
+    type = gl.HALF_FLOAT;
+  } else {
+    const halfFloat = gl.getExtension('OES_texture_half_float');
+    internalFormat = gl.RGBA;
+    format = gl.RGBA;
+    type = halfFloat.HALF_FLOAT_OES;
+  }
+
+  function createFBO(w, h) {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, w, h, 0, format, type, null);
+
+    const fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.viewport(0, 0, w, h);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    return { tex, fbo, w, h, texelSize: [1 / w, 1 / h] };
+  }
+
+  function createDoubleFBO(w, h) {
+    let fbo1 = createFBO(w, h);
+    let fbo2 = createFBO(w, h);
+    return {
+      get read() { return fbo1; },
+      get write() { return fbo2; },
+      swap() { const t = fbo1; fbo1 = fbo2; fbo2 = t; }
+    };
+  }
+
+  const velocity = createDoubleFBO(SIM_RES, SIM_RES);
+  const dye = createDoubleFBO(DYE_RES, DYE_RES);
+  const divergenceFBO = createFBO(SIM_RES, SIM_RES);
+  const curlFBO = createFBO(SIM_RES, SIM_RES);
+  const pressure = createDoubleFBO(SIM_RES, SIM_RES);
+
+  // ===========================================
+  // INPUT (cursor)
+  // ===========================================
+
+  let pointer = {
+    x: 0, y: 0,
+    dx: 0, dy: 0,
+    down: false,
+    moved: false,
+    color: [0, 0, 0]
+  };
+
+  function generateColor() {
+    // Paleta iridiscente gasolina: rosa, cyan, violeta, verde-cyan
+    const hues = [320, 200, 280, 160, 340];
+    const h = hues[Math.floor(Math.random() * hues.length)] / 360;
+    return HSVtoRGB(h, 1.0, 1.0).map(c => c * 0.15);
+  }
+
+  function HSVtoRGB(h, s, v) {
+    let r, g, b;
+    const i = Math.floor(h * 6);
+    const f = h * 6 - i;
+    const p = v * (1 - s);
+    const q = v * (1 - f * s);
+    const t = v * (1 - (1 - f) * s);
+    switch (i % 6) {
+      case 0: r = v; g = t; b = p; break;
+      case 1: r = q; g = v; b = p; break;
+      case 2: r = p; g = v; b = t; break;
+      case 3: r = p; g = q; b = v; break;
+      case 4: r = t; g = p; b = v; break;
+      case 5: r = v; g = p; b = q; break;
+    }
+    return [r, g, b];
+  }
+
+  pointer.color = generateColor();
 
   window.addEventListener('mousemove', (e) => {
-    rawX = e.clientX;
-    rawY = e.clientY;
+    const x = e.clientX / window.innerWidth;
+    const y = 1.0 - e.clientY / window.innerHeight;
+    pointer.dx = (x - pointer.x) * 10;
+    pointer.dy = (y - pointer.y) * 10;
+    pointer.x = x;
+    pointer.y = y;
+    pointer.moved = true;
+    // Cambia color cada cierto movimiento para que la tinta varie
+    if (Math.random() < 0.02) pointer.color = generateColor();
   }, { passive: true });
 
-  function loop() {
-    // Lag suave: smoothX persigue a rawX → el gel "fluye" al moverse
-    const lerp = 0.18;
-    const dx = rawX - smoothX;
-    const dy = rawY - smoothY;
-    smoothX += dx * lerp;
-    smoothY += dy * lerp;
+  // ===========================================
+  // RENDER UTILS
+  // ===========================================
 
-    // Velocidad → controla intensidad de iridiscencia y hue shift
-    const speed = Math.sqrt(dx * dx + dy * dy);
-    velocity = velocity * 0.85 + speed * 0.15;
-    hueShift = (hueShift + velocity * 0.5) % 360;
+  function blit(target) {
+    if (target == null) {
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    } else {
+      gl.viewport(0, 0, target.w, target.h);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+    }
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
 
-    // Posicionar el blob principal con lag
-    gel.style.transform = `translate(-50%, -50%) translate(${smoothX}px, ${smoothY}px)`;
+  function splat(x, y, dx, dy, color) {
+    // Inyecta velocidad
+    gl.useProgram(splatProg.program);
+    bindQuad(splatProg.program);
+    gl.uniform1i(splatProg.uniforms['uTarget'], 0);
+    gl.uniform1f(splatProg.uniforms['aspectRatio'], canvas.width / canvas.height);
+    gl.uniform2f(splatProg.uniforms['point'], x, y);
+    gl.uniform3f(splatProg.uniforms['color'], dx, dy, 0);
+    gl.uniform1f(splatProg.uniforms['radius'], SPLAT_RADIUS);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, velocity.read.tex);
+    blit(velocity.write);
+    velocity.swap();
 
-    // Hue rotation animado con velocidad (gasoline iridescence cambia con movimiento)
-    const blurAmount = 2 + Math.min(velocity * 0.1, 5);
-    gel.style.backdropFilter = `blur(${blurAmount.toFixed(1)}px) saturate(${(1.3 + velocity * 0.02).toFixed(2)}) hue-rotate(${hueShift.toFixed(0)}deg)`;
-    gel.style.webkitBackdropFilter = gel.style.backdropFilter;
+    // Inyecta tinta de color
+    gl.bindTexture(gl.TEXTURE_2D, dye.read.tex);
+    gl.uniform3f(splatProg.uniforms['color'], color[0], color[1], color[2]);
+    blit(dye.write);
+    dye.swap();
+  }
 
-    // Trail: agregar posición actual
-    trail.push({ x: smoothX, y: smoothY, age: 0, hue: hueShift });
-    if (trail.length > TRAIL_MAX) trail.shift();
+  // ===========================================
+  // SIMULATION STEP
+  // ===========================================
 
-    // Limpiar canvas con fade suave (motion blur natural)
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = 'rgba(0,0,0,0.08)';
-    ctx.fillRect(0, 0, w, h);
-    ctx.globalCompositeOperation = 'lighter';
+  let lastTime = performance.now();
+  console.log('%c[VRM] Fluid simulation (Stam/Dobryakov) ACTIVE', 'color:#fff;background:#0066ff;padding:6px 10px;border-radius:4px;font-weight:bold;font-size:14px;');
 
-    // Dibujar trail como manchitas suaves con gradient iridiscente
-    for (let i = 0; i < trail.length; i++) {
-      const p = trail[i];
-      p.age++;
-      const fade = 1 - i / trail.length;       // los más viejos están al inicio (ya shifteados)
-      const lifeFade = Math.max(0, 1 - p.age / 40);
-      const totalFade = fade * lifeFade;
+  function step() {
+    const now = performance.now();
+    let dt = (now - lastTime) / 1000;
+    dt = Math.min(dt, 0.016666);  // cap a 60fps
+    lastTime = now;
 
-      if (totalFade < 0.02) continue;
+    gl.disable(gl.BLEND);
 
-      const radius = 80 + i * 2;
-      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
-      grad.addColorStop(0, `hsla(${(p.hue + 280) % 360}, 80%, 75%, ${totalFade * 0.18})`);
-      grad.addColorStop(0.4, `hsla(${(p.hue + 200) % 360}, 70%, 70%, ${totalFade * 0.10})`);
-      grad.addColorStop(0.7, `hsla(${(p.hue + 120) % 360}, 60%, 65%, ${totalFade * 0.05})`);
-      grad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-      ctx.fill();
+    // 1. SPLAT — inyectar del cursor
+    if (pointer.moved) {
+      pointer.moved = false;
+      const force = SPLAT_FORCE;
+      splat(pointer.x, pointer.y, pointer.dx * force, pointer.dy * force, pointer.color);
     }
 
-    requestAnimationFrame(loop);
+    // 2. CURL — calcula vorticidad
+    gl.useProgram(curlProg.program);
+    bindQuad(curlProg.program);
+    gl.uniform2f(curlProg.uniforms['texelSize'], velocity.read.texelSize[0], velocity.read.texelSize[1]);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, velocity.read.tex);
+    gl.uniform1i(curlProg.uniforms['uVelocity'], 0);
+    blit(curlFBO);
+
+    // 3. VORTICITY — confinement (preserva vórtices)
+    gl.useProgram(vortProg.program);
+    bindQuad(vortProg.program);
+    gl.uniform2f(vortProg.uniforms['texelSize'], velocity.read.texelSize[0], velocity.read.texelSize[1]);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, velocity.read.tex);
+    gl.uniform1i(vortProg.uniforms['uVelocity'], 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, curlFBO.tex);
+    gl.uniform1i(vortProg.uniforms['uCurl'], 1);
+    gl.uniform1f(vortProg.uniforms['curl'], CURL);
+    gl.uniform1f(vortProg.uniforms['dt'], dt);
+    blit(velocity.write);
+    velocity.swap();
+
+    // 4. DIVERGENCE — ∇·u
+    gl.useProgram(divProg.program);
+    bindQuad(divProg.program);
+    gl.uniform2f(divProg.uniforms['texelSize'], velocity.read.texelSize[0], velocity.read.texelSize[1]);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, velocity.read.tex);
+    gl.uniform1i(divProg.uniforms['uVelocity'], 0);
+    blit(divergenceFBO);
+
+    // 5. PRESSURE — Jacobi iteration
+    gl.useProgram(pressureProg.program);
+    bindQuad(pressureProg.program);
+    gl.uniform2f(pressureProg.uniforms['texelSize'], velocity.read.texelSize[0], velocity.read.texelSize[1]);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, divergenceFBO.tex);
+    gl.uniform1i(pressureProg.uniforms['uDivergence'], 1);
+
+    for (let i = 0; i < PRESSURE_ITERATIONS; i++) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, pressure.read.tex);
+      gl.uniform1i(pressureProg.uniforms['uPressure'], 0);
+      blit(pressure.write);
+      pressure.swap();
+    }
+
+    // 6. GRADIENT SUBTRACT — proyecta velocidad a libre de divergencia
+    gl.useProgram(gradProg.program);
+    bindQuad(gradProg.program);
+    gl.uniform2f(gradProg.uniforms['texelSize'], velocity.read.texelSize[0], velocity.read.texelSize[1]);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, pressure.read.tex);
+    gl.uniform1i(gradProg.uniforms['uPressure'], 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, velocity.read.tex);
+    gl.uniform1i(gradProg.uniforms['uVelocity'], 1);
+    blit(velocity.write);
+    velocity.swap();
+
+    // 7. ADVECT VELOCITY
+    gl.useProgram(advProg.program);
+    bindQuad(advProg.program);
+    gl.uniform2f(advProg.uniforms['texelSize'], velocity.read.texelSize[0], velocity.read.texelSize[1]);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, velocity.read.tex);
+    gl.uniform1i(advProg.uniforms['uVelocity'], 0);
+    gl.uniform1i(advProg.uniforms['uSource'], 0);
+    gl.uniform1f(advProg.uniforms['dt'], dt);
+    gl.uniform1f(advProg.uniforms['dissipation'], 1 - VELOCITY_DISSIPATION);
+    blit(velocity.write);
+    velocity.swap();
+
+    // 8. ADVECT DYE
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, velocity.read.tex);
+    gl.uniform1i(advProg.uniforms['uVelocity'], 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, dye.read.tex);
+    gl.uniform1i(advProg.uniforms['uSource'], 1);
+    gl.uniform1f(advProg.uniforms['dt'], dt);
+    gl.uniform1f(advProg.uniforms['dissipation'], 1 - DENSITY_DISSIPATION);
+    blit(dye.write);
+    dye.swap();
+
+    // 9. DISPLAY — render final con aberración cromática
+    gl.useProgram(displayProg.program);
+    bindQuad(displayProg.program);
+    gl.uniform2f(displayProg.uniforms['texelSize'], 1 / canvas.width, 1 / canvas.height);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, dye.read.tex);
+    gl.uniform1i(displayProg.uniforms['uTexture'], 0);
+    blit(null);   // a pantalla
+
+    requestAnimationFrame(step);
   }
-  loop();
+
+  step();
 })();
 </script>
 
