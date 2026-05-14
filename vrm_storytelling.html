@@ -507,9 +507,10 @@
   .team-visual {
     aspect-ratio: 4/5;
     background:
-      linear-gradient(135deg, rgba(139, 109, 196, 0.15) 0%, rgba(232, 168, 128, 0.18) 50%, rgba(5, 3, 8, 0.4) 100%),
-      url('https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=900&q=80') center / cover;
+      linear-gradient(135deg, rgba(28, 60, 100, 0.20) 0%, rgba(120, 160, 200, 0.10) 50%, rgba(5, 12, 24, 0.55) 100%),
+      url('https://i.imgur.com/RV3b2sb.jpeg') center / cover;
     position: relative;
+    border-radius: 4px;
   }
   .team-visual::after {
     content: ''; position: absolute; inset: 0;
@@ -1086,7 +1087,7 @@
     </a>
     <div class="nav-links">
       <a href="#properties" class="nav-link">Propiedades</a>
-      <a href="#team" class="nav-link">Equipo</a>
+      <a href="#team" class="nav-link">Servicio</a>
       <a href="#final" class="nav-link">Contacto</a>
     </div>
   </nav>
@@ -1474,18 +1475,18 @@
     <div class="team-inner">
       <div class="team-visual reveal"></div>
       <div class="team-text reveal reveal-d1">
-        <div class="team-eyebrow">— Equipo local</div>
+        <div class="team-eyebrow">— Servicio local</div>
         <h2 class="team-title">
           Detrás de <em>cada llave,</em><br>
           un equipo que <em>vive aquí.</em>
         </h2>
         <p class="team-body">
-          Rodrigo, Paulo, Zayda y todo el equipo gestionan cada estancia
-          desde Vallarta. Te recibimos en la propiedad, te damos las llaves,
-          y estamos a un mensaje durante toda tu estancia.
+          Te recibimos personalmente en la propiedad, te damos las llaves, y estamos
+          a un mensaje de WhatsApp durante toda tu estancia. Sin call centers, sin
+          chatbots, sin esperas.
         </p>
         <p class="team-body">
-          Eso es lo que cambia cuando reservas directo con quien gestiona.
+          Eso es lo que cambia cuando reservas directo <em>con quien gestiona.</em>
         </p>
         <div class="team-meta">
           <span>Desde 2018</span>
@@ -3253,13 +3254,13 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   const SIM_RES = 128;       // resolución del campo de velocidad/presión
   const DYE_RES = 512;       // resolución de la tinta (visual)
 
-  // Parámetros físicos
-  const DENSITY_DISSIPATION = 0.85;     // tinta decae rápido (0.97→0.85) — no se acumula
-  const VELOCITY_DISSIPATION = 0.97;    // velocidad un poco más rápida también
+  // Parámetros físicos — calibrado para sensación de gel iridiscente visible
+  const DENSITY_DISSIPATION = 0.92;     // decae moderado (no se acumula pero persiste lo suficiente)
+  const VELOCITY_DISSIPATION = 0.98;
   const PRESSURE_ITERATIONS = 20;
-  const CURL = 30;
-  const SPLAT_RADIUS = 0.0010;          // splat más concentrado (0.0025→0.0010)
-  const SPLAT_FORCE = 6000;
+  const CURL = 35;                      // un poco más de vórtices
+  const SPLAT_RADIUS = 0.0022;          // splat más amplio (vuelve a cerca del original)
+  const SPLAT_FORCE = 7000;             // más fuerza para que se mueva visible
 
   let w = 0, h = 0, dpr = 1;
   function resize() {
@@ -3448,13 +3449,12 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       float lum = dot(c, vec3(0.299, 0.587, 0.114));
       c = mix(vec3(lum), c, 1.4);
       
-      // ★ Alpha = luminancia → zonas sin tinta densa son transparentes
-      // Multiplier bajo (× 2) para que solo zonas con tinta CONCENTRADA sean opacas.
-      // Las trazas tenues son transparentes → no cubren toda la pantalla.
-      float alpha = clamp(lum * 2.0, 0.0, 1.0);
-      // Curva cuadrática para que el corte sea más limpio (lo tenue se desvanece más)
-      alpha = alpha * alpha;
-      gl_FragColor = vec4(c * 1.2, alpha);
+      // ★ Alpha controlado: solo zonas con tinta clara son visibles
+      // Multiplier 4.0 con threshold-like curva: lo faint queda completamente transparente,
+      // lo medio se ve translúcido tipo gel, lo denso se ve opaco iridiscente.
+      float alpha = clamp(lum * 4.0, 0.0, 1.0);
+      alpha = pow(alpha, 1.4);  // curva: más agresiva en lo tenue, suave en lo denso
+      gl_FragColor = vec4(c * 1.25, alpha);
     }
   `;
 
@@ -3591,7 +3591,7 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     // Paleta iridiscente gasolina: rosa, cyan, violeta, verde-cyan
     const hues = [320, 200, 280, 160, 340];
     const h = hues[Math.floor(Math.random() * hues.length)] / 360;
-    return HSVtoRGB(h, 1.0, 1.0).map(c => c * 0.04);
+    return HSVtoRGB(h, 1.0, 1.0).map(c => c * 0.10);
   }
 
   function HSVtoRGB(h, s, v) {
