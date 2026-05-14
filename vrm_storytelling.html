@@ -1086,14 +1086,16 @@ function makeAuroraBackgroundTexture() {
   c.width = w; c.height = h;
   const ctx = c.getContext('2d');
 
-  // Gradiente vertical base (cielo) — paleta lavanda saturada uniforme
+  // Gradiente vertical base (cielo) — paleta lavanda→azul cristal (más fría)
+  // La ballena Swarovski azul lee mejor sobre un fondo que va de lavanda a cyan,
+  // que un fondo 100% violeta.
   const baseGrad = ctx.createLinearGradient(0, 0, 0, h);
-  baseGrad.addColorStop(0.00, '#a888d0');   // top: lavanda saturada vibrante
-  baseGrad.addColorStop(0.30, '#b89cd8');   // upper-mid: lavanda media
-  baseGrad.addColorStop(0.50, '#c8a8de');   // mid: lavanda
-  baseGrad.addColorStop(0.65, '#d0b4d8');   // mid-low: rosa-lavanda
-  baseGrad.addColorStop(0.85, '#b0b8d8');   // azul lavanda
-  baseGrad.addColorStop(1.00, '#8898c0');   // bottom: azul profundo
+  baseGrad.addColorStop(0.00, '#9888c8');   // top: lavanda suave (mantiene branding cool)
+  baseGrad.addColorStop(0.30, '#9c98d4');   // upper-mid: transición a azul
+  baseGrad.addColorStop(0.50, '#a4b0dc');   // mid: azul-lavanda
+  baseGrad.addColorStop(0.65, '#b0c0e0');   // mid-low: azul claro
+  baseGrad.addColorStop(0.85, '#9cb4d4');   // azul cristal
+  baseGrad.addColorStop(1.00, '#6884b0');   // bottom: azul profundo
   ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, w, h);
 
@@ -1108,22 +1110,21 @@ function makeAuroraBackgroundTexture() {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // ★ SOL pequeño en esquina superior derecha — acento, NO protagonista
-  // Antes estaba al centro y aplastaba la ballena. Ahora es solo un detalle de luz.
-  radial(w * 0.82, h * 0.18, 280, 'rgba(255,250,245,0.7)', 0.7);
-  radial(w * 0.82, h * 0.18, 140, 'rgba(255,255,255,0.85)', 0.85);
-  radial(w * 0.82, h * 0.18, 60,  'rgba(255,255,255,1)',    1.0);   // núcleo pequeño
+  // ★ SOL pequeño en esquina superior derecha — acento luminoso
+  radial(w * 0.82, h * 0.18, 280, 'rgba(255,255,255,0.75)', 0.75);
+  radial(w * 0.82, h * 0.18, 140, 'rgba(255,255,255,0.9)', 0.9);
+  radial(w * 0.82, h * 0.18, 60,  'rgba(255,255,255,1)',    1.0);
 
-  // Halos de color difuso por toda la composición (uniforme, sin centro fuerte)
-  radial(w * 0.25, h * 0.30, 480, 'rgba(180,150,220,0.45)', 0.45);  // lavanda izq sup
-  radial(w * 0.65, h * 0.45, 520, 'rgba(170,140,210,0.40)', 0.40);  // lavanda centro
-  radial(w * 0.20, h * 0.75, 420, 'rgba(160,180,230,0.40)', 0.40);  // azul izq inf
-  radial(w * 0.78, h * 0.78, 380, 'rgba(190,160,220,0.35)', 0.35);  // lavanda der inf
-  radial(w * 0.50, h * 0.92, 460, 'rgba(140,160,210,0.40)', 0.40);  // azul abajo
+  // Halos de color difuso — más azul que antes (acompañan a la ballena Swarovski)
+  radial(w * 0.25, h * 0.30, 480, 'rgba(160,160,220,0.40)', 0.40);  // lavanda suave izq
+  radial(w * 0.65, h * 0.45, 520, 'rgba(150,180,225,0.45)', 0.45);  // azul-lavanda centro
+  radial(w * 0.20, h * 0.75, 420, 'rgba(140,180,220,0.45)', 0.45);  // azul izq inf
+  radial(w * 0.78, h * 0.78, 380, 'rgba(160,200,230,0.40)', 0.40);  // azul cyan der inf
+  radial(w * 0.50, h * 0.92, 460, 'rgba(120,150,200,0.45)', 0.45);  // azul abajo
 
-  // Toques coral pastel muy sutiles (la cosa de Vallarta) — apenas perceptibles
-  radial(w * 0.35, h * 0.50, 320, 'rgba(255,200,210,0.18)', 0.18);
-  radial(w * 0.70, h * 0.25, 240, 'rgba(255,210,200,0.20)', 0.20);
+  // Touches sutiles de rosa-coral (calidez muy mínima, Vallarta hint)
+  radial(w * 0.35, h * 0.50, 320, 'rgba(255,200,210,0.15)', 0.15);
+  radial(w * 0.70, h * 0.25, 240, 'rgba(255,210,200,0.18)', 0.18);
 
   // GRAIN sutil — replica el `.grain` del CSS pero dentro del canvas
   const grainPasses = 3000;
@@ -1160,14 +1161,15 @@ function makeEnvironmentTexture() {
   c.height = size;
   const ctx = c.getContext('2d');
 
-  // ★ Environment equirectangular — los colores que la ballena REFLEJA en su superficie
-  // Paleta lavanda saturada uniforme, con sun pequeño en la esquina (no centro)
+  // ★ Environment equirectangular — paleta cyan/azul cristal (Swarovski blue)
+  // Lo que la ballena REFLEJA en su superficie. Si esto es violeta, el cristal
+  // se ve violeta. Lo enfriamos a azul-cyan para look de cristal facetado.
   const baseGrad = ctx.createLinearGradient(0, 0, 0, size);
-  baseGrad.addColorStop(0.00, '#a888d0');   // top: lavanda saturada
-  baseGrad.addColorStop(0.35, '#b89cd8');   // upper-mid
-  baseGrad.addColorStop(0.55, '#c8a8de');   // mid: lavanda
-  baseGrad.addColorStop(0.75, '#d0b4d8');   // horizon: rosa lavanda
-  baseGrad.addColorStop(1.00, '#8898c0');   // bottom: azul profundo
+  baseGrad.addColorStop(0.00, '#7898c8');   // top: azul medio
+  baseGrad.addColorStop(0.35, '#a0c0e0');   // upper-mid: azul cyan
+  baseGrad.addColorStop(0.55, '#c8d8e8');   // mid: azul claro pastel
+  baseGrad.addColorStop(0.75, '#d8e4ec');   // horizon: casi blanco azulado
+  baseGrad.addColorStop(1.00, '#5878a0');   // bottom: azul profundo
   ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, size * 2, size);
 
@@ -1182,21 +1184,22 @@ function makeEnvironmentTexture() {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // ★ SOL pequeño en la esquina — coincide con el background
-  drawSun(size * 1.64, size * 0.18, 220, 'rgba(255,250,245,0.85)', 0.85);
+  // ★ SOL blanco pequeño en la esquina — coincide con el background
+  drawSun(size * 1.64, size * 0.18, 220, 'rgba(255,255,255,0.85)', 0.85);
   drawSun(size * 1.64, size * 0.18, 110, 'rgba(255,255,255,1)', 1.0);
   drawSun(size * 1.64, size * 0.18, 50,  'rgba(255,255,255,1)', 1.0);
 
-  // Manchas de color saturadas alrededor — son los que aparecen en los reflejos
-  drawSun(size * 0.50, size * 0.30, 380, 'rgba(180,150,220,0.60)', 0.60); // lavanda izq
-  drawSun(size * 1.30, size * 0.40, 380, 'rgba(170,140,210,0.55)', 0.55); // lavanda centro
-  drawSun(size * 0.30, size * 0.60, 320, 'rgba(160,180,230,0.50)', 0.50); // azul
-  drawSun(size * 1.10, size * 0.65, 320, 'rgba(200,160,230,0.50)', 0.50); // violeta
-  drawSun(size * 0.85, size * 0.80, 380, 'rgba(140,160,210,0.50)', 0.50); // azul bajo
+  // Manchas de azul/cyan saturadas — son los que aparecen en los reflejos cristalinos
+  drawSun(size * 0.50, size * 0.30, 380, 'rgba(140,180,230,0.60)', 0.60); // azul medio
+  drawSun(size * 1.30, size * 0.40, 380, 'rgba(160,200,240,0.55)', 0.55); // azul cyan
+  drawSun(size * 0.30, size * 0.60, 320, 'rgba(120,200,240,0.55)', 0.55); // cyan brillante
+  drawSun(size * 1.10, size * 0.65, 320, 'rgba(180,210,240,0.50)', 0.50); // azul claro
+  drawSun(size * 0.85, size * 0.80, 380, 'rgba(100,160,210,0.50)', 0.50); // azul profundo
   
-  // Toques rosa-coral (highlights iridiscentes en el cristal)
-  drawSun(size * 0.70, size * 0.45, 240, 'rgba(255,180,200,0.40)', 0.40);
-  drawSun(size * 1.45, size * 0.55, 200, 'rgba(255,200,210,0.35)', 0.35);
+  // Highlights blancos puntuales — los "diamantes" de las facetas
+  drawSun(size * 0.70, size * 0.25, 180, 'rgba(255,255,255,0.55)', 0.55);
+  drawSun(size * 1.45, size * 0.55, 160, 'rgba(255,255,255,0.50)', 0.50);
+  drawSun(size * 0.40, size * 0.45, 140, 'rgba(220,240,255,0.45)', 0.45);
 
   const tx = new THREE.CanvasTexture(c);
   tx.mapping = THREE.EquirectangularReflectionMapping;
@@ -1215,31 +1218,31 @@ envTexture.dispose();
 pmremGenerator.dispose();
 
 /* ============================================================
-   ILUMINACIÓN COMPLEMENTARIA — Luces violetas/azules saturadas
+   ILUMINACIÓN COMPLEMENTARIA — Cyan/azul cristal hielo (Swarovski)
    
-   Sin sol central, la iluminación viene del environment + estas
-   directionales. Colores saturados (no blanco) para empujar el
-   tinte violeta/azul/rosa de la ballena cristalina.
+   La paleta de luces se enfría: cyan brillante, azul eléctrico, blanco
+   puro. Esto hace que el cristal lea como SWAROVSKI (azul facetado)
+   en lugar de cuarzo amatista (violeta).
    ============================================================ */
-scene.add(new THREE.AmbientLight(0xb898d8, 0.55));  // ambient lavanda saturado
+scene.add(new THREE.AmbientLight(0xb8d8f0, 0.55));  // ambient azul cyan claro
 
-// Key light: violeta-rosa cálido desde arriba-derecha (donde está el sol)
-const keyLight = new THREE.DirectionalLight(0xffd8e8, 0.85);
+// Key light: blanco frío puro desde donde está el sol
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
 keyLight.position.set(5, 6, 4);
 scene.add(keyLight);
 
-// Rim light azul-violeta intenso desde el lado opuesto (separa silueta del fondo)
-const rimLight = new THREE.DirectionalLight(0x8870d0, 1.2);
+// Rim light cyan eléctrico — el "halo" del lado opuesto que separa la silueta
+const rimLight = new THREE.DirectionalLight(0x60c0f0, 1.4);
 rimLight.position.set(-6, 3, -2);
 scene.add(rimLight);
 
-// Bottom fill rosa-coral pálido — hint de calidez por debajo
-const bottomLight = new THREE.DirectionalLight(0xf0c0d0, 0.45);
+// Bottom fill azul profundo — base fría
+const bottomLight = new THREE.DirectionalLight(0x6090c0, 0.50);
 bottomLight.position.set(0, -4, 3);
 scene.add(bottomLight);
 
-// Top fill azul lavanda — refuerza el shift de color iridiscente
-const fillLight = new THREE.DirectionalLight(0xa0a8e0, 0.55);
+// Top fill blanco azulado — refuerza el brillo de cristal
+const fillLight = new THREE.DirectionalLight(0xd8e8f8, 0.55);
 fillLight.position.set(1, 5, -6);
 scene.add(fillLight);
 
@@ -1389,30 +1392,29 @@ const iceNormalTexture = createIceNormalMap();
    El normalMap es lo único pintado: da micro-relieve cristalino.
    ============================================================ */
 const PHYSICAL_PARAMS = {
-  // ★ Color base: lavanda saturado profundo — NO blanco
-  // Sin esto la ballena sale blanca/lavada. Queremos cristal con personalidad.
-  color: 0x9870c8,
+  // ★ Color base: azul cristal hielo (no violeta) — Swarovski blue
+  // Casi blanco con pizca de cyan, el environment hace el shift
+  color: 0xc8e0f0,
   
-  // ★ TRANSMISIÓN 0.30 — cristal con cuerpo sólido pero translúcido
-  // Bajamos más para que no se evapore sobre fondo claro
-  transmission: 0.30,
-  thickness: 1.4,
-  ior: 1.5,
-  attenuationColor: 0x6840a8,    // tinte violeta profundo del interior (la luz pasa y se tiñe morada)
-  attenuationDistance: 0.8,
+  // ★ TRANSMISIÓN 0.55 — más vidrio puro tipo Swarovski (cristal facetado)
+  // Antes era 0.30 (cuerpo violeta opaco). Ahora más transparencia premium.
+  transmission: 0.55,
+  thickness: 1.2,
+  ior: 1.55,                     // ★ subido a 1.55 (cristal real ~1.5-1.7) más refracción
+  attenuationColor: 0x90b8d8,    // tinte azul claro del interior (cool, no warm)
+  attenuationDistance: 1.4,
   
-  // ★ IRIDESCENCIA al máximo — el shift de color violeta→azul→rosa
-  // Esto es lo que hace que la silueta cambie de color en bordes y centros
-  iridescence: 1.0,
+  // ★ IRIDESCENCIA — shift azul→cyan→rosa muy sutil (no morado)
+  iridescence: 0.9,
   iridescenceIOR: 1.4,
-  iridescenceThicknessRange: [200, 900],   // rango amplio = más shift visible
+  iridescenceThicknessRange: [300, 800],   // rango medio = brillo cyan dominante
   
-  // ★ CLEARCOAT — barniz brillante encima
-  clearcoat: 0.9,
-  clearcoatRoughness: 0.10,
+  // ★ CLEARCOAT — máximo brillo de superficie facetada
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.05,      // ★ casi cero — reflejos puntiagudos tipo cristal pulido
   
-  metalness: 0.10,
-  roughness: 0.18,
+  metalness: 0.15,                // ligero metálico para reflejos definidos
+  roughness: 0.08,                // ★ muy bajo — superficie casi espejada (Swarovski)
   
   // ★ Normal map procedural — micro-relieve cristalino
   normalMap: iceNormalTexture,
@@ -1533,12 +1535,13 @@ composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 const renderPass = new RenderPass(scene, camera);
 composer.addPass(renderPass);
 
-// Bloom sutil — el sol ahora es acento pequeño, el bloom solo refuerza highlights
+// Bloom — los highlights de Swarovski son puntuales y muy brillantes
+// con roughness 0.08, así que threshold medio para que esos puntos florezcan
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.30,   // strength bajo — solo halo del sol pequeño y bordes wet
-  0.70,
-  0.82    // threshold ALTO — solo blow-outs reales brillan
+  0.40,   // strength medio — los reflejos del cristal son chispitas brillantes
+  0.75,
+  0.72    // threshold para que los highlights puntuales del cristal brillen
 );
 composer.addPass(bloomPass);
 
