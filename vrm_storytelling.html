@@ -8,7 +8,10 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Fontshare Boska — display serif premium tipo Hermès/editorial -->
+<link href="https://api.fontshare.com/v2/css?f[]=boska@900,700,500i,500,400i,400,300i,300&display=swap" rel="stylesheet">
 
 <style>
   :root {
@@ -161,86 +164,110 @@
 
   section { position: relative; z-index: 3; }
 
-  /* COVER */
+  /* =============================================================
+     COVER — VRM gigante centrado, ballena cruzando, subtítulo abajo
+     Tipografía: Boska (Fontshare) — display serif premium con
+     dramatic contrast, similar a las que usa Hermès/Aman editorial.
+     ============================================================= */
   .cover {
     min-height: 100vh;
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    padding: 120px 64px 80px;
-    color: #1a1828;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    padding: 100px 24px 100px;
+    color: rgba(245, 245, 242, 0.96);
+    overflow: hidden;
   }
-  .cover-mark-container {
-    text-align: center;
+
+  /* Eyebrow arriba: BAHÍA DE BANDERAS · DESDE 2018 */
+  .cover-eyebrow-top {
+    position: absolute;
+    top: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: rgba(245, 245, 242, 0.55);
     opacity: 0;
-    animation: ru 1.4s var(--ease-soft) 2.2s forwards;
+    animation: ru 1.4s var(--ease-soft) 2.0s forwards;
+    z-index: 5;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* "VRM" GIGANTE — el héroe del cover */
+  .cover-mark-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    z-index: 3;
   }
   .cover-mark {
-    font-family: var(--font-display);
-    font-weight: 300;
-    font-style: italic;
-    font-size: clamp(120px, 18vw, 280px);
-    line-height: 0.85;
-    color: #1a1828;
+    font-family: 'Boska', 'Cormorant Garamond', serif;
+    font-weight: 900;
+    font-style: normal;
+    font-size: clamp(180px, 32vw, 520px);
+    line-height: 0.82;
+    color: rgba(245, 245, 242, 0.97);
     margin: 0;
-    letter-spacing: 0.02em;
-    text-shadow: 0 0 60px rgba(255, 255, 255, 0.6);
+    letter-spacing: -0.04em;
+    text-align: center;
+    /* sombra dramática que da profundidad sin perder elegancia */
+    text-shadow:
+      0 4px 24px rgba(8, 20, 40, 0.35),
+      0 1px 0 rgba(255, 255, 255, 0.08);
+    /* fade in dramático */
+    opacity: 0;
+    animation: ru 1.6s var(--ease-soft) 2.4s forwards;
+    user-select: none;
+    /* Pequeña perspectiva sutil */
+    transform: translateY(20px);
   }
+
+  /* Subtítulo abajo — restraint */
   .cover-content {
-    max-width: 1400px;
-    width: 100%;
-    margin: 0 auto;
-  }
-  .cover-eyebrow {
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.5em;
-    text-transform: uppercase;
-    color: #1a1828;
-    margin-bottom: 24px;
-    opacity: 0.65;
+    margin-top: 28px;
+    text-align: center;
+    z-index: 3;
+    position: relative;
   }
   .cover-title {
-    font-family: var(--font-display);
-    font-weight: 300;
-    font-size: clamp(48px, 9vw, 140px);
-    line-height: 0.92;
-    color: #1a1828;
+    font-family: 'Boska', 'Cormorant Garamond', serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: clamp(22px, 2.4vw, 36px);
+    line-height: 1.15;
+    color: rgba(245, 245, 242, 0.88);
     margin: 0;
-    letter-spacing: -0.02em;
+    letter-spacing: 0.01em;
   }
   .cover-title .line {
-    display: block;
+    display: inline;
     opacity: 0;
-    transform: translateY(40px);
-    animation: ru 1.6s var(--ease-soft) forwards;
+    animation: ru 1.4s var(--ease-soft) forwards;
   }
-  /* Si el cover-title va a ser splitteado por JS, las lineas son visibles
-     inmediatamente y el JS anima cada char por separado */
   .cover-title[data-split-text] .line {
     opacity: 1;
-    transform: none;
     animation: none;
   }
-  .cover-title .line:nth-child(1) {
-    animation-delay: 3.0s;
-    font-weight: 300;
-  }
+  .cover-title .line:nth-child(1) { animation-delay: 3.4s; }
   .cover-title .line:nth-child(2) {
-    animation-delay: 3.3s;
-    font-style: italic;
-    font-weight: 400;
-    /* Lavanda oscuro saturado — contrasta sobre la aurora pastel sin ser tan duro como el negro de "La bahía" */
-    color: #4a2870;
-    /* Halo suave lavanda claro alrededor del texto para que respire con la aurora */
-    text-shadow:
-      0 0 24px rgba(255, 255, 255, 0.55),
-      0 2px 14px rgba(140, 100, 180, 0.20);
+    animation-delay: 3.6s;
+    color: rgba(220, 200, 240, 0.88);
   }
+
+  /* Scroll cue abajo */
   .cover-cue {
     position: absolute;
-    bottom: 32px;
+    bottom: 36px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -248,24 +275,24 @@
     align-items: center;
     gap: 14px;
     opacity: 0;
-    animation: ru 1.2s var(--ease-soft) 3.6s forwards;
+    animation: ru 1.2s var(--ease-soft) 4.0s forwards;
+    z-index: 5;
   }
   .cover-cue-star {
     display: flex;
     align-items: center;
     gap: 14px;
+    font-family: 'Inter Tight', sans-serif;
     font-size: 9px;
     font-weight: 500;
     letter-spacing: 0.42em;
     text-transform: uppercase;
-    color: #1a1828;
-    opacity: 0.7;
+    color: rgba(245, 245, 242, 0.55);
   }
   .cover-cue-star::before, .cover-cue-star::after {
     content: '✦';
     font-size: 9px;
-    color: #1a1828;
-    opacity: 0.5;
+    color: rgba(245, 245, 242, 0.45);
     animation: sp 3s ease-in-out infinite;
   }
   @keyframes sp {
@@ -274,13 +301,14 @@
   }
   .cover-cue-line {
     width: 1px; height: 40px;
-    background: linear-gradient(180deg, rgba(26, 24, 40, 0.5) 0%, transparent 100%);
+    background: linear-gradient(180deg, rgba(245, 245, 242, 0.5) 0%, transparent 100%);
   }
   @keyframes ru { to { opacity: 1; transform: translateY(0); } }
   @media (max-width: 768px) {
-    .cover { padding: 90px 24px 90px; }
-    .cover-mark { font-size: clamp(90px, 24vw, 160px); }
-    .cover-eyebrow { font-size: 9px; letter-spacing: 0.4em; margin-bottom: 20px; }
+    .cover { padding: 80px 16px 80px; }
+    .cover-mark { font-size: clamp(110px, 38vw, 220px); }
+    .cover-eyebrow-top { top: 70px; font-size: 9px; letter-spacing: 0.36em; }
+    .cover-title { font-size: clamp(16px, 4vw, 22px); }
     .cover-cue { bottom: 24px; }
     .cover-cue-star { font-size: 8px; letter-spacing: 0.36em; }
   }
@@ -1146,16 +1174,18 @@
   </nav>
 
   <section class="cover">
-    <div class="cover-mark-container">
-      <div class="cover-eyebrow">Bahía de Banderas · Desde 2018</div>
-      <div class="cover-mark">VRM</div>
+    <div class="cover-eyebrow-top">Bahía de Banderas · Desde 2018</div>
+
+    <div class="cover-mark-wrap">
+      <h1 class="cover-mark" aria-label="VRM">VRM</h1>
     </div>
+
     <div class="cover-content">
-      <h1 class="cover-title" data-split-text data-split-stagger="40" data-split-delay="3000" data-split-trigger="load">
-        <span class="line">La bahía</span>
-        <span class="line">que se habita</span>
-      </h1>
+      <p class="cover-title" data-split-text data-split-stagger="40" data-split-delay="3400">
+        <span class="line">La bahía</span> <span class="line">que se habita</span>
+      </p>
     </div>
+
     <div class="cover-cue">
       <div class="cover-cue-star">Scroll para descubrir</div>
       <div class="cover-cue-line"></div>
@@ -2644,40 +2674,40 @@ composer.addPass(outputPass);
    Z (-15 al fondo, +5 al frente)
    ============================================================ */
 const WHALE_PATH = [
-  // ★★★ MOVIMIENTO: ARRIBA → ABAJO conforme scrolleas ★★★
-  // Y POSITIVO = arriba en pantalla, Y NEGATIVO = abajo en pantalla
-  // La ballena empieza arriba en el fondo y va descendiendo en una espiral 3D
-  // pasando frente a cámara en el centro y alejándose hacia el fondo abajo.
+  // ★★★ NUEVA COREOGRAFÍA: La ballena ARRANCA grande y centrada
+  // cruzando el "VRM" gigante (como la medusa de Noomo cruzando el texto).
+  // Luego nada hacia abajo conforme scrolleas, atraviesa la escena, vuelve.
   
-  // 0% — Arriba-derecha, lejos al fondo (apenas visible)
-  { sp: 0.00, x:  6,   y:  2.5,  z: -14, roll:  0.0  },
+  // 0% — CENTRO, GRANDE — la ballena cruza el VRM
+  // x ligeramente desplazada para que cruce entre la R y la M
+  { sp: 0.00, x:  0.5, y:  0.2,  z:   3, roll: -0.05 },
   
-  // 10% — Empieza a descender, todavía profundo
-  { sp: 0.10, x:  4,   y:  1.5,  z: -11, roll: -0.04 },
+  // 10% — Empieza a moverse a la izquierda lentamente
+  { sp: 0.10, x: -1.5, y:  0.3,  z:   2, roll: -0.08 },
   
-  // 22% — Sigue bajando y acercándose, cruzando al centro
-  { sp: 0.22, x:  1,   y:  0.8,  z:  -7, roll: -0.08 },
+  // 22% — Cruza hacia atrás-izquierda, comienza descenso
+  { sp: 0.22, x: -3,   y: -0.3,  z:  -2, roll: -0.10 },
   
-  // 35% — Centro de pantalla, ya cerca de cámara
-  { sp: 0.35, x: -2,   y:  0,    z:  -2, roll: -0.10 },
+  // 35% — Más al fondo izquierda, descendiendo
+  { sp: 0.35, x: -4,   y: -1.2,  z:  -6, roll: -0.05 },
   
-  // 48% — ★ PASA FRENTE A CÁMARA ★ (más cerca y grande por perspectiva)
-  { sp: 0.48, x: -1,   y: -0.3,  z:   4, roll: -0.05 },
+  // 48% — Atrás profundo, cruzando al centro
+  { sp: 0.48, x: -1,   y: -2,    z:  -10, roll:  0.05 },
   
-  // 58% — Cruza a la derecha, descendiendo
-  { sp: 0.58, x:  2,   y: -1,    z:   0, roll:  0.10 },
+  // 58% — Centro fondo, ya muy lejos
+  { sp: 0.58, x:  1,   y: -2.5,  z:  -12, roll:  0.10 },
   
-  // 70% — Sigue bajando, se aleja al fondo derecha
-  { sp: 0.70, x:  5,   y: -2,    z:  -8, roll:  0.12 },
+  // 70% — Empieza a regresar desde la derecha-fondo
+  { sp: 0.70, x:  4,   y: -2,    z:  -9, roll:  0.08 },
   
-  // 80% — Abajo en el fondo profundo, cruzando a izquierda
-  { sp: 0.80, x:  2,   y: -2.5,  z: -12, roll:  0.08 },
+  // 80% — Acercándose por la derecha
+  { sp: 0.80, x:  3,   y: -1,    z:  -4, roll:  0.04 },
   
-  // 90% — Regresa acercándose desde abajo
-  { sp: 0.90, x: -1,   y: -1,    z:  -5, roll:  0.04 },
+  // 90% — Cerca, cruzando hacia centro de nuevo
+  { sp: 0.90, x:  1,   y:  0,    z:   0, roll: -0.02 },
   
-  // 100% — Vista cercana final, abajo-izquierda
-  { sp: 1.00, x: -3,   y:  0,    z:   2, roll:  0.0  }
+  // 100% — Vista cercana final centrada (cerrando el círculo)
+  { sp: 1.00, x:  0,   y:  0.3,  z:   3, roll:  0.0  }
 ];
 
 const CAMERA_PATH = [
