@@ -38,13 +38,7 @@
     line-height: 1.5;
     overflow-x: hidden;
   }
-  body {
-    background:
-      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(139, 109, 196, 0.10) 0%, transparent 50%),
-      radial-gradient(ellipse 100% 80% at 50% 100%, rgba(214, 139, 189, 0.08) 0%, transparent 50%),
-      var(--ink);
-    background-attachment: fixed;
-  }
+  /* No body background extra — confiamos en var(--ink) directo */
 
   .whale-canvas {
     position: fixed;
@@ -57,25 +51,33 @@
     transition: opacity 0.6s var(--ease-soft);
   }
 
-  /* Aurora pastel + sol blanco central — solo en cover */
+  /* Aurora pastel + sol blanco central — fondo del cover detrás del WebGL */
   .aurora {
     position: fixed;
-    inset: 0;
-    z-index: 0;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 1;  /* Por ENCIMA del body negro, por DEBAJO del canvas */
     pointer-events: none;
     background:
-      radial-gradient(circle 380px at 50% 40%,
+      radial-gradient(circle 420px at 50% 38%,
         rgba(255, 255, 255, 1) 0%,
-        rgba(255, 250, 240, 0.92) 8%,
-        rgba(255, 240, 230, 0.55) 18%,
-        rgba(255, 220, 220, 0.22) 30%,
-        rgba(216, 200, 232, 0) 50%),
-      radial-gradient(ellipse 100% 80% at 50% 40%,
-        #e5d8f0 0%,
-        #d8c8e8 50%,
-        #c4b0d8 100%);
+        rgba(255, 250, 240, 0.95) 8%,
+        rgba(255, 240, 230, 0.65) 18%,
+        rgba(255, 220, 220, 0.30) 32%,
+        rgba(216, 200, 232, 0) 55%),
+      radial-gradient(ellipse 120% 90% at 50% 45%,
+        #efe4f5 0%,
+        #d8c8e8 45%,
+        #b89dd0 100%);
     opacity: 1;
     transition: opacity 1s var(--ease-soft);
+  }
+
+  /* Canvas de la ballena debe estar ENCIMA del aurora */
+  .whale-canvas {
+    z-index: 2 !important;
   }
 
   .grain {
@@ -950,7 +952,7 @@ const aurora = document.getElementById('aurora');
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 0, 14);
+camera.position.set(0, 0.5, 12);
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -963,52 +965,55 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setClearColor(0x000000, 0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
+renderer.toneMappingExposure = 1.4;
 
 /* ============================================================
    ENVIRONMENT MAP — Canvas procedural pasado por PMREMGenerator
    para que funcione con PBR (iridescencia, transmisión, etc)
    ============================================================ */
 function makeEnvironmentTexture() {
-  // Canvas grande con gradiente eléctrico tipo "estudio de fotografía neón"
   const size = 1024;
   const c = document.createElement('canvas');
-  c.width = size * 2;  // equirectangular = 2:1 aspect
+  c.width = size * 2;
   c.height = size;
   const ctx = c.getContext('2d');
 
-  // Gradiente principal: fondo lavanda con "soles" de colores que iluminan la ballena
+  // Fondo base — gradient más eléctrico para que la ballena tenga colores fuertes que reflejar
   const baseGrad = ctx.createLinearGradient(0, 0, 0, size);
-  baseGrad.addColorStop(0, '#1a0a2e');
-  baseGrad.addColorStop(0.3, '#3a1a5e');
-  baseGrad.addColorStop(0.5, '#8a3a8e');
-  baseGrad.addColorStop(0.7, '#e8a8c8');
-  baseGrad.addColorStop(0.85, '#f0d0a0');
-  baseGrad.addColorStop(1, '#2a1018');
+  baseGrad.addColorStop(0, '#0a0020');
+  baseGrad.addColorStop(0.2, '#3a0a4e');
+  baseGrad.addColorStop(0.45, '#a02a7e');
+  baseGrad.addColorStop(0.55, '#ff6a8e');
+  baseGrad.addColorStop(0.7, '#ffaa50');
+  baseGrad.addColorStop(0.85, '#aa3a40');
+  baseGrad.addColorStop(1, '#1a0008');
   ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, size * 2, size);
 
-  // Soles brillantes de colores: estos crean los highlights/reflexiones iridiscentes
+  // Soles brillantes a saturación máxima — son los que crean los reflejos de color
   function drawSun(x, y, r, color) {
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
     g.addColorStop(0, color);
+    g.addColorStop(0.3, color.replace(/[\d.]+\)$/, '0.6)'));
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
+    // Lighten blending
+    ctx.globalCompositeOperation = 'screen';
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    ctx.globalCompositeOperation = 'source-over';
   }
 
-  // Sol blanco central (el principal)
-  drawSun(size * 1, size * 0.38, 280, 'rgba(255,255,255,0.95)');
-  // Sol magenta a la izquierda
-  drawSun(size * 0.4, size * 0.45, 220, 'rgba(255,80,160,0.7)');
-  // Sol cyan a la derecha
-  drawSun(size * 1.55, size * 0.50, 200, 'rgba(120,220,255,0.6)');
-  // Sol naranja abajo
-  drawSun(size * 0.95, size * 0.78, 250, 'rgba(255,180,80,0.5)');
-  // Sol violeta arriba izquierda
-  drawSun(size * 0.65, size * 0.22, 180, 'rgba(180,120,255,0.55)');
-  // Sol verde lima sutil
-  drawSun(size * 1.7, size * 0.20, 150, 'rgba(180,255,200,0.35)');
+  // Sol blanco PRINCIPAL muy intenso
+  drawSun(size * 1.0, size * 0.35, 380, 'rgba(255,255,255,1)');
+  drawSun(size * 1.0, size * 0.35, 180, 'rgba(255,255,255,1)');  // núcleo extra brillante
+
+  // Soles de colores eléctricos — saturación máxima
+  drawSun(size * 0.35, size * 0.45, 280, 'rgba(255,80,200,1)');     // magenta
+  drawSun(size * 1.6, size * 0.50, 260, 'rgba(80,220,255,1)');      // cyan
+  drawSun(size * 0.85, size * 0.78, 300, 'rgba(255,200,100,1)');    // naranja
+  drawSun(size * 0.55, size * 0.18, 220, 'rgba(200,140,255,1)');    // violeta
+  drawSun(size * 1.75, size * 0.18, 200, 'rgba(160,255,220,0.85)'); // verde menta
+  drawSun(size * 1.30, size * 0.30, 160, 'rgba(255,255,200,0.9)');  // amarillo suave
 
   const tx = new THREE.CanvasTexture(c);
   tx.mapping = THREE.EquirectangularReflectionMapping;
@@ -1059,20 +1064,20 @@ let modelLoaded = false;
    iridiscente perlado que ves en Noomo.
    ============================================================ */
 const PHYSICAL_PARAMS = {
-  color: 0xffffff,           // Base blanco — la iridiscencia y env dan el color
-  metalness: 0,              // 0 = no metálico (vidrio)
-  roughness: 0.1,            // Ligera rugosidad para suavizar reflejos
-  transmission: 1.0,         // Translucencia total
-  thickness: 1.5,            // Grosor del vidrio (afecta refracción)
-  ior: 1.4,                  // Index of refraction tipo vidrio/cristal
-  attenuationColor: 0xffe8f5,// Color sutil que tinta el "interior"
-  attenuationDistance: 2.0,  // Distancia para que el color se acumule
-  iridescence: 1.0,          // ★★★ EL EFECTO PERLA ★★★
-  iridescenceIOR: 1.3,       // Strength de la dispersión iridiscente
-  iridescenceThicknessRange: [200, 600],  // Rango de "thin-film thickness"
-  clearcoat: 1.0,            // Barniz brillante encima
-  clearcoatRoughness: 0.05,  // Barniz muy liso
-  envMapIntensity: 1.5,      // Sobre-iluminar con el environment
+  color: 0xffffff,
+  metalness: 0,
+  roughness: 0.05,              // Más liso = reflejos más nítidos
+  transmission: 0.95,           // Casi total
+  thickness: 2.0,               // Más grueso = refracción más visible
+  ior: 1.5,                     // Cristal real
+  attenuationColor: 0xffd0e8,   // Tinte rosa más visible
+  attenuationDistance: 1.5,
+  iridescence: 1.0,             // ★★★ MÁXIMO
+  iridescenceIOR: 1.8,          // ★★★ MUY ALTO = espectro completo visible
+  iridescenceThicknessRange: [100, 800],  // ★★★ rango amplio = todos los colores
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.02,     // clearcoat muy brillante
+  envMapIntensity: 2.5,         // ★★★ Soles más visibles
   side: THREE.DoubleSide,
   transparent: true,
   opacity: 1.0,
@@ -1121,9 +1126,7 @@ function loadGLB() {
       model.position.sub(center);
 
       // Orientación inicial 3/4 view
-      model.rotation.y = Math.PI * 0.18;
-      model.rotation.x = -0.12;
-
+      // Sin orientación inicial fija — los keyframes la controlan
       whaleGroup.add(model);
 
       // Animation mixer
@@ -1157,42 +1160,78 @@ function loadGLB() {
 loadGLB();
 
 /* ============================================================
-   STARDUST PARTICLES (sutiles, no protagonistas)
+   HORIZONTE DEL MAR — Plano sutil donde la ballena emerge
+   Una línea de luz horizontal que sugiere la superficie del agua
    ============================================================ */
-const DUST_COUNT = 400;
-const dustGeom = new THREE.BufferGeometry();
-const dustPos = new Float32Array(DUST_COUNT * 3);
-const dustColors = new Float32Array(DUST_COUNT * 3);
-
-for (let i = 0; i < DUST_COUNT; i++) {
-  const r = 12 + Math.random() * 22;
-  const phi = Math.random() * Math.PI * 2;
-  const theta = (Math.random() - 0.5) * Math.PI;
-  dustPos[i * 3]     = Math.cos(phi) * Math.cos(theta) * r * 1.6;
-  dustPos[i * 3 + 1] = Math.sin(theta) * r * 0.7;
-  dustPos[i * 3 + 2] = Math.sin(phi) * Math.cos(theta) * r * 0.8;
-
-  const cc = Math.random();
-  if (cc < 0.5) { dustColors[i*3]=1; dustColors[i*3+1]=0.95; dustColors[i*3+2]=0.85; }
-  else if (cc < 0.8) { dustColors[i*3]=1; dustColors[i*3+1]=0.7; dustColors[i*3+2]=0.85; }
-  else { dustColors[i*3]=0.8; dustColors[i*3+1]=0.7; dustColors[i*3+2]=1; }
-}
-
-dustGeom.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
-dustGeom.setAttribute('color', new THREE.BufferAttribute(dustColors, 3));
-
-const dustMat = new THREE.PointsMaterial({
-  size: 0.08,
-  vertexColors: true,
+const horizonGeom = new THREE.PlaneGeometry(60, 0.3);
+const horizonMat = new THREE.MeshBasicMaterial({
+  color: 0xffffff,
   transparent: true,
-  opacity: 0.8,
+  opacity: 0.0,  // se anima vía updateHorizon abajo
   blending: THREE.AdditiveBlending,
-  depthWrite: false,
-  sizeAttenuation: true
+  depthWrite: false
+});
+const horizon = new THREE.Mesh(horizonGeom, horizonMat);
+horizon.position.y = -7;  // donde la ballena emerge
+horizon.rotation.x = 0;
+scene.add(horizon);
+
+// Glow del horizonte (más amplio, más suave)
+const horizonGlowGeom = new THREE.PlaneGeometry(60, 4);
+const horizonGlowMat = new THREE.MeshBasicMaterial({
+  color: 0xffd0e8,
+  transparent: true,
+  opacity: 0.0,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false
+});
+const horizonGlow = new THREE.Mesh(horizonGlowGeom, horizonGlowMat);
+horizonGlow.position.y = -7;
+scene.add(horizonGlow);
+
+/* ============================================================
+   BURBUJAS — pequeñas esferas iridiscentes que ascienden con la ballena
+   En lugar de stardust genérico, son burbujas del mar
+   ============================================================ */
+const BUBBLE_COUNT = 60;
+const bubbles = [];
+const bubbleGeom = new THREE.SphereGeometry(1, 12, 8);
+const bubbleMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffffff,
+  metalness: 0,
+  roughness: 0.0,
+  transmission: 1.0,
+  thickness: 0.5,
+  ior: 1.33,  // agua
+  iridescence: 0.8,
+  iridescenceIOR: 1.3,
+  iridescenceThicknessRange: [100, 400],
+  envMapIntensity: 1.5,
+  transparent: true,
+  opacity: 0.9
 });
 
-const dust = new THREE.Points(dustGeom, dustMat);
-scene.add(dust);
+for (let i = 0; i < BUBBLE_COUNT; i++) {
+  const bubble = new THREE.Mesh(bubbleGeom, bubbleMat);
+  const angle = Math.random() * Math.PI * 2;
+  const radius = 3 + Math.random() * 18;
+  bubble.position.set(
+    Math.cos(angle) * radius,
+    -10 + Math.random() * 18,
+    Math.sin(angle) * radius * 0.6
+  );
+  const s = 0.05 + Math.random() * 0.15;
+  bubble.scale.setScalar(s);
+  bubble.userData = {
+    speed: 0.3 + Math.random() * 0.6,
+    drift: Math.random() * Math.PI * 2,
+    initX: bubble.position.x,
+    initZ: bubble.position.z,
+    size: s
+  };
+  bubbles.push(bubble);
+  scene.add(bubble);
+}
 
 /* ============================================================
    POST-PROCESSING: BLOOM
@@ -1207,9 +1246,9 @@ composer.addPass(renderPass);
 
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.6,    // strength
-  0.4,    // radius
-  0.85    // threshold
+  1.2,    // strength — más fuerte para destacar la ballena
+  0.6,    // radius — bloom más extendido
+  0.7     // threshold — capta más zonas brillantes
 );
 composer.addPass(bloomPass);
 
@@ -1217,8 +1256,77 @@ const outputPass = new OutputPass();
 composer.addPass(outputPass);
 
 /* ============================================================
-   SCROLL CONTROL
+   COREOGRAFÍA CINEMATOGRÁFICA SCROLL-DRIVEN
+   La ballena emerge desde abajo del frame y atraviesa un viaje
+   visual que dura todo el scroll de la página.
    ============================================================ */
+
+// KEYFRAMES de la ballena: cada acto tiene una pose objetivo
+// [scrollProgress, posY, posX, scale, rotY, rotX]
+// Estos valores se interpolan suavemente entre keyframes
+const WHALE_KEYFRAMES = [
+  // Acto I — Emerge (solo cola visible)
+  { sp: 0.00, posY: -8.5, posX: 0,    scale: 1.0, rotY: 0.20, rotX: -0.35 },
+  // Sube revelándose
+  { sp: 0.10, posY: -4.5, posX: 0,    scale: 1.0, rotY: 0.30, rotX: -0.20 },
+  // Acto II — Revelación completa (centro)
+  { sp: 0.20, posY:  0.5, posX: 0,    scale: 1.0, rotY: 0.45, rotX: -0.10 },
+  // Mostrando lomo desde arriba (Reimagina)
+  { sp: 0.32, posY:  1.5, posX: -2,   scale: 1.0, rotY: 0.80, rotX:  0.15 },
+  // Vista cercana frontal (Filosofía)
+  { sp: 0.45, posY:  0.0, posX:  1.5, scale: 1.15, rotY: 1.40, rotX: -0.05 },
+  // Distante en esquina (Propiedades)
+  { sp: 0.58, posY:  4.5, posX:  5,   scale: 0.55, rotY: 2.20, rotX:  0.20 },
+  // Se acerca de nuevo (Reviews)
+  { sp: 0.72, posY: -0.5, posX: -3,   scale: 1.0, rotY: 3.10, rotX: -0.08 },
+  // Vista trasera lejana (Equipo)
+  { sp: 0.85, posY:  2.0, posX:  4,   scale: 0.7, rotY: 3.80, rotX:  0.10 },
+  // Acto III — Final cercano y gigante (CTA)
+  { sp: 0.95, posY:  0.5, posX:  0,   scale: 1.4, rotY: 4.50, rotX: -0.15 },
+  // Despedida: desciende rotando hacia el mar
+  { sp: 1.00, posY: -6.5, posX:  0,   scale: 1.3, rotY: 5.00, rotX: -0.55 }
+];
+
+// CAMERA keyframes: zoom y posición se mueven también
+// [scrollProgress, camZ, camY]
+const CAMERA_KEYFRAMES = [
+  { sp: 0.00, camZ: 12, camY:  0.5 },  // close hacia abajo (vemos la cola emerger)
+  { sp: 0.20, camZ: 14, camY:  0 },    // medium standard
+  { sp: 0.45, camZ: 10, camY:  0 },    // close (filosofía)
+  { sp: 0.58, camZ: 18, camY: -1 },    // wide (propiedades)
+  { sp: 0.72, camZ: 11, camY:  0 },    // close de nuevo
+  { sp: 0.95, camZ: 9,  camY:  0.5 },  // muy cerca (CTA final)
+  { sp: 1.00, camZ: 11, camY:  0 }     // pull back
+];
+
+/**
+ * Interpolación de keyframes con easing suave (smoothstep-like)
+ */
+function lerp(a, b, t) { return a + (b - a) * t; }
+function smoothstep(t) { return t * t * (3 - 2 * t); }
+
+function getKeyframe(keyframes, sp) {
+  // Encontrar el par de keyframes que rodean el scroll progress
+  let prev = keyframes[0];
+  let next = keyframes[keyframes.length - 1];
+  for (let i = 0; i < keyframes.length - 1; i++) {
+    if (sp >= keyframes[i].sp && sp <= keyframes[i + 1].sp) {
+      prev = keyframes[i];
+      next = keyframes[i + 1];
+      break;
+    }
+  }
+  // Calcular t local entre prev y next
+  const range = next.sp - prev.sp;
+  const localT = range > 0 ? smoothstep((sp - prev.sp) / range) : 0;
+  // Interpolar todas las propiedades
+  const result = {};
+  for (const key in prev) {
+    if (key === 'sp') continue;
+    result[key] = lerp(prev[key], next[key], localT);
+  }
+  return result;
+}
 let scrollProgress = 0;
 let scrollTarget = 0;
 function updateScroll() {
@@ -1246,27 +1354,81 @@ function animate() {
 
   const sp = scrollProgress;
 
-  // Rotación
-  whaleGroup.rotation.y = Math.PI * 0.18 + Math.sin(t * 0.15) * 0.25 + sp * Math.PI * 0.5;
-  whaleGroup.rotation.x = -0.10 + Math.sin(t * 0.1) * 0.06;
-  whaleGroup.position.y = Math.sin(t * 0.4) * 0.6;
+  // ★★★ COREOGRAFÍA: interpolación entre keyframes ★★★
+  const wk = getKeyframe(WHALE_KEYFRAMES, sp);
+  const ck = getKeyframe(CAMERA_KEYFRAMES, sp);
 
-  if (modelLoaded) {
-    whaleGroup.scale.setScalar(ae * (0.95 + sp * 0.25));
+  // Aplicar pose objetivo con interpolación suave (lerp adicional para evitar saltos)
+  // Floating sutil siempre presente (respiración)
+  const breath = Math.sin(t * 0.45) * 0.35;
+  const swayX = Math.cos(t * 0.30) * 0.15;
+  const swayRot = Math.sin(t * 0.22) * 0.08;
+
+  whaleGroup.position.y += (wk.posY + breath - whaleGroup.position.y) * 0.08;
+  whaleGroup.position.x += (wk.posX + swayX - whaleGroup.position.x) * 0.08;
+  whaleGroup.rotation.y += (wk.rotY + swayRot - whaleGroup.rotation.y) * 0.06;
+  whaleGroup.rotation.x += (wk.rotX - whaleGroup.rotation.x) * 0.06;
+
+  // Scale considera assemble inicial + keyframe scale
+  const targetScale = wk.scale * ae;
+  const currentScale = whaleGroup.scale.x;
+  whaleGroup.scale.setScalar(currentScale + (targetScale - currentScale) * 0.08);
+
+  // Cámara: interpolación suave a keyframes
+  camera.position.z += (ck.camZ - camera.position.z) * 0.04;
+  camera.position.y += (ck.camY - camera.position.y) * 0.04;
+  camera.lookAt(0, ck.camY * 0.3, 0);  // mirar ligeramente hacia el centro
+
+  // ★★★ Burbujas: ascienden lentamente, reset cuando salen arriba ★★★
+  for (const bubble of bubbles) {
+    bubble.position.y += bubble.userData.speed * dt * 1.5;
+    // Drift lateral sutil
+    bubble.position.x = bubble.userData.initX + Math.sin(t * 0.5 + bubble.userData.drift) * 0.5;
+    bubble.position.z = bubble.userData.initZ + Math.cos(t * 0.4 + bubble.userData.drift) * 0.3;
+    // Reset si salió por arriba
+    if (bubble.position.y > 12) {
+      bubble.position.y = -10 - Math.random() * 5;
+      bubble.userData.initX = (Math.random() - 0.5) * 30;
+      bubble.userData.initZ = (Math.random() - 0.5) * 15;
+    }
   }
 
-  // Dust orbital
-  dust.rotation.y += dt * 0.05;
+  // ★★★ Horizonte: visible cuando la ballena está cerca de la superficie del mar ★★★
+  // En el cover (sp 0) la ballena emerge → horizonte visible
+  // En Acto II (sp 0.3-0.7) la ballena está arriba → horizonte invisible
+  // En Acto III (sp 0.95-1.0) regresa → horizonte vuelve
+  let horizonOp = 0;
+  if (sp < 0.20) horizonOp = (1.0 - sp / 0.20) * 0.7;
+  else if (sp > 0.92) horizonOp = ((sp - 0.92) / 0.08) * 0.5;
+  horizonMat.opacity = horizonOp;
+  horizonGlowMat.opacity = horizonOp * 0.6;
 
-  // Camera zoom
-  const targetZ = 14 - sp * 4;
-  camera.position.z += (targetZ - camera.position.z) * 0.03;
-
-  // Aurora + canvas desvanecen al scrollear
+  // ★★★ Aurora: dinámica del horizonte ★★★
+  // Desvanece a medida que la ballena sube de la "superficie del mar"
+  // Pero NO desaparece del todo — se mantiene como ambiente
   if (aurora) {
-    aurora.style.opacity = String(Math.max(0, 1.0 - sp * 2.5));
+    // Acto I (0-25%): aurora full (estamos cerca del horizonte)
+    // Acto II (25-70%): aurora baja (estamos arriba del mar)
+    // Acto III (70-100%): aurora vuelve sutilmente (atardecer final)
+    let auroraOp;
+    if (sp < 0.25) {
+      auroraOp = 1.0 - sp * 1.2;  // de 1 → 0.7
+    } else if (sp < 0.70) {
+      auroraOp = 0.7 - (sp - 0.25) * 1.55;  // de 0.7 → 0
+    } else {
+      auroraOp = (sp - 0.70) * 1.5;  // de 0 → 0.45 (atardecer)
+    }
+    aurora.style.opacity = String(Math.max(0, Math.min(1, auroraOp)));
   }
-  canvas.style.opacity = String(Math.max(0, 1.0 - sp * 2.5));
+
+  // ★★★ Canvas: visible TODA la página (testigo de la historia) ★★★
+  // Solo opacity-shift sutil para que no compita con el contenido
+  let canvasOp = 1.0;
+  if (sp > 0.20 && sp < 0.95) {
+    // En las secciones de contenido, opacity baja a 0.85 para no competir
+    canvasOp = 0.85;
+  }
+  canvas.style.opacity = String(canvasOp);
 
   composer.render();
   requestAnimationFrame(animate);
