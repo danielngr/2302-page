@@ -90,43 +90,6 @@
     mix-blend-mode: multiply;
   }
 
-  /* ============================================================
-     CURSOR WAVES — Estilo Noomo
-     Círculos concéntricos blancos que aparecen al mover el cursor
-     y se expanden suavemente como ondas en agua. Sutiles, elegantes.
-     ============================================================ */
-  .cursor-wave {
-    position: fixed;
-    pointer-events: none;
-    z-index: 6;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    border: 1.5px solid rgba(255, 255, 255, 0.55);
-    transform: translate(-50%, -50%) scale(0.2);
-    opacity: 0;
-    mix-blend-mode: screen;
-    will-change: transform, opacity;
-  }
-  .cursor-wave.go {
-    animation: cursor-wave-anim 1.6s cubic-bezier(0.16, 0.84, 0.30, 1) forwards;
-  }
-  @keyframes cursor-wave-anim {
-    0% {
-      transform: translate(-50%, -50%) scale(0.2);
-      opacity: 0;
-      border-width: 1.5px;
-    }
-    15% {
-      opacity: 0.9;
-    }
-    100% {
-      transform: translate(-50%, -50%) scale(4.5);
-      opacity: 0;
-      border-width: 0.4px;
-    }
-  }
-
   /* LOADER */
   .loader {
     position: fixed;
@@ -1312,10 +1275,10 @@ composer.addPass(chromaticPass);
    ============================================================ */
 class WaterTexture {
   constructor() {
-    this.size = 64;
+    this.size = 96;
     this.points = [];        // ripples activos
-    this.maxAge = 64;        // cuánto viven (frames)
-    this.radius = 0.15;      // tamaño de cada ripple (en UV space)
+    this.maxAge = 90;        // ★ duran más tiempo (frames) — efecto perdura
+    this.radius = 0.22;      // ★ ripples más grandes en UV space
     this.last = null;        // último punto añadido (para momentum)
     
     this.canvas = document.createElement('canvas');
@@ -1420,17 +1383,18 @@ class WaterTexture {
 const waterTexture = new WaterTexture();
 
 /* ============================================================
-   WATER SHADER PASS — Toma el viewport renderizado y lo distorsiona
-   en base a los ripples del WaterTexture.
+   WATER SHADER PASS — Distorsión acuática real del viewport
    
-   Lectura: el canvas tiene info de dirección+fuerza por píxel.
-   El shader convierte eso en un offset de UV → distorsión visible.
+   Cuando mueves el cursor, el viewport completo se ondula como
+   superficie de agua siguiendo tu trayectoria. La distorsión es
+   visible (no sutil) y crea aberración cromática local — exactamente
+   el feel de Noomo storytelling.
    ============================================================ */
 const waterShader = {
   uniforms: {
-    tDiffuse: { value: null },          // El viewport actual
-    uWaterTexture: { value: waterTexture.texture },  // Nuestra textura de ripples
-    uStrength: { value: 0.035 }         // Sutil — no debe distraer
+    tDiffuse: { value: null },
+    uWaterTexture: { value: waterTexture.texture },
+    uStrength: { value: 0.12 }           // ★ MUCHO más fuerte para que se vea
   },
   vertexShader: `
     varying vec2 vUv;
@@ -1446,28 +1410,33 @@ const waterShader = {
     varying vec2 vUv;
     
     void main() {
-      // Leer info del WaterTexture en este píxel
-      // El canvas está flippeado en Y respecto al viewport, lo corregimos
+      // Y flip porque el canvas y el viewport tienen Y opuestos
       vec4 waterInfo = texture2D(uWaterTexture, vec2(vUv.x, 1.0 - vUv.y));
       
-      // Decodificar: R,G = dirección (centered en 0.5); B = fuerza
-      vec2 dir = waterInfo.rg * 2.0 - 1.0;  // [-1, 1]
+      // Decodificar dirección [-1, 1] y fuerza [0, 1]
+      vec2 dir = waterInfo.rg * 2.0 - 1.0;
       float force = waterInfo.b;
       
-      // Aplicar offset a las UVs originales = el viewport se "empuja"
-      // hacia donde fue el mouse, con intensidad = fuerza
+      // ★ Distorsión PRINCIPAL: empuja los píxeles en la dirección del movimiento
       vec2 distortedUv = vUv - dir * force * uStrength;
       
-      // Sampleamos el viewport en las UVs distorsionadas
-      // Para más feel acuático: chromatic aberration en la distorsión
-      float r = texture2D(tDiffuse, distortedUv + dir * force * uStrength * 0.15).r;
+      // ★ Aberración cromática FUERTE en zonas con ripple
+      // Esto da ese feel "prismático" del agua refractando luz
+      float chromaAmount = uStrength * 0.5;
+      float r = texture2D(tDiffuse, distortedUv + dir * force * chromaAmount).r;
       float g = texture2D(tDiffuse, distortedUv).g;
-      float b = texture2D(tDiffuse, distortedUv - dir * force * uStrength * 0.15).b;
+      float b = texture2D(tDiffuse, distortedUv - dir * force * chromaAmount).b;
       
-      // Brightening sutil donde hay ripple (luz refractada)
-      float highlight = force * 0.12;
+      // ★ Brillo extra donde hay distorsión (luz capturada en la curvatura del agua)
+      float highlight = force * 0.20;
       
-      gl_FragColor = vec4(r + highlight, g + highlight, b + highlight, 1.0);
+      // ★ Mezcla sutil con un tinte cyan-azul donde hay ripple
+      // como si el agua tuviera color al refractar
+      vec3 waterTint = vec3(0.7, 0.92, 1.0);  // azul cyan claro
+      vec3 baseColor = vec3(r, g, b);
+      vec3 finalColor = mix(baseColor + highlight, baseColor * waterTint + highlight, force * 0.3);
+      
+      gl_FragColor = vec4(finalColor, 1.0);
     }
   `
 };
@@ -1506,35 +1475,40 @@ composer.addPass(outputPass);
    Z (-15 al fondo, +5 al frente)
    ============================================================ */
 const WHALE_PATH = [
-  // 0% — Lejos al fondo, derecha-abajo (cola apenas visible por distancia)
-  { sp: 0.00, x:  6,   y: -2,   z: -14, roll:  0.0  },
+  // ★★★ MOVIMIENTO: ARRIBA → ABAJO conforme scrolleas ★★★
+  // Y POSITIVO = arriba en pantalla, Y NEGATIVO = abajo en pantalla
+  // La ballena empieza arriba en el fondo y va descendiendo en una espiral 3D
+  // pasando frente a cámara en el centro y alejándose hacia el fondo abajo.
   
-  // 10% — Empieza a moverse, sube ligeramente
-  { sp: 0.10, x:  4,   y: -1,   z: -11, roll: -0.04 },
+  // 0% — Arriba-derecha, lejos al fondo (apenas visible)
+  { sp: 0.00, x:  6,   y:  2.5,  z: -14, roll:  0.0  },
   
-  // 22% — Se acerca cruzando hacia el centro, todavía profundo
-  { sp: 0.22, x:  1,   y:  0,   z:  -7, roll: -0.08 },
+  // 10% — Empieza a descender, todavía profundo
+  { sp: 0.10, x:  4,   y:  1.5,  z: -11, roll: -0.04 },
   
-  // 35% — Sigue acercándose, lado izquierdo (Z ya cerca)
-  { sp: 0.35, x: -2,   y:  0.5, z:  -2, roll: -0.10 },
+  // 22% — Sigue bajando y acercándose, cruzando al centro
+  { sp: 0.22, x:  1,   y:  0.8,  z:  -7, roll: -0.08 },
+  
+  // 35% — Centro de pantalla, ya cerca de cámara
+  { sp: 0.35, x: -2,   y:  0,    z:  -2, roll: -0.10 },
   
   // 48% — ★ PASA FRENTE A CÁMARA ★ (más cerca y grande por perspectiva)
-  { sp: 0.48, x: -1,   y:  0.3, z:   4, roll: -0.05 },
+  { sp: 0.48, x: -1,   y: -0.3,  z:   4, roll: -0.05 },
   
-  // 58% — Empieza a alejarse cruzando a la derecha
-  { sp: 0.58, x:  2,   y:  1,   z:   0, roll:  0.10 },
+  // 58% — Cruza a la derecha, descendiendo
+  { sp: 0.58, x:  2,   y: -1,    z:   0, roll:  0.10 },
   
-  // 70% — Se va al fondo derecha-arriba
-  { sp: 0.70, x:  5,   y:  2,   z:  -8, roll:  0.12 },
+  // 70% — Sigue bajando, se aleja al fondo derecha
+  { sp: 0.70, x:  5,   y: -2,    z:  -8, roll:  0.12 },
   
-  // 80% — En el fondo profundo, cruzando lentamente a izquierda
-  { sp: 0.80, x:  2,   y:  2.5, z: -12, roll:  0.08 },
+  // 80% — Abajo en el fondo profundo, cruzando a izquierda
+  { sp: 0.80, x:  2,   y: -2.5,  z: -12, roll:  0.08 },
   
-  // 90% — Regresa acercándose desde el fondo
-  { sp: 0.90, x: -1,   y:  1,   z:  -5, roll:  0.04 },
+  // 90% — Regresa acercándose desde abajo
+  { sp: 0.90, x: -1,   y: -1,    z:  -5, roll:  0.04 },
   
-  // 100% — Vista cercana final, lado izquierdo
-  { sp: 1.00, x: -3,   y:  0,   z:   2, roll:  0.0  }
+  // 100% — Vista cercana final, abajo-izquierda
+  { sp: 1.00, x: -3,   y:  0,    z:   2, roll:  0.0  }
 ];
 
 const CAMERA_PATH = [
@@ -1780,76 +1754,7 @@ window.addEventListener('resize', () => {
 animate();
 </script>
 
-<script>
-/* ============================================================
-   CURSOR WAVES — Estilo Noomo Storytelling
-   
-   Al mover el cursor, emite círculos concéntricos blancos que se
-   expanden como ondas en agua. Throttling para no saturar (~120ms
-   entre emisiones, controlado también por distancia mínima).
-   
-   Independiente del water shader WebGL — los 2 conviven:
-   - Water shader: distorsiona el viewport en la zona del mouse
-   - Cursor waves: ondas blancas visibles, refuerzo visual del agua
-   ============================================================ */
-(function() {
-  const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-  if (isTouchDevice) return;
 
-  const POOL_SIZE = 14;
-  const MIN_DISTANCE = 70;       // px mínimos para emitir nueva onda
-  const MIN_INTERVAL = 110;      // ms mínimos entre emisiones
-  
-  // Pool reciclable de elementos
-  const pool = [];
-  for (let i = 0; i < POOL_SIZE; i++) {
-    const w = document.createElement('div');
-    w.className = 'cursor-wave';
-    document.body.appendChild(w);
-    pool.push(w);
-  }
-  let poolIdx = 0;
-  
-  let lastX = -9999, lastY = -9999;
-  let lastTime = 0;
-  
-  function emit(x, y) {
-    const w = pool[poolIdx];
-    poolIdx = (poolIdx + 1) % POOL_SIZE;
-    
-    // Reset (clonando el nodo reseteamos las animaciones)
-    w.classList.remove('go');
-    w.style.left = x + 'px';
-    w.style.top = y + 'px';
-    
-    // Forzar reflow para reiniciar la animación
-    void w.offsetWidth;
-    
-    w.classList.add('go');
-  }
-  
-  window.addEventListener('mousemove', (e) => {
-    const now = performance.now();
-    const dx = e.clientX - lastX;
-    const dy = e.clientY - lastY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    if (dist >= MIN_DISTANCE && (now - lastTime) >= MIN_INTERVAL) {
-      emit(e.clientX, e.clientY);
-      lastX = e.clientX;
-      lastY = e.clientY;
-      lastTime = now;
-    }
-  }, { passive: true });
-  
-  // Click: emisión extra grande (efecto splash)
-  window.addEventListener('click', (e) => {
-    emit(e.clientX, e.clientY);
-    // Segunda onda con delay para efecto eco
-    setTimeout(() => emit(e.clientX, e.clientY), 120);
-  }, { passive: true });
-})();
-</script>
 
 <script>
 // LOADER fade out
