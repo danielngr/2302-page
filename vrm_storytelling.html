@@ -738,6 +738,86 @@
   .split-text .reveal, .split-title .reveal { transform: none !important; opacity: 1 !important; }
 
   /* =============================================================
+     ANCHOR WORDS — Palabras-ancla gigantes entre secciones
+     Inspirado en transiciones cinemáticas de scroll horizontal.
+     ============================================================= */
+  .anchor-word {
+    position: relative;
+    height: 60vh;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    perspective: 1200px;
+    padding: 0;
+    z-index: 4;
+    background: linear-gradient(
+      to bottom,
+      rgba(13, 20, 40, 0) 0%,
+      rgba(13, 20, 40, 0.18) 50%,
+      rgba(13, 20, 40, 0) 100%
+    );
+  }
+
+  .anchor-word-text {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform-style: preserve-3d;
+    white-space: nowrap;
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: clamp(180px, 28vw, 420px);
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: rgba(245, 245, 242, 0.08);
+    -webkit-text-stroke: 1px rgba(245, 245, 242, 0.22);
+    will-change: transform;
+    transform: translate3d(-50%, -50%, 0);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .anchor-word.solid .anchor-word-text {
+    color: rgba(245, 245, 242, 0.42);
+    -webkit-text-stroke: 0;
+  }
+
+  .anchor-word-ticks {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(245, 245, 242, 0.15) 30%,
+      rgba(245, 245, 242, 0.15) 70%,
+      transparent 100%
+    );
+  }
+  .anchor-word-ticks.left  { left: 32px; }
+  .anchor-word-ticks.right { right: 32px; }
+
+  .anchor-word-label {
+    position: absolute;
+    top: 28px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: rgba(245, 245, 242, 0.30);
+    z-index: 2;
+  }
+  .anchor-word-label.left { left: 28px; }
+  .anchor-word-label.right { right: 28px; }
+
+  @media (max-width: 700px) {
+    .anchor-word { height: 40vh; }
+    .anchor-word-text { font-size: 30vw; }
+    .anchor-word-ticks, .anchor-word-label { display: none; }
+  }
+
+  /* =============================================================
      PROPIEDADES — Sección editorial + grid + filtros
      ============================================================= */
   .properties { position: relative; z-index: 4; padding: 0 0 200px; }
@@ -1146,6 +1226,15 @@
     </div>
   </section>
 
+  <!-- =========== ANCHOR WORD 1: BAHÍA =========== -->
+  <section class="anchor-word" data-anchor="bahia">
+    <div class="anchor-word-label left">— Donde vivimos</div>
+    <div class="anchor-word-label right">01 / 03</div>
+    <div class="anchor-word-ticks left"></div>
+    <div class="anchor-word-ticks right"></div>
+    <div class="anchor-word-text" data-anchor-text>Bahía</div>
+  </section>
+
   <!-- =========================================================
        SECCIÓN PROPIEDADES — Doble nivel
        (1) Editorial hero: 4 propiedades destacadas, una por viewport
@@ -1427,6 +1516,15 @@
     </div>
   </section>
 
+  <!-- =========== ANCHOR WORD 2: CASAS =========== -->
+  <section class="anchor-word" data-anchor="casas">
+    <div class="anchor-word-label left">— Curadas a mano</div>
+    <div class="anchor-word-label right">02 / 03</div>
+    <div class="anchor-word-ticks left"></div>
+    <div class="anchor-word-ticks right"></div>
+    <div class="anchor-word-text" data-anchor-text>Casas</div>
+  </section>
+
   <section class="reviews">
     <div class="reviews-list">
       <div class="review reveal">
@@ -1468,6 +1566,15 @@
         </div>
       </div>
     </div>
+  </section>
+
+  <!-- =========== ANCHOR WORD 3: VIVE =========== -->
+  <section class="anchor-word solid" data-anchor="vive">
+    <div class="anchor-word-label left">— Y la bahía se queda</div>
+    <div class="anchor-word-label right">03 / 03</div>
+    <div class="anchor-word-ticks left"></div>
+    <div class="anchor-word-ticks right"></div>
+    <div class="anchor-word-text" data-anchor-text>Vive</div>
   </section>
 
   <section class="final" id="final">
@@ -2902,6 +3009,61 @@ animate();
 
 
 <script>
+// ============================================================
+// ANCHOR WORDS — Scroll-linked horizontal parallax + 3D rotation
+// 
+// Cada palabra-ancla se mueve horizontalmente y rota sutilmente
+// en función de su posición relativa al centro del viewport.
+// Cuando la sección está entrando: la palabra viene de la derecha + rotada
+// Cuando está centrada: palabra en su posición natural
+// Cuando está saliendo: palabra se va a la izquierda + rotada al otro lado
+// ============================================================
+(() => {
+  const anchors = document.querySelectorAll('.anchor-word');
+  if (!anchors.length) return;
+
+  const PARALLAX_DISTANCE = 320;   // px máximos de desplazamiento horizontal
+  const ROTATION_MAX = 8;          // grados máximos de rotateY
+  const SKEW_MAX = 3;              // grados máximos de skew para "stretch" sutil
+
+  function update() {
+    const vh = window.innerHeight;
+    const vhHalf = vh * 0.5;
+
+    anchors.forEach((section) => {
+      const rect = section.getBoundingClientRect();
+      const sectionCenter = rect.top + rect.height * 0.5;
+      
+      // Solo procesar si la sección está cerca del viewport
+      if (rect.bottom < -100 || rect.top > vh + 100) return;
+      
+      // -1 = sección muy abajo, 0 = centrada, +1 = muy arriba
+      // (clamped a [-1, 1])
+      let progress = (vhHalf - sectionCenter) / (vh * 0.6);
+      progress = Math.max(-1, Math.min(1, progress));
+      
+      // Aplicar a la palabra:
+      // - translateX: -progress * distance (-1 → +320px derecha, +1 → -320px izquierda)
+      // - rotateY: -progress * rotation_max
+      // - skewX: progress * skew_max para "stretch" en dirección del movimiento
+      const text = section.querySelector('[data-anchor-text]');
+      if (!text) return;
+      
+      const tx = -progress * PARALLAX_DISTANCE;
+      const ry = -progress * ROTATION_MAX;
+      const sk = progress * SKEW_MAX;
+      
+      text.style.transform = 
+        `translate3d(calc(-50% + ${tx.toFixed(1)}px), -50%, 0) ` +
+        `rotateY(${ry.toFixed(2)}deg) ` +
+        `skewX(${sk.toFixed(2)}deg)`;
+    });
+    
+    requestAnimationFrame(update);
+  }
+  update();
+})();
+
 // PROPERTY GRID FILTERS
 (() => {
   const filters = document.querySelectorAll('.prop-filter');
