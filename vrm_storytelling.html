@@ -1822,11 +1822,11 @@ composer.addPass(chromaticPass);
    ============================================================ */
 class WaterTexture {
   constructor() {
-    this.size = 96;
-    this.points = [];        // ripples activos
-    this.maxAge = 90;        // ★ duran más tiempo (frames) — efecto perdura
-    this.radius = 0.22;      // ★ ripples más grandes en UV space
-    this.last = null;        // último punto añadido (para momentum)
+    this.size = 128;                // ★ subido (96→128) — más resolución en el flow field
+    this.points = [];               // ripples activos
+    this.maxAge = 180;              // ★ vida más larga (90→180) ≈ 3 segundos persistencia
+    this.radius = 0.28;             // ★ ripples más amplios (0.22→0.28) — más cobertura
+    this.last = null;
     
     this.canvas = document.createElement('canvas');
     this.canvas.width = this.canvas.height = this.size;
@@ -1840,23 +1840,21 @@ class WaterTexture {
   }
   
   addPoint(point) {
-    // point = { x: 0..1, y: 0..1 } en coordenadas UV
     let force = 0;
     let vx = 0, vy = 0;
     
     if (this.last) {
       const relativeX = point.x - this.last.x;
       const relativeY = point.y - this.last.y;
-      // Multiplicamos por screen size para que la fuerza tenga magnitud útil
-      const distanceSquared = relativeX * relativeX + relativeY * relativeY;
-      const distance = Math.sqrt(distanceSquared);
-      // Vector unitario de dirección
+      const distance = Math.sqrt(relativeX * relativeX + relativeY * relativeY);
       if (distance > 0) {
         vx = relativeX / distance;
         vy = relativeY / distance;
       }
-      // Fuerza alta y con piso mínimo para que SIEMPRE sea visible
-      force = Math.min(0.4 + distance * 100, 1);
+      // Fuerza más generosa — siempre escribe visible
+      force = Math.min(0.55 + distance * 100, 1);
+    } else {
+      force = 0.55;
     }
     this.last = { x: point.x, y: point.y };
     
@@ -1875,18 +1873,35 @@ class WaterTexture {
     this.ctx.fillStyle = 'black';
     this.ctx.fillRect(0, 0, this.size, this.size);
     
-    // Aplicar momentum a cada punto: avanza en su dirección
-    // pero más lento conforme envejece (decay).
+    // Aplicar momentum + DRIFT TURBULENTO a cada punto.
+    // Antes solo seguían su dirección original con decay. Ahora cada punto
+    // tiene una pequeña perturbación cíclica que simula turbulencia de fluido:
+    // los swirls que ves en humo o tinta en agua. Esto da el "fluid-feel".
     this.points.forEach((p, i) => {
       p.age += 1;
       if (p.age > this.maxAge) {
         this.points.splice(i, 1);
         return;
       }
-      // Decay del movimiento (cuanto más viejo, más lento se mueve)
+      
       const slowAsOlder = 1 - p.age / this.maxAge;
-      p.x += p.vx * slowAsOlder * 0.008;
-      p.y += p.vy * slowAsOlder * 0.008;
+      
+      // Momentum primario — el movimiento heredado del cursor
+      p.x += p.vx * slowAsOlder * 0.010;
+      p.y += p.vy * slowAsOlder * 0.010;
+      
+      // ★ DRIFT TURBULENTO — cada punto tiene su propio "swirl" único
+      // Usamos su posición + edad como semilla, da movimiento orgánico
+      // diferente por cada partícula. No es fluid sim real pero da el feel.
+      const swirl = p.age * 0.04 + p.x * 7.0 + p.y * 5.0;
+      const turbX = Math.sin(swirl) * 0.003;
+      const turbY = Math.cos(swirl * 1.3) * 0.003;
+      p.x += turbX * slowAsOlder;
+      p.y += turbY * slowAsOlder;
+      
+      // Drift global hacia arriba (como burbujas/tinta subiendo en agua quieta)
+      p.y -= 0.0008 * slowAsOlder;
+      
       this.drawPoint(p);
     });
     
@@ -1931,18 +1946,22 @@ class WaterTexture {
 const waterTexture = new WaterTexture();
 
 /* ============================================================
-   WATER SHADER PASS — Distorsión acuática real del viewport
+   WATER SHADER PASS — Distorsión marina con sensación de flow turbulento
    
-   Cuando mueves el cursor, el viewport completo se ondula como
-   superficie de agua siguiendo tu trayectoria. La distorsión es
-   visible (no sutil) y crea aberración cromática local — exactamente
-   el feel de Noomo storytelling.
+   3 capas que dan sensación de fluido marino:
+   1. Distorsión direccional del fondo (refracción del agua)
+   2. Aberración cromática prismática (la luz refracta en arcoíris sutil)
+   3. Turbulent shimmer — noise procedural que añade textura de "agua viva"
+      a la distorsión, así no se ve como un blob limpio
    ============================================================ */
 const waterShader = {
   uniforms: {
     tDiffuse: { value: null },
     uWaterTexture: { value: waterTexture.texture },
-    uStrength: { value: 0.12 }           // ★ MUCHO más fuerte para que se vea
+    uTime: { value: 0 },
+    uStrength: { value: 0.14 },          // distorsión principal
+    uChromaStrength: { value: 0.020 },   // aberración cromática prismática
+    uTurbulence: { value: 0.6 }          // intensidad de turbulencia secundaria
   },
   vertexShader: `
     varying vec2 vUv;
@@ -1954,8 +1973,34 @@ const waterShader = {
   fragmentShader: `
     uniform sampler2D tDiffuse;
     uniform sampler2D uWaterTexture;
+    uniform float uTime;
     uniform float uStrength;
+    uniform float uChromaStrength;
+    uniform float uTurbulence;
     varying vec2 vUv;
+    
+    // Noise procedural para añadir textura turbulenta de fluido
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+    }
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash(i + vec2(0,0)), hash(i + vec2(1,0)), u.x),
+                 mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), u.x), u.y);
+    }
+    // FBM — varias octavas de noise para flow orgánico
+    float fbm(vec2 p) {
+      float v = 0.0;
+      float a = 0.5;
+      for (int i = 0; i < 3; i++) {
+        v += a * noise(p);
+        p *= 2.0;
+        a *= 0.5;
+      }
+      return v;
+    }
     
     void main() {
       // Y flip porque el canvas y el viewport tienen Y opuestos
@@ -1965,24 +2010,48 @@ const waterShader = {
       vec2 dir = waterInfo.rg * 2.0 - 1.0;
       float force = waterInfo.b;
       
-      // ★ Distorsión PRINCIPAL: empuja los píxeles en la dirección del movimiento
+      // Si no hay flow aquí, render sin tocar (optimización)
+      if (force < 0.003) {
+        gl_FragColor = texture2D(tDiffuse, vUv);
+        return;
+      }
+      
+      // === 1. DISTORSIÓN DIRECCIONAL ===
+      // Empuja píxeles en dirección del flow (refracción del agua)
       vec2 distortedUv = vUv - dir * force * uStrength;
       
-      // ★ Aberración cromática FUERTE en zonas con ripple
-      // Esto da ese feel "prismático" del agua refractando luz
-      float chromaAmount = uStrength * 0.5;
-      float r = texture2D(tDiffuse, distortedUv + dir * force * chromaAmount).r;
+      // === 2. TURBULENCIA — flow noise procedural ===
+      // Añade textura turbulenta a la distorsión. Sin esto, la zona afectada
+      // se ve como un blob limpio. Con esto, se ve como agua viva con vortices.
+      // El noise se anima con uTime → la turbulencia "fluye" sola.
+      float n1 = fbm(vUv * 8.0 + uTime * 0.3 + dir * 2.0);
+      float n2 = fbm(vUv * 8.0 - uTime * 0.25 + 19.7);
+      vec2 turbOffset = vec2(n1 - 0.5, n2 - 0.5) * force * uStrength * uTurbulence;
+      distortedUv += turbOffset;
+      
+      // === 3. ABERRACIÓN CROMÁTICA PRISMÁTICA ===
+      // La luz se descompone al pasar por el agua — cada canal RGB con offset
+      // diferente. Esto crea el "bordito arcoíris" sutil característico del agua.
+      float chroma = uChromaStrength * force;
+      // Dirección de la aberración: ligeramente diferente para cada canal
+      vec2 chromaDir = normalize(dir + vec2(0.001));
+      float r = texture2D(tDiffuse, distortedUv + chromaDir * chroma * 1.6).r;
       float g = texture2D(tDiffuse, distortedUv).g;
-      float b = texture2D(tDiffuse, distortedUv - dir * force * chromaAmount).b;
-      
-      // ★ Brillo extra donde hay distorsión (luz capturada en la curvatura del agua)
-      float highlight = force * 0.20;
-      
-      // ★ Mezcla sutil con un tinte cyan-azul donde hay ripple
-      // como si el agua tuviera color al refractar
-      vec3 waterTint = vec3(0.7, 0.92, 1.0);  // azul cyan claro
+      float b = texture2D(tDiffuse, distortedUv - chromaDir * chroma * 1.6).b;
       vec3 baseColor = vec3(r, g, b);
-      vec3 finalColor = mix(baseColor + highlight, baseColor * waterTint + highlight, force * 0.3);
+      
+      // === 4. HIGHLIGHT — luz refractada en la curvatura ===
+      // El agua atrapa luz en sus crestas — esto añade brillo sutil
+      float highlight = force * 0.18 * (0.7 + n1 * 0.6);  // modulado por turbulencia
+      
+      // === 5. TINTE MARINO — el agua tiñe la luz refractada ===
+      // Cyan-turquesa sutil donde hay flow (el agua tiene color)
+      vec3 waterTint = vec3(0.78, 0.96, 1.05);  // cyan claro tropical
+      
+      // === COMPOSICIÓN FINAL ===
+      vec3 finalColor = mix(baseColor + highlight,
+                            baseColor * waterTint + highlight,
+                            force * 0.4);
       
       gl_FragColor = vec4(finalColor, 1.0);
     }
@@ -2208,6 +2277,9 @@ function animate() {
 
   // ★★★ Actualizar WaterTexture cada frame (los ripples envejecen) ★★★
   waterTexture.update();
+  
+  // ★ Animar la turbulencia del waterShader (flow noise se "mueve" solo)
+  waterShader.uniforms.uTime.value = t;
   
   // ★ Actualizar el shader del fondo animado (god rays + caustics + sparkles)
   bgMaterial.uniforms.uTime.value = t;
