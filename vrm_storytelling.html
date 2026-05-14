@@ -90,6 +90,43 @@
     mix-blend-mode: multiply;
   }
 
+  /* ============================================================
+     CURSOR WAVES — Estilo Noomo
+     Círculos concéntricos blancos que aparecen al mover el cursor
+     y se expanden suavemente como ondas en agua. Sutiles, elegantes.
+     ============================================================ */
+  .cursor-wave {
+    position: fixed;
+    pointer-events: none;
+    z-index: 6;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.55);
+    transform: translate(-50%, -50%) scale(0.2);
+    opacity: 0;
+    mix-blend-mode: screen;
+    will-change: transform, opacity;
+  }
+  .cursor-wave.go {
+    animation: cursor-wave-anim 1.6s cubic-bezier(0.16, 0.84, 0.30, 1) forwards;
+  }
+  @keyframes cursor-wave-anim {
+    0% {
+      transform: translate(-50%, -50%) scale(0.2);
+      opacity: 0;
+      border-width: 1.5px;
+    }
+    15% {
+      opacity: 0.9;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(4.5);
+      opacity: 0;
+      border-width: 0.4px;
+    }
+  }
+
   /* LOADER */
   .loader {
     position: fixed;
@@ -1452,40 +1489,62 @@ composer.addPass(outputPass);
 // La ballena empieza ASOMANDO desde la derecha (solo cola visible)
 // luego entra al frame nadando hacia el centro
 // luego serpentea suavemente hasta salir por la izquierda
+/* ============================================================
+   COREOGRAFÍA — Trayectoria espiral 3D continua
+   
+   La ballena nada en una trayectoria larga y continua:
+   - Empieza MUY al fondo (lejos en Z, pequeña visualmente)
+   - Se acerca cruzando lateralmente
+   - Pasa frente a la cámara (cerca, grande)
+   - Se aleja de nuevo al fondo
+   - Regresa cerca al final
+   
+   Los cambios en Z dan automáticamente la sensación de tamaño 
+   (perspectiva real), no necesitamos cambiar el scale.
+   
+   Espacio: X (-8 a +8 laterales), Y (-3 a +3 vertical),
+   Z (-15 al fondo, +5 al frente)
+   ============================================================ */
 const WHALE_PATH = [
-  // ★★★ PATH CON PROFUNDIDAD: la ballena pasa de fondo a frente y viceversa ★★★
-  // Z negativo = lejos (fondo), Z positivo = cerca (frente)
+  // 0% — Lejos al fondo, derecha-abajo (cola apenas visible por distancia)
+  { sp: 0.00, x:  6,   y: -2,   z: -14, roll:  0.0  },
   
-  // 0% — Asoma cola de costado derecho, en fondo medio
-  { sp: 0.00, x:  9,    y: -1.5, z: -2,   scale: 1.0,  roll:  0.0 },
-  // 8% — Empieza a acercarse al frente (Z sube)
-  { sp: 0.08, x:  6,    y: -0.8, z:  0,   scale: 1.0,  roll: -0.03 },
-  // 18% — Llega cerca de cámara, lado derecho (Z muy positivo, casi frente)
-  { sp: 0.18, x:  3,    y:  0.2, z:  3,   scale: 1.0,  roll: -0.08 },
-  // 30% — Empieza a alejarse hacia el fondo cruzando al centro
-  { sp: 0.30, x:  0.5,  y:  0.8, z: -2,   scale: 1.0,  roll: -0.12 },
-  // 42% — Lejos al fondo (vista panorámica de su tamaño en distancia)
-  { sp: 0.42, x: -2,    y:  1.5, z: -7,   scale: 1.0,  roll: -0.05 },
-  // 55% — Sube hacia la izquierda manteniéndose distante
-  { sp: 0.55, x: -3.5,  y:  2.5, z: -5,   scale: 1.0,  roll:  0.08 },
-  // 68% — Vuelve hacia cámara, cruzando diagonal
-  { sp: 0.68, x: -1.5,  y:  1,   z:  0,   scale: 1.0,  roll:  0.15 },
-  // 80% — Muy cerca, casi rozando la cámara, lado izquierdo
-  { sp: 0.80, x:  0.5,  y:  0,   z:  3.5, scale: 1.0,  roll:  0.12 },
-  // 92% — Centrada, frente, vista heroica
-  { sp: 0.92, x:  0,    y: -0.2, z:  2,   scale: 1.0,  roll:  0.04 },
-  // 100% — Se aleja descendiendo hacia el fondo izquierdo
-  { sp: 1.00, x: -6,    y: -2,   z: -3,   scale: 1.0,  roll:  0.08 }
+  // 10% — Empieza a moverse, sube ligeramente
+  { sp: 0.10, x:  4,   y: -1,   z: -11, roll: -0.04 },
+  
+  // 22% — Se acerca cruzando hacia el centro, todavía profundo
+  { sp: 0.22, x:  1,   y:  0,   z:  -7, roll: -0.08 },
+  
+  // 35% — Sigue acercándose, lado izquierdo (Z ya cerca)
+  { sp: 0.35, x: -2,   y:  0.5, z:  -2, roll: -0.10 },
+  
+  // 48% — ★ PASA FRENTE A CÁMARA ★ (más cerca y grande por perspectiva)
+  { sp: 0.48, x: -1,   y:  0.3, z:   4, roll: -0.05 },
+  
+  // 58% — Empieza a alejarse cruzando a la derecha
+  { sp: 0.58, x:  2,   y:  1,   z:   0, roll:  0.10 },
+  
+  // 70% — Se va al fondo derecha-arriba
+  { sp: 0.70, x:  5,   y:  2,   z:  -8, roll:  0.12 },
+  
+  // 80% — En el fondo profundo, cruzando lentamente a izquierda
+  { sp: 0.80, x:  2,   y:  2.5, z: -12, roll:  0.08 },
+  
+  // 90% — Regresa acercándose desde el fondo
+  { sp: 0.90, x: -1,   y:  1,   z:  -5, roll:  0.04 },
+  
+  // 100% — Vista cercana final, lado izquierdo
+  { sp: 1.00, x: -3,   y:  0,   z:   2, roll:  0.0  }
 ];
 
 const CAMERA_PATH = [
+  // Camera mayormente fija con sutiles ajustes para "respirar" con la escena
   { sp: 0.00, z: 10, y:  0,    fov: 45 },
-  { sp: 0.18, z: 9,  y:  0,    fov: 43 },  // close al pasar la ballena cerca
-  { sp: 0.42, z: 14, y:  0.5,  fov: 50 },  // pull back cuando está en el fondo
-  { sp: 0.68, z: 11, y:  0.3,  fov: 45 },
-  { sp: 0.80, z: 8,  y:  0,    fov: 42 },  // close cuando ballena está cerca
-  { sp: 0.92, z: 9,  y:  0,    fov: 42 },
-  { sp: 1.00, z: 11, y:  0,    fov: 45 }
+  { sp: 0.22, z: 10, y:  0,    fov: 45 },
+  { sp: 0.48, z: 10, y:  0,    fov: 44 },  // mínimo zoom cuando ballena cerca
+  { sp: 0.70, z: 11, y:  0.3,  fov: 47 },  // pull back al alejarse
+  { sp: 0.90, z: 10, y:  0,    fov: 45 },
+  { sp: 1.00, z: 10, y:  0,    fov: 44 }
 ];
 
 /* ============================================================
@@ -1501,42 +1560,18 @@ const CAMERA_PATH = [
 const _whaleVecs = WHALE_PATH.map(p => new THREE.Vector3(p.x, p.y, p.z));
 const _whaleCurve = new THREE.CatmullRomCurve3(_whaleVecs, false, 'catmullrom', 0.5);
 
-// Roll y scale por separado (no espaciales, así que mantenemos interpolación)
+// Roll separado (no espacial, interpolación simple)
 const _whaleRolls = WHALE_PATH.map(p => p.roll);
-const _whaleScales = WHALE_PATH.map(p => p.scale);
-const _whaleSps = WHALE_PATH.map(p => p.sp);
 
 function lerp(a, b, t) { return a + (b - a) * t; }
 function smoothstep(t) { return t * t * (3 - 2 * t); }
 
-// Easing más sofisticado que smoothstep
-// Smootherstep (Perlin) = 6t^5 - 15t^4 + 10t^3
+// Smootherstep (Perlin) = 6t^5 - 15t^4 + 10t^3 — derivadas continuas en extremos
 function smootherstep(t) {
   return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
-// Para roll y scale (no espaciales): interpolar entre los 2 keyframes vecinos
-function getScalarValue(values, sps, sp) {
-  let prevIdx = 0;
-  let nextIdx = values.length - 1;
-  for (let i = 0; i < sps.length - 1; i++) {
-    if (sp >= sps[i] && sp <= sps[i + 1]) {
-      prevIdx = i;
-      nextIdx = i + 1;
-      break;
-    }
-  }
-  const range = sps[nextIdx] - sps[prevIdx];
-  const localT = range > 0 ? smootherstep((sp - sps[prevIdx]) / range) : 0;
-  return lerp(values[prevIdx], values[nextIdx], localT);
-}
-
 function getPathPoint(path, sp) {
-  // Mapear sp [0,1] → t en la curva (también [0,1])
-  // Pero queremos que respete los timing de los keyframes...
-  // Solución: convertir sp a t-curva basado en posición de keyframes
-  
-  // Encontrar entre qué keyframes está
   let prevIdx = 0;
   let nextIdx = path.length - 1;
   for (let i = 0; i < path.length - 1; i++) {
@@ -1549,17 +1584,16 @@ function getPathPoint(path, sp) {
   const range = path[nextIdx].sp - path[prevIdx].sp;
   const localT = range > 0 ? smootherstep((sp - path[prevIdx].sp) / range) : 0;
   
-  // t global en la curva: entre prevIdx y nextIdx con smootherstep
+  // t global en la curva spline
   const tCurve = (prevIdx + localT) / (path.length - 1);
   
-  // Obtener posición en la curva
+  // Posición en la curva CatmullRom (continua, sin esquinas)
   const pos = _whaleCurve.getPoint(Math.max(0, Math.min(1, tCurve)));
   
-  // Roll y scale interpolados linealmente (con smoother)
+  // Roll interpolado
   const roll = lerp(_whaleRolls[prevIdx], _whaleRolls[nextIdx], localT);
-  const scale = lerp(_whaleScales[prevIdx], _whaleScales[nextIdx], localT);
   
-  return { x: pos.x, y: pos.y, z: pos.z, roll, scale };
+  return { x: pos.x, y: pos.y, z: pos.z, roll };
 }
 
 /**
@@ -1695,8 +1729,9 @@ function animate() {
   whaleGroup.rotation.x = lerpAngle(whaleGroup.rotation.x, targetPitch + dorsalBob, 0.06);
   whaleGroup.rotation.z = lerpAngle(whaleGroup.rotation.z, targetRoll + subtleSway, 0.05);
 
-  // Scale con assemble inicial
-  const targetScale = pose.scale * ae;
+  // Scale: solo el ramp del assemble inicial.
+  // El tamaño en pantalla viene de la PROFUNDIDAD real (Z) por perspectiva.
+  const targetScale = ae;
   const currentScale = whaleGroup.scale.x;
   whaleGroup.scale.setScalar(currentScale + (targetScale - currentScale) * 0.06);
 
@@ -1743,6 +1778,77 @@ window.addEventListener('resize', () => {
 });
 
 animate();
+</script>
+
+<script>
+/* ============================================================
+   CURSOR WAVES — Estilo Noomo Storytelling
+   
+   Al mover el cursor, emite círculos concéntricos blancos que se
+   expanden como ondas en agua. Throttling para no saturar (~120ms
+   entre emisiones, controlado también por distancia mínima).
+   
+   Independiente del water shader WebGL — los 2 conviven:
+   - Water shader: distorsiona el viewport en la zona del mouse
+   - Cursor waves: ondas blancas visibles, refuerzo visual del agua
+   ============================================================ */
+(function() {
+  const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  if (isTouchDevice) return;
+
+  const POOL_SIZE = 14;
+  const MIN_DISTANCE = 70;       // px mínimos para emitir nueva onda
+  const MIN_INTERVAL = 110;      // ms mínimos entre emisiones
+  
+  // Pool reciclable de elementos
+  const pool = [];
+  for (let i = 0; i < POOL_SIZE; i++) {
+    const w = document.createElement('div');
+    w.className = 'cursor-wave';
+    document.body.appendChild(w);
+    pool.push(w);
+  }
+  let poolIdx = 0;
+  
+  let lastX = -9999, lastY = -9999;
+  let lastTime = 0;
+  
+  function emit(x, y) {
+    const w = pool[poolIdx];
+    poolIdx = (poolIdx + 1) % POOL_SIZE;
+    
+    // Reset (clonando el nodo reseteamos las animaciones)
+    w.classList.remove('go');
+    w.style.left = x + 'px';
+    w.style.top = y + 'px';
+    
+    // Forzar reflow para reiniciar la animación
+    void w.offsetWidth;
+    
+    w.classList.add('go');
+  }
+  
+  window.addEventListener('mousemove', (e) => {
+    const now = performance.now();
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist >= MIN_DISTANCE && (now - lastTime) >= MIN_INTERVAL) {
+      emit(e.clientX, e.clientY);
+      lastX = e.clientX;
+      lastY = e.clientY;
+      lastTime = now;
+    }
+  }, { passive: true });
+  
+  // Click: emisión extra grande (efecto splash)
+  window.addEventListener('click', (e) => {
+    emit(e.clientX, e.clientY);
+    // Segunda onda con delay para efecto eco
+    setTimeout(() => emit(e.clientX, e.clientY), 120);
+  }, { passive: true });
+})();
 </script>
 
 <script>
