@@ -3627,12 +3627,19 @@ const WHALE_PATH = [
   // ───────── ACTO 3: EVASIÓN DE IMÁGENES (30-65%) ─────────
   // Zona PROPERTIES con 4 hero editorial GRANDES.
   // Movimiento por LATERALES en profundidad negativa — no tapa fotos.
+  // CRÍTICO: cada cambio de dirección con keyframe intermedio para evitar
+  // giros bruscos de 180°. La ballena curva, no rebota.
 
-  // 38% — Lateral profundo izquierdo (lejos)
+  // 38% — Lateral profundo izquierdo (lejos), nadando hacia -X-Z
   _kf(0.38, -3.5,-1.6,-4.5,  0.02),
-  // 48% — Curva amplia HACIA EL FONDO (gran arco bajo el grid editorial)
+  // 43% — Punto intermedio: ya casi al fondo, todavía hacia izquierda
+  _kf(0.43, -2.8,-2.1,-6.5,  0.06),
+  // 48% — Fondo izquierdo: anticipa giro hacia derecha (curva suave)
   _kf(0.48, -1.5,-2.4,-8.0,  0.08),
-  // 58% — Sale por la derecha pero MUY al fondo
+  // 53% — INTERMEDIO: cruza el eje vertical en el fondo, banking máximo
+  //       Este keyframe nuevo evita el giro de 180° brusco.
+  _kf(0.53,  0.0,-2.4,-8.2,  0.14),
+  // 58% — Sale por la derecha, sigue al fondo (ya recuperando dirección)
   _kf(0.58,  1.8,-2.2,-7.5,  0.12),
   // 65% — Lateral derecho profundo, subiendo gradualmente
   _kf(0.65,  3.2,-1.0,-5.5,  0.10),
@@ -3736,8 +3743,9 @@ let _smoothedBank = 0;
 
 // Última dirección de natación válida — se usa cuando la dirección actual
 // es demasiado pequeña (ballena casi quieta). Evita que el quaternion target
-// salte abruptamente cuando swim ≈ 0, lo que causaba voltearse de panza.
-const _lastValidSwim = { dx: 0, dy: 0, dz: -1 };  // default: mirando -Z
+// salte abruptamente cuando swim ≈ 0.
+// Valor inicial: el primer keyframe sobreescribirá esto en pre-init.
+const _lastValidSwim = { dx: 0, dy: 0, dz: 1 };
 
 // ════════════════════════════════════════════════════════════════════════
 // PRE-INICIALIZACIÓN — la ballena arranca EXACTAMENTE en pose hero correcta
@@ -3753,9 +3761,9 @@ const _lastValidSwim = { dx: 0, dy: 0, dz: -1 };  // default: mirando -Z
   const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
   const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
 
-  // Eye = posición, target = eye - direction (cabeza apunta a -Z)
+  // Eye = posición, target = eye + direction (mirar HACIA donde va, no al contrario)
   const initEye = new THREE.Vector3(a.x, a.y, a.z);
-  const initTarget = new THREE.Vector3(a.x - dx / len, a.y - dy / len, a.z - dz / len);
+  const initTarget = new THREE.Vector3(a.x + dx / len, a.y + dy / len, a.z + dz / len);
   const initUp = new THREE.Vector3(0, 1, 0);
   const initMat = new THREE.Matrix4().lookAt(initEye, initTarget, initUp);
   whaleGroup.quaternion.setFromRotationMatrix(initMat);
@@ -3967,11 +3975,14 @@ function animate() {
     useDz = _lastValidSwim.dz;
   }
 
-  // target = eye - direction (modelo cabeza -Z se ve correctamente)
+  // target = eye + direction (la ballena mira hacia donde nada)
+  // Antes estaba invertido (-direction) — eso hacía que nadara de reversa.
+  // El ajuste de model.rotation.y = -PI/2 ya alinea la cabeza correctamente,
+  // así que aquí solo queremos que el lookAt mire HACIA el target adelante.
   _whaleTarget.set(
-    pose.x - useDx,
-    pose.y - useDy,
-    pose.z - useDz
+    pose.x + useDx,
+    pose.y + useDy,
+    pose.z + useDz
   );
   _whaleMatTarget.lookAt(_whaleEye, _whaleTarget, _whaleUp);
   _whaleQuatTarget.setFromRotationMatrix(_whaleMatTarget);
@@ -4049,15 +4060,53 @@ function animate() {
   _whaleQuatSecondary.setFromEuler(_whaleEulerSecondary);
   _whaleQuatFinal.multiply(_whaleQuatSecondary);
 
-  // Slerp temporal — el quaternion actual avanza hacia el target completo.
-  // Esto evita saltos abruptos y elimina el drift acumulado.
-  const slerpFactor = Math.min(1, dt * 5.0);
+  // Slerp temporal con LIMITACIÓN DE VELOCIDAD ANGULAR.
+  // Problema sin esto: cuando el path tiene una curva fuerte, el target
+  // puede cambiar 90° en pocos % de scroll. Un slerp simple sigue el
+  // camino corto pero ejecuta esos 90° en ~10 frames (150ms) — se siente
+  // abrupto. Limitamos la velocidad angular máxima a ~40°/segundo para
+  // que los giros se sientan cinemáticamente pesados, como una ballena real.
+  //
+  // Cálculo:
+  //   1. Medimos el ángulo entre quaternion actual y final
+  //   2. Si el ángulo es grande, limitamos cuánto puede rotar este frame
+  //   3. Slerp interpolando solo la fracción permitida
+
+  // Ángulo entre quaternion actual y target final (en radianes)
+  const dotProduct = Math.abs(
+    whaleGroup.quaternion.x * _whaleQuatFinal.x +
+    whaleGroup.quaternion.y * _whaleQuatFinal.y +
+    whaleGroup.quaternion.z * _whaleQuatFinal.z +
+    whaleGroup.quaternion.w * _whaleQuatFinal.w
+  );
+  // Clamp por seguridad numérica
+  const clampedDot = Math.max(-1, Math.min(1, dotProduct));
+  // Ángulo es 2 * acos(|dot|) — la "distancia angular" entre dos quaternions
+  const angleToTarget = 2 * Math.acos(clampedDot);
+
+  // Velocidad angular máxima permitida (radianes por segundo)
+  // 0.7 rad/s ≈ 40°/seg — cinemático, no abrupto
+  const MAX_ANGULAR_SPEED = 0.7;
+  const maxRotationThisFrame = MAX_ANGULAR_SPEED * dt;
+
+  // Si el ángulo a rotar es mayor que lo permitido este frame,
+  // solo rotamos esa fracción. Si es menor, rotamos casi todo (suavizado).
+  let slerpFactor;
+  if (angleToTarget > maxRotationThisFrame && angleToTarget > 0.001) {
+    // Limitar: solo rotar maxRotationThisFrame de los angleToTarget pendientes
+    slerpFactor = maxRotationThisFrame / angleToTarget;
+  } else {
+    // Ángulo pequeño — slerp normal con suavizado dt-aware
+    slerpFactor = Math.min(1, dt * 3.0);
+  }
   whaleGroup.quaternion.slerp(_whaleQuatFinal, slerpFactor);
 
   // ───────── 6. POSICIÓN — lerp suave hacia target ─────────
-  whaleGroup.position.x += (pose.x - whaleGroup.position.x) * Math.min(1, dt * 5);
-  whaleGroup.position.y += (pose.y - whaleGroup.position.y) * Math.min(1, dt * 5);
-  whaleGroup.position.z += (pose.z - whaleGroup.position.z) * Math.min(1, dt * 5);
+  // Factor más bajo (3.5) que antes (5.0) para que el movimiento se sienta
+  // pesado/cinemático, no nervioso. La ballena tiene masa.
+  whaleGroup.position.x += (pose.x - whaleGroup.position.x) * Math.min(1, dt * 3.5);
+  whaleGroup.position.y += (pose.y - whaleGroup.position.y) * Math.min(1, dt * 3.5);
+  whaleGroup.position.z += (pose.z - whaleGroup.position.z) * Math.min(1, dt * 3.5);
 
   // ───────── 7. SCALE — assemble + respiración ─────────
   const targetScale = ae * breath;
