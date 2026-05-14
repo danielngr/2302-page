@@ -30,7 +30,11 @@
   html { scroll-behavior: smooth; }
   html, body {
     margin: 0; padding: 0;
-    background: var(--ink);
+    /* Fondo del body — un gradient sutil que complementa la aurora del cover */
+    background: linear-gradient(180deg,
+      #1a1428 0%,       /* arriba: cae a oscuro lavanda al salir del cover */
+      #050308 25%,      /* primera sección: prácticamente negro */
+      #050308 100%);    /* resto: negro */
     color: var(--paper);
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
@@ -51,43 +55,15 @@
     transition: opacity 0.6s var(--ease-soft);
   }
 
-  /* Aurora pastel + sol blanco central — fondo del cover detrás del WebGL */
+  /* Aurora pastel + sol blanco central — AHORA renderizada dentro de Three.js
+     como scene.background, no como CSS. Mantenemos el div en el DOM para no
+     romper el JS que escribe aurora.style.opacity, pero lo ocultamos. */
   .aurora {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
-    z-index: 1;  /* Por ENCIMA del body negro, por DEBAJO del canvas */
-    pointer-events: none;
-    background:
-      radial-gradient(circle 420px at 50% 38%,
-        rgba(255, 255, 255, 1) 0%,
-        rgba(255, 250, 240, 0.95) 8%,
-        rgba(255, 240, 230, 0.65) 18%,
-        rgba(255, 220, 220, 0.30) 32%,
-        rgba(216, 200, 232, 0) 55%),
-      radial-gradient(ellipse 120% 90% at 50% 45%,
-        #efe4f5 0%,
-        #d8c8e8 45%,
-        #b89dd0 100%);
-    opacity: 1;
-    transition: opacity 1s var(--ease-soft);
+    display: none;
   }
-
-  /* Canvas de la ballena debe estar ENCIMA del aurora */
-  .whale-canvas {
-    z-index: 2 !important;
-  }
-
+  /* Grain — también renderizada dentro del canvas Three.js (ver makeAuroraBackgroundTexture). */
   .grain {
-    position: fixed;
-    inset: 0;
-    z-index: 4;
-    pointer-events: none;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.45 0 0 0 0 0.55 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    opacity: 0.6;
-    mix-blend-mode: multiply;
+    display: none;
   }
 
   /* LOADER */
@@ -971,15 +947,11 @@ camera.position.set(0, 0.5, 9);
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
-  alpha: true,
   antialias: true,
-  powerPreference: 'high-performance',
-  premultipliedAlpha: false  // ★ FIX: para que el canvas deje ver la aurora detrás
+  powerPreference: 'high-performance'
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setClearColor(0x000000, 0);
-renderer.setClearAlpha(0);  // ★ explícito — algunos pasos de composer lo reescriben
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -987,6 +959,85 @@ renderer.toneMappingExposure = 1.05;
 /* ============================================================
    ENVIRONMENT MAP — Canvas procedural pasado por PMREMGenerator
    para que funcione con PBR (iridescencia, transmisión, etc)
+   ============================================================ */
+/* ============================================================
+   AURORA BACKGROUND TEXTURE — para scene.background (lo que se ve detrás)
+   Esta función pinta la aurora pastel en un canvas FLAT (no equirectangular),
+   que Three.js renderiza como fondo de la escena. Resuelve el problema de
+   transparencia con UnrealBloomPass.
+   ============================================================ */
+function makeAuroraBackgroundTexture() {
+  const w = 1920, h = 1080;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+
+  // Gradiente vertical base (cielo)
+  const baseGrad = ctx.createLinearGradient(0, 0, 0, h);
+  baseGrad.addColorStop(0.00, '#c8b0e0');   // top: lavanda saturada
+  baseGrad.addColorStop(0.35, '#d8c8e8');   // upper-mid: lavanda pastel
+  baseGrad.addColorStop(0.55, '#e8d8e8');   // mid: rosa-lavanda blanquecino
+  baseGrad.addColorStop(0.72, '#dce8f0');   // horizon: cyan muy claro
+  baseGrad.addColorStop(1.00, '#b8c8e0');   // bottom: azul-lavanda
+  ctx.fillStyle = baseGrad;
+  ctx.fillRect(0, 0, w, h);
+
+  function radial(x, y, r, color, alpha) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, color);
+    const a = alpha.toFixed(2);
+    g.addColorStop(0.5, color.replace(/[\d.]+\)$/, (alpha * 0.4).toFixed(2) + ')'));
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // SOL BLANCO central — el del screenshot Noomo
+  radial(w * 0.5, h * 0.38, 480, 'rgba(255,255,255,1)', 1.0);
+  radial(w * 0.5, h * 0.38, 240, 'rgba(255,255,255,1)', 1.0);
+  radial(w * 0.5, h * 0.38, 110, 'rgba(255,255,255,1)', 1.0);  // núcleo blow-out
+
+  // Halos iridiscentes alrededor del sol
+  radial(w * 0.5,  h * 0.38, 700, 'rgba(255,220,235,0.45)', 0.45);  // halo rosa
+  radial(w * 0.30, h * 0.55, 460, 'rgba(200,180,230,0.55)', 0.55);  // lavanda izq
+  radial(w * 0.70, h * 0.55, 460, 'rgba(180,210,240,0.55)', 0.55);  // azul pastel der
+  radial(w * 0.15, h * 0.30, 340, 'rgba(230,200,230,0.45)', 0.45);  // rosa-lavanda
+  radial(w * 0.85, h * 0.30, 340, 'rgba(200,220,245,0.45)', 0.45);  // cyan claro
+  radial(w * 0.45, h * 0.85, 380, 'rgba(220,210,240,0.40)', 0.40);  // lavanda baja
+
+  // Toques coral pastel (calidez sutil)
+  radial(w * 0.78, h * 0.18, 240, 'rgba(255,210,200,0.35)', 0.35);
+  radial(w * 0.22, h * 0.75, 240, 'rgba(255,215,225,0.30)', 0.30);
+
+  // GRAIN sutil — replica el `.grain` del CSS pero dentro del canvas
+  const grainPasses = 3000;
+  ctx.globalCompositeOperation = 'multiply';
+  for (let i = 0; i < grainPasses; i++) {
+    const x = Math.random() * w;
+    const y = Math.random() * h;
+    const v = 235 + Math.floor(Math.random() * 20);
+    ctx.fillStyle = `rgba(${v},${v},${v},0.4)`;
+    ctx.fillRect(x, y, 1, 1);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  const tx = new THREE.CanvasTexture(c);
+  tx.colorSpace = THREE.SRGBColorSpace;
+  tx.minFilter = THREE.LinearFilter;
+  tx.magFilter = THREE.LinearFilter;
+  return tx;
+}
+
+// ★ Aurora como background de la ESCENA (no CSS) — esto sí respeta el bloom pass
+const auroraBackground = makeAuroraBackgroundTexture();
+scene.background = auroraBackground;
+
+/* ============================================================
+   ENVIRONMENT MAP — para reflexiones PBR (iridescencia, transmission)
+   Sigue siendo equirectangular para que MeshPhysicalMaterial lo lea correcto.
+   Este NO se ve directamente: solo se refleja en la ballena.
    ============================================================ */
 function makeEnvironmentTexture() {
   const size = 1024;
@@ -1360,35 +1411,23 @@ const bubbles = [];  // array vacío para compatibilidad con loop
    Esto da el "glow" tipo fénix
    ============================================================ */
 /* ============================================================
-   POST-PROCESSING: BLOOM + transparency-aware composer
+   POST-PROCESSING: BLOOM
+   La aurora ahora vive como scene.background (dentro de Three.js),
+   por lo que el composer puede ser opaco normal y el bloom funciona limpio.
    ============================================================ */
-// ★ FIX CRÍTICO: render target con alpha real
-// Por defecto EffectComposer crea targets sin alpha → fondo negro tapa la aurora.
-// Le pasamos un RenderTarget explícito con format RGBA + type HalfFloat (HDR para bloom).
-const renderTarget = new THREE.WebGLRenderTarget(
-  window.innerWidth, window.innerHeight,
-  {
-    type: THREE.HalfFloatType,
-    format: THREE.RGBAFormat,
-    colorSpace: THREE.SRGBColorSpace,
-    samples: 0
-  }
-);
-const composer = new EffectComposer(renderer, renderTarget);
+const composer = new EffectComposer(renderer);
 composer.setSize(window.innerWidth, window.innerHeight);
 composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 const renderPass = new RenderPass(scene, camera);
-renderPass.clearAlpha = 0;  // ★ no rellenar con negro al limpiar
 composer.addPass(renderPass);
 
-// ★ Bloom MUCHO más sutil ahora que la transmisión + clearcoat ya brillan solos
-// Antes (0.75/1.0/0.35) tragaba la silueta entera y la convertía en blob.
+// Bloom sutil — solo refuerza highlights blow-out (sol central, bordes wet)
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.35,   // strength reducido a la mitad — solo refuerza, no domina
-  0.65,   // radius medio — halo suave pero no infinito
-  0.72    // threshold alto — solo los highlights blow-out (sol, bordes wet) brillan
+  0.55,   // strength medio — refuerza el sol y los bordes wet de la ballena
+  0.75,   // radius medio-amplio
+  0.65    // threshold alto — solo las zonas casi blancas brillan
 );
 composer.addPass(bloomPass);
 
