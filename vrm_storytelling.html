@@ -993,13 +993,15 @@ function makeEnvironmentTexture() {
   c.height = size;
   const ctx = c.getContext('2d');
 
-  // Fondo: cielo de mar profundo (azul gradient)
+  // ★ AURORA PASTEL (paleta Noomo): rosa → lavanda → cyan → blanco
+  // Este es el environment que el cristal REFRACTA. Lo que veas aquí
+  // es lo que verás en la ballena. Por eso son colores y no negro.
   const baseGrad = ctx.createLinearGradient(0, 0, 0, size);
-  baseGrad.addColorStop(0, '#1a2a4a');   // top: deep ocean
-  baseGrad.addColorStop(0.4, '#4a7ab0');  // mid: blue
-  baseGrad.addColorStop(0.6, '#88c0d8');  // horizon: light blue
-  baseGrad.addColorStop(0.8, '#c8e0e8');  // bright horizon
-  baseGrad.addColorStop(1, '#2a5070');    // bottom: deep water
+  baseGrad.addColorStop(0.00, '#c8b0e0');   // top: lavanda saturada (techo del cielo)
+  baseGrad.addColorStop(0.35, '#d8c8e8');   // upper-mid: lavanda pastel
+  baseGrad.addColorStop(0.55, '#e8d8e8');   // mid: rosa-lavanda blanquecino
+  baseGrad.addColorStop(0.72, '#dce8f0');   // horizon: cyan muy claro
+  baseGrad.addColorStop(1.00, '#b8c8e0');   // bottom: azul-lavanda
   ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, size * 2, size);
 
@@ -1014,18 +1016,23 @@ function makeEnvironmentTexture() {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // ★ SOL BLANCO PRINCIPAL — para los highlights iridiscentes en bordes
-  drawSun(size * 1.0, size * 0.40, 280, 'rgba(255,255,255,1)', 1.0);
-  drawSun(size * 1.0, size * 0.40, 140, 'rgba(255,255,255,1)', 1.0);
+  // ★ SOL BLANCO PRINCIPAL — equivalente al sun blanco central del cover Noomo
+  // Más grande y más intenso que antes — es la fuente de los highlights blancos
+  drawSun(size * 1.0, size * 0.35, 420, 'rgba(255,255,255,1)', 1.0);
+  drawSun(size * 1.0, size * 0.35, 220, 'rgba(255,255,255,1)', 1.0);
+  drawSun(size * 1.0, size * 0.35, 100, 'rgba(255,255,255,1)', 1.0);  // núcleo blow-out
 
-  // Soles fríos que tintean la ballena de azul/cyan/teal
-  drawSun(size * 0.35, size * 0.50, 320, 'rgba(120,200,255,0.85)', 0.85);  // cyan eléctrico
-  drawSun(size * 1.65, size * 0.50, 300, 'rgba(80,160,220,0.85)', 0.85);   // azul profundo
-  drawSun(size * 0.90, size * 0.78, 280, 'rgba(150,220,240,0.6)', 0.6);    // turquesa
-  drawSun(size * 0.55, size * 0.20, 220, 'rgba(180,220,255,0.7)', 0.7);    // cyan claro
+  // Halos iridiscentes alrededor del sol — rosa/lavanda/cyan (los colores que vimos en Noomo)
+  drawSun(size * 1.0, size * 0.35, 560, 'rgba(255,220,235,0.55)', 0.55);  // halo rosa
+  drawSun(size * 0.65, size * 0.55, 380, 'rgba(200,180,230,0.65)', 0.65); // lavanda
+  drawSun(size * 1.35, size * 0.55, 380, 'rgba(180,210,240,0.65)', 0.65); // azul pastel
+  drawSun(size * 0.45, size * 0.30, 240, 'rgba(230,200,230,0.55)', 0.55); // rosa-lavanda
+  drawSun(size * 1.55, size * 0.30, 240, 'rgba(200,220,245,0.55)', 0.55); // cyan claro
+  drawSun(size * 0.95, size * 0.70, 320, 'rgba(220,210,240,0.50)', 0.50); // lavanda baja
   
-  // Un toque cálido sutil (contraste) para que los reflejos no sean solo azules
-  drawSun(size * 1.45, size * 0.18, 180, 'rgba(255,200,140,0.45)', 0.45);  // dorado cálido
+  // Toque coral pastel (un breath de calidez para que no sea solo frío)
+  drawSun(size * 1.45, size * 0.20, 200, 'rgba(255,210,200,0.40)', 0.40);
+  drawSun(size * 0.55, size * 0.70, 200, 'rgba(255,215,225,0.35)', 0.35);
 
   const tx = new THREE.CanvasTexture(c);
   tx.mapping = THREE.EquirectangularReflectionMapping;
@@ -1044,28 +1051,32 @@ envTexture.dispose();
 pmremGenerator.dispose();
 
 /* ============================================================
-   ILUMINACIÓN COMPLEMENTARIA
-   El environment hace casi todo, pero añadimos luces para volumen
+   ILUMINACIÓN COMPLEMENTARIA — Match a la aurora pastel
+   
+   En el sitio Noomo NO hay sombras duras: la criatura está bañada en
+   luz ambiente. Bajamos las directionales para que el environment map
+   (PMREM) sea el protagonista de la iluminación.
    ============================================================ */
-scene.add(new THREE.AmbientLight(0xaabbdd, 0.45));  // ambient con tinte azul claro
+scene.add(new THREE.AmbientLight(0xe8d8e8, 0.55));  // ambient con tinte rosa-lavanda
 
-const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
-keyLight.position.set(5, 8, 6);
+// Key light: tenue, color del sol (cálido suave) — solo da volumen, no sombras
+const keyLight = new THREE.DirectionalLight(0xfff0e8, 0.6);
+keyLight.position.set(3, 6, 4);
 scene.add(keyLight);
 
-// Rim light cyan eléctrico (en lugar de rosa) - para tema cristal
-const rimLight = new THREE.DirectionalLight(0x66aaff, 1.6);
-rimLight.position.set(-8, 4, -2);
+// Rim light lavanda — el "halo" del lado opuesto
+const rimLight = new THREE.DirectionalLight(0xc8a8e0, 0.85);
+rimLight.position.set(-6, 3, -2);
 scene.add(rimLight);
 
-// Bottom light azul profundo - da volumen abajo
-const bottomLight = new THREE.DirectionalLight(0x2244aa, 0.8);
-bottomLight.position.set(0, -6, 4);
+// Bottom fill rosa pálido — un toque de calidez por debajo
+const bottomLight = new THREE.DirectionalLight(0xf0d8d8, 0.35);
+bottomLight.position.set(0, -4, 3);
 scene.add(bottomLight);
 
-// Fill light desde atrás-arriba con tono lavanda iridiscente
-const fillLight = new THREE.DirectionalLight(0xccaaff, 0.7);
-fillLight.position.set(2, 5, -8);
+// Top fill cyan claro — refuerza el techo iridiscente
+const fillLight = new THREE.DirectionalLight(0xb8d8f0, 0.4);
+fillLight.position.set(1, 5, -6);
 scene.add(fillLight);
 
 /* ============================================================
@@ -1079,19 +1090,23 @@ let modelLoaded = false;
 
 /* ============================================================
    PARÁMETROS DEL MATERIAL TIPO FÉNIX NOOMO
-   Estos son los valores mágicos que producen el efecto vidrio
-   iridiscente perlado que ves en Noomo.
-   ============================================================ */
-/* ============================================================
-   TÉCNICA NOOMO — Texturas iridiscentes generadas proceduralmente
    
-   Noomo NO usa MeshPhysicalMaterial con iridescencia procedural.
-   Usa texturas PINTADAS aplicadas como map + normalMap sobre un GLB
-   con MeshStandardMaterial. Esto da control total sobre el look.
+   Este es el cambio CRÍTICO. Antes usábamos MeshStandardMaterial con
+   texturas pintadas en canvas — eso da una superficie "decorada" pero
+   NO refracta luz. Noomo usa MeshPhysicalMaterial con:
    
-   Generamos las texturas aquí mismo con canvas 2D:
-   - createIridescentColorMap() → gradientes azul/cyan/violeta/rosa
-   - createIceNormalMap() → relieves tipo hielo cristalino
+   • transmission: la luz PASA a través (translúcido, no opaco)
+   • thickness: cuánto se distorsiona la luz al atravesar (grosor virtual)
+   • iridescence: efecto petróleo-en-agua REAL (depende del ángulo)
+   • clearcoat: capa de barniz brillante encima (los highlights "wet")
+   • envMapIntensity alto: la criatura refleja la aurora pastel del fondo
+   
+   Resultado: el color del fénix NO viene de un map pintado, viene del
+   environment. Por eso cambia cuando la criatura gira: es lo que da
+   "criatura mítica viva" en lugar de "modelo 3D coloreado".
+   
+   El normalMap procedural (createIceNormalMap) sigue siendo útil porque
+   le da el micro-relieve de "hielo cristalino" en superficie.
    ============================================================ */
 
 function createIridescentColorMap() {
@@ -1198,29 +1213,54 @@ function createIceNormalMap() {
   return tx;
 }
 
-// Generar las texturas UNA VEZ
-const irisColorTexture = createIridescentColorMap();
+// Generar la textura UNA VEZ — solo necesitamos el normalMap procedural
+// (el color ya no se pinta: viene del environment via transmission)
 const iceNormalTexture = createIceNormalMap();
 
 /* ============================================================
-   MATERIAL ESTILO NOOMO
-   MeshStandardMaterial simple, ligero, con texturas pintadas.
-   Sin iridescence/transmission/sheen costosos.
+   MATERIAL ESTILO FÉNIX NOOMO — MeshPhysicalMaterial
+   
+   No tiene `map` (color) porque el color VIENE del envMap.
+   No tiene `emissiveMap` porque el glow viene del bloom pass.
+   El normalMap es lo único pintado: da micro-relieve cristalino.
    ============================================================ */
-const STANDARD_PARAMS = {
-  map: irisColorTexture,        // Textura iridiscente pintada
-  normalMap: iceNormalTexture,  // Relieves de hielo
-  normalScale: new THREE.Vector2(0.4, 0.4),
+const PHYSICAL_PARAMS = {
+  // Color base: blanco con leve tinte lavanda. El environment hace el resto.
+  color: 0xf0e8f5,
   
-  metalness: 0.15,              // Ligero metálico para reflejos cristalinos
-  roughness: 0.25,              // Brillante pero no espejo
+  // ★ TRANSMISIÓN: la luz pasa a través. Esto convierte la ballena en cristal.
+  // Valores típicos para vidrio/cristal: 0.7 - 1.0
+  transmission: 0.85,
+  thickness: 0.6,            // grosor virtual — cuánto refracta
+  ior: 1.45,                  // índice de refracción (1.0 = aire, 1.33 = agua, 1.45 = vidrio, 2.4 = diamante)
+  attenuationColor: 0xc8b0e0, // tinte lavanda del interior (la luz se "tiñe" al pasar)
+  attenuationDistance: 1.2,
   
-  // Emisión sutil — la ballena tiene luz interior
-  emissive: 0x224488,
-  emissiveIntensity: 0.12,
-  emissiveMap: irisColorTexture, // El emissive usa el mismo color iridiscente
+  // ★ IRIDESCENCIA: efecto petróleo-en-agua (cambia con el ángulo)
+  // El secreto del look "perla/ópalo" de Noomo
+  iridescence: 1.0,            // intensidad máxima
+  iridescenceIOR: 1.3,
+  iridescenceThicknessRange: [100, 800],  // rango de "grosor" del film iridiscente en nanómetros
   
-  envMapIntensity: 1.4,
+  // ★ CLEARCOAT: capa de barniz brillante por encima
+  // Da los highlights "wet" sin afectar la transmisión
+  clearcoat: 0.85,
+  clearcoatRoughness: 0.12,
+  
+  // Superficie de cristal: poco metálica, muy lisa
+  metalness: 0.05,
+  roughness: 0.18,
+  
+  // ★ Normal map procedural — micro-relieve cristalino
+  normalMap: iceNormalTexture,
+  normalScale: new THREE.Vector2(0.25, 0.25),  // sutil — no queremos rugosidad fuerte
+  clearcoatNormalMap: iceNormalTexture,
+  clearcoatNormalScale: new THREE.Vector2(0.15, 0.15),
+  
+  // El env map domina la iluminación
+  envMapIntensity: 1.6,
+  
+  // Render ambos lados — necesario para transmission (la luz entra y sale)
   side: THREE.DoubleSide,
 };
 
@@ -1237,21 +1277,22 @@ function loadGLB() {
       const model = gltf.scene;
       console.info('✓ GLB cargado');
 
-      // ★★★ TÉCNICA NOOMO: MeshStandardMaterial con texturas pintadas ★★★
+      // ★★★ TÉCNICA NOOMO REAL: MeshPhysicalMaterial con transmission + iridescence ★★★
+      // El color del fénix VIENE DEL ENVIRONMENT (aurora pastel), no de un map pintado.
+      // Por eso la criatura cambia de color al moverse: refracta lo que tiene detrás.
       let hasSkinnedMesh = false;
       model.traverse((child) => {
         if (child.isMesh) {
           const isSkinned = child.isSkinnedMesh === true;
           if (isSkinned) hasSkinnedMesh = true;
 
-          // MeshStandardMaterial — soporta skinning + es mucho más barato
-          // que Physical. La iridescencia viene de la TEXTURA, no del shader.
-          const mat = new THREE.MeshStandardMaterial(STANDARD_PARAMS);
+          // MeshPhysicalMaterial — soporta skinning + transmission + iridescence (r158+)
+          const mat = new THREE.MeshPhysicalMaterial(PHYSICAL_PARAMS);
 
           child.material = mat;
           child.castShadow = false;
           child.receiveShadow = false;
-          // NO recomputar normales — preservar las del autor
+          // NO recomputar normales — preservar las del autor del GLB
         }
       });
       console.info('SkinnedMesh detectado:', hasSkinnedMesh);
@@ -1326,18 +1367,20 @@ composer.addPass(renderPass);
 
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.9,    // strength medio-alto para que el halo se vea
-  0.95,   // radius alto = halo MUY suave y extenso
-  0.78    // threshold alto = solo highlights muy brillantes brillan
+  0.75,   // strength medio — el bloom suma luz, no debe lavar la imagen
+  1.0,    // radius amplio — halo extendido tipo Noomo (no halo punto)
+  0.35    // threshold BAJO — más píxeles brillan suavemente (no solo los blow-outs)
 );
 composer.addPass(bloomPass);
 
 // ★★★ CHROMATIC ABERRATION custom pass ★★★
-// Crea separación RGB tipo lente real — el toque cinematográfico de Noomo
+// Aberración radial sutil — refuerza la sensación de "lente real". Ahora que el
+// material físico tiene iridescencia/transmission propia, este pass va MÁS BAJO
+// que antes para no ensuciar el look (de 0.0008 a 0.0004).
 const chromaticAberrationShader = {
   uniforms: {
     tDiffuse: { value: null },
-    uOffset: { value: new THREE.Vector2(0.0008, 0.0008) },
+    uOffset: { value: new THREE.Vector2(0.0004, 0.0004) },
     uTime: { value: 0 }
   },
   vertexShader: `
