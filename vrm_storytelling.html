@@ -738,83 +738,46 @@
   .split-text .reveal, .split-title .reveal { transform: none !important; opacity: 1 !important; }
 
   /* =============================================================
-     ANCHOR WORDS — Palabras-ancla gigantes entre secciones
-     Inspirado en transiciones cinemáticas de scroll horizontal.
+     WHALE-ANCHORED WORDS — Texto gigante 3D integrado con ballena
+     
+     Overlay sobre el canvas WebGL (z-index 2) — encima del fondo marino
+     pero "visualmente detrás" de la ballena gracias a:
+     • mix-blend-mode: soft-light → se integra con el fondo
+     • Opacity controlada por scroll → aparece/desaparece en momentos clave
      ============================================================= */
-  .anchor-word {
-    position: relative;
-    height: 60vh;
-    display: flex;
-    align-items: center;
+  .whale-anchor-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    perspective: 1400px;
     overflow: hidden;
-    perspective: 1200px;
-    padding: 0;
-    z-index: 4;
-    background: linear-gradient(
-      to bottom,
-      rgba(13, 20, 40, 0) 0%,
-      rgba(13, 20, 40, 0.18) 50%,
-      rgba(13, 20, 40, 0) 100%
-    );
+    mix-blend-mode: soft-light;
   }
 
-  .anchor-word-text {
+  .whale-anchor-word {
     position: absolute;
     left: 50%;
     top: 50%;
-    transform-style: preserve-3d;
     white-space: nowrap;
     font-family: 'Cormorant Garamond', serif;
     font-weight: 400;
     font-style: italic;
-    font-size: clamp(180px, 28vw, 420px);
-    line-height: 0.9;
+    font-size: clamp(220px, 32vw, 480px);
+    line-height: 0.85;
     letter-spacing: -0.04em;
-    color: rgba(245, 245, 242, 0.08);
-    -webkit-text-stroke: 1px rgba(245, 245, 242, 0.22);
-    will-change: transform;
+    color: rgba(255, 255, 255, 0.92);
+    will-change: transform, opacity;
     transform: translate3d(-50%, -50%, 0);
-    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
     user-select: none;
+    transform-style: preserve-3d;
+    transition: visibility 0.25s linear;
   }
-
-  .anchor-word.solid .anchor-word-text {
-    color: rgba(245, 245, 242, 0.42);
-    -webkit-text-stroke: 0;
-  }
-
-  .anchor-word-ticks {
-    position: absolute;
-    top: 0; bottom: 0;
-    width: 1px;
-    background: linear-gradient(
-      to bottom,
-      transparent 0%,
-      rgba(245, 245, 242, 0.15) 30%,
-      rgba(245, 245, 242, 0.15) 70%,
-      transparent 100%
-    );
-  }
-  .anchor-word-ticks.left  { left: 32px; }
-  .anchor-word-ticks.right { right: 32px; }
-
-  .anchor-word-label {
-    position: absolute;
-    top: 28px;
-    font-family: 'Inter Tight', sans-serif;
-    font-size: 10px;
-    letter-spacing: 0.24em;
-    text-transform: uppercase;
-    color: rgba(245, 245, 242, 0.30);
-    z-index: 2;
-  }
-  .anchor-word-label.left { left: 28px; }
-  .anchor-word-label.right { right: 28px; }
 
   @media (max-width: 700px) {
-    .anchor-word { height: 40vh; }
-    .anchor-word-text { font-size: 30vw; }
-    .anchor-word-ticks, .anchor-word-label { display: none; }
+    .whale-anchor-word { font-size: 36vw; }
   }
 
   /* =============================================================
@@ -1158,6 +1121,17 @@
   </div>
 
   <canvas class="whale-canvas" id="whale-canvas"></canvas>
+
+  <!-- ===========================================================
+       WHALE-ANCHORED WORDS — Palabras gigantes 3D que aparecen
+       detrás de la ballena en momentos clave del scroll.
+       Sincronizado con scrollProgress vía window.__vrmScroll
+       =========================================================== -->
+  <div class="whale-anchor-overlay" id="whale-anchor-overlay" aria-hidden="true">
+    <div class="whale-anchor-word" data-anchor="bahia">Bahía</div>
+    <div class="whale-anchor-word" data-anchor="casas">Casas</div>
+    <div class="whale-anchor-word" data-anchor="vive">Vive</div>
+  </div>
   <div class="aurora" id="aurora"></div>
   <div class="grain"></div>
 
@@ -1224,15 +1198,6 @@
         </div>
       </div>
     </div>
-  </section>
-
-  <!-- =========== ANCHOR WORD 1: BAHÍA =========== -->
-  <section class="anchor-word" data-anchor="bahia">
-    <div class="anchor-word-label left">— Donde vivimos</div>
-    <div class="anchor-word-label right">01 / 03</div>
-    <div class="anchor-word-ticks left"></div>
-    <div class="anchor-word-ticks right"></div>
-    <div class="anchor-word-text" data-anchor-text>Bahía</div>
   </section>
 
   <!-- =========================================================
@@ -1516,15 +1481,6 @@
     </div>
   </section>
 
-  <!-- =========== ANCHOR WORD 2: CASAS =========== -->
-  <section class="anchor-word" data-anchor="casas">
-    <div class="anchor-word-label left">— Curadas a mano</div>
-    <div class="anchor-word-label right">02 / 03</div>
-    <div class="anchor-word-ticks left"></div>
-    <div class="anchor-word-ticks right"></div>
-    <div class="anchor-word-text" data-anchor-text>Casas</div>
-  </section>
-
   <section class="reviews">
     <div class="reviews-list">
       <div class="review reveal">
@@ -1566,15 +1522,6 @@
         </div>
       </div>
     </div>
-  </section>
-
-  <!-- =========== ANCHOR WORD 3: VIVE =========== -->
-  <section class="anchor-word solid" data-anchor="vive">
-    <div class="anchor-word-label left">— Y la bahía se queda</div>
-    <div class="anchor-word-label right">03 / 03</div>
-    <div class="anchor-word-ticks left"></div>
-    <div class="anchor-word-ticks right"></div>
-    <div class="anchor-word-text" data-anchor-text>Vive</div>
   </section>
 
   <section class="final" id="final">
@@ -2886,6 +2833,8 @@ function animate() {
 
   // Lerp suave del scroll target (solo eso)
   scrollProgress += (scrollTarget - scrollProgress) * 0.06;
+  // Exponer para sistema de palabras-ancla (módulo standalone)
+  window.__vrmScroll = scrollProgress;
   assembleProgress = Math.min(1, assembleProgress + dt * 0.5);
   const ae = 1 - Math.pow(1 - assembleProgress, 3);
 
@@ -3010,50 +2959,81 @@ animate();
 
 <script>
 // ============================================================
-// ANCHOR WORDS — Scroll-linked horizontal parallax + 3D rotation
+// WHALE-ANCHORED WORDS — Texto gigante 3D que aparece detrás de la
+// ballena en momentos clave del scroll. Sincronizado con scrollProgress
+// global del módulo Three.js (window.__vrmScroll).
+//
+// 3 palabras-ancla en puntos del scroll del cover:
+//   • "Bahía" → visible durante scroll 5%–25%
+//   • "Casas" → visible durante scroll 50%–70%
+//   • "Vive"  → visible durante scroll 80%–100%
 // 
-// Cada palabra-ancla se mueve horizontalmente y rota sutilmente
-// en función de su posición relativa al centro del viewport.
-// Cuando la sección está entrando: la palabra viene de la derecha + rotada
-// Cuando está centrada: palabra en su posición natural
-// Cuando está saliendo: palabra se va a la izquierda + rotada al otro lado
+// Cada una rota en 3D (rotateY + perspective), se desplaza horizontalmente
+// y aparece/desaparece con fade smooth — la ballena nada AL FRENTE.
 // ============================================================
 (() => {
-  const anchors = document.querySelectorAll('.anchor-word');
-  if (!anchors.length) return;
+  const overlay = document.getElementById('whale-anchor-overlay');
+  if (!overlay) return;
+  const words = overlay.querySelectorAll('.whale-anchor-word');
+  if (!words.length) return;
 
-  const PARALLAX_DISTANCE = 320;   // px máximos de desplazamiento horizontal
-  const ROTATION_MAX = 8;          // grados máximos de rotateY
-  const SKEW_MAX = 3;              // grados máximos de skew para "stretch" sutil
+  // Rangos de visibilidad por palabra (scroll progress 0..1 del cover)
+  const RANGES = {
+    bahia: { start: 0.04, peak: 0.13, end: 0.26 },
+    casas: { start: 0.48, peak: 0.58, end: 0.70 },
+    vive:  { start: 0.78, peak: 0.88, end: 1.00 }
+  };
+
+  const PARALLAX_DISTANCE = 280;
+  const ROTATION_MAX = 14;
+  const SKEW_MAX = 4;
+
+  function smoothFade(t, range) {
+    // t = scroll progress
+    // Devuelve [progress -1..+1, opacity 0..1]
+    // progress: -1 al inicio del rango, 0 en peak, +1 al final
+    if (t < range.start || t > range.end) return { p: 0, o: 0 };
+    
+    let progress, opacity;
+    if (t < range.peak) {
+      const k = (t - range.start) / (range.peak - range.start);  // 0..1
+      progress = -1 + k;            // -1 → 0
+      opacity = k;                  // 0 → 1
+    } else {
+      const k = (t - range.peak) / (range.end - range.peak);     // 0..1
+      progress = k;                 // 0 → +1
+      opacity = 1 - k;              // 1 → 0
+    }
+    // Easing cuadrática para fade suave
+    opacity = opacity * opacity * (3 - 2 * opacity);
+    return { p: progress, o: opacity };
+  }
 
   function update() {
-    const vh = window.innerHeight;
-    const vhHalf = vh * 0.5;
+    const t = window.__vrmScroll || 0;
 
-    anchors.forEach((section) => {
-      const rect = section.getBoundingClientRect();
-      const sectionCenter = rect.top + rect.height * 0.5;
+    words.forEach((word) => {
+      const key = word.dataset.anchor;
+      const range = RANGES[key];
+      if (!range) return;
+
+      const { p, o } = smoothFade(t, range);
       
-      // Solo procesar si la sección está cerca del viewport
-      if (rect.bottom < -100 || rect.top > vh + 100) return;
+      if (o < 0.01) {
+        word.style.opacity = '0';
+        word.style.visibility = 'hidden';
+        return;
+      }
       
-      // -1 = sección muy abajo, 0 = centrada, +1 = muy arriba
-      // (clamped a [-1, 1])
-      let progress = (vhHalf - sectionCenter) / (vh * 0.6);
-      progress = Math.max(-1, Math.min(1, progress));
+      word.style.visibility = 'visible';
+      word.style.opacity = o.toFixed(3);
       
-      // Aplicar a la palabra:
-      // - translateX: -progress * distance (-1 → +320px derecha, +1 → -320px izquierda)
-      // - rotateY: -progress * rotation_max
-      // - skewX: progress * skew_max para "stretch" en dirección del movimiento
-      const text = section.querySelector('[data-anchor-text]');
-      if (!text) return;
+      // Movimiento horizontal + rotación 3D
+      const tx = -p * PARALLAX_DISTANCE;
+      const ry = -p * ROTATION_MAX;
+      const sk = p * SKEW_MAX;
       
-      const tx = -progress * PARALLAX_DISTANCE;
-      const ry = -progress * ROTATION_MAX;
-      const sk = progress * SKEW_MAX;
-      
-      text.style.transform = 
+      word.style.transform = 
         `translate3d(calc(-50% + ${tx.toFixed(1)}px), -50%, 0) ` +
         `rotateY(${ry.toFixed(2)}deg) ` +
         `skewX(${sk.toFixed(2)}deg)`;
