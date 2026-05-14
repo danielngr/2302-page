@@ -3649,14 +3649,19 @@ const WHALE_PATH = [
   _kf(0.82,  0.0, 1.6, 0.0, -0.06),
 
   // ───────── ACTO 5: REAPARICIÓN (85-94%) ─────────
-  // Zona REVIEWS — texto largo, vuelve al centro elegantemente.
-  _kf(0.88, -0.8, 0.8, 1.5, -0.08),
-  _kf(0.94,  0.3, 0.6, 2.5, -0.10),
+  // Zona REVIEWS — texto largo, vuelve al centro elegantemente PERO LEJOS.
+  _kf(0.88, -1.2, 0.5, -2.0, -0.08),
+  _kf(0.94,  0.5, 0.4, -3.0, -0.10),
 
-  // ───────── ACTO 6: POSE FINAL ESTATUA VIVA (94-100%) ─────────
-  // CTA final — flota centrada, 3/4 hacia viewer, ligero arqueo.
-  _kf(0.97,  0.1, 0.7, 3.1, -0.14),
-  _kf(1.00,  0.0, 0.75,3.3, -0.16)
+  // ───────── ACTO 6: POSE FINAL CINEMATOGRÁFICA (94-100%) ─────────
+  // CTA final — la ballena vive ALEJADA al fondo, casi como un horizonte
+  // distante. NO tapa el copy ni los botones. Es presencia, no protagonista.
+  // Movimiento lateral horizontal suave para que el yaw no rote hacia cámara.
+
+  // 97% — Lateral desplazándose suavemente
+  _kf(0.97,  1.8, 0.3, -3.5, -0.12),
+  // 100% — Posición final: distante, lateral, en perfil estable
+  _kf(1.00,  2.8, 0.2, -4.0, -0.14)
 ];
 
 // ════════════════════════════════════════════════════════════════════════
@@ -3716,6 +3721,7 @@ const CAMERA_PATH = [
 // ════════════════════════════════════════════════════════════════════════
 // Objetos persistentes para evitar allocations en el animate loop.
 const _whaleQuatTarget = new THREE.Quaternion();
+const _whaleQuatFinal = new THREE.Quaternion();
 const _whaleMatTarget = new THREE.Matrix4();
 const _whaleEye = new THREE.Vector3();
 const _whaleTarget = new THREE.Vector3();
@@ -3727,6 +3733,11 @@ const _whaleEulerSecondary = new THREE.Euler(0, 0, 0, 'XYZ');
 
 // Smoothed banking — persiste entre frames, no salta abruptamente
 let _smoothedBank = 0;
+
+// Última dirección de natación válida — se usa cuando la dirección actual
+// es demasiado pequeña (ballena casi quieta). Evita que el quaternion target
+// salte abruptamente cuando swim ≈ 0, lo que causaba voltearse de panza.
+const _lastValidSwim = { dx: 0, dy: 0, dz: -1 };  // default: mirando -Z
 
 // ════════════════════════════════════════════════════════════════════════
 // PRE-INICIALIZACIÓN — la ballena arranca EXACTAMENTE en pose hero correcta
@@ -3756,6 +3767,12 @@ let _smoothedBank = 0;
 
   // Inicializar el smoothed bank con el roll artístico del frame 0
   _smoothedBank = a.roll;
+
+  // Inicializar _lastValidSwim con la dirección del primer tramo
+  // (de a hacia b normalizada). Esto evita problemas en el primer frame.
+  _lastValidSwim.dx = dx / len;
+  _lastValidSwim.dy = dy / len;
+  _lastValidSwim.dz = dz / len;
 }
 
 /* ============================================================
@@ -3812,8 +3829,27 @@ function getPathPoint(path, sp) {
  * Usa derivada de la curva en lugar de diferencia finita — más preciso.
  */
 function getSwimDirection(path, sp) {
-  const ahead = Math.min(0.999, sp + 0.015);
-  const behind = Math.max(0.001, sp - 0.015);
+  // Lookahead/behind asimétrico — siempre buscamos vector forward de la curva
+  // Si estamos cerca del final (sp ≈ 1), miramos atrás un rango más amplio
+  // para mantener la dirección de natación que TENÍA antes de llegar al final.
+  // Si estamos al inicio (sp ≈ 0), miramos adelante.
+  const LOOKAHEAD_RANGE = 0.04;  // 4% de scroll — suficiente para tener señal
+
+  let ahead, behind;
+  if (sp >= 1.0 - LOOKAHEAD_RANGE) {
+    // Cerca del final — usar el último tramo significativo
+    ahead = 1.0;
+    behind = 1.0 - LOOKAHEAD_RANGE;
+  } else if (sp <= LOOKAHEAD_RANGE) {
+    // Cerca del inicio — usar el primer tramo significativo
+    ahead = LOOKAHEAD_RANGE;
+    behind = 0.0;
+  } else {
+    // Medio — derivada centrada
+    ahead = Math.min(0.999, sp + LOOKAHEAD_RANGE / 2);
+    behind = Math.max(0.001, sp - LOOKAHEAD_RANGE / 2);
+  }
+
   const future = getPathPoint(path, ahead);
   const past = getPathPoint(path, behind);
   return {
@@ -3909,23 +3945,34 @@ function animate() {
   // La Matrix4.lookAt construye una rotación bien definida desde estos
   // 3 vectores (eye, target, up), sin gimbal lock ni saltos abruptos.
   //
-  // El +PI virtual: si nuestro modelo tiene la cabeza apuntando a -Z por
-  // convención, debemos invertir la dirección de natación. Lo conseguimos
-  // poniendo el target ATRÁS del eye (eye - swim), no adelante.
+  // CRÍTICO: si swim es muy pequeño (ballena casi quieta), usamos la
+  // ÚLTIMA dirección válida — NO recalculamos, eso causaba voltearse de
+  // panza cuando el path tenía pose final estática.
   _whaleEye.set(pose.x, pose.y, pose.z);
-  // Normalizar dirección de natación (evita problemas si swim es muy pequeño)
   const swimLen = Math.sqrt(swim.dx * swim.dx + swim.dy * swim.dy + swim.dz * swim.dz);
-  if (swimLen > 0.0001) {
-    // target = eye - swim_normalizado (modelo cabeza -Z se ve correctamente)
-    _whaleTarget.set(
-      pose.x - swim.dx / swimLen,
-      pose.y - swim.dy / swimLen,
-      pose.z - swim.dz / swimLen
-    );
+
+  let useDx, useDy, useDz;
+  if (swimLen > 0.02) {
+    // Swim significativo — actualizar última dirección válida
+    useDx = swim.dx / swimLen;
+    useDy = swim.dy / swimLen;
+    useDz = swim.dz / swimLen;
+    _lastValidSwim.dx = useDx;
+    _lastValidSwim.dy = useDy;
+    _lastValidSwim.dz = useDz;
   } else {
-    // Sin movimiento — usar dirección anterior (target apenas adelante en -Z)
-    _whaleTarget.set(pose.x, pose.y, pose.z - 1);
+    // Swim casi cero — mantener última dirección válida (no voltearse)
+    useDx = _lastValidSwim.dx;
+    useDy = _lastValidSwim.dy;
+    useDz = _lastValidSwim.dz;
   }
+
+  // target = eye - direction (modelo cabeza -Z se ve correctamente)
+  _whaleTarget.set(
+    pose.x - useDx,
+    pose.y - useDy,
+    pose.z - useDz
+  );
   _whaleMatTarget.lookAt(_whaleEye, _whaleTarget, _whaleUp);
   _whaleQuatTarget.setFromRotationMatrix(_whaleMatTarget);
 
@@ -3974,23 +4021,25 @@ function animate() {
   // "RESPIRACIÓN" — escala oscila ±0.8% (más sutil que antes)
   const breath = 1.0 + Math.sin(t * 0.42) * 0.008;
 
-  // ───────── 4. SLERP TEMPORAL HACIA EL TARGET ─────────
-  // Slerp con factor dt-aware. A 60fps con dt=0.016, factor=0.10
-  // significa que tardamos ~10 frames (167ms) en alcanzar el target.
-  // ESTO ES LO QUE ELIMINA LOS GIROS SOBRE SÍ MISMA: el quaternion
-  // siempre toma el camino más corto en 4D, no en cada eje por separado.
-  const slerpFactor = Math.min(1, dt * 6.0);
-  whaleGroup.quaternion.slerp(_whaleQuatTarget, slerpFactor);
+  // ───────── 4. CONSTRUIR QUATERNION FINAL — desde cero cada frame ─────────
+  // CRÍTICO: si acumulamos multiplicaciones frame tras frame sobre el
+  // quaternion del frame anterior, el drift acumulado hace que la ballena
+  // gire incorrectamente. La solución es construir el quaternion completo
+  // desde cero cada frame:
+  //   1. Empezar con target (orientación del path)
+  //   2. Aplicar banking encima
+  //   3. Aplicar secondary motion encima
+  //   4. SLERP el quaternion actual hacia este resultado
 
-  // ───────── 5. APLICAR BANKING + SECONDARY MOTION LOCAL ─────────
-  // El banking y secondary motion se aplican como rotaciones LOCALES
-  // sobre el quaternion ya orientado por el slerp. Esto es como
-  // "inclinar la nave mientras vuela" — independiente de la dirección.
+  // Construir target completo en quaternion persistente (sin GC)
+  _whaleQuatFinal.copy(_whaleQuatTarget);
+
+  // Aplicar banking (roll local sobre eje Z)
   _whaleEulerBank.set(0, 0, _smoothedBank + bodySway, 'XYZ');
   _whaleQuatBank.setFromEuler(_whaleEulerBank);
-  whaleGroup.quaternion.multiply(_whaleQuatBank);
+  _whaleQuatFinal.multiply(_whaleQuatBank);
 
-  // Secondary motion: yaw (cola) + pitch (lomo) + shimmer
+  // Aplicar secondary motion (pitch + yaw locales)
   _whaleEulerSecondary.set(
     dorsalBob + microShimmer,
     tailUndulation,
@@ -3998,7 +4047,12 @@ function animate() {
     'XYZ'
   );
   _whaleQuatSecondary.setFromEuler(_whaleEulerSecondary);
-  whaleGroup.quaternion.multiply(_whaleQuatSecondary);
+  _whaleQuatFinal.multiply(_whaleQuatSecondary);
+
+  // Slerp temporal — el quaternion actual avanza hacia el target completo.
+  // Esto evita saltos abruptos y elimina el drift acumulado.
+  const slerpFactor = Math.min(1, dt * 5.0);
+  whaleGroup.quaternion.slerp(_whaleQuatFinal, slerpFactor);
 
   // ───────── 6. POSICIÓN — lerp suave hacia target ─────────
   whaleGroup.position.x += (pose.x - whaleGroup.position.x) * Math.min(1, dt * 5);
