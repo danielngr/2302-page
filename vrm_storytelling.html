@@ -2929,6 +2929,12 @@ scene.add(whaleGroup);
 let mixer = null;
 let modelLoaded = false;
 
+// Array que recolecta todas las referencias a materiales de la ballena
+// cuando carga el GLB. Lo usamos en el animate loop para modular la opacidad
+// (fade out al scrollear) sin tener que escalar el grupo (lo cual hacía
+// que la ballena se viera "diminuta arriba" en lugar de desvanecerse).
+const whaleMaterials = [];
+
 /* ============================================================
    PARÁMETROS DEL MATERIAL TIPO FÉNIX NOOMO
    
@@ -3145,23 +3151,34 @@ function loadGLB() {
           }
 
           // MeshPhysicalMaterial — soporta skinning + transmission + iridescence (r158+)
+          // transparent: true + opacity para que podamos hacer fade out al scrollear
+          // sin tener que encoger la ballena (que se ve como "se hace diminuta").
           const mat = new THREE.MeshPhysicalMaterial({
             ...PHYSICAL_PARAMS,
             flatShading: true,  // ★ Cada triángulo refleja luz independiente = facetas
+            transparent: true,
+            opacity: 1.0,
           });
 
           child.material = mat;
           child.castShadow = false;
           child.receiveShadow = false;
+
+          // Trackear el material para poder modular su opacidad desde el animate loop
+          whaleMaterials.push(mat);
         }
       });
-      console.info('SkinnedMesh detectado:', hasSkinnedMesh);
+      console.info('SkinnedMesh detectado:', hasSkinnedMesh, '· Materials:', whaleMaterials.length);
 
       // Auto-fit
+      // CALIBRADO: targetSize bajado de 11 a 5.5 — en pose hero estática
+      // (z=3.2 con cámara a z=9.5, distancia efectiva ~6.3u, FOV 42°),
+      // una escala de 11 hacía que la ballena tapara el logo VRM gigante.
+      // Con 5.5, queda como presencia escultórica al lado del logo, no encima.
       const bbox = new THREE.Box3().setFromObject(model);
       const size = bbox.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
-      const targetSize = 11;
+      const targetSize = 5.5;
       const scale = targetSize / maxDim;
       model.scale.setScalar(scale);
       const center = bbox.getCenter(new THREE.Vector3()).multiplyScalar(scale);
@@ -3575,14 +3592,25 @@ composer.addPass(outputPass);
      T=2.2+      LOCKED en pose hero. Empiezan respiración + drift.
    ════════════════════════════════════════════════════════════════════════ */
 
-// Posición hero exacta — calibrada en chat anterior, arriba-derecha del logo VRM.
-// En mobile, comprimimos x (62%) y subimos y para que entre bien en portrait.
+// Posición hero exacta — calibrada para que la ballena quede AL LADO del logo
+// VRM (no encima, no fuera de cuadro). 
+// 
+// Cálculo del viewport visible a la distancia z=3.2 con cámara a z=9.5 y FOV=42°:
+//   distancia = 9.5 - 3.2 = 6.3
+//   half_height = tan(21°) * 6.3 ≈ 2.42u
+//   half_width = half_height * aspect_ratio (≈2.0 desktop) ≈ 4.83u
+//
+// Con targetSize=5.5 (~5.5u por dimensión), la ballena ocupa ~2.75u a cada
+// lado de su centro. HERO_POSE.x=1.5 deja ~1.6u entre el borde de la ballena
+// y el borde derecho del viewport — espacio respirable, no se sale.
+// HERO_POSE.y=0.4 sube ligeramente para que quede al lado del logo VRM
+// (que está centrado verticalmente) sin tapar el subtítulo de abajo.
 const _heroXScale = isMobile ? 0.55 : 1.0;
-const _heroYOffset = isMobile ? 0.3 : 0.0;
+const _heroYOffset = isMobile ? 0.25 : 0.0;
 
 const HERO_POSE = {
-  x: 2.0 * _heroXScale,
-  y: 0.9 + _heroYOffset,
+  x: 1.5 * _heroXScale,
+  y: 0.4 + _heroYOffset,
   z: 3.2,
   roll: -0.12   // ligera inclinación artística — la pose "hero"
 };
@@ -3859,14 +3887,17 @@ function animate() {
   // adicional encima causaba saltos transitorios al cambiar revealEased
   // rápidamente. Después del reveal (revealEased >= 1.0), aplicamos drift
   // orgánico encima del hero pose, también de forma directa.
+  //
+  // CRÍTICO: la posición NO se afecta por scrollFade. La ballena se queda
+  // donde está y solo se vuelve transparente. Achicarla la haría "encoger
+  // arriba a la derecha" en lugar de desvanecerse elegantemente.
   // ════════════════════════════════════════════════════════════════════
   const baseX = lerp(REVEAL_FROM.x, HERO_POSE.x, revealEased);
   const baseY = lerp(REVEAL_FROM.y, HERO_POSE.y, revealEased);
   const baseZ = lerp(REVEAL_FROM.z, HERO_POSE.z, revealEased);
 
-  // Drift solo se aplica una vez que el reveal está esencialmente completo,
-  // multiplicado por la fracción del reveal para que entre suavemente.
-  const driftFactor = revealEased * scrollFade;
+  // Drift orgánico solo cuando ya estamos en hero pose (escalado por revealEased)
+  const driftFactor = revealEased;
 
   whaleGroup.position.x = baseX + driftX * driftFactor;
   whaleGroup.position.y = baseY + driftY * driftFactor;
@@ -3903,19 +3934,31 @@ function animate() {
   whaleGroup.quaternion.slerp(_whaleQuatFinal, Math.min(1, dt * 3.0));
 
   // ════════════════════════════════════════════════════════════════════
-  // SCALE — ASIGNACIÓN DIRECTA, sin lerp adicional.
+  // SCALE — ASIGNACIÓN DIRECTA. Solo reveal × breath (NO scrollFade).
   // 
-  // `revealEased` ya es nuestro suavizado cinematográfico (easeOutCubic).
-  // El doble lerp (easing × lerp temporal) causaba transitorios visibles:
-  // la ballena "saltaba a diminuto" antes de estabilizarse. Quitamos el
-  // lerp y usamos el valor de easeOutCubic directamente.
-  //
-  // breath y scrollFade son multiplicadores adicionales — operan en
-  // rangos muy pequeños (breath ±0.6%, scrollFade rampea suavemente),
-  // así que no necesitan suavizado propio.
+  // `revealEased` es nuestro suavizado cinematográfico (easeOutCubic).
+  // breath es ±0.6% — vida sutil de respiración.
+  // scrollFade NO entra aquí: si lo hace, achica la ballena al scrollear,
+  // creando el efecto "diminuta arriba a la derecha". En su lugar,
+  // scrollFade afecta solo la OPACIDAD del material (ver abajo).
   // ════════════════════════════════════════════════════════════════════
-  const finalScale = revealEased * breath * scrollFade;
+  const finalScale = revealEased * breath;
   whaleGroup.scale.setScalar(finalScale);
+
+  // ════════════════════════════════════════════════════════════════════
+  // OPACIDAD — fade out al scrollear, sin cambiar el tamaño.
+  // 
+  // Iteramos sobre todos los materiales del modelo y modulamos opacity.
+  // El material ya tiene transparent: true desde la carga del GLB.
+  // ════════════════════════════════════════════════════════════════════
+  if (whaleMaterials.length > 0) {
+    // Opacidad final: reveal × scrollFade. Durante el reveal, va de 0→1.
+    // Al scrollear, va de 1→0 suavemente con smootherstep.
+    const targetOpacity = revealEased * scrollFade;
+    for (let i = 0; i < whaleMaterials.length; i++) {
+      whaleMaterials[i].opacity = targetOpacity;
+    }
+  }
 
   // ════════════════════════════════════════════════════════════════════
   // LUCES ROTANDO — la "vida iridiscente real" del cristal.
