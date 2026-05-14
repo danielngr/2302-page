@@ -1168,13 +1168,14 @@ const bgMaterial = new THREE.ShaderMaterial({
   uniforms: {
     uTime: { value: 0 },
     uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-    // Paleta vertical: lavanda → cyan medio → turquesa → casi-negro
-    uColorTop:    { value: new THREE.Color(0x9c8cc8) },  // lavanda VRM (preserva branding)
-    uColorUpper:  { value: new THREE.Color(0x4a78a8) },  // azul medio transición
-    uColorMid:    { value: new THREE.Color(0x1a6890) },  // cyan turquesa
-    uColorDeep:   { value: new THREE.Color(0x083050) },  // azul muy profundo
-    uColorAbyss:  { value: new THREE.Color(0x020a18) },  // casi negro al fondo
-    uRayColor:    { value: new THREE.Color(0xe8f4ff) }   // rayos blanco azulado frío
+    // Paleta tropical submarina real (inspirada en foto National Geographic):
+    // cyan claro arriba → cyan medio → azul medio → azul profundo
+    // SIN abismo negro — agua tropical clara, no batiscafo
+    uColorSurface: { value: new THREE.Color(0x88c8d8) },  // cyan claro turquesa arriba
+    uColorUpper:   { value: new THREE.Color(0x4090b0) },  // cyan medio
+    uColorMid:     { value: new THREE.Color(0x1f6890) },  // azul cyan
+    uColorDeep:    { value: new THREE.Color(0x0c3870) },  // azul profundo (no negro)
+    uRayColor:     { value: new THREE.Color(0xeaf4ff) }   // rayos blanco frío sutil
   },
   vertexShader: `
     varying vec2 vUv;
@@ -1188,11 +1189,10 @@ const bgMaterial = new THREE.ShaderMaterial({
     
     uniform float uTime;
     uniform vec2 uResolution;
-    uniform vec3 uColorTop;
+    uniform vec3 uColorSurface;
     uniform vec3 uColorUpper;
     uniform vec3 uColorMid;
     uniform vec3 uColorDeep;
-    uniform vec3 uColorAbyss;
     uniform vec3 uRayColor;
     
     varying vec2 vUv;
@@ -1213,7 +1213,7 @@ const bgMaterial = new THREE.ShaderMaterial({
     float fbm(vec2 p) {
       float v = 0.0;
       float a = 0.5;
-      for (int i = 0; i < 5; i++) {
+      for (int i = 0; i < 4; i++) {
         v += a * noise(p);
         p *= 2.0;
         a *= 0.5;
@@ -1221,90 +1221,58 @@ const bgMaterial = new THREE.ShaderMaterial({
       return v;
     }
     
-    // === GOD RAYS — dispersión volumétrica (no líneas geométricas) ===
-    // Técnica: cada rayo es una franja vertical anche-arriba/angosta-abajo,
-    // pero su INTENSIDAD se modula con noise vertical de baja frecuencia.
-    // Resultado: el rayo parece "destellos de luz en polvo flotando",
-    // no un triángulo plano.
-    float godRays(vec2 uv, float t) {
-      float totalRays = 0.0;
+    // === SUAVES GOD RAYS ATMOSFÉRICOS ===
+    // Inspirado en foto submarina real: rayos ANCHOS, DIFUSOS, SUTILES.
+    // No los haces marcados estilo "shaft of light" — son más como
+    // bandas de claridad lateral atravesando el agua azul.
+    // Técnica: noise vertical de baja frecuencia + modulación por anchura.
+    float softRays(vec2 uv, float t) {
+      // Coordenadas con drift sutil (el agua "respira")
+      vec2 p = vec2(uv.x * 3.0, uv.y * 0.8);
       
-      // 8 rayos distribuidos a lo largo del top
-      for (int i = 0; i < 8; i++) {
-        float fi = float(i);
-        
-        // Posición X del rayo en el top (distribuidos 0.05 a 0.95)
-        // con drift orgánico animado (la superficie invisible "respira")
-        float originX = 0.05 + fi * 0.128 + sin(t * 0.13 + fi * 1.9) * 0.022;
-        
-        // Tilt mínimo para que no todos sean perfectamente verticales
-        // (variación sutil por rayo, mas natural)
-        float tilt = (hash(vec2(fi, 7.3)) - 0.5) * 0.08;
-        
-        // Distancia perpendicular del pixel al eje del rayo
-        // Con tilt: el eje del rayo no es vertical puro, sino con inclinación tilt
-        float depthFromTop = 1.0 - uv.y;  // 0 arriba, 1 abajo
-        float rayCenterX = originX + tilt * depthFromTop;
-        float perpDist = abs(uv.x - rayCenterX);
-        
-        // Width del rayo: estrecho arriba, se ensancha sutilmente al descender
-        // (la luz se difunde con la profundidad)
-        float baseWidth = 0.008 + depthFromTop * 0.030;
-        
-        // Core del rayo: smoothstep para edges suaves
-        float rayCore = smoothstep(baseWidth, 0.0, perpDist);
-        
-        // ★ FADE EXPONENCIAL CON LA PROFUNDIDAD ★
-        // Los rayos son DRAMÁTICOS arriba y se DESVANECEN al fondo
-        // como la luz solar real perdiendo intensidad en el agua
-        float depthFade = pow(1.0 - depthFromTop, 1.8);  // curva exponencial
-        
-        // ★ NOISE VERTICAL que modula la intensidad del rayo ★
-        // Esto es lo que hace que se vea como "polvo iluminado" en lugar
-        // de un triángulo geométrico. Las zonas brillantes son "particles
-        // capturando luz", las zonas oscuras son "huecos sin polvo".
-        // Frecuencia diferente por rayo + animación en Y
-        float dustFreq = 12.0 + fi * 3.0;
-        float dustNoise = fbm(vec2(uv.x * 4.0, uv.y * dustFreq - t * 0.4 + fi * 11.0));
-        dustNoise = pow(dustNoise, 1.5);  // contraste — zonas brillantes más definidas
-        
-        // Combinar: rayCore × depthFade × dustNoise
-        // Sin dustNoise sería plano. Con dustNoise tiene textura volumétrica.
-        float intensity = rayCore * depthFade * mix(0.3, 1.2, dustNoise);
-        
-        totalRays += intensity;
-      }
+      // Patrón de bandas verticales: noise FBM con frecuencia mayor en X que en Y
+      // → bandas alargadas verticales (como rayos atmosféricos)
+      float band1 = fbm(p + vec2(0.0, -t * 0.06));
+      float band2 = fbm(p * 1.7 + vec2(50.3, -t * 0.04));
       
-      return min(totalRays, 1.5);
+      // Combinación: las zonas donde ambas son altas son los "rayos brillantes"
+      float rays = band1 * band2;
+      rays = pow(rays, 1.6);  // contraste — define más los rayos
+      
+      // ★ Fade exponencial con la profundidad (más débiles abajo)
+      float depthFade = pow(uv.y, 0.7);  // curva suave, sigue visible al fondo
+      
+      // Atenuación lateral: los rayos están más concentrados en el centro
+      // (NO en bordes — como en una vista submarina natural)
+      float lateralFade = 1.0 - pow(abs(uv.x - 0.5) * 1.6, 2.5);
+      lateralFade = max(0.0, lateralFade);
+      
+      return rays * depthFade * lateralFade;
     }
     
-    // === PARTÍCULAS FLOTANTES ===
-    // Pequeñas chispas suspendidas en el agua que driftan lentamente
-    // hacia arriba (como burbujas microscópicas o plancton iluminado).
+    // === PARTÍCULAS SUSPENDIDAS (PLANCTON) ===
+    // Pequeñas motas blancas suspendidas en el agua que driftean MUY lento
+    // hacia arriba. No parpadean fuerte — solo sutiles puntos de luz.
     float particles(vec2 uv, float t) {
-      // Drift hacia arriba — restamos t a uv.y para simular movimiento ascendente
-      vec2 driftUv = vec2(uv.x, uv.y + t * 0.012);
+      vec2 driftUv = vec2(uv.x + sin(uv.y * 4.0 + t * 0.1) * 0.005,
+                          uv.y + t * 0.008);
       
-      vec2 cell = floor(driftUv * 80.0);
-      vec2 cellUv = fract(driftUv * 80.0);
+      vec2 cell = floor(driftUv * 60.0);
+      vec2 cellUv = fract(driftUv * 60.0);
       
       float h = hash(cell);
-      // Solo ~2% de las celdas tienen partícula
-      if (h < 0.98) return 0.0;
+      if (h < 0.985) return 0.0;
       
-      // Posición aleatoria dentro de la celda
-      vec2 particlePos = vec2(hash(cell + 2.1), hash(cell + 5.7));
+      vec2 particlePos = vec2(hash(cell + 1.3), hash(cell + 4.7));
       
-      // Parpadeo individual con frecuencia única por partícula
-      float blink = sin(t * 2.5 + h * 100.0) * 0.5 + 0.5;
-      blink = pow(blink, 3.0);
+      // Parpadeo MUY sutil (no chispa, solo presencia)
+      float blink = sin(t * 1.5 + h * 50.0) * 0.3 + 0.7;
       
-      // Falloff radial
       float d = distance(cellUv, particlePos);
-      float dot = smoothstep(0.05, 0.0, d);
+      float dot = smoothstep(0.04, 0.0, d);
       
-      // Más visibles arriba (donde hay más luz)
-      float visibility = smoothstep(0.0, 0.7, uv.y);
+      // Más visibles en la zona media (profundidad media)
+      float visibility = smoothstep(0.0, 0.3, uv.y) * smoothstep(1.0, 0.5, uv.y);
       
       return dot * blink * visibility;
     }
@@ -1313,57 +1281,50 @@ const bgMaterial = new THREE.ShaderMaterial({
       vec2 uv = vUv;
       float t = uTime;
       
-      // === 1. GRADIENT VERTICAL ATMOSFÉRICO ===
-      // 5 stops para curva natural de profundidad:
-      // 1.0 (top)    → lavanda VRM
-      // 0.75         → azul medio
-      // 0.45         → turquesa cyan
-      // 0.20         → azul muy profundo
-      // 0.0 (bottom) → casi negro abismal
+      // === 1. GRADIENT VERTICAL TROPICAL ===
+      // 4 stops para curva suave de profundidad — sin abismo negro
       vec3 baseColor;
-      if (uv.y > 0.75) {
-        float k = smoothstep(0.75, 1.0, uv.y);
-        baseColor = mix(uColorUpper, uColorTop, k);
-      } else if (uv.y > 0.45) {
-        float k = smoothstep(0.45, 0.75, uv.y);
+      if (uv.y > 0.66) {
+        // Top: cyan claro turquesa → cyan medio (los primeros metros)
+        float k = smoothstep(0.66, 1.0, uv.y);
+        baseColor = mix(uColorUpper, uColorSurface, k);
+      } else if (uv.y > 0.33) {
+        // Mid: cyan medio → azul cyan (profundidad media)
+        float k = smoothstep(0.33, 0.66, uv.y);
         baseColor = mix(uColorMid, uColorUpper, k);
-      } else if (uv.y > 0.20) {
-        float k = smoothstep(0.20, 0.45, uv.y);
-        baseColor = mix(uColorDeep, uColorMid, k);
       } else {
-        float k = smoothstep(0.0, 0.20, uv.y);
-        baseColor = mix(uColorAbyss, uColorDeep, k);
+        // Deep: azul cyan → azul profundo (el fondo, pero NO negro)
+        float k = smoothstep(0.0, 0.33, uv.y);
+        baseColor = mix(uColorDeep, uColorMid, k);
       }
       
-      // Sutil variación horizontal — el agua "respira" lateralmente
-      float hSway = sin(uv.x * 2.5 + t * 0.08) * 0.5 + 0.5;
-      baseColor = mix(baseColor, baseColor * 1.08, hSway * 0.3);
+      // Variación horizontal MUY sutil
+      float hVar = sin(uv.x * 2.0 + t * 0.06) * 0.03;
+      baseColor += vec3(hVar) * uv.y;  // más visible arriba
       
       vec3 finalColor = baseColor;
       
-      // === 2. GOD RAYS ===
-      // Aplicados con additive blending — suman luz al fondo
-      float rays = godRays(uv, t);
-      finalColor += uRayColor * rays * 0.45;
+      // === 2. SOFT GOD RAYS ===
+      // Aditivos, sutiles, atmosféricos
+      float rays = softRays(uv, t);
+      finalColor += uRayColor * rays * 0.35;
       
-      // === 3. PARTÍCULAS ===
+      // === 3. PARTÍCULAS DE PLANCTON ===
       float p = particles(uv, t);
-      finalColor += vec3(0.95, 1.0, 1.0) * p * 0.7;
+      finalColor += vec3(0.95, 0.98, 1.0) * p * 0.5;
       
-      // === 4. ATMOSPHERIC FOG ===
-      // Reduce contraste con la profundidad para simular el "velo" del agua
-      // (la luz se dispersa, las cosas lejanas pierden definición)
-      float fogAmount = (1.0 - uv.y) * 0.15;
-      finalColor = mix(finalColor, uColorDeep, fogAmount);
+      // === 4. ATMOSPHERIC FOG con profundidad ===
+      // La parte de abajo gana azul (el "velo" del agua tropical)
+      float fogAmount = (1.0 - uv.y) * 0.08;
+      finalColor = mix(finalColor, uColorDeep * 0.7, fogAmount);
       
-      // === 5. VIGNETTE ===
-      // Esquinas ligeramente más oscuras — centra la atención
+      // === 5. VIGNETTE muy sutil ===
       vec2 vigUv = uv - 0.5;
-      float vignette = 1.0 - dot(vigUv, vigUv) * 0.7;
+      float vignette = 1.0 - dot(vigUv, vigUv) * 0.4;
       finalColor *= vignette;
       
       // === 6. GRAIN sutil ===
-      float grain = hash(uv * uResolution + t) * 0.03 - 0.015;
+      float grain = hash(uv * uResolution + t) * 0.025 - 0.0125;
       finalColor += vec3(grain);
       
       gl_FragColor = vec4(finalColor, 1.0);
@@ -1376,10 +1337,9 @@ const bgMaterial = new THREE.ShaderMaterial({
 const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
 bgScene.add(bgMesh);
 
-// Quitamos scene.background — ahora se renderiza con bgScene aparte
 scene.background = null;
 
-console.log('%c[VRM] Deep ocean background v2 active', 'color:#fff;background:#0a4870;padding:4px 8px;border-radius:4px;font-weight:bold;');
+console.log('%c[VRM] Tropical underwater background active', 'color:#fff;background:#1f6890;padding:4px 8px;border-radius:4px;font-weight:bold;');
 
 /* ============================================================
    ENVIRONMENT MAP — para reflexiones PBR (iridescencia, transmission)
