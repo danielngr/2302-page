@@ -1,0 +1,3654 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1428">
+<title>Vallarta Gardens 2302 · La Cruz de Huanacaxtle — VRM</title>
+<meta name="description" content="Casa de dos recámaras frente al Marina Riviera Nayarit. A diez minutos del pueblo pesquero más auténtico de la bahía.">
+
+<!-- Sistema tipográfico VRM: Boska (display) + Satoshi (body), cargado async vía probe -->
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+<script>
+  (function(){
+    var FONTSHARE_URL = 'https://api.fontshare.com/v2/css?f%5B%5D=boska@900,700,500i,500,400i,400,300&f%5B%5D=satoshi@900,700,500,400,300&display=swap';
+    var probe = new Image();
+    probe.onload = probe.onerror = function(ev){
+      if (ev && ev.type === 'error') return; // sandbox sin acceso → fallback a Times / system
+      var l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = FONTSHARE_URL;
+      document.head.appendChild(l);
+    };
+    probe.src = 'https://api.fontshare.com/favicon.ico?_p=' + Date.now();
+  })();
+</script>
+
+<!-- ============================================================
+     SUPABASE CLIENT + AVAILABILITY HELPERS
+     ============================================================
+     · UNIT_ID: identificador único de esta propiedad en Supabase
+     · loadAvailability(): carga fechas bloqueadas (cache 5min)
+     · Fix timezone con ymd() de Date pasando UTC: usamos getFullYear/getMonth/getDate
+       que devuelven LOCAL DAY, perfecto para nuestra lógica (no toISOString)
+     ============================================================ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ============================================================
+// PROPERTY TEMPLATE — sistema dinámico ?id=XXX
+// ============================================================
+// El objeto UNITS contiene los datos de las 16 propiedades
+// hydrate() lee ?id= de la URL y rellena el DOM antes del render
+// Si no hay id válido → redirige a vrm_storytelling.html
+// ============================================================
+
+const QUIYA_UNITS = {
+  '2005': {
+    id: '2005',
+    name: 'Vallarta Gardens 2005',
+    location: 'La Cruz de Huanacaxtle, Nayarit',
+    coverImage: 'https://i.imgur.com/NW3AAU9.jpeg',
+    images: {
+      living: 'https://i.imgur.com/NW3AAU9.jpeg',
+      kitchen: 'https://i.imgur.com/5Jkeook.jpeg',
+      bedroom1: 'https://i.imgur.com/INaBLQh.jpeg',
+      bedroom2: 'https://i.imgur.com/j0oOkTN.jpeg',
+      bathroom1: 'https://i.imgur.com/ndorL8l.jpeg',
+      bathroom2: 'https://i.imgur.com/sm6NOkv.jpeg',
+      terrace: 'https://i.imgur.com/om5yBk2.jpeg'
+    },
+    bedrooms: [
+      { title: 'Recámara 1', body: '2 camas matrimoniales' },
+      { title: 'Recámara 2', body: '1 cama king size' }
+    ],
+    bathrooms: 2,
+    guests: 4,
+    sqm: 110,
+    floor: 2,
+    view: 'Jardín tropical',
+    priceUSD: 170,
+    priceMXN: 3200,
+    highlight: 'Planta baja con acceso directo al jardín',
+    phone: '523222440051',
+    coordinates: { lat: 20.753272, lng: -105.371372 }
+  },
+  '2302': {
+    id: '2302',
+    name: 'Vallarta Gardens 2302',
+    location: 'La Cruz de Huanacaxtle, Nayarit',
+    coverImage: 'https://i.imgur.com/e8ObYP6.jpeg',
+    images: {
+      living: 'https://i.imgur.com/e8ObYP6.jpeg',
+      kitchen: 'https://i.imgur.com/iHc3Zob.jpeg',
+      bedroom1: 'https://i.imgur.com/HazZpr7.jpeg',
+      bedroom2: 'https://i.imgur.com/GNBD6A3.jpeg',
+      bathroom1: 'https://i.imgur.com/AiRZpLs.jpeg',
+      bathroom2: 'https://i.imgur.com/aEDbrdt.jpeg',
+      terrace: 'https://i.imgur.com/nsaSaYw.jpeg'
+    },
+    bedrooms: [
+      { title: 'Recámara 1', body: '2 camas matrimoniales' },
+      { title: 'Recámara 2', body: '1 cama king size' }
+    ],
+    bathrooms: 2,
+    guests: 6,
+    sqm: 145,
+    floor: 3,
+    view: 'Vista al mar',
+    priceUSD: 200,
+    priceMXN: 3800,
+    highlight: 'El más reservado del complejo',
+    phone: '523222440051',
+    coordinates: { lat: 20.753272, lng: -105.371372 }
+  },
+  '2403': {
+    id: '2403',
+    name: 'Vallarta Gardens 2403',
+    location: 'La Cruz de Huanacaxtle, Nayarit',
+    coverImage: 'https://i.imgur.com/RV3b2sb.jpeg',
+    images: {
+      living: 'https://i.imgur.com/RV3b2sb.jpeg',
+      kitchen: 'https://i.imgur.com/r3rTxNS.jpeg',
+      bedroom1: 'https://i.imgur.com/BC2bDHW.jpeg',
+      bedroom2: 'https://i.imgur.com/MlHE2rx.jpeg',
+      bathroom1: 'https://i.imgur.com/MMGC1ql.jpeg',
+      bathroom2: 'https://i.imgur.com/ct19zgg.jpeg',
+      terrace: 'https://i.imgur.com/uaK5crj.jpeg'
+    },
+    bedrooms: [
+      { title: 'Recámara principal', body: 'Cama king size con baño en suite' },
+      { title: 'Segunda recámara', body: 'Cama matrimonial' }
+    ],
+    bathrooms: 2,
+    guests: 4,
+    sqm: 110,
+    floor: 4,
+    view: 'Vista al mar',
+    priceUSD: 185,
+    priceMXN: 3500,
+    highlight: 'Vista frontal al mar',
+    phone: '523222440051',
+    coordinates: { lat: 20.753272, lng: -105.371372 }
+  },
+  '2701': {
+    id: '2701',
+    name: 'Vallarta Gardens 2701',
+    location: 'La Cruz de Huanacaxtle, Nayarit',
+    coverImage: 'https://i.imgur.com/v7Jfx8c.jpeg',
+    images: {
+      living: 'https://i.imgur.com/v7Jfx8c.jpeg',
+      kitchen: 'https://i.imgur.com/bqkROW0.jpeg',
+      bedroom1: 'https://i.imgur.com/20OQMy1.jpeg',
+      bedroom2: 'https://i.imgur.com/afJAfFL.jpeg',
+      bathroom1: 'https://i.imgur.com/KMnJqtx.jpeg',
+      bathroom2: 'https://i.imgur.com/FtuvMvc.jpeg',
+      terrace: 'https://i.imgur.com/6FIniJk.jpeg'
+    },
+    bedrooms: [
+      { title: 'Recámara principal', body: 'Cama king size con baño en suite' },
+      { title: 'Segunda recámara', body: 'Cama matrimonial' }
+    ],
+    bathrooms: 2,
+    guests: 4,
+    sqm: 110,
+    floor: 7,
+    view: 'Vista al mar',
+    priceUSD: 190,
+    priceMXN: 3600,
+    highlight: 'Piso alto con privacidad',
+    phone: '523222440051',
+    coordinates: { lat: 20.753272, lng: -105.371372 }
+  },
+  '2705': {
+    id: '2705',
+    name: 'Vallarta Gardens 2705',
+    location: 'La Cruz de Huanacaxtle, Nayarit',
+    coverImage: 'https://i.imgur.com/JEMtBLw.jpeg',
+    images: {
+      living: 'https://i.imgur.com/JEMtBLw.jpeg',
+      kitchen: 'https://i.imgur.com/j1WRKTB.jpeg',
+      bedroom1: 'https://i.imgur.com/QKjQfM8.jpeg',
+      bedroom2: 'https://i.imgur.com/8iI3ebD.jpeg',
+      bathroom1: 'https://i.imgur.com/AL9x0Md.jpeg',
+      bathroom2: 'https://i.imgur.com/fsKQJ6q.jpeg',
+      terrace: 'https://i.imgur.com/2iauk77.jpeg'
+    },
+    bedrooms: [
+      { title: 'Recámara principal', body: 'Cama king size' },
+      { title: 'Segunda recámara', body: 'Dos camas matrimoniales' }
+    ],
+    bathrooms: 2,
+    guests: 6,
+    sqm: 145,
+    floor: 7,
+    view: 'Vista a la alberca',
+    priceUSD: 215,
+    priceMXN: 4100,
+    highlight: 'Pool privado en la terraza',
+    hasPrivatePool: true,
+    phone: '523222440051',
+    coordinates: { lat: 20.753272, lng: -105.371372 }
+  },
+  '2801': {
+    id: '2801',
+    name: 'Vallarta Gardens 2801',
+    location: 'La Cruz de Huanacaxtle, Nayarit',
+    coverImage: 'https://i.imgur.com/NXIn7od.jpeg',
+    images: {
+      living: 'https://i.imgur.com/NXIn7od.jpeg',
+      kitchen: 'https://i.imgur.com/hbX7GLn.jpeg',
+      bedroom1: 'https://i.imgur.com/Ey2wDlD.jpeg',
+      bedroom2: 'https://i.imgur.com/QhOmLWI.jpeg',
+      bathroom1: 'https://i.imgur.com/kiL1UVP.jpeg',
+      bathroom2: 'https://i.imgur.com/XxKuriG.jpeg',
+      terrace: 'https://i.imgur.com/7Ss34Bf.jpeg'
+    },
+    bedrooms: [
+      { title: 'Recámara principal', body: 'Cama king size con baño en suite' },
+      { title: 'Segunda recámara', body: 'Cama matrimonial' }
+    ],
+    bathrooms: 2,
+    guests: 4,
+    sqm: 110,
+    floor: 8,
+    view: 'Vista al mar',
+    priceUSD: 195,
+    priceMXN: 3700,
+    highlight: 'Atardeceres desde la cama',
+    phone: '523222440051',
+    coordinates: { lat: 20.753272, lng: -105.371372 }
+  },
+  '2905': {
+    id: '2905',
+    name: 'Vallarta Gardens 2905',
+    location: 'La Cruz de Huanacaxtle, Nayarit',
+    coverImage: 'https://i.imgur.com/DlXUH02.jpeg',
+    images: {
+      living: 'https://i.imgur.com/DlXUH02.jpeg',
+      kitchen: 'https://i.imgur.com/zxDTBoX.jpeg',
+      bedroom1: 'https://i.imgur.com/hbAwE2J.jpeg',
+      bathroom1: 'https://i.imgur.com/EdZm3X4.jpeg',
+      terrace: 'https://i.imgur.com/gST7mgb.jpeg',
+      pool: 'https://i.imgur.com/7mRkoaH.jpeg'
+    },
+    bedrooms: [
+      { title: 'Recámara', body: 'Cama king size con baño en suite. Estudio con sala y cocina integradas' }
+    ],
+    bathrooms: 1,
+    guests: 2,
+    sqm: 65,
+    floor: 9,
+    view: 'Vista al mar',
+    priceUSD: 145,
+    priceMXN: 2800,
+    highlight: 'Estudio compacto · ideal para parejas',
+    phone: '523222440051',
+    coordinates: { lat: 20.753272, lng: -105.371372 }
+  },
+  '3004': {
+    id: '3004',
+    name: 'Vallarta Gardens 3004',
+    location: 'La Cruz de Huanacaxtle, Nayarit',
+    coverImage: 'https://i.imgur.com/JV7Bscs.jpeg',
+    images: {
+      living: 'https://i.imgur.com/JV7Bscs.jpeg',
+      kitchen: 'https://i.imgur.com/RDX79SY.jpeg',
+      bedroom1: 'https://i.imgur.com/VH0I3pO.jpeg',
+      bedroom2: 'https://i.imgur.com/gGbYGDc.jpeg',
+      bathroom1: 'https://i.imgur.com/SIhzdeQ.jpeg',
+      bathroom2: 'https://i.imgur.com/aZ2iAoF.jpeg'
+    },
+    bedrooms: [
+      { title: 'Recámara 1', body: '2 camas matrimoniales' },
+      { title: 'Recámara 2', body: '1 cama king size' }
+    ],
+    bathrooms: 2,
+    guests: 6,
+    sqm: 150,
+    floor: 10,
+    view: 'Vista panorámica',
+    priceUSD: 230,
+    priceMXN: 4400,
+    highlight: 'Penthouse · acceso a 3 piscinas',
+    phone: '523222440051',
+    coordinates: { lat: 20.753272, lng: -105.371372 }
+  }
+};
+
+const MARITIMA_UNITS = {
+  '6S': {
+    id: '6S',
+    name: 'Marítima 6S',
+    location: 'Nuevo Vallarta · Flamingos',
+    coverImage: 'https://i.imgur.com/HtlrbEg.jpeg',
+    images: {
+      living: 'https://i.imgur.com/HtlrbEg.jpeg',
+      kitchen: 'https://i.imgur.com/hxFHMCS.jpeg',
+      bedroom1: 'https://i.imgur.com/zmUO0TP.jpeg',
+      bedroom2: 'https://i.imgur.com/vnV7JZg.jpeg',
+      bedroom3: 'https://i.imgur.com/nvq16RQ.jpeg',
+      bathroom1: 'https://i.imgur.com/R039yIZ.jpeg',
+      terrace: 'https://i.imgur.com/mIjdvHB.jpeg',
+      pool: 'https://i.imgur.com/49CKaqf.jpeg'
+    },
+    bedrooms: [
+      { title: 'Recámara principal', body: 'Cama king size' },
+      { title: 'Segunda recámara', body: 'Cama matrimonial' },
+      { title: 'Tercera recámara', body: 'Dos camas individuales' }
+    ],
+    bathrooms: 2,
+    guests: 6,
+    sqm: 165,
+    floor: 6,
+    view: 'Vista al jardín',
+    priceUSD: 190,
+    priceMXN: 3600,
+    highlight: '5 albercas en el complejo + jacuzzi',
+    phone: '523222440051',
+    coordinates: { lat: 20.736448, lng: -105.319749 }
+  },
+  '9S': {
+    id: '9S',
+    name: 'Marítima 9S',
+    location: 'Nuevo Vallarta · Flamingos',
+    coverImage: 'https://i.imgur.com/sgXZxMP.jpeg',
+    images: {
+      living: 'https://i.imgur.com/sgXZxMP.jpeg',
+      kitchen: 'https://i.imgur.com/VawgysU.jpeg',
+      bedroom1: 'https://i.imgur.com/XuwK1rH.jpeg',
+      bedroom2: 'https://i.imgur.com/B7ZKaq7.jpeg',
+      bedroom3: 'https://i.imgur.com/7ZoAdd5.jpeg',
+      bathroom1: 'https://i.imgur.com/mLxkhAt.jpeg',
+      bathroom2: 'https://i.imgur.com/duNHfH2.jpeg',
+      terrace: 'https://i.imgur.com/xMufot5.jpeg',
+      pool: 'https://i.imgur.com/49CKaqf.jpeg'
+    },
+    bedrooms: [
+      { title: 'Recámara principal', body: 'Cama king size' },
+      { title: 'Segunda recámara', body: 'Cama king size' },
+      { title: 'Tercera recámara', body: 'Dos camas matrimoniales' }
+    ],
+    bathrooms: 3,
+    guests: 8,
+    sqm: 195,
+    floor: 9,
+    view: 'Vista a la bahía',
+    priceUSD: 215,
+    priceMXN: 4100,
+    highlight: 'Piso 9 · vista panorámica a la bahía',
+    phone: '523222440051',
+    coordinates: { lat: 20.736448, lng: -105.319749 }
+  },
+  '10I': {
+    id: '10I',
+    name: 'Marítima 10I',
+    location: 'Nuevo Vallarta · Flamingos',
+    coverImage: 'https://i.imgur.com/uwI3GD7.jpeg',
+    images: {
+      living: 'https://i.imgur.com/uwI3GD7.jpeg',
+      kitchen: 'https://i.imgur.com/j3jw9ta.jpeg',
+      bedroom1: 'https://i.imgur.com/ltC9bbw.jpeg',
+      bedroom2: 'https://i.imgur.com/hd7iyWb.jpeg',
+      bathroom1: 'https://i.imgur.com/bvexJtN.jpeg',
+      bathroom2: 'https://i.imgur.com/Ydsbvkm.jpeg',
+      terrace: 'https://i.imgur.com/JnGt3l3.jpeg',
+      pool: 'https://i.imgur.com/49CKaqf.jpeg'
+    },
+    bedrooms: [
+      { title: 'Recámara principal', body: 'Cama king size' },
+      { title: 'Segunda recámara', body: 'Cama king size' },
+      { title: 'Tercera recámara', body: 'Cama matrimonial' },
+      { title: 'Cuarta recámara', body: 'Cama matrimonial' }
+    ],
+    bathrooms: 3,
+    guests: 10,
+    sqm: 230,
+    floor: 10,
+    view: 'Vista a la bahía',
+    priceUSD: 240,
+    priceMXN: 4600,
+    highlight: 'Piso alto · estacionamiento privado #36',
+    phone: '523222440051',
+    coordinates: { lat: 20.736448, lng: -105.319749 }
+  },
+  'PHN': {
+    id: 'PHN',
+    name: 'Marítima Penthouse',
+    location: 'Nuevo Vallarta · Flamingos',
+    coverImage: 'https://i.imgur.com/xhooPKT.jpeg',
+    images: {
+      living: 'https://i.imgur.com/xhooPKT.jpeg',
+      kitchen: 'https://i.imgur.com/H8rwWtv.jpeg',
+      bedroom1: 'https://i.imgur.com/X7p6F1c.jpeg',
+      bedroom2: 'https://i.imgur.com/5q71SqP.jpeg',
+      bedroom3: 'https://i.imgur.com/fpoFU1K.jpeg',
+      bathroom1: 'https://i.imgur.com/cL7M1Rh.jpeg',
+      bathroom2: 'https://i.imgur.com/H9H10XS.jpeg',
+      terrace: 'https://i.imgur.com/JVsWW4x.jpeg',
+      pool: 'https://i.imgur.com/49CKaqf.jpeg'
+    },
+    bedrooms: [
+      { title: 'Recámara principal', body: 'Cama king size · planta alta' },
+      { title: '2ª recámara', body: 'Cama matrimonial · planta alta' },
+      { title: '3ª recámara', body: 'Cama matrimonial · planta alta' },
+      { title: '4ª recámara', body: 'Dos camas individuales · planta baja' },
+      { title: '5ª recámara', body: 'Dos camas individuales · planta baja' },
+      { title: '6ª recámara', body: 'Cama matrimonial · planta baja' }
+    ],
+    bathrooms: 4,
+    guests: 12,
+    sqm: 380,
+    floor: 'Penthouse',
+    view: 'Vista panorámica',
+    priceUSD: 380,
+    priceMXN: 7200,
+    highlight: 'Penthouse de 2 niveles · 6 recámaras · 12 huéspedes',
+    phone: '523222440051',
+    coordinates: { lat: 20.736448, lng: -105.319749 }
+  }
+};
+
+const BOLONGO_UNITS = {
+  '211': {
+    id: '211',
+    name: 'Bolongo 211',
+    location: 'Punta de Mita · Riviera Nayarit',
+    coverImage: 'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/a2cbb607-d8f6-476d-b001-46d7baf3104c.jpeg?im_w=720',
+    images: {
+      living: 'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/a2cbb607-d8f6-476d-b001-46d7baf3104c.jpeg?im_w=720',
+      kitchen: 'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/0107ba4c-8c18-4f76-aff4-b72ec4f639db.jpeg?im_w=720',
+      bedroom1: 'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/227eeb14-373d-458a-866b-b0b08454f048.jpeg?im_w=720',
+      bedroom2: 'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/33302e0f-f2b7-4237-9b00-76cfe1ec5846.jpeg?im_w=720',
+      bedroom3: 'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/6869b4ae-f1b3-4ffd-9547-21f5ee5ca91c.jpeg?im_w=720',
+      bathroom1: 'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/387c2dc7-c137-4c36-b925-8476861affdd.jpeg?im_w=720',
+      bathroom2: 'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/493ea352-8b7f-4ec5-a4ce-a57bd2d14338.jpeg?im_w=720',
+      terrace: 'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/6d2aa129-22e3-471b-adeb-3108c4ec567f.jpeg?im_w=720'
+    },
+    bedrooms: [
+      { title: 'Recámara principal', body: 'Cama king size' },
+      { title: 'Segunda recámara', body: 'Dos camas matrimoniales' },
+      { title: 'Tercera recámara', body: 'Cama matrimonial' }
+    ],
+    bathrooms: 3,
+    guests: 7,
+    sqm: 165,
+    floor: 2,
+    view: 'Vista al jardín',
+    priceUSD: 220,
+    priceMXN: 4200,
+    highlight: 'Playa privada del complejo',
+    phone: '523222440051',
+    coordinates: { lat: 20.754846, lng: -105.462439 }
+  },
+  '3N': {
+    id: '3N',
+    name: 'Bolongo 3N',
+    location: 'Punta de Mita · Riviera Nayarit',
+    coverImage: 'https://a0.muscache.com/im/pictures/hosting/Hosting-1483418374242300943/original/5bdb38b9-52f2-4a2d-8e95-43b8fd972de7.jpeg?im_w=720',
+    images: {
+      living: 'https://a0.muscache.com/im/pictures/hosting/Hosting-1483418374242300943/original/5bdb38b9-52f2-4a2d-8e95-43b8fd972de7.jpeg?im_w=720',
+      kitchen: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ4MzQxODM3NDI0MjMwMDk0Mw==/original/7dc04ae3-d836-4d58-8539-94411d3412b1.jpeg?im_w=720',
+      bedroom1: 'https://a0.muscache.com/im/pictures/hosting/Hosting-1483418374242300943/original/dbee864b-6937-4d77-bfe0-21447af735ee.jpeg?im_w=720',
+      bedroom2: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ4MzQxODM3NDI0MjMwMDk0Mw==/original/70bd734a-3933-4f9a-90a9-43e67703bd13.jpeg?im_w=720',
+      bathroom1: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ4MzQxODM3NDI0MjMwMDk0Mw==/original/219683e5-7824-46d3-bb3d-984a92e6e9f7.jpeg?im_w=720',
+      bathroom2: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ4MzQxODM3NDI0MjMwMDk0Mw==/original/651a8a31-525a-4357-abff-98f7c8fcc602.jpeg?im_w=720',
+      terrace: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ4MzQxODM3NDI0MjMwMDk0Mw==/original/9ee1bb2c-b075-4338-be16-033815532984.jpeg?im_w=720'
+    },
+    bedrooms: [
+      { title: 'Recámara principal', body: 'Cama king size' },
+      { title: 'Segunda recámara', body: 'Litera de camas matrimoniales' }
+    ],
+    bathrooms: 2,
+    guests: 4,
+    sqm: 110,
+    floor: 3,
+    view: 'Vista al jardín',
+    priceUSD: 185,
+    priceMXN: 3500,
+    highlight: 'Compacto · ideal para parejas o familias chicas',
+    phone: '523222440051',
+    coordinates: { lat: 20.754846, lng: -105.462439 }
+  },
+  'G13': {
+    id: 'G13',
+    name: 'Bolongo G13',
+    location: 'Punta de Mita · Riviera Nayarit',
+    coverImage: 'https://i.imgur.com/ThY3A8L.jpeg',
+    images: {
+      living: 'https://i.imgur.com/ThY3A8L.jpeg',
+      kitchen: 'https://i.imgur.com/IDiSOsT.jpeg',
+      bedroom1: 'https://i.imgur.com/m5mJHIw.jpeg',
+      bedroom2: 'https://i.imgur.com/IFe0xbq.jpeg',
+      bedroom3: 'https://i.imgur.com/eMx3C3l.jpeg',
+      bedroom4: 'https://i.imgur.com/ThEHNjM.jpeg',
+      bathroom1: 'https://i.imgur.com/RCymWXA.jpeg',
+      bathroom2: 'https://i.imgur.com/yS7Lb9W.jpeg',
+      bathroom3: 'https://i.imgur.com/wX1NhgC.jpeg',
+      terrace: 'https://i.imgur.com/vU43Rn5.jpeg'
+    },
+    bedrooms: [
+      { title: 'Recámara King 1', body: 'Cama king size' },
+      { title: 'Recámara King 2', body: 'Cama king size' },
+      { title: 'Recámara matrimoniales', body: 'Dos camas matrimoniales' },
+      { title: 'Recámara litera', body: 'Litera de camas individuales' }
+    ],
+    bathrooms: 3,
+    guests: 10,
+    sqm: 220,
+    floor: 'Planta baja',
+    view: 'Vista al mar',
+    priceUSD: 280,
+    priceMXN: 5300,
+    highlight: 'Acceso directo a la playa privada',
+    phone: '523222440051',
+    coordinates: { lat: 20.754846, lng: -105.462439 }
+  },
+  'L05': {
+    id: 'L05',
+    name: 'Bolongo L05',
+    location: 'Punta de Mita · Riviera Nayarit',
+    coverImage: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/d4b94467-3074-4e98-a72c-e22aabce372b.jpeg?im_w=720',
+    images: {
+      living: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/d4b94467-3074-4e98-a72c-e22aabce372b.jpeg?im_w=720',
+      kitchen: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/ab2ec8c2-4970-458e-8dba-3595412ec6ad.jpeg?im_w=720',
+      bedroom1: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/d909fd28-bfc2-4b9f-b19c-df13189801be.jpeg?im_w=720',
+      bedroom2: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/f29d8111-5fc4-4bd9-8290-5bc62d562d8b.jpeg?im_w=720',
+      bedroom3: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/c3b47c0f-e97b-4c31-81ff-f44228a07000.jpeg?im_w=720',
+      bedroom4: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/eda4e357-f321-4956-a466-ef2cbd7e5190.jpeg?im_w=720',
+      bathroom1: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/3ec58bbe-57fe-46f1-a892-875d8884704f.jpeg?im_w=720',
+      bathroom2: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/92c0998d-6e2d-4371-8a79-7e20d06fdb57.jpeg?im_w=720',
+      terrace: 'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/ee9e367a-5851-4ae6-b94a-8daad016fd55.jpeg?im_w=720'
+    },
+    bedrooms: [
+      { title: 'Recámara King 1', body: 'Cama king size' },
+      { title: 'Recámara King 2', body: 'Cama king size' },
+      { title: 'Recámara matrimoniales', body: 'Dos camas matrimoniales' },
+      { title: 'Recámara litera', body: 'Litera de camas individuales' }
+    ],
+    bathrooms: 4,
+    guests: 10,
+    sqm: 230,
+    floor: 'Lobby',
+    view: 'Vista al mar',
+    priceUSD: 295,
+    priceMXN: 5600,
+    highlight: 'Lobby · 4 recámaras · 4 baños',
+    phone: '523222440051',
+    coordinates: { lat: 20.754846, lng: -105.462439 }
+  }
+};
+
+// Objeto unificado: combinar los 3 complejos en uno con id como key
+const UNITS = {
+  ...QUIYA_UNITS,
+  ...MARITIMA_UNITS,
+  ...BOLONGO_UNITS
+};
+
+// Agregar el complejo (zona) a cada unit
+Object.keys(QUIYA_UNITS).forEach(id => UNITS[id]._complex = 'quiya');
+Object.keys(MARITIMA_UNITS).forEach(id => UNITS[id]._complex = 'maritima');
+Object.keys(BOLONGO_UNITS).forEach(id => UNITS[id]._complex = 'bolongo');
+
+window.UNITS = UNITS;
+
+
+// ───── Helper de URL params ─────
+function _getUnitIdFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('id');
+}
+
+// ───── Hidratación: rellena DOM antes de cualquier render ─────
+function hydratePropertyData() {
+  const id = _getUnitIdFromUrl();
+  if (!id || !UNITS[id]) {
+    // Fallback: si no hay id válido, mostramos 2302 por default (compatibilidad)
+    console.warn('[VRM] No valid ?id= in URL, defaulting to 2302');
+    window.VRM_UNIT_ID = '2302';
+    window.VRM_UNIT = UNITS['2302'];
+    return UNITS['2302'];
+  }
+  window.VRM_UNIT_ID = id;
+  window.VRM_UNIT = UNITS[id];
+  console.log('[VRM] Hydrated property:', id, UNITS[id].name);
+  return UNITS[id];
+}
+
+// Se ejecuta INMEDIATAMENTE para que tenga UNIT antes que cualquier otro JS
+hydratePropertyData();
+
+(function() {
+  const SUPABASE_URL = 'https://grsykedeppdwenpfxlfh.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm';
+  const CACHE_TTL_MS = 5 * 60 * 1000;
+
+  window.availabilityCache = window.availabilityCache || {};
+
+  function _initSupabaseClient() {
+    if (window.supabase && !window.vrmSupabase) {
+      window.vrmSupabase = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY
+      );
+    }
+  }
+  if (window.supabase) _initSupabaseClient();
+  else document.addEventListener('DOMContentLoaded', _initSupabaseClient);
+
+  // String date helpers (timezone-safe)
+  function _nextDayStr(yyyyMmDd) {
+    const y = parseInt(yyyyMmDd.slice(0, 4), 10);
+    const m = parseInt(yyyyMmDd.slice(5, 7), 10);
+    const d = parseInt(yyyyMmDd.slice(8, 10), 10);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    if (d < daysInMonth) return `${yyyyMmDd.slice(0, 8)}${String(d + 1).padStart(2, '0')}`;
+    if (m < 12) return `${y}-${String(m + 1).padStart(2, '0')}-01`;
+    return `${y + 1}-01-01`;
+  }
+  function _todayISO() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+
+  // ───── loadAvailability(unitId) → Set<YYYY-MM-DD> ─────
+  window.loadAvailability = async function(unitId) {
+    if (!unitId) return new Set();
+
+    if (!window.vrmSupabase) {
+      _initSupabaseClient();
+      if (!window.vrmSupabase) {
+        await new Promise(resolve => {
+          let tries = 0;
+          const tick = () => {
+            _initSupabaseClient();
+            if (window.vrmSupabase || tries > 20) return resolve();
+            tries++;
+            setTimeout(tick, 100);
+          };
+          tick();
+        });
+      }
+      if (!window.vrmSupabase) return new Set();
+    }
+
+    const cached = window.availabilityCache[unitId];
+    if (cached && (Date.now() - cached.ts) < CACHE_TTL_MS) {
+      return cached.blocked;
+    }
+
+    try {
+      const today = _todayISO();
+      const { data, error } = await window.vrmSupabase
+        .from('public_availability')
+        .select('check_in, check_out')
+        .eq('unit_id', unitId)
+        .gte('check_out', today);
+
+      if (error) {
+        console.warn('[VRM] loadAvailability error:', error.message);
+        return new Set();
+      }
+
+      const blocked = new Set();
+      (data || []).forEach(b => {
+        let cur = b.check_in;
+        while (cur < b.check_out) {
+          blocked.add(cur);
+          cur = _nextDayStr(cur);
+        }
+      });
+      window.availabilityCache[unitId] = { blocked, ts: Date.now() };
+      console.log(`[VRM] Loaded ${blocked.size} blocked days for ${unitId}`);
+      return blocked;
+    } catch (e) {
+      console.warn('[VRM] loadAvailability exception:', e.message);
+      return new Set();
+    }
+  };
+})();
+</script>
+
+<!-- Leaflet para el mapa -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+
+<style>
+  /* ─────────────────────────────────────────────────────────────
+     PALETA BAHÍA + TIPOGRAFÍA
+     ───────────────────────────────────────────────────────────── */
+  :root {
+    /* Base (80%) */
+    --abyss:     #0A1428;
+    --marine:    #1A2E48;
+    --mist:      #E8E4DA;
+    --sand:      #C5BBA8;
+    --stone:     #3A4A60;
+
+    /* Acentos (20%) */
+    --coral:     #D97757;
+    --coral-deep:#B85F42;
+    --cyan-deep: #4A8FB5;
+    --gold:      #B89668;
+    --gold-soft: #C8A87C;
+    --wa-green:  #25D366;
+
+    /* Aliases semánticos */
+    --bg:         var(--abyss);
+    --bg-deep:    var(--abyss);
+    --text:       var(--mist);
+    --text-mute:  var(--sand);
+    --accent:     var(--coral);
+    --price:      var(--gold);
+
+    /* Tipografía */
+    --font-display: 'Boska', 'Times New Roman', serif;
+    --font-body:    'Satoshi', system-ui, -apple-system, sans-serif;
+
+    /* Curva editorial */
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+    /* Reglas y aire */
+    --rule-mist: rgba(232, 228, 218, 0.10);
+    --rule-mist-strong: rgba(232, 228, 218, 0.18);
+
+    /* Safe area iOS */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+
+    /* Block bg sobre la ballena */
+    --block-marine:  rgba(26, 46, 72, 0.94);
+    --block-marine-blur: rgba(26, 46, 72, 0.86);
+    --block-abyss:   rgba(10, 20, 40, 0.96);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--abyss);  /* base color — la ballena vive encima */
+    color: var(--mist);
+    font-family: var(--font-body);
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+  body.lock { overflow: hidden; }
+
+  img { max-width: 100%; display: block; }
+  button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+
+  /* ─────────────────────────────────────────────────────────────
+     WHALE CANVAS — siempre detrás de todo
+     ───────────────────────────────────────────────────────────── */
+  .whale-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+  }
+  /* Sutilísimo gradient overlay vertical para reforzar profundidad */
+  .whale-shade {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(10,20,40,0) 0%, rgba(10,20,40,0.25) 100%);
+  }
+  section, header, footer, aside { position: relative; z-index: 3; }
+
+  /* Loader breve antes de que el WebGL inicialice */
+  .loader {
+    position: fixed; inset: 0;
+    z-index: 100;
+    background: var(--abyss);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 14px;
+    transition: opacity 0.8s var(--ease);
+  }
+  .loader.gone { opacity: 0; pointer-events: none; }
+  .loader-mark {
+    font-family: var(--font-display); font-weight: 400; font-style: italic;
+    font-size: 32px; letter-spacing: 0.06em; color: var(--mist);
+  }
+  .loader-rule { width: 72px; height: 1px; background: var(--gold); }
+  .loader-meta {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.42em;
+    text-transform: uppercase; color: var(--sand);
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     PRIMITIVAS
+     ───────────────────────────────────────────────────────────── */
+  .eyebrow {
+    font-family: var(--font-body);
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--sand);
+  }
+  .eyebrow--coral { color: var(--coral); }
+  .eyebrow--gold  { color: var(--gold); }
+
+  .rule {
+    width: 56px; height: 1px;
+    background: var(--gold);
+    opacity: 0.9;
+    margin: 0; border: 0;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     TOP BAR (fixed, transparente) + STICKY PROPERTY HEADER
+     ───────────────────────────────────────────────────────────── */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 40;
+    padding: calc(20px + var(--safe-top)) clamp(20px, 6vw, 56px) 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    background: linear-gradient(180deg, rgba(10,20,40,0.78) 0%, rgba(10,20,40,0) 100%);
+    transition: background 0.4s var(--ease);
+    pointer-events: none;
+  }
+  .topbar > * { pointer-events: auto; }
+  .topbar.solid {
+    background: rgba(10, 20, 40, 0.94);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border-bottom: 1px solid var(--rule-mist);
+  }
+  .topbar-brand {
+    font-family: var(--font-display);
+    font-style: italic; font-weight: 400;
+    font-size: 22px; letter-spacing: 0.04em;
+    color: var(--mist);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .topbar-brand .mk { width: 18px; height: 1px; background: var(--mist); opacity: 0.6; }
+  .topbar-back {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--mist); opacity: 0.82;
+    transition: opacity 0.3s var(--ease);
+  }
+  .topbar-back:hover { opacity: 1; }
+  .topbar-back svg { transition: transform 0.4s var(--ease); }
+  .topbar-back:hover svg { transform: translateX(-4px); }
+
+  .property-header {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 39;
+    background: var(--block-abyss);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    color: var(--mist);
+    padding: calc(14px + var(--safe-top)) clamp(16px, 5vw, 48px) 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 32px;
+    transform: translateY(-100%);
+    transition: transform 0.5s var(--ease);
+    border-bottom: 1px solid var(--rule-mist);
+  }
+  .property-header.show { transform: translateY(0); }
+  .ph-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .ph-zone {
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--coral);
+  }
+  .ph-name {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 22px; letter-spacing: -0.005em;
+    color: var(--mist);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ph-right { display: flex; align-items: center; gap: 24px; }
+  .ph-price { display: flex; flex-direction: column; align-items: flex-end; line-height: 1; }
+  .ph-price-num {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 28px; color: var(--gold);
+  }
+  .ph-price-unit {
+    font-size: 9px; font-weight: 500;
+    letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--sand); margin-top: 4px;
+  }
+  .ph-ctas { display: flex; gap: 10px; }
+
+  /* ─────────────────────────────────────────────────────────────
+     BOTONES
+     ───────────────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 10px;
+    height: 48px; padding: 0 22px;
+    font-family: var(--font-body);
+    font-size: 14px; font-weight: 500;
+    letter-spacing: 0.02em;
+    border-radius: 2px;
+    transition: all 0.3s var(--ease);
+    white-space: nowrap;
+    border: 1px solid transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn--lg { height: 56px; padding: 0 28px; font-size: 15px; }
+  .btn--block { width: 100%; }
+
+  .btn--coral {
+    background: var(--coral); color: var(--mist); font-weight: 600;
+  }
+  .btn--coral:hover { background: var(--coral-deep); transform: translateY(-1px); }
+
+  .btn--wa {
+    background: var(--wa-green); color: #07261c; font-weight: 600;
+  }
+  .btn--wa:hover { background: #1ec05c; transform: translateY(-1px); }
+
+  .btn--outline-mist {
+    border-color: rgba(232,228,218,0.32);
+    color: var(--mist);
+    background: transparent;
+  }
+  .btn--outline-mist:hover { border-color: var(--mist); background: rgba(232,228,218,0.06); }
+
+  .btn--ghost-mist {
+    color: var(--mist);
+    background: transparent;
+  }
+  .btn--ghost-mist:hover { background: rgba(232,228,218,0.06); }
+
+  .btn svg { flex-shrink: 0; }
+
+  /* ─────────────────────────────────────────────────────────────
+     HERO + GALLERY
+     ───────────────────────────────────────────────────────────── */
+  .hero {
+    background: var(--abyss);
+    padding-top: calc(76px + var(--safe-top));
+    padding-bottom: 56px;
+    min-height: auto;  /* fix A.3 — evita espacio vacío gigante por min-height heredado */
+  }
+  .hero-meta {
+    max-width: 1400px; margin: 0 auto 32px;
+    padding: 0 clamp(20px, 6vw, 56px);
+    color: var(--mist);
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 32px; flex-wrap: wrap;
+  }
+  .hero-meta-l { display: flex; flex-direction: column; gap: 18px; max-width: 740px; }
+  .hero-zone {
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--coral);
+    display: inline-flex; align-items: center; gap: 12px;
+  }
+  .hero-zone .dot { width: 6px; height: 6px; background: var(--coral); border-radius: 50%; }
+  .hero-title {
+    font-family: var(--font-display); font-weight: 400;
+    font-size: clamp(40px, 6.4vw, 88px);
+    line-height: 0.98; letter-spacing: -0.018em;
+    color: var(--mist); margin: 0;
+  }
+  .hero-title em { font-style: italic; font-weight: 400; color: var(--sand); }
+  .hero-meta-r {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+    line-height: 1;
+  }
+  .hero-price-unit {
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.36em; text-transform: uppercase;
+    color: var(--sand);
+  }
+  .hero-price-num {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: clamp(40px, 5vw, 64px);
+    color: var(--gold); line-height: 1;
+  }
+  .hero-price-num small {
+    font-family: var(--font-body);
+    font-size: 13px; font-weight: 400;
+    letter-spacing: 0.04em; color: var(--sand);
+    margin-left: 6px;
+  }
+
+  .hero-gallery {
+    max-width: 1400px; margin: 0 auto;
+    padding: 0 clamp(20px, 6vw, 56px);
+    display: grid;
+    grid-template-columns: 1.55fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 8px;
+    aspect-ratio: 16 / 9;
+    max-height: 78vh;
+  }
+  .hg-cell { position: relative; overflow: hidden; background: var(--marine); cursor: pointer; }
+  .hg-cell:nth-child(1) { grid-row: 1 / span 2; grid-column: 1; }
+  .hg-cell:nth-child(2) { grid-row: 1; grid-column: 2; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: transparent; cursor: default; }
+  .hg-cell:nth-child(3) { grid-row: 2; grid-column: 2; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: transparent; cursor: default; }
+  .hg-sub { position: relative; overflow: hidden; background: var(--marine); cursor: pointer; }
+  .hg-photo {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+    transition: transform 0.8s var(--ease), filter 0.6s var(--ease);
+    filter: saturate(0.95) brightness(0.96);
+  }
+  .hg-cell:hover .hg-photo,
+  .hg-sub:hover .hg-photo {
+    transform: scale(1.04);
+    filter: saturate(1.05) brightness(1.02);
+  }
+  .hg-cell::after, .hg-sub::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 60%, rgba(10,20,40,0.35) 100%);
+    pointer-events: none;
+  }
+  .hg-cta {
+    position: absolute; bottom: 20px; right: 20px; z-index: 2;
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 12px 18px;
+    background: rgba(10,20,40,0.72);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    color: var(--mist);
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    border: 1px solid var(--rule-mist-strong);
+    border-radius: 2px;
+    transition: all 0.3s var(--ease);
+  }
+  .hg-cta:hover { background: var(--abyss); border-color: var(--mist); }
+
+  /* Mobile carousel */
+  .hero-gallery-mobile { display: none; }
+
+  /* ─────────────────────────────────────────────────────────────
+     STATS BAR
+     ───────────────────────────────────────────────────────────── */
+  .stats {
+    background: var(--abyss);
+    border-top: 1px solid var(--rule-mist);
+  }
+  .stats-grid {
+    max-width: 1400px; margin: 0 auto;
+    padding: 40px clamp(20px, 6vw, 56px);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 32px;
+  }
+  .stat {
+    display: flex; flex-direction: column; gap: 8px;
+    border-left: 1px solid var(--rule-mist);
+    padding-left: 24px;
+  }
+  .stat:first-child { border-left: none; padding-left: 0; }
+  .stat-num {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: 56px; line-height: 1;
+    color: var(--mist);
+  }
+  .stat-num small {
+    font-family: var(--font-body);
+    font-size: 14px; color: var(--sand);
+    font-weight: 400; margin-left: 4px;
+    letter-spacing: 0.02em;
+  }
+  .stat-num.text {
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 18px;
+    line-height: 1.3;
+  }
+  .stat-label {
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--sand);
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     SECCIONES — fondo translúcido sobre la ballena
+     ───────────────────────────────────────────────────────────── */
+  .section {
+    padding: 120px clamp(20px, 6vw, 56px);
+    background: var(--block-marine);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-top: 1px solid var(--rule-mist);
+  }
+  .section--abyss {
+    background: var(--block-abyss);
+  }
+  .section--solid-marine {
+    background: var(--marine);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .section-inner { max-width: 1200px; margin: 0 auto; }
+  .section-inner--narrow { max-width: 720px; margin: 0 auto; }
+
+  .section-header {
+    display: flex; flex-direction: column; gap: 16px;
+    margin-bottom: 60px;
+  }
+  .section-title {
+    font-family: var(--font-display); font-weight: 400;
+    font-size: clamp(36px, 4.6vw, 60px);
+    line-height: 1.04; letter-spacing: -0.012em;
+    color: var(--mist); margin: 0;
+    max-width: 20ch;
+  }
+  .section-title em { font-style: italic; color: var(--sand); }
+
+  /* Descripción editorial — single column 640 */
+  .description-body {
+    max-width: 640px;
+    margin: 36px auto 0;
+    font-size: 17px;
+    line-height: 1.7;
+    color: var(--mist);
+  }
+  .description-body p { margin: 0 0 22px; }
+  .description-body p:last-child { margin-bottom: 0; }
+  .description-body em {
+    font-family: var(--font-display); font-style: italic;
+    font-weight: 400; color: var(--sand);
+  }
+  .description-head {
+    max-width: 640px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     AMENITIES
+     ───────────────────────────────────────────────────────────── */
+  .amenities-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 56px 64px;
+    margin-top: 60px;
+  }
+  .amenity-cat {
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .amenity-cat-head {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 24px; color: var(--mist);
+    display: flex; align-items: center; gap: 14px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--rule-mist-strong);
+  }
+  .amenity-cat-head svg { color: var(--gold); flex-shrink: 0; }
+  .amenity-list { display: flex; flex-direction: column; gap: 10px; }
+  .amenity-item {
+    font-size: 15px; color: var(--sand);
+    display: flex; align-items: baseline; gap: 12px;
+    line-height: 1.5;
+  }
+  .amenity-item::before {
+    content: ''; flex-shrink: 0;
+    width: 4px; height: 4px;
+    background: var(--gold);
+    border-radius: 50%;
+    transform: translateY(-3px);
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     LOCATION + MAPA
+     ───────────────────────────────────────────────────────────── */
+  .location-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 56px;
+    margin-top: 56px;
+    align-items: stretch;
+  }
+  .poi {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--rule-mist);
+    gap: 16px;
+  }
+  .poi:first-child { padding-top: 0; }
+  .poi:last-child { border-bottom: none; }
+  .poi-name {
+    font-size: 16px; color: var(--mist);
+    font-weight: 500;
+  }
+  .poi-name small {
+    display: block;
+    font-size: 12px; color: var(--sand);
+    font-weight: 400; margin-top: 4px;
+    letter-spacing: 0.02em;
+  }
+  .poi-dist {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 500;
+    color: var(--gold);
+    white-space: nowrap; line-height: 1.1;
+    text-align: right;
+  }
+  .poi-dist small {
+    display: block;
+    font-family: var(--font-body);
+    font-size: 9px; letter-spacing: 0.32em;
+    text-transform: uppercase; color: var(--sand);
+    font-weight: 500; margin-top: 4px;
+  }
+  .poi--hospital .poi-dist { color: var(--coral); }
+  .map {
+    height: 520px;
+    background: var(--marine);
+    position: relative;
+    border: 1px solid var(--rule-mist);
+  }
+  .map .leaflet-container {
+    width: 100%; height: 100%;
+    background: var(--marine);
+    font-family: var(--font-body);
+  }
+  .vrm-pin {
+    width: 38px; height: 38px;
+    background: var(--coral);
+    border: 3px solid var(--mist);
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow: 0 8px 22px rgba(10,20,40,0.55);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .vrm-pin::after {
+    content: ''; width: 8px; height: 8px;
+    background: var(--mist);
+    border-radius: 50%;
+    transform: rotate(45deg);
+  }
+  .vrm-poi-pin {
+    width: 12px; height: 12px;
+    background: var(--mist);
+    border: 2px solid var(--abyss);
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(10,20,40,0.4);
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     RESEÑAS — citas editoriales
+     ───────────────────────────────────────────────────────────── */
+  .reviews-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px 80px;
+    margin-top: 60px;
+  }
+  .review { display: flex; flex-direction: column; gap: 24px; }
+  .review:nth-child(1) { grid-column: 1 / -1; }
+  .review-quote {
+    font-family: var(--font-display);
+    font-weight: 400; font-style: italic;
+    font-size: clamp(22px, 2.2vw, 30px);
+    line-height: 1.32;
+    color: var(--mist);
+    letter-spacing: -0.005em;
+    position: relative;
+    padding-left: 30px;
+    margin: 0;
+  }
+  .review-quote::before {
+    content: '\201C';
+    position: absolute; left: 0; top: -8px;
+    font-size: 64px; line-height: 1;
+    color: var(--gold);
+    font-style: normal;
+  }
+  .review:nth-child(1) .review-quote { font-size: clamp(26px, 2.8vw, 38px); }
+  .review-meta {
+    display: flex; align-items: baseline; gap: 14px;
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--sand);
+  }
+  .review-meta .sep { width: 24px; height: 1px; background: var(--gold); opacity: 0.7; }
+
+  /* ─────────────────────────────────────────────────────────────
+     CASAS SIMILARES
+     ───────────────────────────────────────────────────────────── */
+  .similar-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px;
+    margin-top: 60px;
+  }
+  .sim-card {
+    display: flex; flex-direction: column; gap: 20px;
+    cursor: pointer;
+  }
+  .sim-photo {
+    aspect-ratio: 4/5;
+    overflow: hidden;
+    background: var(--marine);
+    position: relative;
+  }
+  .sim-photo-img {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+    transition: transform 0.8s var(--ease), filter 0.6s var(--ease);
+    filter: saturate(0.92);
+  }
+  .sim-card:hover .sim-photo-img { transform: scale(1.04); filter: saturate(1); }
+  .sim-info {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px; padding-top: 4px;
+  }
+  .sim-zone {
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--coral);
+    margin-bottom: 8px;
+  }
+  .sim-name {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 24px; color: var(--mist);
+    line-height: 1.15; letter-spacing: -0.005em;
+  }
+  .sim-price {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 24px; color: var(--gold);
+    line-height: 1; white-space: nowrap;
+  }
+  .sim-price small {
+    display: block;
+    font-family: var(--font-body);
+    font-size: 9px; letter-spacing: 0.3em;
+    text-transform: uppercase; color: var(--sand);
+    font-weight: 500; margin-top: 4px;
+    text-align: right;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     CTA FINAL
+     ───────────────────────────────────────────────────────────── */
+  .cta-final {
+    padding: 140px clamp(20px, 6vw, 56px);
+    background: var(--block-abyss);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--mist);
+    text-align: center;
+    border-top: 1px solid var(--rule-mist);
+  }
+  .cta-final-inner {
+    max-width: 920px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 28px; align-items: center;
+  }
+  .cta-final h2 {
+    font-family: var(--font-display); font-weight: 400;
+    font-size: clamp(36px, 5.4vw, 72px);
+    line-height: 1.04; letter-spacing: -0.012em;
+    margin: 0;
+  }
+  .cta-final h2 em { font-style: italic; color: var(--sand); }
+  .cta-final-price {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+  }
+  .cta-final-price-num {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 72px; color: var(--gold); line-height: 1;
+  }
+  .cta-final-price-unit {
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.36em; text-transform: uppercase;
+    color: var(--sand);
+  }
+  .cta-final-buttons {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 16px;
+  }
+  .cta-final-fine {
+    margin-top: 28px;
+    font-size: 13px;
+    color: var(--sand);
+    max-width: 540px;
+    line-height: 1.55;
+  }
+  /* Signature quote en español — carácter de marca (fix B.8) */
+  .cta-final-signature {
+    margin: 18px auto 0;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 15px;
+    line-height: 1.4;
+    color: rgba(197, 187, 168, 0.60);
+    max-width: 540px;
+    letter-spacing: 0.01em;
+  }
+
+  /* Footer */
+  .footer {
+    padding: 60px clamp(20px, 6vw, 56px) calc(48px + var(--safe-bot));
+    background: var(--abyss);
+    color: var(--sand);
+    border-top: 1px solid var(--rule-mist);
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 20px;
+    font-size: 12px; letter-spacing: 0.04em;
+  }
+  .footer-brand {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 22px;
+    color: var(--mist);
+    letter-spacing: 0.04em;
+  }
+  .footer-meta {
+    letter-spacing: 0.22em; text-transform: uppercase; font-size: 10px;
+  }
+
+  /* WhatsApp floating */
+  .wa-float {
+    position: fixed; right: 24px;
+    bottom: calc(24px + var(--safe-bot));
+    z-index: 35;
+    width: 56px; height: 56px;
+    background: var(--wa-green);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #07261c;
+    box-shadow: 0 14px 36px rgba(37,211,102,0.35), 0 2px 8px rgba(0,0,0,0.20);
+    transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease);
+  }
+  .wa-float:hover { transform: scale(1.06); box-shadow: 0 18px 44px rgba(37,211,102,0.42); }
+  .wa-float::after {
+    content: ''; position: absolute; inset: -6px;
+    border-radius: 50%;
+    border: 2px solid var(--wa-green);
+    opacity: 0.4;
+    animation: waPulse 2.6s var(--ease) infinite;
+  }
+  @keyframes waPulse {
+    0% { transform: scale(1); opacity: 0.45; }
+    100% { transform: scale(1.6); opacity: 0; }
+  }
+
+  /* Reveals */
+  .reveal {
+    opacity: 0; transform: translateY(24px);
+    transition: opacity 1s var(--ease), transform 1s var(--ease);
+  }
+  .reveal.in { opacity: 1; transform: translateY(0); }
+
+  /* ─────────────────────────────────────────────────────────────
+     MOBILE
+     ───────────────────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .topbar { padding-left: 16px; padding-right: 16px; }
+    .property-header { padding-left: 14px; padding-right: 14px; gap: 12px; }
+    .property-header .ph-zone { display: none; }
+    .property-header .ph-price-unit { display: none; }
+    .ph-name { font-size: 16px; }
+    .ph-price-num { font-size: 22px; }
+    .ph-ctas .btn .long { display: none; }
+
+    .hero { padding-top: calc(70px + var(--safe-top)); padding-bottom: 56px; }
+    .hero-meta { padding: 0 20px; margin-bottom: 22px; flex-direction: column; align-items: flex-start; gap: 20px; }
+    .hero-meta-r { align-items: baseline; flex-direction: row; gap: 14px; }
+    .hero-title { font-size: 40px; }
+
+    .hero-gallery { display: none; }
+    .hero-gallery-mobile { display: block; position: relative; }
+    .hero-carousel {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .hero-carousel::-webkit-scrollbar { display: none; }
+    .hero-carousel-slide {
+      flex: 0 0 100%;
+      scroll-snap-align: start;
+      aspect-ratio: 4/5;
+      background-size: cover; background-position: center;
+      background-color: var(--marine);
+    }
+    .hero-dots { display: flex; justify-content: center; gap: 6px; padding: 16px 0 0; }
+    .hero-dot {
+      width: 6px; height: 6px;
+      background: rgba(232,228,218,0.3);
+      border-radius: 50%;
+      transition: all 0.3s var(--ease);
+    }
+    .hero-dot.active { background: var(--gold); width: 24px; border-radius: 3px; }
+
+    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 28px 20px; padding: 32px 20px; }
+    .stat:nth-child(odd) { border-left: none; padding-left: 0; }
+    .stat:nth-child(even) { border-left: 1px solid var(--rule-mist); padding-left: 18px; }
+    .stat:nth-child(5) {
+      grid-column: 1 / -1;
+      border-left: none; padding-left: 0;
+      border-top: 1px solid var(--rule-mist);
+      padding-top: 22px;
+    }
+    .stat-num { font-size: 44px; }
+    .stat-num.text { font-size: 17px; }
+
+    .section, .cta-final { padding-left: 20px; padding-right: 20px; padding-top: 80px; padding-bottom: 80px; }
+    .section-header { margin-bottom: 40px; }
+    .section-title { font-size: 32px; }
+    .description-body { font-size: 16px; }
+
+    .amenities-grid { grid-template-columns: 1fr; gap: 40px; }
+    .location-grid { grid-template-columns: 1fr; gap: 36px; }
+    .map { height: 360px; }
+
+    .reviews-grid { grid-template-columns: 1fr; gap: 44px; }
+    .review:nth-child(1) { grid-column: auto; }
+    .review-quote { font-size: 20px !important; }
+
+    .similar-grid { grid-template-columns: 1fr; gap: 32px; }
+
+    .cta-final-price-num { font-size: 56px; }
+    .cta-final-buttons { flex-direction: column; width: 100%; }
+    .cta-final-buttons .btn { width: 100%; }
+
+    .footer { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .wa-float { right: 16px; bottom: calc(16px + var(--safe-bot)); }
+  }
+
+  /* Booking modal styles se inyectan en su propio bloque al final */
+</style>
+</head>
+<body>
+
+<!-- ═════════════════════════════════════════════════════════════
+     LOADER (se va cuando la ballena está lista)
+     ═════════════════════════════════════════════════════════════ -->
+<div class="loader" id="loader">
+  <div class="loader-mark">vrm</div>
+  <div class="loader-rule"></div>
+  <div class="loader-meta">La Cruz de Huanacaxtle</div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════
+     WHALE CANVAS + ATMOSPHERE
+     ═════════════════════════════════════════════════════════════ -->
+<canvas class="whale-canvas" id="whale-canvas" aria-hidden="true"></canvas>
+<div class="whale-shade" aria-hidden="true"></div>
+
+<!-- ═════════════════════════════════════════════════════════════
+     TOP BAR
+     ═════════════════════════════════════════════════════════════ -->
+<header class="topbar" id="topbar">
+  <a href="#" class="topbar-back" aria-label="Volver a propiedades">
+    <svg width="18" height="12" viewBox="0 0 18 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="17" y1="6" x2="1" y2="6"/>
+      <polyline points="6 1 1 6 6 11"/>
+    </svg>
+    <span>All homes</span>
+  </a>
+  <a href="#" class="topbar-brand">
+    <span class="mk"></span>
+    <span>vrm</span>
+  </a>
+</header>
+
+<!-- Sticky property header -->
+<div class="property-header" id="propertyHeader">
+  <div class="ph-left">
+    <span class="ph-zone">La Cruz de Huanacaxtle · Riviera Nayarit</span>
+    <span class="ph-name">Vallarta Gardens 2302</span>
+  </div>
+  <div class="ph-right">
+    <div class="ph-price">
+      <span class="ph-price-num">$200</span>
+      <span class="ph-price-unit">USD / night</span>
+    </div>
+    <div class="ph-ctas">
+      <a href="https://wa.me/15559472509?text=Hi!%20I'm%20interested%20in%20Vallarta%20Gardens%202302"
+         class="btn btn--wa" target="_blank" rel="noopener" aria-label="WhatsApp">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        <span class="long">WhatsApp us</span>
+      </a>
+      <button class="btn btn--coral" data-open-booking>
+        <span>Book online</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════
+     HERO + GALLERY
+     ═════════════════════════════════════════════════════════════ -->
+<section class="hero">
+  <div class="hero-meta">
+    <div class="hero-meta-l">
+      <span class="hero-zone"><span class="dot"></span>La Cruz de Huanacaxtle · Riviera Nayarit</span>
+      <h1 class="hero-title">Vallarta Gardens <em>2302</em></h1>
+    </div>
+    <div class="hero-meta-r">
+      <span class="hero-price-unit">from · USD / night</span>
+      <span class="hero-price-num">$200<small>USD</small></span>
+    </div>
+  </div>
+
+  <!-- DESKTOP: grid asimétrico 1+4 -->
+  <div class="hero-gallery">
+    <div class="hg-cell" data-photo="0">
+      <div class="hg-photo" data-bg="hero-main"></div>
+      <button class="hg-cta" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Ver 24 fotos
+      </button>
+    </div>
+    <div class="hg-cell">
+      <div class="hg-sub"><div class="hg-photo" data-bg="photo-1"></div></div>
+      <div class="hg-sub"><div class="hg-photo" data-bg="photo-2"></div></div>
+    </div>
+    <div class="hg-cell">
+      <div class="hg-sub"><div class="hg-photo" data-bg="photo-3"></div></div>
+      <div class="hg-sub"><div class="hg-photo" data-bg="photo-4"></div></div>
+    </div>
+  </div>
+
+  <!-- MOBILE: swipe carousel -->
+  <div class="hero-gallery-mobile">
+    <div class="hero-carousel" id="heroCarousel">
+      <div class="hero-carousel-slide" data-bg="hero-main"></div>
+      <div class="hero-carousel-slide" data-bg="photo-1"></div>
+      <div class="hero-carousel-slide" data-bg="photo-2"></div>
+      <div class="hero-carousel-slide" data-bg="photo-3"></div>
+      <div class="hero-carousel-slide" data-bg="photo-4"></div>
+    </div>
+    <div class="hero-dots" id="heroDots"></div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     STATS BAR
+     ═════════════════════════════════════════════════════════════ -->
+<section class="stats">
+  <div class="stats-grid">
+    <div class="stat">
+      <span class="stat-num">4</span>
+      <span class="stat-label">Guests</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">2</span>
+      <span class="stat-label">Bedrooms</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">2</span>
+      <span class="stat-label">Bathrooms</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">95<small>m²</small></span>
+      <span class="stat-label">Interior</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num text">Marina Riviera Nayarit</span>
+      <span class="stat-label">View</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     DESCRIPCIÓN EDITORIAL
+     ═════════════════════════════════════════════════════════════ -->
+<section class="section">
+  <div class="description-head">
+    <span class="eyebrow eyebrow--coral">The house</span>
+    <hr class="rule">
+  </div>
+  <div class="description-body reveal">
+    <p>Ten minutes from the most authentic fishing village in the bay. Terrace facing Marina Riviera Nayarit, two bedrooms opening to the garden, kitchen equipped for a chef.</p>
+    <p>Canadian snowbirds come back year after year. It's the rare mix between real quiet and full services within reach — gym and three pools in the complex, the seafood market on Wednesdays eight minutes on foot, fiber WiFi that holds up to video calls with family in Toronto.</p>
+    <p><em>One honest tip:</em> if you stay more than two weeks, we'll send you to the village laundry — does a better job than the building's.</p>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     AMENITIES
+     ═════════════════════════════════════════════════════════════ -->
+<section class="section">
+  <div class="section-inner">
+    <div class="section-header">
+      <span class="eyebrow eyebrow--coral">— What you find inside</span>
+      <h2 class="section-title">Equipped with <em>intent,</em> not a checklist.</h2>
+    </div>
+
+    <div class="amenities-grid">
+
+      <div class="amenity-cat">
+        <div class="amenity-cat-head">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v6a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V2"/><path d="M14 2v6a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V2"/><line x1="6" y1="14" x2="6" y2="22"/><line x1="14" y1="14" x2="14" y2="22"/></svg>
+          Kitchen
+        </div>
+        <div class="amenity-list">
+          <div class="amenity-item">4-burner stove with oven</div>
+          <div class="amenity-item">Large fridge + separate freezer</div>
+          <div class="amenity-item">Drip coffee maker + French press</div>
+          <div class="amenity-item">Full utensils (chef-ready)</div>
+        </div>
+      </div>
+
+      <div class="amenity-cat">
+        <div class="amenity-cat-head">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="22" x2="18" y2="22"/></svg>
+          Tech
+        </div>
+        <div class="amenity-list">
+          <div class="amenity-item">100 Mbps fiber WiFi</div>
+          <div class="amenity-item">Smart TV with Netflix</div>
+          <div class="amenity-item">AC in all bedrooms</div>
+          <div class="amenity-item">In-unit washer + dryer</div>
+        </div>
+      </div>
+
+      <div class="amenity-cat">
+        <div class="amenity-cat-head">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/></svg>
+          Comfort
+        </div>
+        <div class="amenity-list">
+          <div class="amenity-item">1 king + 2 twin beds</div>
+          <div class="amenity-item">Weekly cleaning included</div>
+          <div class="amenity-item">Free private parking</div>
+          <div class="amenity-item">Pet friendly up to 15kg (ask)</div>
+        </div>
+      </div>
+
+      <div class="amenity-cat">
+        <div class="amenity-cat-head">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg>
+          Complex
+        </div>
+        <div class="amenity-list">
+          <div class="amenity-item">3 shared pools</div>
+          <div class="amenity-item">Fully equipped gym</div>
+          <div class="amenity-item">Tropical gardens</div>
+          <div class="amenity-item">24/7 security</div>
+        </div>
+      </div>
+
+      <div class="amenity-cat">
+        <div class="amenity-cat-head">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3-6 10-6 10 6 10 6-3 6-10 6-10-6-10-6z"/></svg>
+          View
+        </div>
+        <div class="amenity-list">
+          <div class="amenity-item">Marina Riviera Nayarit</div>
+          <div class="amenity-item">Inner tropical garden</div>
+          <div class="amenity-item">Western sunsets</div>
+          <div class="amenity-item">Private terrace</div>
+        </div>
+      </div>
+
+      <div class="amenity-cat">
+        <div class="amenity-cat-head">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Location
+        </div>
+        <div class="amenity-list">
+          <div class="amenity-item">5 min walk · Marina</div>
+          <div class="amenity-item">8 min walk · Village plaza</div>
+          <div class="amenity-item">35 min drive · PVR airport</div>
+          <div class="amenity-item">25 min drive · San Javier Hospital</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     LOCATION + MAPA
+     ═════════════════════════════════════════════════════════════ -->
+<section class="section section--solid-marine">
+  <div class="section-inner" style="max-width: 1400px;">
+    <div class="section-header">
+      <span class="eyebrow eyebrow--coral">— Where you are</span>
+      <h2 class="section-title">La Cruz de Huanacaxtle <em>— and what's nearby.</em></h2>
+    </div>
+
+    <div class="location-grid">
+      <div class="location-meta">
+        <div class="poi">
+          <div>
+            <div class="poi-name">Marina Riviera Nayarit<small>Restaurants, walks, sport fishing</small></div>
+          </div>
+          <div class="poi-dist">5<small>min · walk</small></div>
+        </div>
+        <div class="poi">
+          <div>
+            <div class="poi-name">La Cruz plaza<small>The village. Mass on Sundays.</small></div>
+          </div>
+          <div class="poi-dist">8<small>min · walk</small></div>
+        </div>
+        <div class="poi">
+          <div>
+            <div class="poi-name">Mercado del Mar<small>Wednesdays · fresh catch of the day</small></div>
+          </div>
+          <div class="poi-dist">10<small>min · walk</small></div>
+        </div>
+        <div class="poi">
+          <div>
+            <div class="poi-name">La Manzanilla Beach<small>The locals' favorite</small></div>
+          </div>
+          <div class="poi-dist">5<small>min · drive</small></div>
+        </div>
+        <div class="poi poi--hospital">
+          <div>
+            <div class="poi-name">San Javier Hospital<small>Private bilingual care</small></div>
+          </div>
+          <div class="poi-dist">25<small>min · drive</small></div>
+        </div>
+        <div class="poi">
+          <div>
+            <div class="poi-name">Puerto Vallarta airport<small>PVR · direct flights to Canada</small></div>
+          </div>
+          <div class="poi-dist">35<small>min · drive</small></div>
+        </div>
+      </div>
+      <div class="map" id="map" aria-label="Mapa de La Cruz de Huanacaxtle"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     RESEÑAS
+     ═════════════════════════════════════════════════════════════ -->
+<section class="section">
+  <div class="section-inner">
+    <div class="section-header">
+      <span class="eyebrow eyebrow--coral">— What guests say</span>
+      <h2 class="section-title">Not reviews. <em>Letters.</em></h2>
+    </div>
+
+    <div class="reviews-grid">
+      <div class="review">
+        <p class="review-quote">Es la cuarta vez que rentamos con VRM. La diferencia es la gente — siempre disponibles, siempre honestos sobre qué casa nos conviene. Ya somos amigos.</p>
+        <div class="review-meta">
+          <span>Robert M.</span>
+          <span class="sep"></span>
+          <span>Calgary · March 2026</span>
+        </div>
+      </div>
+
+      <div class="review">
+        <p class="review-quote">Llegamos a Vallarta cansados y Rodrigo nos recibió en la casa con todo listo. Sentimos que reservamos con un amigo, no con una empresa.</p>
+        <div class="review-meta">
+          <span>Margaret &amp; David K.</span>
+          <span class="sep"></span>
+          <span>Toronto · January 2026</span>
+        </div>
+      </div>
+
+      <div class="review">
+        <p class="review-quote">We've stayed in many vacation rentals across Mexico. VRM's attention to detail and local knowledge stands apart. They know which restaurant to recommend, which beach is best for our grandkids, where to find the best fresh tuna.</p>
+        <div class="review-meta">
+          <span>Linda &amp; Tom W.</span>
+          <span class="sep"></span>
+          <span>Vancouver · December 2025</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     CASAS SIMILARES
+     ═════════════════════════════════════════════════════════════ -->
+<section class="section section--solid-marine">
+  <div class="section-inner" style="max-width: 1400px;">
+    <div class="section-header">
+      <span class="eyebrow eyebrow--coral">— Nearby homes</span>
+      <h2 class="section-title">Three more homes, <em>also honest.</em></h2>
+    </div>
+
+    <div class="similar-grid">
+      <a href="#" class="sim-card">
+        <div class="sim-photo"><div class="sim-photo-img" data-bg="sim-1"></div></div>
+        <div class="sim-info">
+          <div>
+            <div class="sim-zone">La Cruz de Huanacaxtle</div>
+            <div class="sim-name">Vallarta Gardens 2403</div>
+          </div>
+          <div class="sim-price">$185<small>USD / night</small></div>
+        </div>
+      </a>
+
+      <a href="#" class="sim-card">
+        <div class="sim-photo"><div class="sim-photo-img" data-bg="sim-2"></div></div>
+        <div class="sim-info">
+          <div>
+            <div class="sim-zone">La Cruz de Huanacaxtle</div>
+            <div class="sim-name">Vallarta Gardens 3004</div>
+          </div>
+          <div class="sim-price">$210<small>USD / night</small></div>
+        </div>
+      </a>
+
+      <a href="#" class="sim-card">
+        <div class="sim-photo"><div class="sim-photo-img" data-bg="sim-3"></div></div>
+        <div class="sim-info">
+          <div>
+            <div class="sim-zone">Punta de Mita</div>
+            <div class="sim-name">Bolongo L05</div>
+          </div>
+          <div class="sim-price">$240<small>USD / night</small></div>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     CTA FINAL
+     ═════════════════════════════════════════════════════════════ -->
+<section class="cta-final">
+  <div class="cta-final-inner">
+    <span class="eyebrow eyebrow--coral">— Ready?</span>
+    <h2>If this house <em>doesn't fit you,</em><br>we'll recommend another.</h2>
+    <div class="cta-final-price">
+      <span class="cta-final-price-num">$200</span>
+      <span class="cta-final-price-unit">USD · per night</span>
+    </div>
+    <div class="cta-final-buttons">
+      <a href="https://wa.me/15559472509?text=Hi!%20I'm%20interested%20in%20Vallarta%20Gardens%202302"
+         class="btn btn--lg btn--wa" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        WhatsApp Rodrigo · Real human
+      </a>
+      <button class="btn btn--lg btn--outline-mist" data-open-booking>
+        Book online
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 5 19 12 13 19"/></svg>
+      </button>
+    </div>
+    <p class="cta-final-fine">Instant booking confirmation. Real-time calendar synced with Airbnb and VRBO. Flexible cancellation up to 7 days before check-in.</p>
+    <p class="cta-final-signature">"Si la casa no encaja contigo, te recomendamos otra."</p>
+  </div>
+</section>
+
+<footer class="footer">
+  <span class="footer-brand">vrm</span>
+  <span class="footer-meta">Banderas Bay · Since 2018 · WhatsApp +1 (555) 947-2509</span>
+</footer>
+
+<!-- WhatsApp flotante -->
+<a href="https://wa.me/15559472509?text=Hi!%20I'm%20interested%20in%20Vallarta%20Gardens%202302"
+   class="wa-float" target="_blank" rel="noopener" aria-label="WhatsApp 24/7">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+</a>
+
+<!-- Booking modal mount point (markup + styles + JS se agregan en bloque separado abajo) -->
+<div id="bookingMount"></div>
+
+<!-- Inline placeholder photo system + page logic (sin WebGL todavía — se agrega abajo) -->
+<script>
+  function makePhoto(label, tone) {
+    const colors = {
+      ocean:   ['#0A1428', '#1A2E48', '#3A4A60'],
+      garden:  ['#0A1428', '#1F3736', '#4A6660'],
+      kitchen: ['#1A1410', '#3A2E25', '#B89668'],
+      bedroom: ['#0A1428', '#2A2535', '#4A4055'],
+      terrace: ['#0A1428', '#1A2E48', '#4A8FB5'],
+      pool:    ['#0A1428', '#1A4055', '#4A8FB5'],
+      coral:   ['#0A1428', '#3A2A2A', '#D97757']
+    };
+    const c = colors[tone] || colors.ocean;
+    const svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 600' preserveAspectRatio='xMidYMid slice'>" +
+      "<defs>" +
+      "<linearGradient id='g' x1='0' y1='0' x2='0' y2='1'>" +
+      "<stop offset='0' stop-color='" + c[0] + "'/>" +
+      "<stop offset='0.55' stop-color='" + c[1] + "'/>" +
+      "<stop offset='1' stop-color='" + c[2] + "'/>" +
+      "</linearGradient>" +
+      "<pattern id='s' width='3' height='3' patternUnits='userSpaceOnUse'>" +
+      "<line x1='0' y1='0' x2='0' y2='3' stroke='" + c[2] + "' stroke-width='0.4' opacity='0.18'/>" +
+      "</pattern>" +
+      "</defs>" +
+      "<rect width='800' height='600' fill='url(#g)'/>" +
+      "<rect width='800' height='600' fill='url(#s)'/>" +
+      "<text x='40' y='560' font-family='ui-monospace, Menlo, monospace' font-size='14' fill='#E8E4DA' opacity='0.62' letter-spacing='3'>" + label + "</text>" +
+      "</svg>";
+    return "url(\"data:image/svg+xml;utf8," + encodeURIComponent(svg) + "\")";
+  }
+
+  const PHOTOS = {
+    'hero-main': makePhoto('TERRAZA · VISTA MARINA · DUSK', 'terrace'),
+    'photo-1':   makePhoto('SALA · LIVING ROOM', 'ocean'),
+    'photo-2':   makePhoto('COCINA · KITCHEN', 'kitchen'),
+    'photo-3':   makePhoto('RECÁMARA PRINCIPAL · KING', 'bedroom'),
+    'photo-4':   makePhoto('PISCINA · COMMON POOL', 'pool'),
+    'sim-1':     makePhoto('VG 2403 · POOL VIEW', 'pool'),
+    'sim-2':     makePhoto('VG 3004 · TERRAZA', 'garden'),
+    'sim-3':     makePhoto('BOLONGO L05 · PUNTA MITA', 'ocean')
+  };
+  document.querySelectorAll('[data-bg]').forEach(el => {
+    const key = el.dataset.bg;
+    if (PHOTOS[key]) el.style.backgroundImage = PHOTOS[key];
+  });
+
+  /* Topbar + sticky header */
+  const topbar = document.getElementById('topbar');
+  const propHeader = document.getElementById('propertyHeader');
+  const heroEl = document.querySelector('.hero');
+  function onScroll() {
+    const y = window.scrollY;
+    topbar.classList.toggle('solid', y > 20);
+    if (heroEl) {
+      const heroH = heroEl.offsetHeight;
+      propHeader.classList.toggle('show', y > heroH - 100);
+    }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  /* Reveals */
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  /* Mobile carousel dots */
+  const carousel = document.getElementById('heroCarousel');
+  const dotsEl = document.getElementById('heroDots');
+  if (carousel && dotsEl) {
+    const slides = carousel.querySelectorAll('.hero-carousel-slide');
+    slides.forEach((_, i) => {
+      const d = document.createElement('div');
+      d.className = 'hero-dot' + (i === 0 ? ' active' : '');
+      dotsEl.appendChild(d);
+    });
+    carousel.addEventListener('scroll', () => {
+      const i = Math.round(carousel.scrollLeft / carousel.offsetWidth);
+      dotsEl.querySelectorAll('.hero-dot').forEach((d, idx) => d.classList.toggle('active', idx === i));
+    }, { passive: true });
+  }
+</script>
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+  // Mapa — coordenadas dinámicas del UNIT (con fallback a Vallarta Gardens)
+  const VG_COORDS = window.VRM_UNIT && window.VRM_UNIT.coordinates
+    ? [window.VRM_UNIT.coordinates.lat, window.VRM_UNIT.coordinates.lng]
+    : [20.7400, -105.3700];
+  const map = L.map('map', {
+    zoomControl: false,
+    scrollWheelZoom: false,
+    attributionControl: false
+  }).setView(VG_COORDS, 13);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    subdomains: 'abcd'
+  }).addTo(map);
+
+  L.control.attribution({ position: 'bottomright', prefix: '' })
+    .addAttribution('&copy; OSM, CARTO')
+    .addTo(map);
+  L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+  const vrmPinIcon = L.divIcon({
+    className: '', html: '<div class="vrm-pin"></div>',
+    iconSize: [38, 38], iconAnchor: [19, 38]
+  });
+  const poiIcon = L.divIcon({
+    className: '', html: '<div class="vrm-poi-pin"></div>',
+    iconSize: [12, 12], iconAnchor: [6, 6]
+  });
+
+  L.marker(VG_COORDS, { icon: vrmPinIcon }).addTo(map);
+
+  const POIS = [
+    { coord: [20.7430, -105.3722], label: 'Marina Riviera Nayarit' },
+    { coord: [20.7387, -105.3680], label: 'Plaza La Cruz' },
+    { coord: [20.7395, -105.3690], label: 'Mercado del Mar (mié)' },
+    { coord: [20.7510, -105.3855], label: 'Playa La Manzanilla' },
+    { coord: [20.6700, -105.2400], label: 'Hospital San Javier' },
+    { coord: [20.6800, -105.2540], label: 'Aeropuerto PVR' }
+  ];
+  POIS.forEach(p => {
+    L.marker(p.coord, { icon: poiIcon }).bindPopup('<b>' + p.label + '</b>').addTo(map);
+  });
+  const bounds = L.latLngBounds([VG_COORDS, ...POIS.map(p => p.coord)]);
+  map.fitBounds(bounds, { padding: [40, 40] });
+  document.getElementById('map').addEventListener('click', () => { map.scrollWheelZoom.enable(); });
+</script>
+
+<!-- ═════════════════════════════════════════════════════════════
+     BOOKING MODAL — drawer derecho desktop, fullscreen mobile
+     ═════════════════════════════════════════════════════════════ -->
+<style id="booking-styles">
+  .bm-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(10, 20, 40, 0.65);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    z-index: 60;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.4s var(--ease);
+  }
+  .bm-backdrop.open { opacity: 1; pointer-events: auto; }
+
+  .bm {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    z-index: 61;
+    width: 520px; max-width: 100vw;
+    background: var(--abyss);  /* sólido — oculta la ballena durante pay flow */
+    color: var(--mist);
+    box-shadow: -30px 0 60px rgba(10,20,40,0.55);
+    transform: translateX(100%);
+    transition: transform 0.5s var(--ease);
+    display: flex; flex-direction: column;
+  }
+  .bm.open { transform: translateX(0); }
+
+  .bm-head {
+    flex-shrink: 0;
+    padding: calc(20px + var(--safe-top)) 28px 16px;
+    background: var(--abyss);
+    color: var(--mist);
+    display: flex; align-items: center; gap: 16px;
+    border-bottom: 1px solid var(--rule-mist);
+  }
+  .bm-back, .bm-close {
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--mist); opacity: 0.78;
+    transition: opacity 0.2s var(--ease);
+    margin-left: -10px;
+  }
+  .bm-back:hover, .bm-close:hover { opacity: 1; }
+  .bm-close { margin-left: auto; margin-right: -10px; }
+
+  .bm-title { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .bm-step-label {
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--sand);
+  }
+  .bm-step-name {
+    font-family: var(--font-display);
+    font-weight: 500; font-size: 22px;
+    line-height: 1.1; color: var(--mist);
+  }
+
+  .bm-progress {
+    flex-shrink: 0; display: flex; gap: 4px;
+    padding: 0 28px 16px;
+    background: var(--abyss);
+    border-bottom: 1px solid var(--rule-mist);
+  }
+  .bm-progress-step {
+    flex: 1; height: 2px;
+    background: rgba(232,228,218,0.14);
+    transition: background 0.4s var(--ease);
+  }
+  .bm-progress-step.done { background: var(--gold); }
+  .bm-progress-step.current { background: var(--coral); }
+
+  .bm-body {
+    flex: 1; overflow-y: auto;
+    padding: 32px 28px 24px;
+    -webkit-overflow-scrolling: touch;
+    background: var(--abyss);
+  }
+
+  .bm-foot {
+    flex-shrink: 0;
+    padding: 16px 28px calc(20px + var(--safe-bot));
+    background: var(--marine);
+    border-top: 1px solid var(--rule-mist);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .bm-foot-summary {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  }
+  .bm-foot-label {
+    font-size: 11px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--sand);
+  }
+  .bm-foot-total {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 28px; color: var(--gold); line-height: 1;
+  }
+  .bm-foot-total small {
+    font-family: var(--font-body);
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.22em; color: var(--sand);
+    margin-left: 6px;
+  }
+
+  .bm-step { display: none; animation: bmFade 0.4s var(--ease); }
+  .bm-step.active { display: block; }
+  @keyframes bmFade {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .bm-helper {
+    font-size: 13px;
+    color: var(--sand);
+    margin-bottom: 18px;
+    line-height: 1.55;
+  }
+
+  /* ── CALENDARIO ── */
+  .cal-controls {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 22px;
+  }
+  .cal-nav {
+    width: 40px; height: 40px;
+    border: 1px solid var(--rule-mist-strong);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.3s var(--ease);
+    color: var(--mist);
+  }
+  .cal-nav:hover { background: var(--mist); color: var(--abyss); border-color: var(--mist); }
+  .cal-nav:disabled { opacity: 0.3; cursor: not-allowed; }
+  .cal-month-label {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 18px; letter-spacing: 0.02em;
+    color: var(--mist);
+  }
+
+  .cal-months { display: grid; grid-template-columns: 1fr; gap: 28px; }
+  .cal-month-title {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 16px; text-align: center; margin-bottom: 12px;
+    color: var(--mist);
+  }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-dow {
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--sand);
+    text-align: center;
+    padding: 6px 0 10px;
+  }
+  .cal-day {
+    height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    color: var(--mist);
+    background: transparent;
+    transition: background 0.2s var(--ease), color 0.2s var(--ease);
+    cursor: pointer;
+    border-radius: 0;
+  }
+  .cal-day.empty { visibility: hidden; }
+  .cal-day.past { color: rgba(232, 228, 218, 0.22); cursor: not-allowed; pointer-events: none; }
+  .cal-day.blocked {
+    color: rgba(232, 228, 218, 0.30);
+    text-decoration: line-through;
+    cursor: not-allowed; pointer-events: none;
+  }
+  .cal-day:not(.blocked):not(.past):not(.empty):hover {
+    background: rgba(217, 119, 87, 0.18);
+  }
+  .cal-day.selected {
+    background: var(--mist);
+    color: var(--abyss);
+    font-weight: 600;
+  }
+  .cal-day.in-range {
+    background: rgba(217, 119, 87, 0.22);
+    color: var(--mist);
+  }
+  .cal-day.range-start { border-radius: 22px 0 0 22px; }
+  .cal-day.range-end { border-radius: 0 22px 22px 0; }
+  .cal-day.range-start.range-end { border-radius: 22px; }
+
+  .cal-legend {
+    display: flex; gap: 18px; flex-wrap: wrap;
+    margin-top: 22px;
+    font-size: 11px;
+    color: var(--sand);
+    letter-spacing: 0.04em;
+  }
+  .cal-legend-item { display: flex; align-items: center; gap: 8px; }
+  .cal-legend-sw { width: 14px; height: 14px; border-radius: 2px; }
+  .cal-legend-sw.available { background: rgba(217, 119, 87, 0.22); }
+  .cal-legend-sw.selected { background: var(--mist); }
+  .cal-legend-sw.blocked { background: rgba(232, 228, 218, 0.08); position: relative; }
+  .cal-legend-sw.blocked::after {
+    content: ''; position: absolute; left: 1px; right: 1px; top: 50%;
+    height: 1px; background: var(--sand);
+  }
+
+  .cal-selection {
+    margin-top: 24px; padding: 20px;
+    background: rgba(232,228,218,0.04);
+    border: 1px solid var(--rule-mist-strong);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 16px;
+  }
+  .cal-selection-l { display: flex; flex-direction: column; gap: 6px; }
+  .cal-selection-label {
+    font-size: 10px; letter-spacing: 0.28em;
+    text-transform: uppercase; color: var(--coral);
+  }
+  .cal-selection-dates {
+    font-family: var(--font-display);
+    font-weight: 500; font-size: 18px;
+    color: var(--mist); line-height: 1.2;
+  }
+  .cal-selection-nights { font-size: 13px; color: var(--sand); }
+
+  /* ── SUMMARY ── */
+  .sum-card {
+    background: rgba(232,228,218,0.04);
+    border: 1px solid var(--rule-mist-strong);
+    padding: 24px;
+  }
+  .sum-dates {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px; align-items: center;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--rule-mist);
+  }
+  .sum-date-block { display: flex; flex-direction: column; gap: 6px; }
+  .sum-date-label {
+    font-size: 10px; letter-spacing: 0.32em;
+    text-transform: uppercase; color: var(--coral);
+  }
+  .sum-date-value {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 20px; color: var(--mist); line-height: 1.15;
+  }
+  .sum-date-arrow {
+    width: 24px; height: 1px;
+    background: var(--gold);
+    position: relative;
+  }
+  .sum-date-arrow::after {
+    content: ''; position: absolute; right: -1px; top: -3px;
+    width: 7px; height: 7px;
+    border-top: 1px solid var(--gold);
+    border-right: 1px solid var(--gold);
+    transform: rotate(45deg);
+  }
+
+  .sum-guests {
+    padding: 22px 0;
+    border-bottom: 1px solid var(--rule-mist);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .sum-guests-l { display: flex; flex-direction: column; gap: 4px; }
+  .sum-guests-label { font-size: 14px; color: var(--mist); font-weight: 500; }
+  .sum-guests-sub { font-size: 12px; color: var(--sand); }
+  .sum-guests-stepper { display: flex; align-items: center; gap: 8px; }
+  .stepper-btn {
+    width: 40px; height: 40px;
+    border: 1px solid var(--rule-mist-strong);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--mist);
+    transition: all 0.2s var(--ease);
+    font-size: 20px; line-height: 1;
+  }
+  .stepper-btn:hover { background: var(--mist); color: var(--abyss); border-color: var(--mist); }
+  .stepper-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .stepper-val {
+    min-width: 32px; text-align: center;
+    font-family: var(--font-display);
+    font-weight: 500; font-size: 22px;
+    font-variant-numeric: tabular-nums;
+    color: var(--mist);
+  }
+
+  .sum-breakdown { padding-top: 22px; display: flex; flex-direction: column; gap: 12px; }
+  .sum-row {
+    display: flex; justify-content: space-between;
+    font-size: 14px; color: var(--sand);
+  }
+  .sum-row .amount { color: var(--mist); }
+  .sum-row.total {
+    margin-top: 12px;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule-mist);
+    font-family: var(--font-display);
+    font-size: 26px; font-weight: 500;
+    color: var(--mist);
+    align-items: baseline;
+  }
+  .sum-row.total .amount { color: var(--gold); }
+
+  /* ── FORM ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .form-field { display: flex; flex-direction: column; gap: 8px; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-label {
+    font-size: 11px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--sand);
+    font-weight: 500;
+  }
+  .form-input, .form-textarea, .form-select {
+    height: 56px;
+    padding: 0 18px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--mist);
+    background: rgba(232,228,218,0.04);
+    border: 1px solid var(--rule-mist-strong);
+    border-radius: 2px;
+    transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .form-input::placeholder, .form-textarea::placeholder { color: rgba(197, 187, 168, 0.45); }
+  .form-input:focus, .form-textarea:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--coral);
+    background: rgba(217, 119, 87, 0.06);
+  }
+  .form-textarea {
+    height: auto; min-height: 96px;
+    padding: 16px 18px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  .form-select {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%23C5BBA8' stroke-width='1.5'><polyline points='1 1.5 6 6.5 11 1.5'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 18px center;
+    padding-right: 44px;
+  }
+
+  /* ── PAYMENT ── */
+  .pay-stripe-placeholder {
+    border: 1.5px dashed var(--rule-mist-strong);
+    border-radius: 2px;
+    padding: 44px 24px;
+    background: rgba(232,228,218,0.03);
+    text-align: center;
+    display: flex; flex-direction: column; gap: 14px; align-items: center;
+  }
+  .pay-stripe-placeholder .icon {
+    width: 52px; height: 52px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--mist);
+    color: var(--abyss);
+    border-radius: 50%;
+  }
+  .pay-stripe-placeholder h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 500; font-size: 20px;
+    color: var(--mist);
+  }
+  .pay-stripe-placeholder p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--sand);
+    max-width: 360px;
+    line-height: 1.55;
+  }
+  .pay-stripe-placeholder code {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    color: var(--coral);
+    letter-spacing: 0.05em;
+    background: rgba(217,119,87,0.10);
+    padding: 5px 9px;
+    border-radius: 2px;
+  }
+
+  .pay-badge {
+    display: inline-flex; align-items: center; gap: 10px;
+    margin-top: 20px;
+    padding: 12px 16px;
+    background: rgba(232,228,218,0.04);
+    border-radius: 2px;
+    font-size: 12px;
+    color: var(--sand);
+  }
+  .pay-badge svg { color: var(--gold); flex-shrink: 0; }
+
+  /* ── CONFIRMATION ── */
+  .conf-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center;
+    gap: 22px;
+    padding: 20px 0 16px;
+  }
+  .conf-check {
+    width: 92px; height: 92px;
+    border-radius: 50%;
+    background: var(--mist);
+    color: var(--abyss);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .conf-check::after {
+    content: ''; position: absolute; inset: -10px;
+    border: 1px solid var(--gold);
+    border-radius: 50%;
+    opacity: 0.55;
+  }
+  .conf-title {
+    font-family: var(--font-display);
+    font-weight: 500; font-size: 32px;
+    color: var(--mist);
+    line-height: 1.1; letter-spacing: -0.01em;
+    margin: 0; max-width: 14ch;
+  }
+  .conf-sub {
+    font-size: 14px;
+    color: var(--sand);
+    line-height: 1.6;
+    max-width: 36ch;
+    margin: 0;
+  }
+  .conf-ref {
+    margin-top: 10px;
+    padding: 14px 24px;
+    background: rgba(232,228,218,0.04);
+    border: 1px solid var(--rule-mist-strong);
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 14px;
+    letter-spacing: 0.12em;
+    color: var(--gold);
+  }
+  .conf-recap {
+    width: 100%;
+    margin-top: 14px;
+    text-align: left;
+    background: rgba(232,228,218,0.04);
+    border: 1px solid var(--rule-mist-strong);
+    padding: 22px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .conf-recap-row { display: flex; justify-content: space-between; font-size: 14px; }
+  .conf-recap-row .l { color: var(--sand); }
+  .conf-recap-row .r { color: var(--mist); font-weight: 500; }
+
+  @media (max-width: 540px) {
+    .bm { width: 100vw; }
+    .bm-head { padding-left: 18px; padding-right: 18px; }
+    .bm-progress { padding-left: 18px; padding-right: 18px; }
+    .bm-body { padding: 26px 18px 20px; }
+    .bm-foot { padding-left: 18px; padding-right: 18px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .cal-day { height: 40px; font-size: 13px; }
+    .conf-title { font-size: 28px; }
+  }
+</style>
+
+<div class="bm-backdrop" id="bmBackdrop"></div>
+<aside class="bm" id="bm" role="dialog" aria-modal="true" aria-labelledby="bmStepName">
+  <header class="bm-head">
+    <button class="bm-back" id="bmBack" aria-label="Paso anterior" style="display:none;">
+      <svg width="20" height="14" viewBox="0 0 20 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="7" x2="1" y2="7"/><polyline points="7 1 1 7 7 13"/></svg>
+    </button>
+    <div class="bm-title">
+      <span class="bm-step-label" id="bmStepLabel">Step 1 of 4</span>
+      <span class="bm-step-name" id="bmStepName">Select your dates</span>
+    </div>
+    <button class="bm-close" id="bmClose" aria-label="Cerrar">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="4" x2="16" y2="16"/><line x1="16" y1="4" x2="4" y2="16"/></svg>
+    </button>
+  </header>
+
+  <div class="bm-progress">
+    <div class="bm-progress-step" data-prog="1"></div>
+    <div class="bm-progress-step" data-prog="2"></div>
+    <div class="bm-progress-step" data-prog="3"></div>
+    <div class="bm-progress-step" data-prog="4"></div>
+  </div>
+
+  <div class="bm-body">
+
+    <!-- STEP 1: CALENDARIO -->
+    <section class="bm-step active" data-step="1">
+      <p class="bm-helper">Calendar synced live with Airbnb and VRBO. Crossed-out dates are already booked — the system updates on its own.</p>
+
+      <div class="cal-controls">
+        <button class="cal-nav" id="calPrev" aria-label="Mes anterior">
+          <svg width="14" height="10" viewBox="0 0 14 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="13" y1="5" x2="1" y2="5"/><polyline points="5 1 1 5 5 9"/></svg>
+        </button>
+        <div class="cal-month-label" id="calLabel">—</div>
+        <button class="cal-nav" id="calNext" aria-label="Mes siguiente">
+          <svg width="14" height="10" viewBox="0 0 14 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="5" x2="13" y2="5"/><polyline points="9 1 13 5 9 9"/></svg>
+        </button>
+      </div>
+
+      <div class="cal-months" id="calMonths"></div>
+
+      <div class="cal-legend">
+        <div class="cal-legend-item"><span class="cal-legend-sw available"></span>Your selection</div>
+        <div class="cal-legend-item"><span class="cal-legend-sw selected"></span>Check-in/out</div>
+        <div class="cal-legend-item"><span class="cal-legend-sw blocked"></span>Booked</div>
+      </div>
+
+      <div class="cal-selection" id="calSelection" style="display:none;">
+        <div class="cal-selection-l">
+          <span class="cal-selection-label">Your stay</span>
+          <span class="cal-selection-dates" id="calSelectionDates">—</span>
+          <span class="cal-selection-nights" id="calSelectionNights"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 2: SUMMARY -->
+    <section class="bm-step" data-step="2">
+      <div class="sum-card">
+        <div class="sum-dates">
+          <div class="sum-date-block">
+            <span class="sum-date-label">Check-in</span>
+            <span class="sum-date-value" id="sumCheckin">—</span>
+          </div>
+          <div class="sum-date-arrow"></div>
+          <div class="sum-date-block">
+            <span class="sum-date-label">Check-out</span>
+            <span class="sum-date-value" id="sumCheckout">—</span>
+          </div>
+        </div>
+
+        <div class="sum-guests">
+          <div class="sum-guests-l">
+            <span class="sum-guests-label">Guests</span>
+            <span class="sum-guests-sub">Up to 4 — the house sleeps comfortably</span>
+          </div>
+          <div class="sum-guests-stepper">
+            <button class="stepper-btn" id="guestsMinus" aria-label="Quitar huésped">−</button>
+            <span class="stepper-val" id="guestsVal">2</span>
+            <button class="stepper-btn" id="guestsPlus" aria-label="Agregar huésped">+</button>
+          </div>
+        </div>
+
+        <div class="sum-breakdown">
+          <div class="sum-row">
+            <span id="sumNightlyDesc">$200 × — noches</span>
+            <span class="amount" id="sumSubtotal">$—</span>
+          </div>
+          <div class="sum-row">
+            <span>Cleaning included</span>
+            <span class="amount">$0</span>
+          </div>
+          <div class="sum-row">
+            <span>Service fee (5%)</span>
+            <span class="amount" id="sumService">$—</span>
+          </div>
+          <div class="sum-row">
+            <span>Tax (16% VAT)</span>
+            <span class="amount" id="sumTax">$—</span>
+          </div>
+          <div class="sum-row total">
+            <span>Total</span>
+            <span class="amount" id="sumTotal">$—</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="bm-helper" style="margin-top: 20px;">No hidden fees. Secure payment. Flexible cancellation up to 7 days before check-in.</p>
+    </section>
+
+    <!-- STEP 3: GUEST FORM -->
+    <section class="bm-step" data-step="3">
+      <p class="bm-helper">Details for your booking. Rodrigo will contact you via WhatsApp before check-in to coordinate arrival.</p>
+
+      <form class="form-grid" id="guestForm" novalidate>
+        <div class="form-field full">
+          <label class="form-label" for="gName">Full name</label>
+          <input class="form-input" id="gName" type="text" autocomplete="name" required>
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="gEmail">Email</label>
+          <input class="form-input" id="gEmail" type="email" autocomplete="email" required>
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="gPhone">Phone / WhatsApp</label>
+          <input class="form-input" id="gPhone" type="tel" autocomplete="tel" placeholder="+1 416 555 0123" required>
+        </div>
+        <div class="form-field full">
+          <label class="form-label" for="gCountry">Country</label>
+          <select class="form-select" id="gCountry" required>
+            <option value="">Select your country</option>
+            <option value="CA">Canada</option>
+            <option value="US">United States</option>
+            <option value="MX">Mexico</option>
+            <option value="UK">United Kingdom</option>
+            <option value="AU">Australia</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div class="form-field full">
+          <label class="form-label" for="gNotes">Notes for Rodrigo · optional</label>
+          <textarea class="form-textarea" id="gNotes" placeholder="Arriving late? Bringing a pet? Anything we should prepare?"></textarea>
+        </div>
+      </form>
+    </section>
+
+    <!-- STEP 4: PAYMENT -->
+    <section class="bm-step" data-step="4">
+      <p class="bm-helper">Review your details. When you tap <strong>Confirm booking</strong>, your request goes to Rodrigo on WhatsApp. He'll send you a secure Stripe payment link within minutes to lock the dates.</p>
+
+      <div class="pay-stripe-placeholder">
+        <div class="icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        </div>
+        <h3>Request via WhatsApp</h3>
+        <p>Your request is sent instantly to Rodrigo with all your details. He responds in minutes (avg 4min) with a secure Stripe payment link. Pay only when you're ready — your dates are held for 30 minutes.</p>
+      </div>
+
+      <div class="pay-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Payment processed by Stripe · PCI-DSS Level 1
+      </div>
+
+      <div class="sum-card" style="margin-top: 22px;">
+        <div class="sum-breakdown" style="padding-top: 0;">
+          <div class="sum-row">
+            <span>Stay</span>
+            <span class="amount" id="payDatesLine">—</span>
+          </div>
+          <div class="sum-row">
+            <span id="payGuestsLine">— huéspedes</span>
+            <span class="amount" id="paySubtotal">$—</span>
+          </div>
+          <div class="sum-row total">
+            <span>Total to pay</span>
+            <span class="amount" id="payTotal">$— USD</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 5: CONFIRMATION -->
+    <section class="bm-step" data-step="5">
+      <div class="conf-wrap">
+        <div class="conf-check">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <h2 class="conf-title">Request sent</h2>
+        <p class="conf-sub">Rodrigo just received your request on WhatsApp. He'll reply within minutes (avg 4min) to confirm availability and send you a secure Stripe payment link. Your dates are held until then.</p>
+        <div class="conf-ref" id="confRef">BOOKING · — · —</div>
+
+        <div class="conf-recap">
+          <div class="conf-recap-row"><span class="l">Home</span><span class="r">Vallarta Gardens 2302</span></div>
+          <div class="conf-recap-row"><span class="l">Stay</span><span class="r" id="confDates">—</span></div>
+          <div class="conf-recap-row"><span class="l">Guests</span><span class="r" id="confGuests">—</span></div>
+          <div class="conf-recap-row"><span class="l">Estimated total</span><span class="r" id="confTotal">$—</span></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="bm-foot">
+    <div class="bm-foot-summary" id="footSummary">
+      <div>
+        <div class="bm-foot-label" id="footLabel">Rate</div>
+        <div class="bm-foot-total" id="footTotal">$200<small>USD / NIGHT</small></div>
+      </div>
+    </div>
+    <button class="btn btn--lg btn--coral btn--block" id="bmCta">Continue to summary</button>
+  </footer>
+</aside>
+
+<script>
+  /* ─────────────────────────────────────────────────────────────
+     BOOKING LOGIC
+     ───────────────────────────────────────────────────────────── */
+  // ★ Lee precio y capacidad dinámicamente del UNIT (hidratado en <head>)
+  const NIGHTLY = (window.VRM_UNIT && window.VRM_UNIT.priceUSD) || 200;
+  const SERVICE_RATE = 0.05;
+  const TAX_RATE = 0.16;
+  const MAX_GUESTS = (window.VRM_UNIT && window.VRM_UNIT.guests) || 4;
+
+  const TODAY = new Date();
+  TODAY.setHours(0,0,0,0);
+
+  function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+
+  // Mock blocked ranges (Daniel reemplaza con iCal de Supabase)
+  function buildBlockedSet() {
+    const ranges = [
+      [addDays(TODAY, 9),  addDays(TODAY, 16)],
+      [addDays(TODAY, 32), addDays(TODAY, 42)],
+      [addDays(TODAY, 65), addDays(TODAY, 71)]
+    ];
+    const set = new Set();
+    ranges.forEach(([a, b]) => {
+      for (let d = new Date(a); d <= b; d = addDays(d, 1)) set.add(ymd(d));
+    });
+    return set;
+  }
+  // ★★★ BLOCKED ahora es MUTABLE — se llena async desde Supabase ★★★
+  // Empieza vacío (fail-open: no se ve bloqueado nada hasta que carga real)
+  // y se rellena cuando el usuario abre el booking modal o cuando preload termina
+  let BLOCKED = new Set();
+  let _availabilityLoaded = false;
+
+  async function loadRealAvailability() {
+    if (_availabilityLoaded) return BLOCKED;
+    const unitId = window.VRM_UNIT_ID;
+    if (!unitId || !window.loadAvailability) {
+      console.warn('[VRM] No unit_id or loadAvailability — falling back to mock data');
+      BLOCKED = buildBlockedSet();
+      _availabilityLoaded = true;
+      return BLOCKED;
+    }
+    try {
+      BLOCKED = await window.loadAvailability(unitId);
+      _availabilityLoaded = true;
+      return BLOCKED;
+    } catch (e) {
+      console.warn('[VRM] Availability load failed:', e.message);
+      BLOCKED = new Set();
+      _availabilityLoaded = true;
+      return BLOCKED;
+    }
+  }
+
+  // Preload availability en background (no bloquea render inicial)
+  loadRealAvailability().then(() => {
+    // Si el modal ya está abierto, re-render para mostrar bloqueados reales
+    const bm = document.getElementById('bookingModal');
+    if (bm && bm.classList.contains('open') && typeof renderCalendar === 'function') {
+      renderCalendar();
+    }
+  });
+
+  const MONTHS_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const MONTHS_EN_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  // Días: M(on) T(ue) W(ed) T(hu) F(ri) S(at) S(un) — semana inicia Lunes para coherencia con resto
+  const DOW_EN = ['M','T','W','T','F','S','S'];
+  function formatDateLong(d) { return d.getDate() + ' ' + MONTHS_EN_SHORT[d.getMonth()] + ' ' + d.getFullYear(); }
+
+  const state = {
+    step: 1,
+    checkIn: null,
+    checkOut: null,
+    guests: 2,
+    visibleMonth: new Date(TODAY.getFullYear(), TODAY.getMonth(), 1)
+  };
+
+  const backdrop = document.getElementById('bmBackdrop');
+  const bm = document.getElementById('bm');
+  async function openBooking() {
+    document.body.classList.add('lock');
+    backdrop.classList.add('open');
+    bm.classList.add('open');
+    goStep(1);  // sincroniza header/footer/CTA con paso actual
+    // ★ Asegura que la availability esté cargada antes de renderizar
+    if (!_availabilityLoaded) {
+      await loadRealAvailability();
+      if (typeof renderCalendar === 'function') renderCalendar();
+    }
+  }
+  function closeBooking() {
+    bm.classList.remove('open');
+    backdrop.classList.remove('open');
+    document.body.classList.remove('lock');
+  }
+  document.querySelectorAll('[data-open-booking]').forEach(b => b.addEventListener('click', openBooking));
+  document.getElementById('bmClose').addEventListener('click', closeBooking);
+  backdrop.addEventListener('click', closeBooking);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && bm.classList.contains('open')) closeBooking(); });
+
+  const STEP_DEFS = [
+    null,
+    { label: 'Step 1 of 4', name: 'Select your dates',  cta: 'Continue to summary' },
+    { label: 'Step 2 of 4', name: 'Confirm your stay',   cta: 'Continue to guest info' },
+    { label: 'Step 3 of 4', name: 'Who\'s coming?',       cta: 'Continue to payment' },
+    { label: 'Step 4 of 4', name: 'Review & request',    cta: 'Send request via WhatsApp' },
+    { label: 'Done',        name: 'Request sent',        cta: 'Continue chat on WhatsApp' }
+  ];
+
+  function goStep(n) {
+    state.step = n;
+    document.querySelectorAll('.bm-step').forEach(s => s.classList.toggle('active', +s.dataset.step === n));
+    const def = STEP_DEFS[n];
+    document.getElementById('bmStepLabel').textContent = def.label;
+    document.getElementById('bmStepName').textContent = def.name;
+    document.getElementById('bmCta').textContent = def.cta;
+    document.getElementById('bmBack').style.display = (n > 1 && n < 5) ? 'flex' : 'none';
+    document.querySelectorAll('.bm-progress-step').forEach(p => {
+      const i = +p.dataset.prog;
+      p.classList.remove('done', 'current');
+      if (n === 5 || i < n) p.classList.add('done');
+      else if (i === n) p.classList.add('current');
+    });
+    document.getElementById('footSummary').style.display = (n === 5) ? 'none' : 'flex';
+    renderAll();
+    bm.querySelector('.bm-body').scrollTop = 0;
+  }
+  document.getElementById('bmBack').addEventListener('click', () => { if (state.step > 1) goStep(state.step - 1); });
+  document.getElementById('bmCta').addEventListener('click', () => {
+    if (state.step === 1) {
+      if (!state.checkIn || !state.checkOut) { flashSelection(); return; }
+      goStep(2);
+    } else if (state.step === 2) {
+      goStep(3);
+    } else if (state.step === 3) {
+      if (!validateForm()) return;
+      goStep(4);
+    } else if (state.step === 4) {
+      // ★ Stripe pendiente — por ahora redirigimos a WhatsApp con datos completos
+      // como "request to book". Rodrigo confirma manual.
+      sendBookingRequest();
+    } else if (state.step === 5) {
+      window.open('https://wa.me/15559472509?text=' + encodeURIComponent('Hi Rodrigo! I just sent a booking request for Vallarta Gardens 2302. Following up to confirm.'), '_blank');
+    }
+  });
+
+  // ★★★ BOOKING REQUEST via WhatsApp (placeholder mientras llega Stripe) ★★★
+  function sendBookingRequest() {
+    const name = document.getElementById('gName').value.trim();
+    const email = document.getElementById('gEmail').value.trim();
+    const phone = document.getElementById('gPhone').value.trim();
+    const country = document.getElementById('gCountry').value.trim();
+    const checkin = formatDateLong(state.checkIn);
+    const checkout = formatDateLong(state.checkOut);
+    const n = nights();
+    const guestsCount = state.guests;
+    const totalAmount = '$' + total().toLocaleString('en-US') + ' USD';
+
+    const msg = [
+      `Hi VRM! I'd like to book Vallarta Gardens 2302.`,
+      ``,
+      `📅 ${checkin} → ${checkout} (${n} night${n !== 1 ? 's' : ''})`,
+      `👥 ${guestsCount} guest${guestsCount !== 1 ? 's' : ''}`,
+      `💵 Total: ${totalAmount}`,
+      ``,
+      `Name: ${name}`,
+      `Email: ${email}`,
+      `Phone: ${phone}`,
+      `Country: ${country}`,
+      ``,
+      `Please confirm availability and send payment instructions.`
+    ].join('\n');
+
+    // Generar booking reference local (Rodrigo lo asocia con la conversación WA)
+    const ref = 'VRM-' + Date.now().toString(36).toUpperCase().slice(-6);
+    document.getElementById('confRef').textContent = 'BOOKING · ' + ref + ' · pending confirmation';
+    document.getElementById('confDates').textContent = `${checkin} → ${checkout}`;
+    document.getElementById('confGuests').textContent = `${guestsCount} guest${guestsCount !== 1 ? 's' : ''}`;
+    document.getElementById('confTotal').textContent = totalAmount + ' (pending)';
+
+    // Avanzar a step 5 + abrir WhatsApp
+    goStep(5);
+    window.open('https://wa.me/15559472509?text=' + encodeURIComponent(msg), '_blank');
+  }
+
+  function flashSelection() {
+    const sel = document.getElementById('calSelection');
+    sel.style.display = 'flex';
+    document.getElementById('calSelectionDates').textContent = 'Select check-in and check-out';
+    document.getElementById('calSelectionNights').textContent = '';
+    sel.animate([
+      { borderColor: 'var(--coral)' },
+      { borderColor: 'var(--rule-mist-strong)' }
+    ], { duration: 800, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+  }
+
+  function validateForm() {
+    const ids = ['gName','gEmail','gPhone','gCountry'];
+    let ok = true;
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el.value.trim()) {
+        el.style.borderColor = 'var(--coral)';
+        ok = false;
+      } else {
+        el.style.borderColor = '';
+      }
+    });
+    return ok;
+  }
+
+  function renderCalendar() {
+    const m = state.visibleMonth;
+    document.getElementById('calLabel').textContent = MONTHS_EN[m.getMonth()] + ' ' + m.getFullYear();
+    const container = document.getElementById('calMonths');
+    container.innerHTML = '';
+    const isDesktop = window.innerWidth > 540;
+    const monthsToShow = isDesktop ? 2 : 1;
+
+    for (let i = 0; i < monthsToShow; i++) {
+      const ref = new Date(m.getFullYear(), m.getMonth() + i, 1);
+      const wrap = document.createElement('div');
+      const title = document.createElement('div');
+      title.className = 'cal-month-title';
+      title.textContent = MONTHS_EN[ref.getMonth()] + ' ' + ref.getFullYear();
+      wrap.appendChild(title);
+
+      const grid = document.createElement('div');
+      grid.className = 'cal-grid';
+      DOW_EN.forEach(d => {
+        const h = document.createElement('div'); h.className = 'cal-dow'; h.textContent = d; grid.appendChild(h);
+      });
+      const firstDay = new Date(ref.getFullYear(), ref.getMonth(), 1);
+      let startCol = firstDay.getDay() - 1;
+      if (startCol < 0) startCol = 6;
+      const daysInMonth = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).getDate();
+
+      for (let j = 0; j < startCol; j++) {
+        const empty = document.createElement('div'); empty.className = 'cal-day empty'; grid.appendChild(empty);
+      }
+      for (let day = 1; day <= daysInMonth; day++) {
+        const cell = document.createElement('div');
+        cell.className = 'cal-day';
+        cell.textContent = day;
+        const date = new Date(ref.getFullYear(), ref.getMonth(), day);
+        const key = ymd(date);
+        if (date < TODAY) cell.classList.add('past');
+        else if (BLOCKED.has(key)) cell.classList.add('blocked');
+        else {
+          if (state.checkIn && ymd(state.checkIn) === key) cell.classList.add('selected', 'range-start');
+          if (state.checkOut && ymd(state.checkOut) === key) cell.classList.add('selected', 'range-end');
+          if (state.checkIn && state.checkOut && date > state.checkIn && date < state.checkOut) cell.classList.add('in-range');
+          cell.addEventListener('click', () => pickDate(date));
+        }
+        grid.appendChild(cell);
+      }
+      wrap.appendChild(grid);
+      container.appendChild(wrap);
+    }
+
+    const prevDisabled = m.getFullYear() < TODAY.getFullYear() || (m.getFullYear() === TODAY.getFullYear() && m.getMonth() <= TODAY.getMonth());
+    document.getElementById('calPrev').disabled = prevDisabled;
+
+    const sel = document.getElementById('calSelection');
+    if (state.checkIn && state.checkOut) {
+      sel.style.display = 'flex';
+      const nights = Math.round((state.checkOut - state.checkIn) / 86400000);
+      document.getElementById('calSelectionDates').textContent = formatDateLong(state.checkIn) + ' → ' + formatDateLong(state.checkOut);
+      document.getElementById('calSelectionNights').textContent = nights + ' night' + (nights > 1 ? 's' : '') + ' · $' + (nights * NIGHTLY) + ' USD subtotal';
+    } else if (state.checkIn) {
+      sel.style.display = 'flex';
+      document.getElementById('calSelectionDates').textContent = 'Check-in: ' + formatDateLong(state.checkIn);
+      document.getElementById('calSelectionNights').textContent = 'Select check-out';
+    } else {
+      sel.style.display = 'none';
+    }
+  }
+
+  function pickDate(d) {
+    if (!state.checkIn || (state.checkIn && state.checkOut)) {
+      state.checkIn = d; state.checkOut = null;
+    } else if (d <= state.checkIn) {
+      state.checkIn = d; state.checkOut = null;
+    } else {
+      let hasBlocked = false;
+      for (let x = addDays(state.checkIn, 1); x < d; x = addDays(x, 1)) {
+        if (BLOCKED.has(ymd(x))) { hasBlocked = true; break; }
+      }
+      if (hasBlocked) {
+        state.checkIn = d; state.checkOut = null;
+      } else {
+        state.checkOut = d;
+      }
+    }
+    renderAll();
+  }
+
+  document.getElementById('calPrev').addEventListener('click', () => {
+    state.visibleMonth = new Date(state.visibleMonth.getFullYear(), state.visibleMonth.getMonth() - 1, 1);
+    renderCalendar();
+  });
+  document.getElementById('calNext').addEventListener('click', () => {
+    state.visibleMonth = new Date(state.visibleMonth.getFullYear(), state.visibleMonth.getMonth() + 1, 1);
+    renderCalendar();
+  });
+  window.addEventListener('resize', () => { if (bm.classList.contains('open')) renderCalendar(); });
+
+  document.getElementById('guestsMinus').addEventListener('click', () => { if (state.guests > 1) { state.guests--; renderAll(); } });
+  document.getElementById('guestsPlus').addEventListener('click', () => { if (state.guests < MAX_GUESTS) { state.guests++; renderAll(); } });
+
+  function nights() { return state.checkIn && state.checkOut ? Math.round((state.checkOut - state.checkIn) / 86400000) : 0; }
+  function subtotal() { return nights() * NIGHTLY; }
+  function service() { return Math.round(subtotal() * SERVICE_RATE); }
+  function tax() { return Math.round(subtotal() * TAX_RATE); }
+  function total() { return subtotal() + service() + tax(); }
+  function fmt(n) { return '$' + n.toLocaleString('en-US') + ' USD'; }
+
+  function renderAll() {
+    renderCalendar();
+    document.getElementById('sumCheckin').textContent = state.checkIn ? formatDateLong(state.checkIn) : '—';
+    document.getElementById('sumCheckout').textContent = state.checkOut ? formatDateLong(state.checkOut) : '—';
+    document.getElementById('guestsVal').textContent = state.guests;
+    document.getElementById('guestsMinus').disabled = state.guests <= 1;
+    document.getElementById('guestsPlus').disabled = state.guests >= MAX_GUESTS;
+
+    const n = nights();
+    document.getElementById('sumNightlyDesc').textContent = '$' + NIGHTLY + ' × ' + n + ' night' + (n !== 1 ? 's' : '');
+    document.getElementById('sumSubtotal').textContent = fmt(subtotal());
+    document.getElementById('sumService').textContent = fmt(service());
+    document.getElementById('sumTax').textContent = fmt(tax());
+    document.getElementById('sumTotal').textContent = fmt(total());
+
+    document.getElementById('payDatesLine').textContent = state.checkIn && state.checkOut
+      ? formatDateLong(state.checkIn) + ' → ' + formatDateLong(state.checkOut) : '—';
+    document.getElementById('payGuestsLine').textContent = state.guests + ' guest' + (state.guests > 1 ? 's' : '');
+    document.getElementById('paySubtotal').textContent = fmt(subtotal());
+    document.getElementById('payTotal').textContent = fmt(total());
+
+    if (state.step === 5) {
+      const ref = 'VRM-' + Date.now().toString(36).slice(-6).toUpperCase();
+      document.getElementById('confRef').textContent = 'BOOKING · ' + ref;
+      document.getElementById('confDates').textContent = state.checkIn && state.checkOut
+        ? formatDateLong(state.checkIn) + ' → ' + formatDateLong(state.checkOut) : '—';
+      document.getElementById('confGuests').textContent = state.guests + ' · ' + (state.guests > 1 ? 'guests' : 'guest');
+      document.getElementById('confTotal').textContent = fmt(total());
+    }
+
+    const foot = document.getElementById('footTotal');
+    const footLabel = document.getElementById('footLabel');
+    if (n > 0) {
+      foot.innerHTML = fmt(total()).replace(' USD','') + '<small>' + n + ' NIGHT' + (n !== 1 ? 'S' : '') + ' · TOTAL</small>';
+      footLabel.textContent = 'Total with taxes';
+    } else {
+      foot.innerHTML = '$' + NIGHTLY + '<small>USD / NIGHT</small>';
+      footLabel.textContent = 'Rate';
+    }
+  }
+
+  renderAll();
+</script>
+
+<!-- ═════════════════════════════════════════════════════════════
+     WEBGL — bgScene + Ballena Swarovski + composer
+     Misma arquitectura que vrm_storytelling.html, path calmo ambiental.
+     ═════════════════════════════════════════════════════════════ -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const WHALE_GLB_URL = 'https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/ballena.glb';
+
+const canvas = document.getElementById('whale-canvas');
+const isMobile = window.matchMedia('(max-width: 768px)').matches;
+const isPortrait = window.innerHeight > window.innerWidth;
+const useMobileCamera = isMobile || isPortrait;
+
+/* ─── SCENE PRINCIPAL ─── */
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(
+  useMobileCamera ? 58 : 45,
+  window.innerWidth / window.innerHeight,
+  0.1, 100
+);
+camera.position.set(0, 0, useMobileCamera ? 13 : 9);
+
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: true,
+  alpha: false,
+  powerPreference: 'high-performance'
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.autoClear = false;
+
+/* ─── BG SCENE — shader FBM Bahía ─── */
+const bgScene = new THREE.Scene();
+const bgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const bgGeometry = new THREE.PlaneGeometry(2, 2);
+const bgMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 },
+    uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+    // Paleta Bahía: top blend → Stone → Marine → Abyss
+    uColorSurface: { value: new THREE.Color(0x4A6688) },
+    uColorUpper:   { value: new THREE.Color(0x3A4A60) },
+    uColorMid:     { value: new THREE.Color(0x1A2E48) },
+    uColorDeep:    { value: new THREE.Color(0x0A1428) },
+    uRayColor:     { value: new THREE.Color(0x4A8FB5) }  // Cyan Deep destellos
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = vec4(position, 1.0); }
+  `,
+  fragmentShader: `
+    precision highp float;
+    uniform float uTime;
+    uniform vec2 uResolution;
+    uniform vec3 uColorSurface, uColorUpper, uColorMid, uColorDeep, uRayColor;
+    varying vec2 vUv;
+
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float noise(vec2 p) {
+      vec2 i = floor(p), f = fract(p);
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash(i + vec2(0,0)), hash(i + vec2(1,0)), u.x),
+                 mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), u.x), u.y);
+    }
+    float fbm(vec2 p) {
+      float v = 0.0, a = 0.5;
+      for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.0; a *= 0.5; }
+      return v;
+    }
+    float softRays(vec2 uv, float t) {
+      vec2 p = vec2(uv.x * 3.0, uv.y * 0.8);
+      float band1 = fbm(p + vec2(0.0, -t * 0.06));
+      float band2 = fbm(p * 1.7 + vec2(50.3, -t * 0.04));
+      float rays = pow(band1 * band2, 1.6);
+      float depthFade = pow(uv.y, 0.7);
+      float lateralFade = max(0.0, 1.0 - pow(abs(uv.x - 0.5) * 1.6, 2.5));
+      return rays * depthFade * lateralFade;
+    }
+    float particles(vec2 uv, float t) {
+      vec2 driftUv = vec2(uv.x + sin(uv.y * 4.0 + t * 0.1) * 0.005, uv.y + t * 0.008);
+      vec2 cell = floor(driftUv * 60.0), cellUv = fract(driftUv * 60.0);
+      float h = hash(cell);
+      if (h < 0.985) return 0.0;
+      vec2 pp = vec2(hash(cell + 1.3), hash(cell + 4.7));
+      float blink = sin(t * 1.5 + h * 50.0) * 0.3 + 0.7;
+      float d = distance(cellUv, pp);
+      float dot = smoothstep(0.04, 0.0, d);
+      float visibility = smoothstep(0.0, 0.3, uv.y) * smoothstep(1.0, 0.5, uv.y);
+      return dot * blink * visibility;
+    }
+    void main() {
+      vec2 uv = vUv; float t = uTime;
+      vec3 baseColor;
+      if (uv.y > 0.66)      { float k = smoothstep(0.66, 1.0, uv.y); baseColor = mix(uColorUpper, uColorSurface, k); }
+      else if (uv.y > 0.33) { float k = smoothstep(0.33, 0.66, uv.y); baseColor = mix(uColorMid, uColorUpper, k); }
+      else                  { float k = smoothstep(0.0, 0.33, uv.y); baseColor = mix(uColorDeep, uColorMid, k); }
+      baseColor += vec3(sin(uv.x * 2.0 + t * 0.06) * 0.03) * uv.y;
+      vec3 finalColor = baseColor;
+      finalColor += uRayColor * softRays(uv, t) * 0.22;
+      finalColor += vec3(0.91, 0.89, 0.85) * particles(uv, t) * 0.5;
+      finalColor = mix(finalColor, uColorDeep * 0.7, (1.0 - uv.y) * 0.08);
+      gl_FragColor = vec4(finalColor, 1.0);
+    }
+  `
+});
+const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
+bgScene.add(bgMesh);
+
+/* ─── LUCES ─── */
+scene.add(new THREE.AmbientLight(0x9bbed8, 0.35));
+const keyLight = new THREE.DirectionalLight(0xfff4e8, 0.9);
+keyLight.position.set(3, 5, 4);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x4A8FB5, 0.4);  // Cyan Deep tinte
+fillLight.position.set(-4, 1, 2);
+scene.add(fillLight);
+
+/* ─── ENV MAP — para reflexiones PBR de la ballena ─── */
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+pmremGenerator.compileEquirectangularShader();
+
+function makeEnvCanvas() {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 512;
+  const ctx = c.getContext('2d');
+  // Gradient vertical Bahía
+  const grd = ctx.createLinearGradient(0, 0, 0, 512);
+  grd.addColorStop(0,    '#4A6688');
+  grd.addColorStop(0.5,  '#1A2E48');
+  grd.addColorStop(1,    '#0A1428');
+  ctx.fillStyle = grd; ctx.fillRect(0, 0, 1024, 512);
+  // Highlights cyan-deep sutiles (para que la ballena refracte cyan)
+  for (let i = 0; i < 8; i++) {
+    const x = Math.random() * 1024;
+    const y = Math.random() * 256;
+    const r = 80 + Math.random() * 140;
+    const rad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    rad.addColorStop(0, 'rgba(74, 143, 181, 0.45)');
+    rad.addColorStop(1, 'rgba(74, 143, 181, 0)');
+    ctx.fillStyle = rad;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  return c;
+}
+const envCanvasTex = new THREE.CanvasTexture(makeEnvCanvas());
+envCanvasTex.mapping = THREE.EquirectangularReflectionMapping;
+envCanvasTex.colorSpace = THREE.SRGBColorSpace;
+const envMapRT = pmremGenerator.fromEquirectangular(envCanvasTex);
+const envMap = envMapRT.texture;
+scene.environment = envMap;
+
+/* ─── BALLENA: GLTFLoader + MeshPhysicalMaterial Swarovski ─── */
+const whaleGroup = new THREE.Group();
+whaleGroup.visible = false;
+scene.add(whaleGroup);
+
+const PHYSICAL_PARAMS = {
+  color: 0x70a8d8,                  // azul cristal Swarovski — intocable (identidad)
+  metalness: 0.0,
+  roughness: 0.08,
+  transmission: 0.30,
+  thickness: 0.6,
+  ior: 1.7,
+  envMapIntensity: 1.2,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.05,
+  iridescence: 0.7,
+  iridescenceIOR: 1.3,
+  iridescenceThicknessRange: [100, 800],
+  flatShading: true,
+  side: THREE.FrontSide
+};
+
+const loader = new GLTFLoader();
+let whaleLoaded = false;
+let whaleOpacity = 0;
+
+loader.load(WHALE_GLB_URL,
+  (gltf) => {
+    const model = gltf.scene;
+    model.traverse((child) => {
+      if (child.isMesh) {
+        const mat = new THREE.MeshPhysicalMaterial({
+          ...PHYSICAL_PARAMS,
+          transparent: true,
+          opacity: 1
+        });
+        child.material = mat;
+        child.castShadow = false;
+        child.receiveShadow = false;
+      }
+    });
+    // Normaliza tamaño
+    const bbox = new THREE.Box3().setFromObject(model);
+    const size = bbox.getSize(new THREE.Vector3());
+    const targetLen = useMobileCamera ? 7.5 : 6.5;
+    const scl = targetLen / size.x;
+    model.scale.setScalar(scl);
+    // Centra
+    const center = bbox.getCenter(new THREE.Vector3());
+    model.position.sub(center.multiplyScalar(scl));
+
+    whaleGroup.add(model);
+    whaleLoaded = true;
+    whaleGroup.visible = true;
+    document.getElementById('loader').classList.add('gone');
+    setTimeout(() => { const el = document.getElementById('loader'); if (el) el.remove(); }, 1200);
+  },
+  undefined,
+  (err) => {
+    console.warn('GLB ballena no cargó:', err);
+    // Si falla la GLB, igual mostramos el fondo
+    document.getElementById('loader').classList.add('gone');
+    setTimeout(() => { const el = document.getElementById('loader'); if (el) el.remove(); }, 1200);
+  }
+);
+
+/* ─── PATH CALMO 5-keyframes (del brief) ─── */
+const WHALE_PATH = [
+  { sp: 0.00, x: -5, y:  1.0, z:  -8, roll: -0.05 },
+  { sp: 0.25, x: -2, y:  0.5, z:  -6, roll: -0.08 },
+  { sp: 0.50, x:  2, y:  0.0, z:  -7, roll:  0.05 },
+  { sp: 0.75, x:  5, y: -0.5, z:  -9, roll:  0.10 },
+  { sp: 1.00, x:  3, y: -1.0, z: -12, roll:  0.0  }
+];
+
+const _vecs = WHALE_PATH.map(p => new THREE.Vector3(p.x, p.y, p.z));
+const _curve = new THREE.CatmullRomCurve3(_vecs, false, 'catmullrom', 0.5);
+const _rolls = WHALE_PATH.map(p => p.roll);
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+function getPose(sp) {
+  const v = _curve.getPoint(sp);
+  // Roll: interpola por segmentos
+  const segCount = WHALE_PATH.length - 1;
+  const segFloat = sp * segCount;
+  const segIdx = Math.min(segCount - 1, Math.floor(segFloat));
+  const t = segFloat - segIdx;
+  const roll = lerp(_rolls[segIdx], _rolls[segIdx + 1], t);
+  return { x: v.x, y: v.y, z: v.z, roll };
+}
+function getSwimDir(sp) {
+  const eps = 0.005;
+  const a = _curve.getPoint(Math.max(0, sp - eps));
+  const b = _curve.getPoint(Math.min(1, sp + eps));
+  return { dx: b.x - a.x, dy: b.y - a.y, dz: b.z - a.z };
+}
+
+// Init yaw para que arranque mirando hacia adelante
+{
+  const a = WHALE_PATH[0], b = WHALE_PATH[1];
+  whaleGroup.rotation.y = Math.atan2(b.x - a.x, b.z - a.z) + Math.PI;
+}
+
+/* ─── COMPOSER ─── */
+const composer = new EffectComposer(renderer);
+
+const bgRenderPass = new RenderPass(bgScene, bgCamera);
+composer.addPass(bgRenderPass);
+
+const renderPass = new RenderPass(scene, camera);
+renderPass.clear = false;
+composer.addPass(renderPass);
+
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  0.36, 0.55, 0.74
+);
+composer.addPass(bloomPass);
+
+const chromaticShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uOffset:  { value: 0.0015 }
+  },
+  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uOffset;
+    varying vec2 vUv;
+    void main(){
+      vec2 c = vec2(0.5);
+      vec2 d = vUv - c;
+      float r = texture2D(tDiffuse, vUv + d * uOffset).r;
+      float g = texture2D(tDiffuse, vUv).g;
+      float b = texture2D(tDiffuse, vUv - d * uOffset).b;
+      float a = texture2D(tDiffuse, vUv).a;
+      gl_FragColor = vec4(r, g, b, a);
+    }
+  `
+};
+const chromaticPass = new ShaderPass(chromaticShader);
+composer.addPass(chromaticPass);
+
+const outputPass = new OutputPass();
+composer.addPass(outputPass);
+
+/* ─── SCROLL ─── */
+let scrollProgress = 0;
+let scrollTarget = 0;
+function updateScroll() {
+  const max = Math.max(1, document.body.scrollHeight - window.innerHeight);
+  scrollTarget = Math.min(1, Math.max(0, window.scrollY / max));
+}
+window.addEventListener('scroll', updateScroll, { passive: true });
+updateScroll();
+
+/* ─── RESIZE ─── */
+function onResize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  camera.aspect = w / h;
+  const portraitNow = h > w;
+  const mobileNow = w < 768 || portraitNow;
+  camera.fov = mobileNow ? 58 : 45;
+  camera.position.z = mobileNow ? 13 : 9;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  composer.setSize(w, h);
+  bloomPass.setSize(w, h);
+  bgMaterial.uniforms.uResolution.value.set(w, h);
+}
+window.addEventListener('resize', onResize);
+
+/* ─── LOOP ─── */
+const clock = new THREE.Clock();
+let currentYaw = whaleGroup.rotation.y;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  const elapsed = clock.elapsedTime;
+
+  // Lerp suave del scroll
+  scrollProgress += (scrollTarget - scrollProgress) * 0.06;
+  window.__vrmScroll = scrollProgress;
+
+  // Tiempo para el shader del fondo
+  bgMaterial.uniforms.uTime.value = elapsed;
+
+  // Ballena: pose + orientación
+  if (whaleLoaded) {
+    const pose = getPose(scrollProgress);
+    whaleGroup.position.x += (pose.x - whaleGroup.position.x) * 0.08;
+    whaleGroup.position.y += (pose.y - whaleGroup.position.y) * 0.08;
+    whaleGroup.position.z += (pose.z - whaleGroup.position.z) * 0.08;
+
+    // Yaw: orientar hacia donde va
+    const swim = getSwimDir(scrollProgress);
+    const targetYaw = Math.atan2(swim.dx, swim.dz) + Math.PI;
+    // Lerp angular tomando el camino corto
+    let dy = targetYaw - currentYaw;
+    while (dy > Math.PI) dy -= Math.PI * 2;
+    while (dy < -Math.PI) dy += Math.PI * 2;
+    currentYaw += dy * 0.04;
+    whaleGroup.rotation.y = currentYaw;
+    whaleGroup.rotation.z = pose.roll;
+
+    // Pequeño bobbing vertical para ambient breathing
+    whaleGroup.position.y += Math.sin(elapsed * 0.6) * 0.08;
+
+    // Fade-in opacity al cargar
+    if (whaleOpacity < 1) {
+      whaleOpacity = Math.min(1, whaleOpacity + dt * 0.6);
+      whaleGroup.traverse(o => { if (o.isMesh) o.material.opacity = whaleOpacity; });
+    }
+  }
+
+  // Cámara estática ambient (no path camera, no lookAt complicado)
+  camera.lookAt(0, 0, 0);
+
+  composer.render();
+}
+animate();
+
+/* ─── PAUSAR WEBGL CUANDO LA PESTAÑA NO ESTÁ VISIBLE ─── */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // El requestAnimationFrame ya se pausa solo cuando la pestaña no está visible.
+    // Aquí podríamos forzar un .stop() si tuviéramos clock paused, pero rAF ya lo maneja.
+  }
+});
+</script>
+
+<!-- ============================================================
+     HIDRATACIÓN DOM — rellena elementos visibles con datos del UNIT
+     Se ejecuta lo antes posible (sin esperar DOMContentLoaded
+     completo) para evitar "flash of wrong content"
+     ============================================================ -->
+<script>
+(function hydrateDOM() {
+  const unit = window.VRM_UNIT;
+  if (!unit) {
+    console.warn('[VRM] No unit data — DOM hydration skipped');
+    return;
+  }
+
+  // ─── Helpers ───
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => document.querySelectorAll(sel);
+  function setText(sel, value) {
+    const el = $(sel);
+    if (el && value != null) el.textContent = value;
+  }
+  function setBgImage(el, url) {
+    if (el && url) el.style.backgroundImage = `url("${url}")`;
+  }
+  // Encode property name for WhatsApp URLs
+  const nameEnc = encodeURIComponent(unit.name);
+
+  // Helper: location simplificada — antes de la coma (ej: "La Cruz de Huanacaxtle, Nayarit" → "La Cruz de Huanacaxtle")
+  const locationShort = (unit.location || '').split(',')[0].trim();
+  const locationFull = unit.location || '';
+
+  // Helper: extraer zona regional según _complex
+  // quiya/Vallarta Gardens → Riviera Nayarit
+  // maritima/Marítima → Nuevo Vallarta · Flamingos
+  // bolongo/Bolongo → Punta de Mita · Riviera Nayarit
+  const ZONE_BY_COMPLEX = {
+    'quiya': 'La Cruz de Huanacaxtle · Riviera Nayarit',
+    'maritima': 'Nuevo Vallarta · Flamingos',
+    'bolongo': 'Punta de Mita · Riviera Nayarit'
+  };
+  const zoneDisplay = ZONE_BY_COMPLEX[unit._complex] || `${locationShort} · Riviera Nayarit`;
+
+  // ─── 1. Title + meta description ───
+  document.title = `${unit.name} · ${locationShort} — VRM`;
+  const metaDesc = $('meta[name="description"]');
+  if (metaDesc) {
+    metaDesc.setAttribute('content',
+      `${unit.name} — ${unit.guests} guests · ${unit.bedrooms.length} bedrooms · ${unit.view}. ${unit.highlight || ''}`
+    );
+  }
+
+  // ─── 2. Loader meta ───
+  setText('.loader-meta', locationShort);
+
+  // ─── 3. Sticky property header ───
+  setText('.ph-zone', zoneDisplay);
+  setText('.ph-name', unit.name);
+  const phPrice = $('.ph-price-num');
+  if (phPrice) phPrice.textContent = `$${unit.priceUSD}`;
+
+  // ─── 4. Hero ───
+  // Hero zone (con dot al inicio — preservar el span.dot)
+  const heroZone = $('.hero-zone');
+  if (heroZone) {
+    // Preservar dot, cambiar solo el texto
+    const dot = heroZone.querySelector('.dot');
+    heroZone.innerHTML = '';
+    if (dot) heroZone.appendChild(dot);
+    heroZone.appendChild(document.createTextNode(zoneDisplay));
+  }
+  // Hero title: split en "name palabra base" + em "número/sufijo"
+  // Vallarta Gardens 2302 → <em>2302</em>
+  // Marítima 6S → <em>6S</em>
+  // Bolongo 211 → <em>211</em>
+  // Marítima Penthouse → <em>Penthouse</em>
+  const heroTitle = $('.hero-title');
+  if (heroTitle) {
+    const parts = unit.name.split(' ');
+    const lastPart = parts.pop();
+    const baseName = parts.join(' ');
+    heroTitle.innerHTML = `${baseName} <em>${lastPart}</em>`;
+  }
+  const heroPriceNum = $('.hero-price-num');
+  if (heroPriceNum) {
+    heroPriceNum.innerHTML = `$${unit.priceUSD}<small>USD</small>`;
+  }
+
+  // ─── 5. Stats (5 items: guests, bedrooms, bathrooms, sqm, view) ───
+  const stats = $$('.stats-grid .stat .stat-num');
+  if (stats.length >= 5) {
+    stats[0].textContent = unit.guests;
+    stats[1].textContent = unit.bedrooms.length;
+    stats[2].textContent = unit.bathrooms;
+    stats[3].innerHTML = `${unit.sqm}<small>m²</small>`;
+    stats[4].textContent = unit.view;
+  }
+
+  // ─── 6. WhatsApp links — todos los wa.me con texto pre-llenado ───
+  const waLinks = $$('a[href*="wa.me/15559472509"]');
+  waLinks.forEach(link => {
+    const href = link.getAttribute('href');
+    // Reemplazar el text= con el nombre dinámico
+    const newHref = href.replace(
+      /text=[^"]+/,
+      `text=Hi!%20I'm%20interested%20in%20${nameEnc}`
+    );
+    link.setAttribute('href', newHref);
+  });
+
+  // ─── 7. Hero gallery + mobile carousel (data-bg attributes) ───
+  // Mapeo: hero-main → living, photo-1 → kitchen, photo-2 → bedroom1, photo-3 → terrace, photo-4 → bathroom1
+  const PHOTO_MAP = {
+    'hero-main': unit.images.living || unit.coverImage,
+    'photo-1':   unit.images.kitchen,
+    'photo-2':   unit.images.bedroom1,
+    'photo-3':   unit.images.terrace,
+    'photo-4':   unit.images.bathroom1
+  };
+  $$('[data-bg]').forEach(el => {
+    const key = el.dataset.bg;
+    const url = PHOTO_MAP[key];
+    if (url) setBgImage(el, url);
+  });
+
+  console.log('[VRM] DOM hydrated for', unit.id, '—', unit.name);
+})();
+</script>
+
+</body>
+</html>
