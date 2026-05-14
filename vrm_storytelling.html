@@ -2356,137 +2356,123 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 })();
 
 /* ============================================================
-   IRIDESCENT TRAIL OVERLAY — Estela iridiscente del cursor
+   WATER DISTORTION — efecto agua real sobre el DOM
    
-   Canvas 2D fullscreen position:fixed que pinta encima de TODO
-   el DOM (no como WebGL postprocess, que solo afecta a la ballena).
+   Usa SVG <filter> con feTurbulence + feDisplacementMap aplicado
+   a un wrapper que envuelve todo el contenido. La distorsión se
+   modula según la posición y velocidad del cursor.
    
-   Por qué overlay en lugar de shader: el cursor pasa por encima
-   de aurora + secciones + textos. Un overlay 2D los ve todos.
-   
-   Técnica: cada movimiento del cursor inscribe un punto en una lista.
-   Los puntos viven ~2.5s. Cada frame, se redibujan todos los puntos
-   en cascada con gradientes radiales coloreados por edad, simulando
-   bandas iridiscentes con sin/cos shifted.
+   feTurbulence genera ruido orgánico tipo agua. feDisplacementMap
+   usa ese ruido para desplazar píxeles del contenido — el fondo se
+   ondula como si fuera líquido bajo el cursor.
    ============================================================ */
 (() => {
-  // Touch devices no tienen cursor → skip
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
 
-  // Canvas overlay fullscreen — encima de todo, sin interferir con clicks
-  const canvas = document.createElement('canvas');
-  canvas.style.cssText = [
-    'position: fixed',
-    'top: 0', 'left: 0',
-    'width: 100vw', 'height: 100vh',
-    'pointer-events: none',
-    'z-index: 9998',                  // debajo del cursor (9999) pero arriba de TODO lo demás
-    'mix-blend-mode: screen'          // suma luz al fondo — bandas brillantes sin tapar contenido
-  ].join(';');
-  document.body.appendChild(canvas);
+  // Inyectar el SVG filter en el DOM
+  const svgFilter = document.createElement('div');
+  svgFilter.style.cssText = 'position:fixed;top:-1px;left:-1px;width:0;height:0;pointer-events:none;';
+  svgFilter.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0">
+      <defs>
+        <filter id="water-distortion" x="-20%" y="-20%" width="140%" height="140%">
+          <feTurbulence
+            id="water-turbulence"
+            type="fractalNoise"
+            baseFrequency="0.012 0.018"
+            numOctaves="2"
+            seed="2"
+            result="turbulence" />
+          <feDisplacementMap
+            id="water-displace"
+            in="SourceGraphic"
+            in2="turbulence"
+            scale="0"
+            xChannelSelector="R"
+            yChannelSelector="G" />
+        </filter>
+      </defs>
+    </svg>
+  `;
+  document.body.appendChild(svgFilter);
 
-  const ctx = canvas.getContext('2d');
-  let w = 0, h = 0;
-  function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    w = window.innerWidth;
-    h = window.innerHeight;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
-    ctx.scale(dpr, dpr);
+  // Aplicar el filter a TODO el body
+  // El filter solo funciona si hay un container con will-change o transform
+  // que cree un nuevo stacking context. Usamos un wrapper en lugar del body
+  // directo para no romper position:fixed de la nav/cursor.
+  
+  // Mejor: aplicarlo a un elemento intermedio que envuelve solo el contenido
+  // que queremos distorsionar (aurora canvas + textos del cover)
+  // Sin tocar el cursor (debe seguir nítido)
+  
+  // Por simplicidad: aplicar al canvas de la ballena y al body fondo via clase
+  // El cursor (z-index 9999) queda intacto porque está FUERA del filter.
+
+  const displaceEl = document.getElementById('water-displace');
+  const turbulenceEl = document.getElementById('water-turbulence');
+
+  // Aplicar filter al canvas de la ballena (afecta la imagen final WebGL)
+  const whaleCanvas = document.getElementById('whale-canvas');
+  if (whaleCanvas) {
+    whaleCanvas.style.filter = 'url(#water-distortion)';
   }
-  resize();
-  window.addEventListener('resize', resize);
 
-  // Buffer de puntos del trail
-  const points = [];
-  const MAX_AGE = 150;        // frames de vida (~2.5s a 60fps)
-  const SPAWN_RADIUS = 80;    // tamaño del "blob" en pixels
+  console.log('%c[VRM] Water distortion ACTIVE — move cursor', 'color:#fff;background:#2a4870;padding:4px 8px;border-radius:4px;font-weight:bold;');
 
-  let lastPoint = null;
+  // Estado del cursor
+  let mouseX = 0, mouseY = 0;
+  let lastX = 0, lastY = 0;
+  let velocity = 0;
+  let currentScale = 0;
+  let targetScale = 0;
+
+  // Trail decay — la distorsión persiste un momento después de mover
+  let lastMoveTime = 0;
+
   window.addEventListener('mousemove', (e) => {
-    let vx = 0, vy = 0;
-    if (lastPoint) {
-      const dx = e.clientX - lastPoint.x;
-      const dy = e.clientY - lastPoint.y;
-      const len = Math.sqrt(dx * dx + dy * dy);
-      if (len > 0) { vx = dx / len; vy = dy / len; }
-    }
-    lastPoint = { x: e.clientX, y: e.clientY };
-    points.push({
-      x: e.clientX,
-      y: e.clientY,
-      vx, vy,
-      age: 0
-    });
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    velocity = Math.min(60, Math.sqrt(dx * dx + dy * dy));
+    
+    lastX = mouseX = e.clientX;
+    lastY = mouseY = e.clientY;
+    lastMoveTime = performance.now();
+    
+    // Velocity → escala de displacement (más rápido el cursor = más ondas)
+    // Cap visual en 35 para no romper el layout
+    targetScale = Math.min(35, velocity * 1.5);
   }, { passive: true });
 
-  console.log('%c[VRM] Iridescent OVERLAY active', 'color:#fff;background:#4a3470;padding:4px 8px;border-radius:4px;font-weight:bold;');
-
-  // Loop de pintado
+  // Loop: animar la turbulencia + escalar el displacement
+  let phase = 0;
   function loop() {
-    // Limpiar con un alpha bajo crea fade natural (efecto motion blur sutil)
-    // Pero queremos limpiar todo porque los puntos ya se desvanecen solos.
-    ctx.clearRect(0, 0, w, h);
-
-    for (let i = points.length - 1; i >= 0; i--) {
-      const p = points[i];
-      p.age++;
-      if (p.age > MAX_AGE) {
-        points.splice(i, 1);
-        continue;
-      }
-
-      const lifeT = p.age / MAX_AGE;        // 0 → 1
-      const fade = 1 - lifeT;
-      const eased = fade * fade;            // cubic ease out
-      const radius = SPAWN_RADIUS * (1 + lifeT * 0.6);
-
-      // Bandas iridiscentes — el color depende de la EDAD y la DIRECCIÓN
-      // sin() con offsets diferentes por canal → arcoíris suave pastel
-      const phase = p.age * 0.08 + (p.vx + p.vy) * 0.5;
-      const r = Math.round((Math.sin(phase + 0.0) * 0.4 + 0.6) * 255);
-      const g = Math.round((Math.sin(phase + 2.094) * 0.4 + 0.6) * 255);
-      const b = Math.round((Math.sin(phase + 4.188) * 0.4 + 0.6) * 255);
-
-      // Gradiente radial con falloff suave
-      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
-      grad.addColorStop(0,    `rgba(${r},${g},${b},${eased * 0.45})`);
-      grad.addColorStop(0.3,  `rgba(${r},${g},${b},${eased * 0.28})`);
-      grad.addColorStop(0.7,  `rgba(${r},${g},${b},${eased * 0.10})`);
-      grad.addColorStop(1,    'rgba(0,0,0,0)');
-
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Halo de aberración cromática — 2 círculos pequeños desplazados
-      // en rojo y cyan separados, simulando dispersión prismática
-      if (eased > 0.3) {
-        const shift = 8 * eased;
-        const haloAlpha = eased * 0.25;
-
-        // Rojo desplazado
-        ctx.fillStyle = `rgba(255,150,200,${haloAlpha})`;
-        ctx.beginPath();
-        ctx.arc(p.x + p.vx * shift, p.y + p.vy * shift, radius * 0.3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Cyan desplazado al lado opuesto
-        ctx.fillStyle = `rgba(150,220,255,${haloAlpha})`;
-        ctx.beginPath();
-        ctx.arc(p.x - p.vx * shift, p.y - p.vy * shift, radius * 0.3, 0, Math.PI * 2);
-        ctx.fill();
-      }
+    phase += 0.015;
+    
+    // Decay: si no se mueve hace tiempo, baja la escala suavemente
+    const timeSinceMove = performance.now() - lastMoveTime;
+    if (timeSinceMove > 100) {
+      targetScale *= 0.94;  // decay exponencial — desvanece en ~2-3 segundos
     }
-
+    
+    // Lerp hacia target (suavidad)
+    currentScale += (targetScale - currentScale) * 0.15;
+    
+    // Aplicar al displacement
+    if (currentScale > 0.5) {
+      displaceEl.setAttribute('scale', currentScale.toFixed(2));
+      // Animar también la baseFrequency para que el patrón "fluya"
+      const fx = 0.012 + Math.sin(phase * 0.3) * 0.002;
+      const fy = 0.018 + Math.cos(phase * 0.25) * 0.003;
+      turbulenceEl.setAttribute('baseFrequency', `${fx.toFixed(4)} ${fy.toFixed(4)}`);
+    } else {
+      displaceEl.setAttribute('scale', '0');
+    }
+    
     requestAnimationFrame(loop);
   }
   loop();
 })();
+
 
 </script>
 
