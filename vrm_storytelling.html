@@ -1145,9 +1145,223 @@ function makeAuroraBackgroundTexture() {
   return tx;
 }
 
-// ★ Aurora como background de la ESCENA (no CSS) — esto sí respeta el bloom pass
-const auroraBackground = makeAuroraBackgroundTexture();
-scene.background = auroraBackground;
+/* ============================================================
+   FONDO ANIMADO — Escena de agua premium con god rays + caustics
+   
+   En lugar de scene.background con una textura estática, montamos
+   una escena adicional: un quad fullscreen con un fragment shader
+   que dibuja:
+   
+   • Gradiente vertical: lavanda arriba → turquesa cyan profundo abajo
+   • Caustics: patrón ondulante orgánico (Voronoi-like noise animado)
+   • God rays: rayos volumétricos descendiendo desde arriba-derecha
+   • Sparkle particles: chispas suspendidas que parpadean
+   • Grain sutil: textura de película
+   
+   Se renderiza con un RenderPass dedicado al inicio del composer,
+   ANTES del renderPass principal (ballena). La ballena queda encima.
+   ============================================================ */
+
+// Escena de fondo dedicada
+const bgScene = new THREE.Scene();
+const bgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+const bgGeometry = new THREE.PlaneGeometry(2, 2);
+const bgMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 },
+    uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+    // Colores principales — paleta lavanda → turquesa profundo
+    uTopColor:    { value: new THREE.Color(0x9c8cc8) },  // lavanda saturado arriba
+    uMidColor:    { value: new THREE.Color(0x6090b8) },  // azul transición
+    uBottomColor: { value: new THREE.Color(0x1a5878) },  // turquesa cyan profundo abajo
+    uRayColor:    { value: new THREE.Color(0xfff0e0) },  // god rays cálidos blanco-dorado
+    uCausticsColor: { value: new THREE.Color(0xa8e0f0) } // caustics turquesa claro
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    precision highp float;
+    
+    uniform float uTime;
+    uniform vec2 uResolution;
+    uniform vec3 uTopColor;
+    uniform vec3 uMidColor;
+    uniform vec3 uBottomColor;
+    uniform vec3 uRayColor;
+    uniform vec3 uCausticsColor;
+    
+    varying vec2 vUv;
+    
+    // === HASH y NOISE procedural ===
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+    }
+    
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash(i + vec2(0,0)), hash(i + vec2(1,0)), u.x),
+                 mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), u.x), u.y);
+    }
+    
+    // FBM — varias octavas de noise sumadas para textura orgánica
+    float fbm(vec2 p) {
+      float v = 0.0;
+      float a = 0.5;
+      for (int i = 0; i < 5; i++) {
+        v += a * noise(p);
+        p *= 2.0;
+        a *= 0.5;
+      }
+      return v;
+    }
+    
+    // === CAUSTICS — patrón cruzado de luces ondulantes ===
+    // Técnica: dos capas de noise en direcciones cruzadas multiplicadas
+    // dan ese patrón "rejilla orgánica" característico del fondo submarino
+    float caustics(vec2 uv, float t) {
+      vec2 p1 = uv * 5.0 + vec2(t * 0.08, t * 0.06);
+      vec2 p2 = uv * 5.0 + vec2(-t * 0.07, t * 0.05) + 19.7;
+      
+      float n1 = fbm(p1);
+      float n2 = fbm(p2);
+      
+      // El cruce de los dos patrones crea líneas brillantes
+      float c = pow(1.0 - abs(n1 - n2), 6.0);
+      return c;
+    }
+    
+    // === GOD RAYS — rayos volumétricos desde arriba ===
+    // Crear cones de luz desde varios puntos de origen arriba
+    float godRays(vec2 uv, float t) {
+      float rays = 0.0;
+      
+      // Cada rayo: cone desde origen arriba (x,1.2) en dirección (-x,-1)
+      // El cone se modula con noise para que tenga textura de "polvo en luz"
+      for (int i = 0; i < 4; i++) {
+        float fi = float(i);
+        // Origen del rayo: arriba-derecha (Vallarta sunset hour)
+        float originX = 0.55 + fi * 0.08 + sin(t * 0.1 + fi) * 0.04;
+        vec2 origin = vec2(originX, 1.15);
+        vec2 dir = normalize(vec2(-0.15 - fi * 0.04, -1.0));
+        
+        // Distancia de uv al rayo (proyección sobre la línea)
+        vec2 toUv = uv - origin;
+        float along = dot(toUv, dir);             // distancia a lo largo
+        float perpDist = abs(toUv.x - origin.x - dir.x * along);
+        
+        // Width del rayo (se ensancha al descender)
+        float width = 0.015 + along * 0.045;
+        float rayCore = smoothstep(width, 0.0, perpDist);
+        
+        // Fade vertical: más fuerte arriba, desaparece abajo
+        float vertFade = smoothstep(-0.1, 1.0, along) * smoothstep(2.0, 0.3, along);
+        
+        // Animar con noise para textura de "polvo flotando en luz"
+        float dustNoise = fbm(uv * 8.0 + vec2(0.0, t * 0.4 + fi * 5.0));
+        rayCore *= mix(0.4, 1.0, dustNoise);
+        
+        rays += rayCore * vertFade;
+      }
+      
+      return min(rays * 1.2, 1.0);
+    }
+    
+    // === SPARKLE — partículas de luz que parpadean ===
+    float sparkles(vec2 uv, float t) {
+      vec2 cell = floor(uv * 60.0);
+      vec2 cellUv = fract(uv * 60.0);
+      
+      float h = hash(cell);
+      // Solo ~3% de las celdas tienen sparkle
+      if (h < 0.97) return 0.0;
+      
+      // Posición aleatoria dentro de la celda
+      vec2 sparklePos = vec2(hash(cell + 1.3), hash(cell + 4.7));
+      
+      // Parpadeo: sin con offset random por celda
+      float blink = sin(t * 3.0 + h * 100.0) * 0.5 + 0.5;
+      blink = pow(blink, 8.0);
+      
+      // Dot pequeño en la posición aleatoria
+      float d = distance(cellUv, sparklePos);
+      float dot = smoothstep(0.04, 0.0, d);
+      
+      return dot * blink;
+    }
+    
+    void main() {
+      vec2 uv = vUv;
+      float t = uTime;
+      
+      // === 1. GRADIENT VERTICAL base — lavanda → cyan ===
+      // Tres-stop gradient con curva suave
+      vec3 baseColor;
+      if (uv.y > 0.55) {
+        // Top: lavanda → azul transición
+        float k = smoothstep(0.55, 1.0, uv.y);
+        baseColor = mix(uMidColor, uTopColor, k);
+      } else {
+        // Bottom: azul transición → turquesa profundo
+        float k = smoothstep(0.0, 0.55, uv.y);
+        baseColor = mix(uBottomColor, uMidColor, k);
+      }
+      
+      // Variación horizontal sutil para que no sea totalmente vertical
+      // (un toque rosa-coral abajo-izquierda como Vallarta hint)
+      float hSway = sin(uv.x * 3.14 + t * 0.1) * 0.05;
+      baseColor = mix(baseColor, baseColor + vec3(0.05, 0.02, -0.02), hSway * (1.0 - uv.y));
+      
+      // === 2. CAUSTICS ===
+      // Más intensos abajo (donde está el "fondo del mar")
+      // Más sutiles arriba (donde está la superficie/cielo)
+      float causticsFade = smoothstep(0.7, 0.0, uv.y);
+      float causticsLayer = caustics(uv, t) * causticsFade * 0.55;
+      
+      // Mezclar caustics como luz aditiva
+      vec3 finalColor = baseColor + uCausticsColor * causticsLayer;
+      
+      // === 3. GOD RAYS ===
+      // Cinemáticos, dramáticos como pediste
+      float rays = godRays(uv, t);
+      finalColor += uRayColor * rays * 0.55;
+      
+      // === 4. SPARKLES ===
+      // Partículas de luz suspendidas
+      float sparkleAmount = sparkles(uv, t);
+      finalColor += vec3(1.0, 0.95, 0.92) * sparkleAmount * 0.9;
+      
+      // === 5. VIGNETTE sutil — los bordes ligeramente más oscuros ===
+      // (centra la atención en el centro de la escena)
+      vec2 vigUv = uv - 0.5;
+      float vignette = 1.0 - dot(vigUv, vigUv) * 0.6;
+      finalColor *= vignette;
+      
+      // === 6. GRAIN — textura de película sutil ===
+      float grain = hash(uv * uResolution + t) * 0.04 - 0.02;
+      finalColor += vec3(grain);
+      
+      gl_FragColor = vec4(finalColor, 1.0);
+    }
+  `,
+  depthTest: false,
+  depthWrite: false
+});
+
+const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
+bgScene.add(bgMesh);
+
+// Quitamos scene.background — ahora se renderiza con bgScene aparte
+scene.background = null;
+
+console.log('%c[VRM] Premium water background active', 'color:#fff;background:#1a5878;padding:4px 8px;border-radius:4px;font-weight:bold;');
 
 /* ============================================================
    ENVIRONMENT MAP — para reflexiones PBR (iridescencia, transmission)
@@ -1549,7 +1763,15 @@ const composer = new EffectComposer(renderer);
 composer.setSize(window.innerWidth, window.innerHeight);
 composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
+// ★ PRIMER pass: fondo animado de agua (god rays + caustics + sparkles)
+// Se renderiza SIN limpiar el canvas (clear=true) y luego el renderPass
+// principal renderiza encima la ballena SIN limpiar (clear=false) para
+// preservar el fondo de abajo.
+const bgRenderPass = new RenderPass(bgScene, bgCamera);
+composer.addPass(bgRenderPass);
+
 const renderPass = new RenderPass(scene, camera);
+renderPass.clear = false;  // ★ NO limpiar — preservar el fondo de abajo
 composer.addPass(renderPass);
 
 // Bloom — los highlights de Swarovski son puntuales y muy brillantes
@@ -2002,6 +2224,9 @@ function animate() {
 
   // ★★★ Actualizar WaterTexture cada frame (los ripples envejecen) ★★★
   waterTexture.update();
+  
+  // ★ Actualizar el shader del fondo animado (god rays + caustics + sparkles)
+  bgMaterial.uniforms.uTime.value = t;
 
   // Lerp suave del scroll target (solo eso)
   scrollProgress += (scrollTarget - scrollProgress) * 0.06;
@@ -2107,6 +2332,7 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
   composer.setSize(w, h);
+  bgMaterial.uniforms.uResolution.value.set(w, h);
 });
 
 animate();
@@ -2356,122 +2582,10 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 })();
 
 /* ============================================================
-   WATER DISTORTION — efecto agua real sobre el DOM
-   
-   Usa SVG <filter> con feTurbulence + feDisplacementMap aplicado
-   a un wrapper que envuelve todo el contenido. La distorsión se
-   modula según la posición y velocidad del cursor.
-   
-   feTurbulence genera ruido orgánico tipo agua. feDisplacementMap
-   usa ese ruido para desplazar píxeles del contenido — el fondo se
-   ondula como si fuera líquido bajo el cursor.
+   (Reservado para efecto de fondo tipo "ondas de mar premium"
+   — se implementará tras confirmar dirección con el usuario.)
    ============================================================ */
-(() => {
-  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
 
-  // Inyectar el SVG filter en el DOM
-  const svgFilter = document.createElement('div');
-  svgFilter.style.cssText = 'position:fixed;top:-1px;left:-1px;width:0;height:0;pointer-events:none;';
-  svgFilter.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0">
-      <defs>
-        <filter id="water-distortion" x="-20%" y="-20%" width="140%" height="140%">
-          <feTurbulence
-            id="water-turbulence"
-            type="fractalNoise"
-            baseFrequency="0.012 0.018"
-            numOctaves="2"
-            seed="2"
-            result="turbulence" />
-          <feDisplacementMap
-            id="water-displace"
-            in="SourceGraphic"
-            in2="turbulence"
-            scale="0"
-            xChannelSelector="R"
-            yChannelSelector="G" />
-        </filter>
-      </defs>
-    </svg>
-  `;
-  document.body.appendChild(svgFilter);
-
-  // Aplicar el filter a TODO el body
-  // El filter solo funciona si hay un container con will-change o transform
-  // que cree un nuevo stacking context. Usamos un wrapper en lugar del body
-  // directo para no romper position:fixed de la nav/cursor.
-  
-  // Mejor: aplicarlo a un elemento intermedio que envuelve solo el contenido
-  // que queremos distorsionar (aurora canvas + textos del cover)
-  // Sin tocar el cursor (debe seguir nítido)
-  
-  // Por simplicidad: aplicar al canvas de la ballena y al body fondo via clase
-  // El cursor (z-index 9999) queda intacto porque está FUERA del filter.
-
-  const displaceEl = document.getElementById('water-displace');
-  const turbulenceEl = document.getElementById('water-turbulence');
-
-  // Aplicar filter al canvas de la ballena (afecta la imagen final WebGL)
-  const whaleCanvas = document.getElementById('whale-canvas');
-  if (whaleCanvas) {
-    whaleCanvas.style.filter = 'url(#water-distortion)';
-  }
-
-  console.log('%c[VRM] Water distortion ACTIVE — move cursor', 'color:#fff;background:#2a4870;padding:4px 8px;border-radius:4px;font-weight:bold;');
-
-  // Estado del cursor
-  let mouseX = 0, mouseY = 0;
-  let lastX = 0, lastY = 0;
-  let velocity = 0;
-  let currentScale = 0;
-  let targetScale = 0;
-
-  // Trail decay — la distorsión persiste un momento después de mover
-  let lastMoveTime = 0;
-
-  window.addEventListener('mousemove', (e) => {
-    const dx = e.clientX - lastX;
-    const dy = e.clientY - lastY;
-    velocity = Math.min(60, Math.sqrt(dx * dx + dy * dy));
-    
-    lastX = mouseX = e.clientX;
-    lastY = mouseY = e.clientY;
-    lastMoveTime = performance.now();
-    
-    // Velocity → escala de displacement (más rápido el cursor = más ondas)
-    // Cap visual en 35 para no romper el layout
-    targetScale = Math.min(35, velocity * 1.5);
-  }, { passive: true });
-
-  // Loop: animar la turbulencia + escalar el displacement
-  let phase = 0;
-  function loop() {
-    phase += 0.015;
-    
-    // Decay: si no se mueve hace tiempo, baja la escala suavemente
-    const timeSinceMove = performance.now() - lastMoveTime;
-    if (timeSinceMove > 100) {
-      targetScale *= 0.94;  // decay exponencial — desvanece en ~2-3 segundos
-    }
-    
-    // Lerp hacia target (suavidad)
-    currentScale += (targetScale - currentScale) * 0.15;
-    
-    // Aplicar al displacement
-    if (currentScale > 0.5) {
-      displaceEl.setAttribute('scale', currentScale.toFixed(2));
-      // Animar también la baseFrequency para que el patrón "fluya"
-      const fx = 0.012 + Math.sin(phase * 0.3) * 0.002;
-      const fy = 0.018 + Math.cos(phase * 0.25) * 0.003;
-      turbulenceEl.setAttribute('baseFrequency', `${fx.toFixed(4)} ${fy.toFixed(4)}`);
-    } else {
-      displaceEl.setAttribute('scale', '0');
-    }
-    
-    requestAnimationFrame(loop);
-  }
-  loop();
-})();
 
 
 </script>
