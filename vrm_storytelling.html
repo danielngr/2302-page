@@ -2641,41 +2641,66 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
    ============================================================ */
 
 /* ============================================================
-   IRIDESCENT INK TRAIL — Sistema de partículas iridiscentes del cursor
+   GEL CURSOR — Mancha de "gasolina" transparente refractante
    
-   Canvas 2D overlay sobre el WebGL que dibuja filamentos iridiscentes
-   tipo "tinta en agua" arrastrados por el cursor. Cada partícula tiene:
+   Approach: SVG filter feDisplacementMap + feTurbulence aplicado a
+   un elemento que SIGUE al cursor con lag suave. Resultado:
+   • Una zona transparente alrededor del cursor que REFRACTA el fondo
+   • Iridiscencia tipo arcoíris (rosa/cyan/amarillo) sobre la zona
+   • Sigue al cursor con delay suave → se siente fluido, no rígido
+   • Sin pintar líneas — es una distorsión del DOM detrás
    
-   • Posición + velocidad (heredada del cursor + perturbada por curl noise)
-   • Edad y color iridiscente único (HSL shifteado por edad)
-   • Trail: cada frame dibuja una LÍNEA desde su posición previa a la actual
-     (no solo un punto) → esto genera los FILAMENTOS visibles
-   • Curl noise = swirls/vórtices que mantienen las partículas en movimiento
-     orgánico aún después de que el cursor se detuvo
-   
-   Mix-blend-mode: screen → los colores SUMAN al fondo, brillan sobre cualquier
-   contenido sin taparlo.
+   Técnica: usamos backdrop-filter: blur + un canvas que pinta un blob
+   con gradient iridiscente y mix-blend-mode: overlay. Se siente como
+   gel transparente con tinte de gasolina.
    ============================================================ */
 (() => {
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
 
-  // Canvas overlay fullscreen
+  // Capa 1: blob con BACKDROP-FILTER que distorsiona el fondo
+  // Esto es lo que da el feeling "gel" — refracta lo que hay detrás
+  const gel = document.createElement('div');
+  gel.style.cssText = [
+    'position: fixed',
+    'pointer-events: none',
+    'width: 320px',
+    'height: 320px',
+    'border-radius: 50%',
+    'left: 0', 'top: 0',
+    'transform: translate(-50%, -50%) translate(-1000px, -1000px)',  // off-screen al inicio
+    'z-index: 9996',
+    // ★ Backdrop filter: la magia del "gel" — distorsiona+blur el fondo
+    'backdrop-filter: blur(3px) saturate(1.4) hue-rotate(0deg)',
+    '-webkit-backdrop-filter: blur(3px) saturate(1.4) hue-rotate(0deg)',
+    // ★ Tinte iridiscente gasolina: gradient conic suave
+    'background: radial-gradient(circle at 40% 40%, ' +
+      'rgba(255,150,200,0.10) 0%, ' +     // rosa centro
+      'rgba(150,200,255,0.08) 30%, ' +    // cyan
+      'rgba(200,255,180,0.06) 55%, ' +    // verde-amarillo
+      'rgba(180,150,255,0.05) 75%, ' +    // violeta
+      'rgba(0,0,0,0) 90%)',
+    'mix-blend-mode: screen',
+    'will-change: transform, backdrop-filter',
+    'transition: backdrop-filter 0.3s ease-out'
+  ].join(';');
+  document.body.appendChild(gel);
+
+  // Capa 2: canvas overlay para los "swirls" iridiscentes que persisten
+  // como rastro corto detrás del cursor (motion blur natural del gel)
   const canvas = document.createElement('canvas');
   canvas.style.cssText = [
     'position: fixed',
     'top: 0', 'left: 0',
     'width: 100vw', 'height: 100vh',
     'pointer-events: none',
-    'z-index: 9997'
-    // sin mix-blend-mode — los filamentos se pintan tal cual, máxima visibilidad
+    'z-index: 9995',
+    'mix-blend-mode: overlay',
+    'opacity: 0.55'
   ].join(';');
   document.body.appendChild(canvas);
 
-  console.log('%c[VRM] TRAIL CANVAS CREATED — should be visible at z-index 9997', 'color:#fff;background:#a020c0;padding:6px 10px;border-radius:4px;font-weight:bold;font-size:14px;');
-
   const ctx = canvas.getContext('2d');
-  let w = 0, h = 0;
-  let dpr = 1;
+  let w = 0, h = 0, dpr = 1;
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     w = window.innerWidth;
@@ -2689,161 +2714,75 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   resize();
   window.addEventListener('resize', resize);
 
-  // Pool de partículas — TODO subido para máxima visibilidad
-  const particles = [];
-  const MAX_PARTICLES = 800;
-  const PARTICLE_LIFE = 240;     // ~4 segundos
-  const SPAWN_PER_MOVE = 8;      // doble que antes
+  console.log('%c[VRM] Gel cursor (gasoline blob) ACTIVE', 'color:#fff;background:#a060ff;padding:6px 10px;border-radius:4px;font-weight:bold;font-size:14px;');
 
-  // Estado del cursor
-  let mouseX = -100, mouseY = -100;
-  let lastMouseX = -100, lastMouseY = -100;
-  let mouseVelX = 0, mouseVelY = 0;
+  // Estado del cursor (raw + smoothed con lag)
+  let rawX = -1000, rawY = -1000;
+  let smoothX = -1000, smoothY = -1000;
+  let velocity = 0;
+  let hueShift = 0;
+
+  // Trail: array de posiciones recientes del cursor
+  // Se dibujan como manchitas que se desvanecen → motion blur del gel
+  const trail = [];
+  const TRAIL_MAX = 24;
 
   window.addEventListener('mousemove', (e) => {
-    // Velocidad del cursor (smoothed)
-    mouseVelX = mouseVelX * 0.6 + (e.clientX - mouseX) * 0.4;
-    mouseVelY = mouseVelY * 0.6 + (e.clientY - mouseY) * 0.4;
-    lastMouseX = mouseX;
-    lastMouseY = mouseY;
-    mouseX = e.clientX;
-    mouseY = e.clientY;
-
-    // Spawnea N partículas en la posición del cursor
-    for (let i = 0; i < SPAWN_PER_MOVE; i++) {
-      if (particles.length >= MAX_PARTICLES) particles.shift();  // FIFO si lleno
-
-      // Variación angular pequeña respecto a la dirección del movimiento
-      const angleVariation = (Math.random() - 0.5) * 0.4;
-      const cos = Math.cos(angleVariation), sin = Math.sin(angleVariation);
-      const baseVx = mouseVelX * 0.4;   // hereda velocidad del cursor (reducida)
-      const baseVy = mouseVelY * 0.4;
-      const vx = baseVx * cos - baseVy * sin;
-      const vy = baseVx * sin + baseVy * cos;
-
-      // Pequeño jitter inicial en la posición
-      const jx = (Math.random() - 0.5) * 8;
-      const jy = (Math.random() - 0.5) * 8;
-
-      particles.push({
-        x: e.clientX + jx,
-        y: e.clientY + jy,
-        prevX: e.clientX + jx,
-        prevY: e.clientY + jy,
-        vx: vx + (Math.random() - 0.5) * 2,
-        vy: vy + (Math.random() - 0.5) * 2,
-        age: 0,
-        life: PARTICLE_LIFE + Math.random() * 40,
-        hue: 200 + Math.random() * 160,
-        size: 3.0 + Math.random() * 3.5,     // ★ subido 1.5→3.0 (líneas más gruesas)
-        phase: Math.random() * Math.PI * 2
-      });
-    }
+    rawX = e.clientX;
+    rawY = e.clientY;
   }, { passive: true });
 
-  console.log('%c[VRM] Iridescent ink trail ACTIVE', 'color:#fff;background:#5030a0;padding:4px 8px;border-radius:4px;font-weight:bold;');
-
-  // Curl noise — genera vectores de velocidad que forman vórtices/swirls
-  // (Derivada parcial de un campo escalar de noise)
-  function hash(x, y) {
-    let h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
-    return h - Math.floor(h);
-  }
-  function noise2D(x, y) {
-    const ix = Math.floor(x), iy = Math.floor(y);
-    const fx = x - ix, fy = y - iy;
-    const ux = fx * fx * (3 - 2 * fx);
-    const uy = fy * fy * (3 - 2 * fy);
-    const a = hash(ix, iy);
-    const b = hash(ix + 1, iy);
-    const c = hash(ix, iy + 1);
-    const d = hash(ix + 1, iy + 1);
-    return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
-  }
-  function curlNoise(x, y, t) {
-    // Derivada numérica del noise para producir un campo vectorial sin divergencia
-    const eps = 0.5;
-    const n1 = noise2D(x + eps, y + t * 0.3);
-    const n2 = noise2D(x - eps, y + t * 0.3);
-    const n3 = noise2D(x, y + eps + t * 0.3);
-    const n4 = noise2D(x, y - eps + t * 0.3);
-    // Curl: (∂n/∂y, -∂n/∂x)
-    return {
-      cx: (n3 - n4) / (2 * eps),
-      cy: -(n1 - n2) / (2 * eps)
-    };
-  }
-
-  let startTime = performance.now();
-
   function loop() {
-    const t = (performance.now() - startTime) * 0.001;
+    // Lag suave: smoothX persigue a rawX → el gel "fluye" al moverse
+    const lerp = 0.18;
+    const dx = rawX - smoothX;
+    const dy = rawY - smoothY;
+    smoothX += dx * lerp;
+    smoothY += dy * lerp;
 
-    // Fade trail — limpia con alpha bajo para crear motion blur natural
-    // (los filamentos previos persisten un poco antes de desaparecer)
+    // Velocidad → controla intensidad de iridiscencia y hue shift
+    const speed = Math.sqrt(dx * dx + dy * dy);
+    velocity = velocity * 0.85 + speed * 0.15;
+    hueShift = (hueShift + velocity * 0.5) % 360;
+
+    // Posicionar el blob principal con lag
+    gel.style.transform = `translate(-50%, -50%) translate(${smoothX}px, ${smoothY}px)`;
+
+    // Hue rotation animado con velocidad (gasoline iridescence cambia con movimiento)
+    const blurAmount = 2 + Math.min(velocity * 0.1, 5);
+    gel.style.backdropFilter = `blur(${blurAmount.toFixed(1)}px) saturate(${(1.3 + velocity * 0.02).toFixed(2)}) hue-rotate(${hueShift.toFixed(0)}deg)`;
+    gel.style.webkitBackdropFilter = gel.style.backdropFilter;
+
+    // Trail: agregar posición actual
+    trail.push({ x: smoothX, y: smoothY, age: 0, hue: hueShift });
+    if (trail.length > TRAIL_MAX) trail.shift();
+
+    // Limpiar canvas con fade suave (motion blur natural)
     ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = 'rgba(0,0,0,0.10)';   // 0.10 = decae en ~10 frames
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
     ctx.fillRect(0, 0, w, h);
-    ctx.globalCompositeOperation = 'lighter';   // luego sumamos luz
+    ctx.globalCompositeOperation = 'lighter';
 
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
+    // Dibujar trail como manchitas suaves con gradient iridiscente
+    for (let i = 0; i < trail.length; i++) {
+      const p = trail[i];
       p.age++;
-      if (p.age > p.life) {
-        particles.splice(i, 1);
-        continue;
-      }
+      const fade = 1 - i / trail.length;       // los más viejos están al inicio (ya shifteados)
+      const lifeFade = Math.max(0, 1 - p.age / 40);
+      const totalFade = fade * lifeFade;
 
-      // Apply curl noise — los vórtices que mantienen el movimiento orgánico
-      const curl = curlNoise(p.x * 0.008, p.y * 0.008, t);
-      // Fuerza del curl decae con la edad (más caos al inicio, más calma al final)
-      const curlStrength = (1 - p.age / p.life) * 3.5;
-      p.vx += curl.cx * curlStrength;
-      p.vy += curl.cy * curlStrength;
+      if (totalFade < 0.02) continue;
 
-      // Damping — fricción suave para que las partículas no aceleren al infinito
-      p.vx *= 0.96;
-      p.vy *= 0.96;
-
-      // Guardar posición previa (para dibujar el filamento como línea)
-      p.prevX = p.x;
-      p.prevY = p.y;
-      // Actualizar posición
-      p.x += p.vx;
-      p.y += p.vy;
-
-      // Color iridiscente que cambia con la edad
-      const lifeT = p.age / p.life;
-      const hue = (p.hue + lifeT * 60 + Math.sin(t + p.phase) * 20) % 360;
-      const fade = 1 - lifeT;
-      const easedFade = fade * fade;  // cubic ease out
-
-      // ABERRACIÓN CROMÁTICA: dibujamos 3 trazos con offsets diferentes en R/G/B
-      // (técnica clásica para simular dispersión prismática)
-      const lineWidth = p.size * easedFade;
-
-      // Canal magenta/rojo (offset positivo en X de velocidad)
-      ctx.strokeStyle = `hsla(${hue - 20}, 95%, 65%, ${easedFade * 0.55})`;
-      ctx.lineWidth = lineWidth;
-      ctx.lineCap = 'round';
+      const radius = 80 + i * 2;
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
+      grad.addColorStop(0, `hsla(${(p.hue + 280) % 360}, 80%, 75%, ${totalFade * 0.18})`);
+      grad.addColorStop(0.4, `hsla(${(p.hue + 200) % 360}, 70%, 70%, ${totalFade * 0.10})`);
+      grad.addColorStop(0.7, `hsla(${(p.hue + 120) % 360}, 60%, 65%, ${totalFade * 0.05})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.moveTo(p.prevX + 1.2, p.prevY);
-      ctx.lineTo(p.x + 1.2, p.y);
-      ctx.stroke();
-
-      // Canal cyan/verde (sin offset, centro)
-      ctx.strokeStyle = `hsla(${hue}, 95%, 70%, ${easedFade * 0.70})`;
-      ctx.beginPath();
-      ctx.moveTo(p.prevX, p.prevY);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-
-      // Canal azul (offset negativo)
-      ctx.strokeStyle = `hsla(${hue + 20}, 95%, 65%, ${easedFade * 0.55})`;
-      ctx.beginPath();
-      ctx.moveTo(p.prevX - 1.2, p.prevY);
-      ctx.lineTo(p.x - 1.2, p.y);
-      ctx.stroke();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     requestAnimationFrame(loop);
