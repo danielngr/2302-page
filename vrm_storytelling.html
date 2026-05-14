@@ -1887,8 +1887,19 @@ const aurora = document.getElementById('aurora');
 
 const scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 0.5, 9);
+// ★ Adaptación móvil: en portrait (alto > ancho), la ballena queda recortada.
+// Solución: detectar móvil y alejar cámara + escalar ballena adecuadamente.
+const isPortrait = window.innerHeight > window.innerWidth;
+const isMobile = window.innerWidth < 768;
+
+const camera = new THREE.PerspectiveCamera(
+  isMobile ? 58 : 45,                          // FOV más amplio en mobile = ve más escena
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+// Cámara más alejada en mobile para que la ballena entre completa
+camera.position.set(0, 0.5, isMobile ? 13 : 9);
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -2962,14 +2973,18 @@ const WHALE_PATH = [
   { sp: 1.00, x:  0,   y:  0.3,  z:   3, roll:  0.0  }
 ];
 
+// ★ Camera path adaptado: en mobile alejamos z y ampliamos FOV
+// para que la ballena se vea entera en portrait viewport
+const _camZOff = isMobile ? 4 : 0;     // mobile: 4 unidades más atrás
+const _camFovOff = isMobile ? 13 : 0;  // mobile: FOV +13° más amplio
+
 const CAMERA_PATH = [
-  // Camera mayormente fija con sutiles ajustes para "respirar" con la escena
-  { sp: 0.00, z: 10, y:  0,    fov: 45 },
-  { sp: 0.22, z: 10, y:  0,    fov: 45 },
-  { sp: 0.48, z: 10, y:  0,    fov: 44 },  // mínimo zoom cuando ballena cerca
-  { sp: 0.70, z: 11, y:  0.3,  fov: 47 },  // pull back al alejarse
-  { sp: 0.90, z: 10, y:  0,    fov: 45 },
-  { sp: 1.00, z: 10, y:  0,    fov: 44 }
+  { sp: 0.00, z: 10 + _camZOff, y:  0,    fov: 45 + _camFovOff },
+  { sp: 0.22, z: 10 + _camZOff, y:  0,    fov: 45 + _camFovOff },
+  { sp: 0.48, z: 10 + _camZOff, y:  0,    fov: 44 + _camFovOff },
+  { sp: 0.70, z: 11 + _camZOff, y:  0.3,  fov: 47 + _camFovOff },
+  { sp: 0.90, z: 10 + _camZOff, y:  0,    fov: 45 + _camFovOff },
+  { sp: 1.00, z: 10 + _camZOff, y:  0,    fov: 44 + _camFovOff }
 ];
 
 // Pre-inicializa el yaw del whaleGroup para que arranque ya mirando hacia adelante.
@@ -3227,6 +3242,16 @@ function animate() {
 window.addEventListener('resize', () => {
   const w = window.innerWidth;
   const h = window.innerHeight;
+  
+  // ★ Recalcular si estado cambió (rotación de móvil, redimensión de ventana)
+  const newIsMobile = w < 768;
+  if (newIsMobile !== isMobile) {
+    // Si cambió desktop ↔ mobile, reload sería ideal pero invasivo.
+    // Como mínimo: actualizamos FOV de la cámara
+    const fovOffset = newIsMobile ? 13 : 0;
+    camera.fov = 45 + fovOffset;
+  }
+  
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
