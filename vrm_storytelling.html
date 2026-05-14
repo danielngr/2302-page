@@ -1392,38 +1392,36 @@ const iceNormalTexture = createIceNormalMap();
    El normalMap es lo único pintado: da micro-relieve cristalino.
    ============================================================ */
 const PHYSICAL_PARAMS = {
-  // ★ Color base: azul cristal hielo (no violeta) — Swarovski blue
-  // Casi blanco con pizca de cyan, el environment hace el shift
-  color: 0xc8e0f0,
+  // ★ Color base: azul cristal hielo (Swarovski blue diamond)
+  color: 0xb8d8ec,
   
-  // ★ TRANSMISIÓN 0.55 — más vidrio puro tipo Swarovski (cristal facetado)
-  // Antes era 0.30 (cuerpo violeta opaco). Ahora más transparencia premium.
-  transmission: 0.55,
-  thickness: 1.2,
-  ior: 1.55,                     // ★ subido a 1.55 (cristal real ~1.5-1.7) más refracción
-  attenuationColor: 0x90b8d8,    // tinte azul claro del interior (cool, no warm)
-  attenuationDistance: 1.4,
+  // ★ TRANSMISIÓN 0.40 — diamante facetado tiene MENOS transmission que vidrio liso
+  // (las facetas reflejan más de lo que dejan pasar — efecto diamante)
+  transmission: 0.40,
+  thickness: 1.0,
+  ior: 1.7,                       // ★ ior alto — refracción tipo diamante (real ~2.4, exageramos)
+  attenuationColor: 0x88b0d0,    // tinte azul claro del interior
+  attenuationDistance: 1.0,
   
-  // ★ IRIDESCENCIA — shift azul→cyan→rosa muy sutil (no morado)
-  iridescence: 0.9,
+  // ★ IRIDESCENCIA: subtle rainbow flash en las facetas (como un diamante real)
+  iridescence: 0.7,
   iridescenceIOR: 1.4,
-  iridescenceThicknessRange: [300, 800],   // rango medio = brillo cyan dominante
+  iridescenceThicknessRange: [300, 700],
   
-  // ★ CLEARCOAT — máximo brillo de superficie facetada
+  // ★ CLEARCOAT máximo — barniz perfecto sobre las facetas
   clearcoat: 1.0,
-  clearcoatRoughness: 0.05,      // ★ casi cero — reflejos puntiagudos tipo cristal pulido
+  clearcoatRoughness: 0.0,        // ★ CERO — espejo perfecto en cada faceta
   
-  metalness: 0.15,                // ligero metálico para reflejos definidos
-  roughness: 0.08,                // ★ muy bajo — superficie casi espejada (Swarovski)
+  metalness: 0.25,                // ★ subido — reflejos definidos (las facetas necesitan esto)
+  roughness: 0.05,                // ★ casi cero — espejo facetado
   
-  // ★ Normal map procedural — micro-relieve cristalino
-  normalMap: iceNormalTexture,
-  normalScale: new THREE.Vector2(0.45, 0.45),  // ★ subido — más detalle de superficie cristalina
-  clearcoatNormalMap: iceNormalTexture,
-  clearcoatNormalScale: new THREE.Vector2(0.30, 0.30),
+  // ★ NO normalMap — las facetas reales del flat shading reemplazan al normal
+  // map procedural. Combinar ambos ensucia el look (compiten por simular relieve).
+  // normalMap: iceNormalTexture,  ← desactivado intencionalmente
+  // clearcoatNormalMap: iceNormalTexture,
   
-  // ★ El env map domina la iluminación — subido para reflejos más vivos
-  envMapIntensity: 2.2,
+  // ★ El env map domina la iluminación — alto para reflejos vivos en facetas
+  envMapIntensity: 2.5,
   
   // Render ambos lados — necesario para transmission (la luz entra y sale)
   side: THREE.DoubleSide,
@@ -1451,13 +1449,33 @@ function loadGLB() {
           const isSkinned = child.isSkinnedMesh === true;
           if (isSkinned) hasSkinnedMesh = true;
 
+          // ★★★ FACETADO DIAMANTE / SWAROVSKI ★★★
+          // El secreto del look "cristal tallado": romper las normales suaves
+          // del modelo orgánico y convertirlas en facetas planas.
+          //
+          // toNonIndexed() duplica los vértices compartidos entre triángulos
+          // para que cada triángulo tenga sus propias normales.
+          // computeVertexNormals() sin indexado calcula UNA normal por
+          // triángulo (no interpolada) → flat shading real.
+          //
+          // Combinado con material.flatShading=true esto da las CHISPAS
+          // direccionales que hacen un diamante/Swarovski (cada faceta
+          // refleja luz en su propio ángulo).
+          if (child.geometry && !isSkinned) {
+            // SkinnedMesh no soporta toNonIndexed() — solo facetamos meshes estáticos
+            child.geometry = child.geometry.toNonIndexed();
+            child.geometry.computeVertexNormals();
+          }
+
           // MeshPhysicalMaterial — soporta skinning + transmission + iridescence (r158+)
-          const mat = new THREE.MeshPhysicalMaterial(PHYSICAL_PARAMS);
+          const mat = new THREE.MeshPhysicalMaterial({
+            ...PHYSICAL_PARAMS,
+            flatShading: true,  // ★ Cada triángulo refleja luz independiente = facetas
+          });
 
           child.material = mat;
           child.castShadow = false;
           child.receiveShadow = false;
-          // NO recomputar normales — preservar las del autor del GLB
         }
       });
       console.info('SkinnedMesh detectado:', hasSkinnedMesh);
