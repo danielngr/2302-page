@@ -90,38 +90,6 @@
     mix-blend-mode: multiply;
   }
 
-  /* ============================================================
-     CURSOR RIPPLE — Efecto acuático que sigue al mouse
-     Onda de luz suave que se expande al mover el cursor.
-     Sin librerías externas — CSS puro con position fixed.
-     ============================================================ */
-  .cursor-ripple {
-    position: fixed;
-    pointer-events: none;
-    z-index: 5;
-    width: 240px;
-    height: 240px;
-    border-radius: 50%;
-    background: radial-gradient(circle,
-      rgba(255, 255, 255, 0.18) 0%,
-      rgba(220, 180, 255, 0.10) 20%,
-      rgba(140, 200, 255, 0.06) 40%,
-      transparent 70%);
-    transform: translate(-50%, -50%) scale(0);
-    opacity: 0;
-    mix-blend-mode: screen;
-    transition: opacity 1.2s ease-out, transform 1.4s cubic-bezier(0.16, 0.84, 0.30, 1);
-    filter: blur(8px);
-  }
-  .cursor-ripple.expand {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-  }
-  .cursor-ripple.fade {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(2.2);
-  }
-
   /* LOADER */
   .loader {
     position: fixed;
@@ -1025,12 +993,13 @@ function makeEnvironmentTexture() {
   c.height = size;
   const ctx = c.getContext('2d');
 
-  // Fondo lavanda suave (lo que vemos detrás de la ballena)
+  // Fondo: cielo de mar profundo (azul gradient)
   const baseGrad = ctx.createLinearGradient(0, 0, 0, size);
-  baseGrad.addColorStop(0, '#c9b0e0');
-  baseGrad.addColorStop(0.4, '#d8c8e8');
-  baseGrad.addColorStop(0.7, '#e5d8f0');
-  baseGrad.addColorStop(1, '#d0b8d8');
+  baseGrad.addColorStop(0, '#1a2a4a');   // top: deep ocean
+  baseGrad.addColorStop(0.4, '#4a7ab0');  // mid: blue
+  baseGrad.addColorStop(0.6, '#88c0d8');  // horizon: light blue
+  baseGrad.addColorStop(0.8, '#c8e0e8');  // bright horizon
+  baseGrad.addColorStop(1, '#2a5070');    // bottom: deep water
   ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, size * 2, size);
 
@@ -1045,18 +1014,18 @@ function makeEnvironmentTexture() {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // ★ SOL CENTRAL HDR MUY BRILLANTE — esto causa el bloom intenso tipo fénix
-  // Múltiples capas para que sea HDR (más allá de 1.0)
-  drawSun(size * 1.0, size * 0.40, 220, 'rgba(255,255,255,1)', 1.0);
-  drawSun(size * 1.0, size * 0.40, 150, 'rgba(255,255,255,1)', 1.0);  // core extra
-  drawSun(size * 1.0, size * 0.40, 90, 'rgba(255,255,255,1)', 1.0);   // núcleo super hot
+  // ★ SOL BLANCO PRINCIPAL — para los highlights iridiscentes en bordes
+  drawSun(size * 1.0, size * 0.40, 280, 'rgba(255,255,255,1)', 1.0);
+  drawSun(size * 1.0, size * 0.40, 140, 'rgba(255,255,255,1)', 1.0);
 
-  // Soles de colores eléctricos para que la ballena los refleje en su iridescence
-  drawSun(size * 0.35, size * 0.50, 320, 'rgba(255,90,180,0.9)', 0.9);   // magenta
-  drawSun(size * 1.65, size * 0.50, 300, 'rgba(120,200,255,0.85)', 0.85); // cyan
-  drawSun(size * 0.90, size * 0.78, 280, 'rgba(255,180,100,0.7)', 0.7);   // naranja
-  drawSun(size * 0.55, size * 0.20, 220, 'rgba(220,140,255,0.7)', 0.7);   // violeta
-  drawSun(size * 1.55, size * 0.15, 200, 'rgba(180,255,220,0.5)', 0.5);   // verde menta
+  // Soles fríos que tintean la ballena de azul/cyan/teal
+  drawSun(size * 0.35, size * 0.50, 320, 'rgba(120,200,255,0.85)', 0.85);  // cyan eléctrico
+  drawSun(size * 1.65, size * 0.50, 300, 'rgba(80,160,220,0.85)', 0.85);   // azul profundo
+  drawSun(size * 0.90, size * 0.78, 280, 'rgba(150,220,240,0.6)', 0.6);    // turquesa
+  drawSun(size * 0.55, size * 0.20, 220, 'rgba(180,220,255,0.7)', 0.7);    // cyan claro
+  
+  // Un toque cálido sutil (contraste) para que los reflejos no sean solo azules
+  drawSun(size * 1.45, size * 0.18, 180, 'rgba(255,200,140,0.45)', 0.45);  // dorado cálido
 
   const tx = new THREE.CanvasTexture(c);
   tx.mapping = THREE.EquirectangularReflectionMapping;
@@ -1107,20 +1076,20 @@ let modelLoaded = false;
    iridiscente perlado que ves en Noomo.
    ============================================================ */
 const PHYSICAL_PARAMS = {
-  color: 0xffffff,
+  color: 0x88ccff,              // ★ Azul cristal hielo
   metalness: 0,
-  roughness: 0.0,               // ★ Perfectamente liso = reflejos vibrantes
-  transmission: 1.0,            // ★ Total
-  thickness: 0.8,               // ★ Capa fina = colores más eléctricos
+  roughness: 0.05,
+  transmission: 0.9,            // Translúcido pero no totalmente
+  thickness: 1.2,
   ior: 1.45,
-  attenuationColor: 0xffffff,   // ★ Sin tinte interno
-  attenuationDistance: 5.0,
-  iridescence: 1.0,             // ★★★ MÁX
-  iridescenceIOR: 2.33,         // ★★★ Diamante = espectro extremo
-  iridescenceThicknessRange: [100, 500],
+  attenuationColor: 0x4488dd,   // ★ Tinte azul profundo que aparece con grosor
+  attenuationDistance: 1.8,
+  iridescence: 0.75,            // Iridescencia presente pero no domina
+  iridescenceIOR: 1.5,
+  iridescenceThicknessRange: [200, 600],
   clearcoat: 1.0,
-  clearcoatRoughness: 0.0,      // ★ Espejo perfecto encima
-  envMapIntensity: 3.0,         // ★★★ MUY ALTO — soles dominantes
+  clearcoatRoughness: 0.02,
+  envMapIntensity: 1.8,
   side: THREE.DoubleSide,
   transparent: true,
   opacity: 1.0,
@@ -1228,9 +1197,9 @@ composer.addPass(renderPass);
 
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  1.4,    // ★ strength alto — la ballena resplandece
-  0.85,   // radius — bloom suave y extenso
-  0.55    // threshold — capta zonas medias-altas
+  0.75,   // strength moderado
+  0.7,    // radius
+  0.65    // threshold
 );
 composer.addPass(bloomPass);
 
@@ -1239,7 +1208,7 @@ composer.addPass(bloomPass);
 const chromaticAberrationShader = {
   uniforms: {
     tDiffuse: { value: null },
-    uOffset: { value: new THREE.Vector2(0.0015, 0.0015) },
+    uOffset: { value: new THREE.Vector2(0.0008, 0.0008) },
     uTime: { value: 0 }
   },
   vertexShader: `
@@ -1276,6 +1245,178 @@ const chromaticAberrationShader = {
 const chromaticPass = new ShaderPass(chromaticAberrationShader);
 composer.addPass(chromaticPass);
 
+/* ============================================================
+   WATER TEXTURE — Captura los movimientos del mouse como
+   "ripples" en un canvas pequeño. Cada ripple tiene momentum
+   (dirección + fuerza) y se desvanece con el tiempo.
+   
+   Esto es lo que envía info al WaterShader para distorsionar el viewport.
+   Técnica de Codrops (Daniel Velasquez 2019).
+   ============================================================ */
+class WaterTexture {
+  constructor() {
+    this.size = 64;
+    this.points = [];        // ripples activos
+    this.maxAge = 64;        // cuánto viven (frames)
+    this.radius = 0.15;      // tamaño de cada ripple (en UV space)
+    this.last = null;        // último punto añadido (para momentum)
+    
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = this.canvas.height = this.size;
+    this.ctx = this.canvas.getContext('2d');
+    this.ctx.fillStyle = 'black';
+    this.ctx.fillRect(0, 0, this.size, this.size);
+    
+    this.texture = new THREE.Texture(this.canvas);
+    this.texture.minFilter = THREE.LinearFilter;
+    this.texture.magFilter = THREE.LinearFilter;
+  }
+  
+  addPoint(point) {
+    // point = { x: 0..1, y: 0..1 } en coordenadas UV
+    let force = 0;
+    let vx = 0, vy = 0;
+    
+    if (this.last) {
+      const relativeX = point.x - this.last.x;
+      const relativeY = point.y - this.last.y;
+      // Multiplicamos por screen size para que la fuerza tenga magnitud útil
+      const distanceSquared = relativeX * relativeX + relativeY * relativeY;
+      const distance = Math.sqrt(distanceSquared);
+      // Vector unitario de dirección
+      if (distance > 0) {
+        vx = relativeX / distance;
+        vy = relativeY / distance;
+      }
+      // Fuerza = clamp a un máximo razonable
+      force = Math.min(distance * 80, 1);
+    }
+    this.last = { x: point.x, y: point.y };
+    
+    this.points.push({
+      x: point.x,
+      y: point.y,
+      age: 0,
+      force,
+      vx,
+      vy
+    });
+  }
+  
+  update() {
+    // Limpiar canvas
+    this.ctx.fillStyle = 'black';
+    this.ctx.fillRect(0, 0, this.size, this.size);
+    
+    // Aplicar momentum a cada punto: avanza en su dirección
+    // pero más lento conforme envejece (decay).
+    this.points.forEach((p, i) => {
+      p.age += 1;
+      if (p.age > this.maxAge) {
+        this.points.splice(i, 1);
+        return;
+      }
+      // Decay del movimiento (cuanto más viejo, más lento se mueve)
+      const slowAsOlder = 1 - p.age / this.maxAge;
+      p.x += p.vx * slowAsOlder * 0.008;
+      p.y += p.vy * slowAsOlder * 0.008;
+      this.drawPoint(p);
+    });
+    
+    this.texture.needsUpdate = true;
+  }
+  
+  drawPoint(p) {
+    const ctx = this.ctx;
+    const size = this.size;
+    const x = p.x * size;
+    const y = p.y * size;
+    
+    // Decae la opacidad conforme envejece, suavemente
+    const lifeProgress = p.age / this.maxAge;
+    const intensity = 1 - lifeProgress;
+    const easedIntensity = intensity * intensity;  // ease out cuadrado
+    
+    const offset = size * 5;  // offset para mapear vx/vy [-1,1] → color [0,1]
+    
+    // Encode info en RGB channels:
+    // R, G = dirección del movimiento (mapeado a [0,1])
+    // B = fuerza/intensidad del ripple
+    const red = ((p.vx + 1) / 2) * 255;
+    const green = ((p.vy + 1) / 2) * 255;
+    const blue = p.force * easedIntensity * 255;
+    
+    const radius = this.radius * size * (1 + lifeProgress * 0.5);  // crece un poco
+    
+    ctx.shadowOffsetX = offset;
+    ctx.shadowOffsetY = offset;
+    ctx.shadowBlur = radius;
+    ctx.shadowColor = `rgba(${red.toFixed(0)},${green.toFixed(0)},${blue.toFixed(0)},${easedIntensity.toFixed(3)})`;
+    
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(255,0,0,1)';  // necesario para que shadow renderice
+    ctx.rect(-offset - radius, -offset - radius, 1, 1);
+    ctx.fill();
+  }
+}
+
+const waterTexture = new WaterTexture();
+
+/* ============================================================
+   WATER SHADER PASS — Toma el viewport renderizado y lo distorsiona
+   en base a los ripples del WaterTexture.
+   
+   Lectura: el canvas tiene info de dirección+fuerza por píxel.
+   El shader convierte eso en un offset de UV → distorsión visible.
+   ============================================================ */
+const waterShader = {
+  uniforms: {
+    tDiffuse: { value: null },          // El viewport actual
+    uWaterTexture: { value: waterTexture.texture },  // Nuestra textura de ripples
+    uStrength: { value: 0.05 }          // Intensidad global del efecto
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform sampler2D uWaterTexture;
+    uniform float uStrength;
+    varying vec2 vUv;
+    
+    void main() {
+      // Leer info del WaterTexture en este píxel
+      // El canvas está flippeado en Y respecto al viewport, lo corregimos
+      vec4 waterInfo = texture2D(uWaterTexture, vec2(vUv.x, 1.0 - vUv.y));
+      
+      // Decodificar: R,G = dirección (centered en 0.5); B = fuerza
+      vec2 dir = waterInfo.rg * 2.0 - 1.0;  // [-1, 1]
+      float force = waterInfo.b;
+      
+      // Aplicar offset a las UVs originales = el viewport se "empuja"
+      // hacia donde fue el mouse, con intensidad = fuerza
+      vec2 distortedUv = vUv - dir * force * uStrength;
+      
+      // Sampleamos el viewport en las UVs distorsionadas
+      // Para más feel acuático: chromatic aberration en la distorsión
+      float r = texture2D(tDiffuse, distortedUv + dir * force * uStrength * 0.15).r;
+      float g = texture2D(tDiffuse, distortedUv).g;
+      float b = texture2D(tDiffuse, distortedUv - dir * force * uStrength * 0.15).b;
+      
+      // Brightening sutil donde hay ripple (luz refractada)
+      float highlight = force * 0.12;
+      
+      gl_FragColor = vec4(r + highlight, g + highlight, b + highlight, 1.0);
+    }
+  `
+};
+const waterPass = new ShaderPass(waterShader);
+composer.addPass(waterPass);
+
 const outputPass = new OutputPass();
 composer.addPass(outputPass);
 
@@ -1292,35 +1433,39 @@ composer.addPass(outputPass);
 // luego entra al frame nadando hacia el centro
 // luego serpentea suavemente hasta salir por la izquierda
 const WHALE_PATH = [
-  // 0% — Cola asomando desde la derecha (cuerpo fuera de pantalla)
-  { sp: 0.00, x:  9,    y: -1.5, z: -3,   scale: 1.0,  roll:  0.0 },
-  // 5% — Empieza a entrar, todavía mayormente fuera
-  { sp: 0.05, x:  7,    y: -1.2, z: -2.5, scale: 1.0,  roll:  0.0 },
-  // 15% — Cuerpo entrando al frame
-  { sp: 0.15, x:  4,    y: -0.5, z: -1.5, scale: 1.0,  roll: -0.05 },
-  // 25% — En posición media derecha
-  { sp: 0.25, x:  2,    y:  0,   z: -0.5, scale: 1.0,  roll: -0.08 },
-  // 38% — Cruzando el centro
-  { sp: 0.38, x:  0,    y:  0.5, z:  0,   scale: 1.0,  roll: -0.1 },
-  // 50% — Centro-izquierda, ligero sube
-  { sp: 0.50, x: -2,    y:  1.0, z:  0,   scale: 1.05, roll: -0.05 },
-  // 62% — Alejándose hacia distancia (escala más pequeña, Z negativo)
-  { sp: 0.62, x: -3.5,  y:  1.5, z: -2,   scale: 0.85, roll:  0.02 },
-  // 75% — Vuelve a primer plano hacia el centro-izquierda
-  { sp: 0.75, x: -1.5,  y:  0.5, z:  1,   scale: 1.0,  roll:  0.05 },
-  // 88% — Vista grande de frente, posición central
-  { sp: 0.88, x: -0.5,  y:  0.2, z:  2.5, scale: 1.15, roll:  0.08 },
-  // 100% — Sale por la izquierda hacia el horizonte
-  { sp: 1.00, x: -8,    y: -0.5, z:  1,   scale: 1.0,  roll:  0.05 }
+  // ★★★ PATH CON PROFUNDIDAD: la ballena pasa de fondo a frente y viceversa ★★★
+  // Z negativo = lejos (fondo), Z positivo = cerca (frente)
+  
+  // 0% — Asoma cola de costado derecho, en fondo medio
+  { sp: 0.00, x:  9,    y: -1.5, z: -2,   scale: 1.0,  roll:  0.0 },
+  // 8% — Empieza a acercarse al frente (Z sube)
+  { sp: 0.08, x:  6,    y: -0.8, z:  0,   scale: 1.0,  roll: -0.03 },
+  // 18% — Llega cerca de cámara, lado derecho (Z muy positivo, casi frente)
+  { sp: 0.18, x:  3,    y:  0.2, z:  3,   scale: 1.0,  roll: -0.08 },
+  // 30% — Empieza a alejarse hacia el fondo cruzando al centro
+  { sp: 0.30, x:  0.5,  y:  0.8, z: -2,   scale: 1.0,  roll: -0.12 },
+  // 42% — Lejos al fondo (vista panorámica de su tamaño en distancia)
+  { sp: 0.42, x: -2,    y:  1.5, z: -7,   scale: 1.0,  roll: -0.05 },
+  // 55% — Sube hacia la izquierda manteniéndose distante
+  { sp: 0.55, x: -3.5,  y:  2.5, z: -5,   scale: 1.0,  roll:  0.08 },
+  // 68% — Vuelve hacia cámara, cruzando diagonal
+  { sp: 0.68, x: -1.5,  y:  1,   z:  0,   scale: 1.0,  roll:  0.15 },
+  // 80% — Muy cerca, casi rozando la cámara, lado izquierdo
+  { sp: 0.80, x:  0.5,  y:  0,   z:  3.5, scale: 1.0,  roll:  0.12 },
+  // 92% — Centrada, frente, vista heroica
+  { sp: 0.92, x:  0,    y: -0.2, z:  2,   scale: 1.0,  roll:  0.04 },
+  // 100% — Se aleja descendiendo hacia el fondo izquierdo
+  { sp: 1.00, x: -6,    y: -2,   z: -3,   scale: 1.0,  roll:  0.08 }
 ];
 
 const CAMERA_PATH = [
-  { sp: 0.00, z: 9,  y:  0,    fov: 45 },
-  { sp: 0.25, z: 10, y:  0,    fov: 45 },
-  { sp: 0.50, z: 9,  y:  0.3,  fov: 43 },
-  { sp: 0.62, z: 12, y:  0.5,  fov: 48 },
-  { sp: 0.88, z: 7,  y:  0.2,  fov: 42 },
-  { sp: 1.00, z: 10, y:  0,    fov: 45 }
+  { sp: 0.00, z: 10, y:  0,    fov: 45 },
+  { sp: 0.18, z: 9,  y:  0,    fov: 43 },  // close al pasar la ballena cerca
+  { sp: 0.42, z: 14, y:  0.5,  fov: 50 },  // pull back cuando está en el fondo
+  { sp: 0.68, z: 11, y:  0.3,  fov: 45 },
+  { sp: 0.80, z: 8,  y:  0,    fov: 42 },  // close cuando ballena está cerca
+  { sp: 0.92, z: 9,  y:  0,    fov: 42 },
+  { sp: 1.00, z: 11, y:  0,    fov: 45 }
 ];
 
 function lerp(a, b, t) { return a + (b - a) * t; }
@@ -1376,11 +1521,29 @@ updateScroll();
 const clock = new THREE.Clock();
 let assembleProgress = 0;
 
+/* ============================================================
+   MOUSE → WATER TEXTURE
+   Cada movimiento del cursor crea un ripple con momentum.
+   ============================================================ */
+const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+if (!isTouchDevice) {
+  window.addEventListener('mousemove', (ev) => {
+    // Coordenadas normalizadas 0..1
+    waterTexture.addPoint({
+      x: ev.clientX / window.innerWidth,
+      y: ev.clientY / window.innerHeight
+    });
+  }, { passive: true });
+}
+
 function animate() {
   const dt = clock.getDelta();
   const t = clock.getElapsedTime();
 
   if (mixer) mixer.update(dt);
+
+  // ★★★ Actualizar WaterTexture cada frame (los ripples envejecen) ★★★
+  waterTexture.update();
 
   // Lerp suave del scroll target (solo eso)
   scrollProgress += (scrollTarget - scrollProgress) * 0.06;
@@ -1475,78 +1638,6 @@ window.addEventListener('resize', () => {
 });
 
 animate();
-</script>
-
-<script>
-/* ============================================================
-   CURSOR RIPPLE EFFECT
-   Crea ondas suaves de luz que siguen el movimiento del cursor,
-   dando sensación acuática. Inspirado en Noomo storytelling.
-   ============================================================ */
-(function() {
-  const RIPPLE_POOL_SIZE = 12;  // pool de ripples reciclables
-  const ripples = [];
-  let rippleIdx = 0;
-  let lastEmit = 0;
-  const EMIT_INTERVAL = 80;  // ms entre ripples — controla densidad
-  
-  // Crear pool
-  for (let i = 0; i < RIPPLE_POOL_SIZE; i++) {
-    const r = document.createElement('div');
-    r.className = 'cursor-ripple';
-    document.body.appendChild(r);
-    ripples.push({ el: r, state: 'idle', timeout1: null, timeout2: null });
-  }
-  
-  function emit(x, y) {
-    const r = ripples[rippleIdx];
-    rippleIdx = (rippleIdx + 1) % RIPPLE_POOL_SIZE;
-    
-    // Limpiar timeouts previos
-    if (r.timeout1) clearTimeout(r.timeout1);
-    if (r.timeout2) clearTimeout(r.timeout2);
-    
-    // Reset
-    r.el.classList.remove('expand', 'fade');
-    r.el.style.left = x + 'px';
-    r.el.style.top = y + 'px';
-    
-    // Force reflow para que el reset sea efectivo
-    void r.el.offsetWidth;
-    
-    // Expandir
-    r.el.classList.add('expand');
-    
-    // Después de aparecer, fade out
-    r.timeout1 = setTimeout(() => {
-      r.el.classList.add('fade');
-      r.el.classList.remove('expand');
-    }, 100);
-    
-    // Limpiar después de la animación
-    r.timeout2 = setTimeout(() => {
-      r.el.classList.remove('fade');
-    }, 1500);
-  }
-  
-  // Detectar si es mobile (sin mouse)
-  const isMobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-  if (isMobile) return;  // no ripples en mobile
-  
-  // Mousemove handler con throttling
-  window.addEventListener('mousemove', (e) => {
-    const now = Date.now();
-    if (now - lastEmit > EMIT_INTERVAL) {
-      lastEmit = now;
-      emit(e.clientX, e.clientY);
-    }
-  }, { passive: true });
-  
-  // Emit ripple grande al click
-  window.addEventListener('click', (e) => {
-    emit(e.clientX, e.clientY);
-  }, { passive: true });
-})();
 </script>
 
 <script>
