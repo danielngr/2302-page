@@ -3171,15 +3171,16 @@ function loadGLB() {
       console.info('SkinnedMesh detectado:', hasSkinnedMesh, '· Materials:', whaleMaterials.length);
 
       // Auto-fit
-      // CALIBRADO: targetSize=4.0 — sobrio, premium. La ballena enmarcada
-      // por el logo VRM en el hero (logo ~3.5u ancho desktop / 2.94u móvil),
-      // la ballena ~4u por dimensión: asoma por los lados sin tapar el logo.
-      // Al fondo (z=-6), perspectiva reduce a ~1.7u efectivos en pantalla =
-      // presencia ambiente sutil, no protagonista.
+      // CALIBRADO: targetSize=7.0 — presencia cercana, premium pero notable.
+      // La ballena delante del cristal del logo VRM (z=2.8 en pose hero,
+      // cámara mobile z=13.5, distancia 10.7u con FOV 55°) se ve grande,
+      // dominante visualmente, asomando claramente por los costados del logo.
+      // En zonas lejanas (z=-6), perspectiva reduce a ~3u efectivos
+      // → presencia ambiente aún visible.
       const bbox = new THREE.Box3().setFromObject(model);
       const size = bbox.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
-      const targetSize = 4.0;
+      const targetSize = 7.0;
       const scale = targetSize / maxDim;
       model.scale.setScalar(scale);
       const center = bbox.getCenter(new THREE.Vector3()).multiplyScalar(scale);
@@ -3707,53 +3708,54 @@ const CAMERA_HERO = {
 
 const WHALE_PATH = [
   // ═══════ HERO (sp 0-10%) ═══════
-  // Pose memorable: ballena cerca del cristal, centrada con el logo.
-  // z=+0.5 → delante del cristal, su cuerpo se ve a través/alrededor del logo.
-  _kf(0.00,  0.0,  0.0,  0.5),
-  _kf(0.05,  0.0,  0.0,  0.6),    // respira (z varía 0.1 en 5%)
-  _kf(0.10,  0.1, -0.1,  0.4),    // empieza a alejarse muy levemente
+  // Pose memorable: ballena MUY cerca del cristal (z=4.5), centrada con el
+  // logo. La ballena mira hacia la cámara (+z) así que se ve "de frente",
+  // dimensión ancha visible. z=4.5 con cámara mobile a 13.5 → distancia
+  // 9u → la ballena de frente domina visualmente, asoma claro del logo.
+  _kf(0.00,  0.0,  0.0,  4.5),
+  _kf(0.05,  0.0,  0.0,  4.6),
+  _kf(0.10,  0.1, -0.1,  4.2),
 
   // ═══════ REIMAGINE + INICIO PHILOSOPHY (sp 10-25%) ═══════
-  // Se aleja al fondo, se vuelve presencia ambiente. Sutil deriva lateral.
-  _kf(0.18,  0.3, -0.3, -2.0),
-  _kf(0.25,  0.5, -0.5, -3.5),
+  // Se aleja al fondo pero sigue siendo presencia clara.
+  _kf(0.18,  0.3, -0.3,  1.0),
+  _kf(0.25,  0.5, -0.5, -0.5),
 
   // ═══════ PHILOSOPHY + WHY DIRECT (sp 25-40%) ═══════
-  // Vuelve a acercarse pero por el lateral izquierdo. No tapa texto,
-  // solo aparece como "pasaje" de presencia.
-  _kf(0.32, -1.0, -0.4, -1.5),
-  _kf(0.40, -2.0, -0.3, -0.5),    // cerca del cristal por la izquierda
+  // Vuelve cerca por el lateral izquierdo. Pulso de presencia.
+  _kf(0.32, -1.0, -0.4,  1.5),
+  _kf(0.40, -2.0, -0.3,  3.0),    // muy cerca, asomando por la izquierda
 
   // ═══════ PROPERTIES — PULSO 1 (sp 40-50%) ═══════
-  // CADENCIA: pulso lejos. Se aleja al fondo central.
-  _kf(0.47, -1.0, -0.5, -5.0),
-  _kf(0.50,  0.0, -0.6, -6.0),    // punto más lejos del primer pulso
+  // CADENCIA: pulso lejos.
+  _kf(0.47, -1.0, -0.5, -2.0),
+  _kf(0.50,  0.0, -0.6, -3.0),    // lejos del primer pulso
 
   // ═══════ PROPERTIES — PULSO 2 (sp 50-62%) ═══════
-  // Pulso cerca. Aparece por la derecha junto al cristal.
-  _kf(0.56,  1.5, -0.3, -2.0),
-  _kf(0.62,  2.0, -0.2, -0.5),    // cerca del cristal por la derecha
+  // Pulso cerca por la derecha.
+  _kf(0.56,  1.5, -0.3,  1.0),
+  _kf(0.62,  2.0, -0.2,  3.0),    // muy cerca, asomando por la derecha
 
   // ═══════ PROPERTIES — PULSO 3 (sp 62-72%) ═══════
   // Pulso lejos otra vez. Cruzando hacia la izquierda al fondo.
-  _kf(0.68,  0.8, -0.5, -4.5),
-  _kf(0.72, -0.5, -0.6, -6.0),
+  _kf(0.68,  0.8, -0.5, -1.5),
+  _kf(0.72, -0.5, -0.6, -3.0),
 
   // ═══════ GRID PROPERTIES — PULSO 4 (sp 72-85%) ═══════
-  // Último pulso cercano: arriba del grid (y positivo).
-  _kf(0.78, -1.5, +0.5, -2.0),
-  _kf(0.83, -0.5, +0.8, -1.0),    // cerca del cristal arriba-izquierda
-  _kf(0.86,  0.5, +0.6, -1.5),
+  // Último pulso cercano: arriba (y positivo), cerca.
+  _kf(0.78, -1.5, +0.5,  1.0),
+  _kf(0.83, -0.5, +0.8,  2.5),    // cerca arriba-izquierda
+  _kf(0.86,  0.5, +0.6,  1.5),
 
   // ═══════ REVIEWS (sp 85-95%) ═══════
-  // Se aleja para no distraer del texto largo. Presencia mínima.
-  _kf(0.90,  0.3, -0.2, -4.0),
-  _kf(0.95,  0.1, -0.1, -2.5),    // empieza a acercarse para el cierre
+  // Se aleja para no distraer del texto largo.
+  _kf(0.90,  0.3, -0.2, -1.0),
+  _kf(0.95,  0.1, -0.1,  1.5),    // empieza a acercarse para el cierre
 
   // ═══════ FINAL CTA (sp 95-100%) ═══════
   // VUELVE A LA POSE HERO. Cierre del círculo narrativo.
-  _kf(0.98,  0.05, 0.0,  0.3),
-  _kf(1.00,  0.0,  0.0,  0.5)     // exacto igual al hero
+  _kf(0.98,  0.05, 0.0,  4.3),
+  _kf(1.00,  0.0,  0.0,  4.5)     // exacto igual al hero
 ];
 
 // ════════════════════════════════════════════════════════════════════════
@@ -3937,7 +3939,10 @@ function animate() {
   waterTexture.update();
   bgMaterial.uniforms.uTime.value = t;
 
-  scrollProgress += (scrollTarget - scrollProgress) * 0.06;
+  // Lerp del scroll target — más responsivo (0.10 vs 0.06) para que la
+  // ballena reaccione al scroll del usuario con fluidez. Lo suficientemente
+  // suave para no jitter, lo suficientemente rápido para no sentir lag.
+  scrollProgress += (scrollTarget - scrollProgress) * 0.10;
   window.__vrmScroll = scrollProgress;
   const sp = scrollProgress;
 
@@ -4053,8 +4058,10 @@ function animate() {
   const finalY = targetPosY + driftY;
   const finalZ = targetPosZ + driftZ;
 
-  // Lerp temporal lento — peso cinematográfico, no jitter.
-  const posLerp = Math.min(1, dt * 2.0);
+  // Lerp temporal responsivo pero con peso — fluido, no jitter.
+  // dt*4.0 = ~25% por frame a 60fps → la ballena cierra el 95% del gap
+  // en ~12 frames (~200ms). Fluido sin sentirse arrastrado.
+  const posLerp = Math.min(1, dt * 4.0);
   whaleGroup.position.x += (finalX - whaleGroup.position.x) * posLerp;
   whaleGroup.position.y += (finalY - whaleGroup.position.y) * posLerp;
   whaleGroup.position.z += (finalZ - whaleGroup.position.z) * posLerp;
@@ -4085,8 +4092,10 @@ function animate() {
     if (dynamicBank < -BANK_MAX) dynamicBank = -BANK_MAX;
   }
 
+  // Banking suavizado con lerp responsivo (dt*3.5) para que reaccione
+  // a los cambios de dirección con fluidez sin verse robótico.
   const targetBank = dynamicBank + cinematicRoll;
-  _smoothedBank += (targetBank - _smoothedBank) * Math.min(1, dt * 2.0);
+  _smoothedBank += (targetBank - _smoothedBank) * Math.min(1, dt * 3.5);
 
   _whaleEulerRoll.set(0, 0, _smoothedBank, 'XYZ');
   _whaleQuatRoll.setFromEuler(_whaleEulerRoll);
@@ -4102,11 +4111,13 @@ function animate() {
   _whaleQuatSecondary.setFromEuler(_whaleEulerSecondary);
   _whaleQuatFinal.multiply(_whaleQuatSecondary);
 
-  // Slerp con limitación de velocidad angular — sin giros bruscos.
-  // Velocidad MUY baja: 0.5 rad/s = ~29°/s. Para una ballena de 30T es
-  // exactamente la cadencia esperada. Aumenta sutilmente durante reveal
-  // para que la apertura no se sienta congelada.
-  const MAX_ANGULAR_SPEED = revealProgress < 1.0 ? 0.9 : 0.5;
+  // Slerp con limitación de velocidad angular — fluido pero sin trompo.
+  // Velocidad 1.2 rad/s = ~69°/s en scroll → giros visibles pero
+  // cinematográficos. La curva spline es suave, así que esta velocidad
+  // basta para que la ballena nunca se sienta "rezagada".
+  // En reveal 1.8 rad/s permite que la ballena se oriente rápidamente
+  // al emerger de las profundidades.
+  const MAX_ANGULAR_SPEED = revealProgress < 1.0 ? 1.8 : 1.2;
   const dotProduct = Math.abs(
     whaleGroup.quaternion.x * _whaleQuatFinal.x +
     whaleGroup.quaternion.y * _whaleQuatFinal.y +
@@ -4120,7 +4131,10 @@ function animate() {
   if (angleToTarget > maxRotationThisFrame && angleToTarget > 0.001) {
     slerpFactor = maxRotationThisFrame / angleToTarget;
   } else {
-    slerpFactor = Math.min(1, dt * 2.5);
+    // Slerp normal cuando ya estamos cerca del target — más responsivo
+    // (dt*5 = ~30% por frame) para que la respiración y secondary motion
+    // se apliquen instantáneamente y la ballena se vea siempre viva.
+    slerpFactor = Math.min(1, dt * 5.0);
   }
   whaleGroup.quaternion.slerp(_whaleQuatFinal, slerpFactor);
 
