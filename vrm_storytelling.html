@@ -327,15 +327,17 @@
     text-shadow: 0 1px 8px rgba(10, 20, 40, 0.3);
   }
 
-  /* CTA primario + trust signals en el cover */
+  /* Trust signals en el cover (botón Explore Homes eliminado para no
+     interrumpir el scrollytelling). Se mantiene .cover-cta CSS por si se
+     vuelve a usar en otro contexto. */
   .cover-actions {
-    margin-top: 56px;
+    margin-top: 40px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 28px;
     opacity: 0;
-    animation: ru 1.4s var(--ease-soft) 4.2s forwards;
+    animation: ru 1.4s var(--ease-soft) 3.8s forwards;
   }
   .cover-cta {
     display: inline-flex;
@@ -393,7 +395,7 @@
     color: rgba(232, 228, 218, 0.28);
   }
   @media (max-width: 768px) {
-    .cover-actions { margin-top: 40px; gap: 22px; }
+    .cover-actions { margin-top: 32px; gap: 22px; }
     .cover-cta { padding: 14px 26px; font-size: 12px; }
     .cover-trust { font-size: 10px; gap: 10px; }
   }
@@ -734,14 +736,47 @@
     text-transform: uppercase; color: var(--whisper); margin-top: 4px;
   }
   @media (max-width: 768px) {
-    .properties { padding: 100px 0 120px; }
+    .properties { padding: 100px 0 140px; }
     .properties-header { margin-bottom: 64px; padding: 0 24px; }
-    .properties-grid { padding: 0 24px; gap: 56px; }
-    .property-card.f-1, .property-card.f-2, .property-card.f-3, .property-card.f-4 {
-      grid-column: 1 / -1; grid-row: auto; margin-top: 0;
+
+    /* En móvil, eliminar grid de columnas — cada card en su propia fila,
+       con ancho controlado y márgenes editoriales generosos. */
+    .properties-grid {
+      padding: 0;
+      gap: 96px;  /* más respiración entre propiedades */
+      display: flex;
+      flex-direction: column;
     }
+
+    /* Anular el grid de desktop completamente — en móvil son una columna */
+    .property-card.f-1, .property-card.f-2, .property-card.f-3, .property-card.f-4 {
+      grid-column: auto; grid-row: auto; margin-top: 0;
+      width: 86vw;  /* nunca ancho completo — siempre con margen editorial */
+    }
+
+    /* Ritmo asimétrico editorial: alternar alineación izquierda/derecha.
+       Es sutilísimo — solo 14vw a cada lado — pero crea una cadencia
+       de revista en lugar de feed de Instagram. */
+    .property-card.f-1 { align-self: flex-start;  margin-left: 7vw; }
+    .property-card.f-2 { align-self: flex-end;    margin-right: 7vw; }
+    .property-card.f-3 { align-self: flex-start;  margin-left: 7vw; }
+    .property-card.f-4 { align-self: flex-end;    margin-right: 7vw; }
+
+    /* Aspect ratio cinematográfico 3/2 unificado para TODAS las propiedades.
+       Más editorial que el 4/3 de Instagram. Más sobrio que el 4/5 vertical.
+       Imagen ocupa 86vw × 57vw → ~57% del alto de un viewport portrait. */
+    .property-photo,
+    .property-card.f-1 .property-photo,
+    .property-card.f-4 .property-photo {
+      aspect-ratio: 3/2;
+    }
+
+    /* Tipografía un poco más sobria en móvil */
     .property-name { font-size: 22px; }
     .property-price { font-size: 18px; }
+
+    /* Info más cerca de la imagen (era 28px) — diseño más compacto */
+    .property-info { padding-top: 20px; }
   }
 
   .reviews { padding: 200px 48px; }
@@ -1971,15 +2006,8 @@
       </p>
       <p class="cover-subtitle">La bahía que se habita</p>
 
-      <!-- CTA primario + trust signals — visibles al primer scroll -->
+      <!-- Trust signals — visibles al primer scroll (sin CTA, scrollytelling guía al usuario) -->
       <div class="cover-actions">
-        <a href="#properties" class="cover-cta">
-          <span>Explore homes</span>
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <line x1="5" y1="12" x2="19" y2="12"/>
-            <polyline points="12 5 19 12 12 19"/>
-          </svg>
-        </a>
         <div class="cover-trust">
           <span class="cover-trust-item">
             <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" aria-hidden="true">
@@ -3783,6 +3811,7 @@ const REVEAL_FROM = {
 // SISTEMA DE ROTACIÓN — Variables auxiliares persistentes
 // ════════════════════════════════════════════════════════════════════════
 const _whaleQuatTarget = new THREE.Quaternion();
+const _whaleQuatTargetSmoothed = new THREE.Quaternion();  // capa de smoothing
 const _whaleQuatFinal = new THREE.Quaternion();
 const _whaleMatTarget = new THREE.Matrix4();
 const _whaleEye = new THREE.Vector3();
@@ -3811,6 +3840,9 @@ whaleGroup.scale.setScalar(0);
   const initTarget = new THREE.Vector3(0, _logoYWorld, 0); // hacia la pose hero
   const initMat = new THREE.Matrix4().lookAt(initEye, initTarget, _whaleUp);
   whaleGroup.quaternion.setFromRotationMatrix(initMat);
+  // Inicializar el smoothed target con el mismo valor para evitar slerp
+  // visible desde la identidad al inicio.
+  _whaleQuatTargetSmoothed.copy(whaleGroup.quaternion);
 }
 
 function lerp(a, b, t) { return a + (b - a) * t; }
@@ -3939,10 +3971,10 @@ function animate() {
   waterTexture.update();
   bgMaterial.uniforms.uTime.value = t;
 
-  // Lerp del scroll target — más responsivo (0.10 vs 0.06) para que la
-  // ballena reaccione al scroll del usuario con fluidez. Lo suficientemente
-  // suave para no jitter, lo suficientemente rápido para no sentir lag.
-  scrollProgress += (scrollTarget - scrollProgress) * 0.10;
+  // Lerp del scroll target — 0.07 = balance entre responsividad y peso.
+  // Demasiado alto (0.15+) hace que la ballena salte al hacer flick scroll.
+  // Demasiado bajo (0.03) hace que se sienta laggy.
+  scrollProgress += (scrollTarget - scrollProgress) * 0.07;
   window.__vrmScroll = scrollProgress;
   const sp = scrollProgress;
 
@@ -4006,26 +4038,39 @@ function animate() {
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // QUATERNION TARGET — lookAt en la dirección de natación.
+  // QUATERNION TARGET — lookAt suavizado con ventana grande.
   //
-  // La ballena siempre mira HACIA donde nada. Durante el reveal, eso
-  // significa "hacia el cristal" (z=+0.5). En scroll, sigue la derivada
-  // del path. Sin "pose hero memorable" forzada — la pose natural es
-  // simplemente "la ballena viendo hacia donde va".
+  // PROBLEMA QUE RESUELVE: si miramos la derivada local del path (sp vs
+  // sp+0.04), la dirección de natación cambia bruscamente en cada curva
+  // y la ballena gira nerviosa para seguir. Una ballena real mira hacia
+  // ADELANTE en su trayectoria — donde va a estar en varios segundos —
+  // no hacia el siguiente milímetro del camino.
+  //
+  // SOLUCIÓN: usamos un "lookahead grande" (0.15 de sp = ~15% del scroll
+  // adelante). Eso significa que la ballena siempre mira hacia donde va
+  // a estar a varios segundos vista, ignorando los micro-cambios del
+  // path. Resultado: orientación estable, giros lentos y cinematográficos.
+  //
+  // Además, el quaternion target tiene su propio lerp suave (separado
+  // del slerp final aplicado al quaternion ACTUAL). Eso crea una doble
+  // capa de suavizado: target → smoothed target → quaternion actual.
   // ════════════════════════════════════════════════════════════════════
   let swimDx, swimDy, swimDz;
 
   if (revealProgress < 1.0) {
-    // Durante reveal, dirección de natación: REVEAL_FROM → hero
+    // Durante reveal, dirección: REVEAL_FROM → hero
     swimDx = heroPathPose.x - REVEAL_FROM.x;
     swimDy = heroPathPose.y - REVEAL_FROM.y;
     swimDz = heroPathPose.z - REVEAL_FROM.z;
   } else {
-    // En scroll, derivada del path
-    const pathSwim = getSwimDirection(WHALE_PATH, sp);
-    swimDx = pathSwim.dx;
-    swimDy = pathSwim.dy;
-    swimDz = pathSwim.dz;
+    // En scroll: mirar hacia donde estará dentro de 15% (ventana grande).
+    // El path es continuo (CatmullRom) así que getPathPoint(sp+0.15) es
+    // un destino futuro razonable. Si sp+0.15 > 1, clampear a 1.
+    const futureSp = Math.min(1.0, sp + 0.15);
+    const futurePose = getPathPoint(WHALE_PATH, futureSp);
+    swimDx = futurePose.x - heroPathPose.x;
+    swimDy = futurePose.y - heroPathPose.y;
+    swimDz = futurePose.z - heroPathPose.z;
   }
 
   const swimLen = Math.hypot(swimDx, swimDy, swimDz);
@@ -4049,59 +4094,74 @@ function animate() {
   _whaleQuatTarget.setFromRotationMatrix(_whaleMatTarget);
 
   // ════════════════════════════════════════════════════════════════════
-  // APLICAR POSICIÓN — lerp suave + drift orgánico encima
-  // 
-  // Drift es ±0.03u, completamente sutil. Le da "vida" al estar quieta
-  // (en la pose hero) sin que se note como movimiento intencional.
+  // SUAVIZADO DEL QUATERNION TARGET (capa adicional)
+  // ════════════════════════════════════════════════════════════════════
+  // Antes de aplicar el quaternion target al modelo, lo suavizamos con
+  // su propio slerp lento. Eso crea DOS capas de smoothing:
+  //   1. _whaleQuatTargetSmoothed sigue al _whaleQuatTarget con dt*1.2
+  //      (frequency baja, ~0.6s para alcanzar 95%)
+  //   2. whaleGroup.quaternion sigue al smoothed con velocidad angular
+  //      limitada (la rotación visible)
+  //
+  // Combinado: la ballena nunca reacciona a un cambio brusco de la
+  // dirección del path. Su "intención" cambia lentamente, su rotación
+  // visible sigue esa intención con peso.
+  _whaleQuatTargetSmoothed.slerp(_whaleQuatTarget, Math.min(1, dt * 1.2));
+
+  // ════════════════════════════════════════════════════════════════════
+  // APLICAR POSICIÓN — lerp suave + drift orgánico
   // ════════════════════════════════════════════════════════════════════
   const finalX = targetPosX + driftX;
   const finalY = targetPosY + driftY;
   const finalZ = targetPosZ + driftZ;
 
-  // Lerp temporal responsivo pero con peso — fluido, no jitter.
-  // dt*4.0 = ~25% por frame a 60fps → la ballena cierra el 95% del gap
-  // en ~12 frames (~200ms). Fluido sin sentirse arrastrado.
-  const posLerp = Math.min(1, dt * 4.0);
+  // Lerp temporal con peso cinematográfico. dt*3.0 = ~17% del gap por
+  // frame → cierra 95% en ~18 frames (~300ms). Fluido sin tirones.
+  const posLerp = Math.min(1, dt * 3.0);
   whaleGroup.position.x += (finalX - whaleGroup.position.x) * posLerp;
   whaleGroup.position.y += (finalY - whaleGroup.position.y) * posLerp;
   whaleGroup.position.z += (finalZ - whaleGroup.position.z) * posLerp;
 
   // ════════════════════════════════════════════════════════════════════
-  // APLICAR ROTACIÓN — lookAt swim + banking + secondary motion
-  // 
-  // Banking dinámico: cuando el path cambia de dirección lateralmente,
-  // la ballena se inclina ligeramente (como un avión en curva). Esto
-  // hace que los giros se vean orgánicos, no robóticos.
+  // APLICAR ROTACIÓN — construir final desde el SMOOTHED target.
+  // Banking sutil + secondary motion + slerp con velocidad limitada.
   // ════════════════════════════════════════════════════════════════════
-  _whaleQuatFinal.copy(_whaleQuatTarget);
+  _whaleQuatFinal.copy(_whaleQuatTargetSmoothed);
 
-  // Banking dinámico calculado solo cuando hay path (no en reveal)
+  // Banking calculado con ventana grande — detecta curvas que vienen,
+  // no cambios microscópicos. Resultado: roll sutil que anticipa curvas
+  // en lugar de reaccionar a derivadas locales nerviosas.
   let dynamicBank = 0;
   if (revealProgress >= 1.0) {
-    const lookahead = Math.min(0.999, sp + 0.05);
-    const swimAhead = getSwimDirection(WHALE_PATH, lookahead);
-    const yawNow = Math.atan2(useDx, useDz);
-    const yawAhead = Math.atan2(swimAhead.dx, swimAhead.dz);
-    let yawDelta = yawAhead - yawNow;
+    const midSp = Math.min(1.0, sp + 0.10);
+    const farSp = Math.min(1.0, sp + 0.20);
+    const midPose = getPathPoint(WHALE_PATH, midSp);
+    const farPose = getPathPoint(WHALE_PATH, farSp);
+    const dxNow = midPose.x - heroPathPose.x;
+    const dzNow = midPose.z - heroPathPose.z;
+    const dxFar = farPose.x - midPose.x;
+    const dzFar = farPose.z - midPose.z;
+    const yawNow = Math.atan2(dxNow, dzNow);
+    const yawFar = Math.atan2(dxFar, dzFar);
+    let yawDelta = yawFar - yawNow;
     while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
     while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
-    const BANK_INTENSITY = 0.9;
-    const BANK_MAX = Math.PI / 8;  // ~22° max — muy conservador, ballena real
+    const BANK_INTENSITY = 0.6;       // Más conservador que antes (0.9)
+    const BANK_MAX = Math.PI / 12;    // ~15° max — muy sutil, premium
     dynamicBank = -yawDelta * BANK_INTENSITY;
     if (dynamicBank > BANK_MAX) dynamicBank = BANK_MAX;
     if (dynamicBank < -BANK_MAX) dynamicBank = -BANK_MAX;
   }
 
-  // Banking suavizado con lerp responsivo (dt*3.5) para que reaccione
-  // a los cambios de dirección con fluidez sin verse robótico.
+  // Banking con lerp lento — el roll cambia con peso, no jitter
   const targetBank = dynamicBank + cinematicRoll;
-  _smoothedBank += (targetBank - _smoothedBank) * Math.min(1, dt * 3.5);
+  _smoothedBank += (targetBank - _smoothedBank) * Math.min(1, dt * 1.5);
 
   _whaleEulerRoll.set(0, 0, _smoothedBank, 'XYZ');
   _whaleQuatRoll.setFromEuler(_whaleEulerRoll);
   _whaleQuatFinal.multiply(_whaleQuatRoll);
 
-  // Secondary motion: respiración + cola natural (escalado por reveal)
+  // Secondary motion: respiración + cola (escalado por reveal)
   _whaleEulerSecondary.set(
     (dorsalBob + microShimmer) * revealProgress,
     tailUndulation * revealProgress,
@@ -4111,13 +4171,11 @@ function animate() {
   _whaleQuatSecondary.setFromEuler(_whaleEulerSecondary);
   _whaleQuatFinal.multiply(_whaleQuatSecondary);
 
-  // Slerp con limitación de velocidad angular — fluido pero sin trompo.
-  // Velocidad 1.2 rad/s = ~69°/s en scroll → giros visibles pero
-  // cinematográficos. La curva spline es suave, así que esta velocidad
-  // basta para que la ballena nunca se sienta "rezagada".
-  // En reveal 1.8 rad/s permite que la ballena se oriente rápidamente
-  // al emerger de las profundidades.
-  const MAX_ANGULAR_SPEED = revealProgress < 1.0 ? 1.8 : 1.2;
+  // Slerp con velocidad angular MUY limitada — movimientos premium.
+  // 0.35 rad/s = ~20°/s. Es la cadencia de una ballena real al cambiar
+  // de orientación. Combinado con el smoothed target (que ya cambia
+  // lento) los giros son lentos, intencionales, nunca nerviosos.
+  const MAX_ANGULAR_SPEED = revealProgress < 1.0 ? 0.7 : 0.35;
   const dotProduct = Math.abs(
     whaleGroup.quaternion.x * _whaleQuatFinal.x +
     whaleGroup.quaternion.y * _whaleQuatFinal.y +
@@ -4131,10 +4189,10 @@ function animate() {
   if (angleToTarget > maxRotationThisFrame && angleToTarget > 0.001) {
     slerpFactor = maxRotationThisFrame / angleToTarget;
   } else {
-    // Slerp normal cuando ya estamos cerca del target — más responsivo
-    // (dt*5 = ~30% por frame) para que la respiración y secondary motion
-    // se apliquen instantáneamente y la ballena se vea siempre viva.
-    slerpFactor = Math.min(1, dt * 5.0);
+    // Ángulo pequeño — slerp con peso (dt*2.0 = ~12% por frame).
+    // No queremos snap; queremos que la respiración y secondary motion
+    // se apliquen con un ligero delay para sentir el peso del cristal.
+    slerpFactor = Math.min(1, dt * 2.0);
   }
   whaleGroup.quaternion.slerp(_whaleQuatFinal, slerpFactor);
 
