@@ -965,7 +965,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setClearColor(0x000000, 0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.4;
+renderer.toneMappingExposure = 1.0;
 
 /* ============================================================
    ENVIRONMENT MAP — Canvas procedural pasado por PMREMGenerator
@@ -978,42 +978,37 @@ function makeEnvironmentTexture() {
   c.height = size;
   const ctx = c.getContext('2d');
 
-  // Fondo base — gradient más eléctrico para que la ballena tenga colores fuertes que reflejar
+  // Fondo base suave — atardecer tipo Vallarta
   const baseGrad = ctx.createLinearGradient(0, 0, 0, size);
-  baseGrad.addColorStop(0, '#0a0020');
-  baseGrad.addColorStop(0.2, '#3a0a4e');
-  baseGrad.addColorStop(0.45, '#a02a7e');
-  baseGrad.addColorStop(0.55, '#ff6a8e');
-  baseGrad.addColorStop(0.7, '#ffaa50');
-  baseGrad.addColorStop(0.85, '#aa3a40');
-  baseGrad.addColorStop(1, '#1a0008');
+  baseGrad.addColorStop(0, '#1a1428');
+  baseGrad.addColorStop(0.3, '#4a3060');
+  baseGrad.addColorStop(0.5, '#a06080');
+  baseGrad.addColorStop(0.7, '#e0a888');
+  baseGrad.addColorStop(0.85, '#d08068');
+  baseGrad.addColorStop(1, '#2a1820');
   ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, size * 2, size);
 
-  // Soles brillantes a saturación máxima — son los que crean los reflejos de color
   function drawSun(x, y, r, color) {
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
     g.addColorStop(0, color);
-    g.addColorStop(0.3, color.replace(/[\d.]+\)$/, '0.6)'));
+    g.addColorStop(0.4, color.replace(/[\d.]+\)$/, '0.4)'));
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
-    // Lighten blending
     ctx.globalCompositeOperation = 'screen';
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // Sol blanco PRINCIPAL muy intenso
-  drawSun(size * 1.0, size * 0.35, 380, 'rgba(255,255,255,1)');
-  drawSun(size * 1.0, size * 0.35, 180, 'rgba(255,255,255,1)');  // núcleo extra brillante
+  // Sol blanco principal
+  drawSun(size * 1.0, size * 0.38, 360, 'rgba(255,255,250,0.95)');
 
-  // Soles de colores eléctricos — saturación máxima
-  drawSun(size * 0.35, size * 0.45, 280, 'rgba(255,80,200,1)');     // magenta
-  drawSun(size * 1.6, size * 0.50, 260, 'rgba(80,220,255,1)');      // cyan
-  drawSun(size * 0.85, size * 0.78, 300, 'rgba(255,200,100,1)');    // naranja
-  drawSun(size * 0.55, size * 0.18, 220, 'rgba(200,140,255,1)');    // violeta
-  drawSun(size * 1.75, size * 0.18, 200, 'rgba(160,255,220,0.85)'); // verde menta
-  drawSun(size * 1.30, size * 0.30, 160, 'rgba(255,255,200,0.9)');  // amarillo suave
+  // Soles de colores suaves — alpha más bajo para no quemar la ballena
+  drawSun(size * 0.40, size * 0.45, 280, 'rgba(255,140,200,0.7)');   // rosa
+  drawSun(size * 1.60, size * 0.50, 250, 'rgba(140,200,255,0.65)');  // cyan suave
+  drawSun(size * 0.90, size * 0.75, 280, 'rgba(255,180,120,0.6)');   // naranja calido
+  drawSun(size * 0.60, size * 0.20, 200, 'rgba(180,140,220,0.55)');  // violeta
+  drawSun(size * 1.70, size * 0.22, 180, 'rgba(200,230,200,0.4)');   // verde menta
 
   const tx = new THREE.CanvasTexture(c);
   tx.mapping = THREE.EquirectangularReflectionMapping;
@@ -1077,7 +1072,7 @@ const PHYSICAL_PARAMS = {
   iridescenceThicknessRange: [100, 800],  // ★★★ rango amplio = todos los colores
   clearcoat: 1.0,
   clearcoatRoughness: 0.02,     // clearcoat muy brillante
-  envMapIntensity: 2.5,         // ★★★ Soles más visibles
+  envMapIntensity: 1.4,         // ★★★ Bajado de 2.5 para no sobreexponer
   side: THREE.DoubleSide,
   transparent: true,
   opacity: 1.0,
@@ -1246,9 +1241,9 @@ composer.addPass(renderPass);
 
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  1.2,    // strength — más fuerte para destacar la ballena
-  0.6,    // radius — bloom más extendido
-  0.7     // threshold — capta más zonas brillantes
+  0.45,   // strength — bajado de 1.2 a 0.45
+  0.5,    // radius
+  0.92    // threshold — sube para captar SOLO los highlights muy brillantes
 );
 composer.addPass(bloomPass);
 
@@ -1256,76 +1251,93 @@ const outputPass = new OutputPass();
 composer.addPass(outputPass);
 
 /* ============================================================
-   COREOGRAFÍA CINEMATOGRÁFICA SCROLL-DRIVEN
-   La ballena emerge desde abajo del frame y atraviesa un viaje
-   visual que dura todo el scroll de la página.
+   COREOGRAFÍA — La ballena nada por la escena
+   
+   La ballena se mueve como un ser vivo: siempre con dirección,
+   con curvas amplias, sin giros bruscos. Visible desde el inicio.
+   
+   El SISTEMA: usamos un "path" en el espacio 3D (curva spline)
+   que la ballena recorre. Su orientación se calcula automáticamente
+   en función de la dirección del path → nada siempre hacia adelante.
    ============================================================ */
 
-// KEYFRAMES de la ballena: cada acto tiene una pose objetivo
-// [scrollProgress, posY, posX, scale, rotY, rotX]
-// Estos valores se interpolan suavemente entre keyframes
-const WHALE_KEYFRAMES = [
-  // Acto I — Emerge (solo cola visible)
-  { sp: 0.00, posY: -8.5, posX: 0,    scale: 1.0, rotY: 0.20, rotX: -0.35 },
-  // Sube revelándose
-  { sp: 0.10, posY: -4.5, posX: 0,    scale: 1.0, rotY: 0.30, rotX: -0.20 },
-  // Acto II — Revelación completa (centro)
-  { sp: 0.20, posY:  0.5, posX: 0,    scale: 1.0, rotY: 0.45, rotX: -0.10 },
-  // Mostrando lomo desde arriba (Reimagina)
-  { sp: 0.32, posY:  1.5, posX: -2,   scale: 1.0, rotY: 0.80, rotX:  0.15 },
-  // Vista cercana frontal (Filosofía)
-  { sp: 0.45, posY:  0.0, posX:  1.5, scale: 1.15, rotY: 1.40, rotX: -0.05 },
-  // Distante en esquina (Propiedades)
-  { sp: 0.58, posY:  4.5, posX:  5,   scale: 0.55, rotY: 2.20, rotX:  0.20 },
-  // Se acerca de nuevo (Reviews)
-  { sp: 0.72, posY: -0.5, posX: -3,   scale: 1.0, rotY: 3.10, rotX: -0.08 },
-  // Vista trasera lejana (Equipo)
-  { sp: 0.85, posY:  2.0, posX:  4,   scale: 0.7, rotY: 3.80, rotX:  0.10 },
-  // Acto III — Final cercano y gigante (CTA)
-  { sp: 0.95, posY:  0.5, posX:  0,   scale: 1.4, rotY: 4.50, rotX: -0.15 },
-  // Despedida: desciende rotando hacia el mar
-  { sp: 1.00, posY: -6.5, posX:  0,   scale: 1.3, rotY: 5.00, rotX: -0.55 }
+// Puntos del recorrido en orden de scroll. La ballena nada a través de ellos.
+// [scrollProgress, posX, posY, posZ, scale, rollZ]
+// rollZ = banking (inclinación lateral al girar, como un avión)
+const WHALE_PATH = [
+  // Punto 0: Asoma desde abajo-izquierda del frame al cargar
+  { sp: 0.00, x: -3,   y: -5.5, z: -2,  scale: 1.0, roll:  0.20 },
+  // Sube en curva hacia el centro
+  { sp: 0.08, x: -1,   y: -2,   z: -1,  scale: 1.0, roll:  0.12 },
+  // Centro de la escena, posición de "revelación"
+  { sp: 0.18, x:  0.5, y:  0,   z:  0,  scale: 1.0, roll: -0.05 },
+  // Cruza hacia la derecha (Reimagina)
+  { sp: 0.32, x:  3.5, y:  0.8, z: -1,  scale: 1.0, roll: -0.18 },
+  // Sube hacia la izquierda (Filosofía)
+  { sp: 0.45, x: -2.5, y:  1.8, z:  1,  scale: 1.05, roll:  0.20 },
+  // Distancia, esquina superior derecha (Propiedades)
+  { sp: 0.58, x:  4.5, y:  3,   z: -4,  scale: 0.65, roll: -0.10 },
+  // Vuelve cerca al centro-izquierda (Reviews)
+  { sp: 0.72, x: -2,   y: -0.3, z:  0.5,scale: 1.0, roll:  0.12 },
+  // Aleja a la derecha (Equipo)
+  { sp: 0.85, x:  3,   y:  1.5, z: -3,  scale: 0.75, roll: -0.10 },
+  // Gigante de frente (Final)
+  { sp: 0.95, x:  0,   y:  0.5, z:  3,  scale: 1.35, roll:  0.0 },
+  // Desciende hacia las profundidades
+  { sp: 1.00, x:  0,   y: -5,   z:  1,  scale: 1.2, roll:  0.15 }
 ];
 
-// CAMERA keyframes: zoom y posición se mueven también
-// [scrollProgress, camZ, camY]
-const CAMERA_KEYFRAMES = [
-  { sp: 0.00, camZ: 12, camY:  0.5 },  // close hacia abajo (vemos la cola emerger)
-  { sp: 0.20, camZ: 14, camY:  0 },    // medium standard
-  { sp: 0.45, camZ: 10, camY:  0 },    // close (filosofía)
-  { sp: 0.58, camZ: 18, camY: -1 },    // wide (propiedades)
-  { sp: 0.72, camZ: 11, camY:  0 },    // close de nuevo
-  { sp: 0.95, camZ: 9,  camY:  0.5 },  // muy cerca (CTA final)
-  { sp: 1.00, camZ: 11, camY:  0 }     // pull back
+const CAMERA_PATH = [
+  { sp: 0.00, z: 11, y:  0,    fov: 45 },
+  { sp: 0.18, z: 13, y:  0,    fov: 45 },
+  { sp: 0.45, z: 10, y:  0.5,  fov: 42 },
+  { sp: 0.58, z: 17, y: -0.5,  fov: 50 },
+  { sp: 0.72, z: 11, y:  0,    fov: 45 },
+  { sp: 0.95, z:  8, y:  0.5,  fov: 42 },
+  { sp: 1.00, z: 11, y:  0,    fov: 45 }
 ];
 
-/**
- * Interpolación de keyframes con easing suave (smoothstep-like)
- */
 function lerp(a, b, t) { return a + (b - a) * t; }
 function smoothstep(t) { return t * t * (3 - 2 * t); }
 
-function getKeyframe(keyframes, sp) {
-  // Encontrar el par de keyframes que rodean el scroll progress
-  let prev = keyframes[0];
-  let next = keyframes[keyframes.length - 1];
-  for (let i = 0; i < keyframes.length - 1; i++) {
-    if (sp >= keyframes[i].sp && sp <= keyframes[i + 1].sp) {
-      prev = keyframes[i];
-      next = keyframes[i + 1];
+function getPathPoint(path, sp) {
+  let prev = path[0];
+  let next = path[path.length - 1];
+  for (let i = 0; i < path.length - 1; i++) {
+    if (sp >= path[i].sp && sp <= path[i + 1].sp) {
+      prev = path[i];
+      next = path[i + 1];
       break;
     }
   }
-  // Calcular t local entre prev y next
   const range = next.sp - prev.sp;
   const localT = range > 0 ? smoothstep((sp - prev.sp) / range) : 0;
-  // Interpolar todas las propiedades
   const result = {};
   for (const key in prev) {
     if (key === 'sp') continue;
     result[key] = lerp(prev[key], next[key], localT);
   }
+  // Guardar también el "siguiente punto" para calcular dirección
+  result._next = next;
+  result._prev = prev;
+  result._localT = localT;
   return result;
+}
+
+/**
+ * Calcula la dirección "hacia donde nada" la ballena.
+ * Usa el punto actual + un punto adelante en el path.
+ */
+function getSwimDirection(path, sp) {
+  // Mirar un poco adelante en el path para saber hacia dónde va
+  const ahead = Math.min(1, sp + 0.04);
+  const current = getPathPoint(path, sp);
+  const future = getPathPoint(path, ahead);
+  return {
+    dx: future.x - current.x,
+    dy: future.y - current.y,
+    dz: future.z - current.z
+  };
 }
 let scrollProgress = 0;
 let scrollTarget = 0;
@@ -1354,38 +1366,70 @@ function animate() {
 
   const sp = scrollProgress;
 
-  // ★★★ COREOGRAFÍA: interpolación entre keyframes ★★★
-  const wk = getKeyframe(WHALE_KEYFRAMES, sp);
-  const ck = getKeyframe(CAMERA_KEYFRAMES, sp);
+  // ★★★ NATACIÓN NATURAL ★★★
+  // La ballena sigue un path 3D. Su orientación se calcula
+  // automáticamente desde la dirección del path (siempre nada hacia adelante).
+  const pose = getPathPoint(WHALE_PATH, sp);
+  const swim = getSwimDirection(WHALE_PATH, sp);
 
-  // Aplicar pose objetivo con interpolación suave (lerp adicional para evitar saltos)
-  // Floating sutil siempre presente (respiración)
-  const breath = Math.sin(t * 0.45) * 0.35;
-  const swayX = Math.cos(t * 0.30) * 0.15;
-  const swayRot = Math.sin(t * 0.22) * 0.08;
+  // Variaciones orgánicas sutiles (respiración, cabeceo, ondulación)
+  const headBob = Math.sin(t * 0.8) * 0.04;
+  const tailSway = Math.sin(t * 0.6) * 0.06;
+  const breathe = Math.sin(t * 0.45) * 0.25;
 
-  whaleGroup.position.y += (wk.posY + breath - whaleGroup.position.y) * 0.08;
-  whaleGroup.position.x += (wk.posX + swayX - whaleGroup.position.x) * 0.08;
-  whaleGroup.rotation.y += (wk.rotY + swayRot - whaleGroup.rotation.y) * 0.06;
-  whaleGroup.rotation.x += (wk.rotX - whaleGroup.rotation.x) * 0.06;
+  // Orientación = mirar hacia donde va el path
+  // El modelo está orientado con cabeza hacia +X (lo verificamos visualmente)
+  // atan2(dx, dz) da el yaw correcto
+  const targetYaw = Math.atan2(swim.dx, swim.dz) - Math.PI / 2 + tailSway;
 
-  // Scale considera assemble inicial + keyframe scale
-  const targetScale = wk.scale * ae;
+  // Pitch (mirar arriba/abajo) — atenuado para no exagerar
+  const horizSpeed = Math.sqrt(swim.dx * swim.dx + swim.dz * swim.dz);
+  const targetPitch = -Math.atan2(swim.dy, Math.max(0.01, horizSpeed) * 5) + headBob;
+
+  // Roll (banking lateral del path)
+  const targetRoll = pose.roll;
+
+  // Posiciones objetivo
+  const targetX = pose.x;
+  const targetY = pose.y + breathe;
+  const targetZ = pose.z;
+
+  // Aplicar TODO con lerp suave
+  whaleGroup.position.x += (targetX - whaleGroup.position.x) * 0.06;
+  whaleGroup.position.y += (targetY - whaleGroup.position.y) * 0.06;
+  whaleGroup.position.z += (targetZ - whaleGroup.position.z) * 0.06;
+
+  // Función helper para interpolar ángulos respetando wrap-around
+  function lerpAngle(current, target, factor) {
+    let diff = target - current;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    return current + diff * factor;
+  }
+  whaleGroup.rotation.y = lerpAngle(whaleGroup.rotation.y, targetYaw, 0.05);
+  whaleGroup.rotation.x = lerpAngle(whaleGroup.rotation.x, targetPitch, 0.05);
+  whaleGroup.rotation.z = lerpAngle(whaleGroup.rotation.z, targetRoll, 0.04);
+
+  // Scale con assemble inicial
+  const targetScale = pose.scale * ae;
   const currentScale = whaleGroup.scale.x;
-  whaleGroup.scale.setScalar(currentScale + (targetScale - currentScale) * 0.08);
+  whaleGroup.scale.setScalar(currentScale + (targetScale - currentScale) * 0.06);
 
-  // Cámara: interpolación suave a keyframes
-  camera.position.z += (ck.camZ - camera.position.z) * 0.04;
-  camera.position.y += (ck.camY - camera.position.y) * 0.04;
-  camera.lookAt(0, ck.camY * 0.3, 0);  // mirar ligeramente hacia el centro
+  // ★★★ CÁMARA — recorrido propio ★★★
+  const cam = getPathPoint(CAMERA_PATH, sp);
+  camera.position.z += (cam.z - camera.position.z) * 0.04;
+  camera.position.y += (cam.y - camera.position.y) * 0.04;
+  if (cam.fov && Math.abs(camera.fov - cam.fov) > 0.1) {
+    camera.fov += (cam.fov - camera.fov) * 0.04;
+    camera.updateProjectionMatrix();
+  }
+  camera.lookAt(0, 0, 0);
 
   // ★★★ Burbujas: ascienden lentamente, reset cuando salen arriba ★★★
   for (const bubble of bubbles) {
     bubble.position.y += bubble.userData.speed * dt * 1.5;
-    // Drift lateral sutil
     bubble.position.x = bubble.userData.initX + Math.sin(t * 0.5 + bubble.userData.drift) * 0.5;
     bubble.position.z = bubble.userData.initZ + Math.cos(t * 0.4 + bubble.userData.drift) * 0.3;
-    // Reset si salió por arriba
     if (bubble.position.y > 12) {
       bubble.position.y = -10 - Math.random() * 5;
       bubble.userData.initX = (Math.random() - 0.5) * 30;
@@ -1393,41 +1437,25 @@ function animate() {
     }
   }
 
-  // ★★★ Horizonte: visible cuando la ballena está cerca de la superficie del mar ★★★
-  // En el cover (sp 0) la ballena emerge → horizonte visible
-  // En Acto II (sp 0.3-0.7) la ballena está arriba → horizonte invisible
-  // En Acto III (sp 0.95-1.0) regresa → horizonte vuelve
+  // ★★★ Horizonte del mar ★★★
   let horizonOp = 0;
   if (sp < 0.20) horizonOp = (1.0 - sp / 0.20) * 0.7;
   else if (sp > 0.92) horizonOp = ((sp - 0.92) / 0.08) * 0.5;
   horizonMat.opacity = horizonOp;
   horizonGlowMat.opacity = horizonOp * 0.6;
 
-  // ★★★ Aurora: dinámica del horizonte ★★★
-  // Desvanece a medida que la ballena sube de la "superficie del mar"
-  // Pero NO desaparece del todo — se mantiene como ambiente
+  // ★★★ Aurora dinámica ★★★
   if (aurora) {
-    // Acto I (0-25%): aurora full (estamos cerca del horizonte)
-    // Acto II (25-70%): aurora baja (estamos arriba del mar)
-    // Acto III (70-100%): aurora vuelve sutilmente (atardecer final)
     let auroraOp;
-    if (sp < 0.25) {
-      auroraOp = 1.0 - sp * 1.2;  // de 1 → 0.7
-    } else if (sp < 0.70) {
-      auroraOp = 0.7 - (sp - 0.25) * 1.55;  // de 0.7 → 0
-    } else {
-      auroraOp = (sp - 0.70) * 1.5;  // de 0 → 0.45 (atardecer)
-    }
+    if (sp < 0.25) auroraOp = 1.0 - sp * 1.2;
+    else if (sp < 0.70) auroraOp = 0.7 - (sp - 0.25) * 1.55;
+    else auroraOp = (sp - 0.70) * 1.5;
     aurora.style.opacity = String(Math.max(0, Math.min(1, auroraOp)));
   }
 
-  // ★★★ Canvas: visible TODA la página (testigo de la historia) ★★★
-  // Solo opacity-shift sutil para que no compita con el contenido
+  // ★★★ Canvas siempre visible ★★★
   let canvasOp = 1.0;
-  if (sp > 0.20 && sp < 0.95) {
-    // En las secciones de contenido, opacity baja a 0.85 para no competir
-    canvasOp = 0.85;
-  }
+  if (sp > 0.20 && sp < 0.95) canvasOp = 0.85;
   canvas.style.opacity = String(canvasOp);
 
   composer.render();
