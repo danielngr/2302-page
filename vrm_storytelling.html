@@ -216,6 +216,13 @@
     transform: translateY(40px);
     animation: ru 1.6s var(--ease-soft) forwards;
   }
+  /* Si el cover-title va a ser splitteado por JS, las lineas son visibles
+     inmediatamente y el JS anima cada char por separado */
+  .cover-title[data-split-text] .line {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
   .cover-title .line:nth-child(1) {
     animation-delay: 3.0s;
     font-weight: 300;
@@ -224,10 +231,12 @@
     animation-delay: 3.3s;
     font-style: italic;
     font-weight: 400;
-    color: #ffffff;
+    /* Lavanda oscuro saturado — contrasta sobre la aurora pastel sin ser tan duro como el negro de "La bahía" */
+    color: #4a2870;
+    /* Halo suave lavanda claro alrededor del texto para que respire con la aurora */
     text-shadow:
-      0 0 30px rgba(255, 255, 255, 0.5),
-      0 4px 20px rgba(180, 160, 220, 0.4);
+      0 0 24px rgba(255, 255, 255, 0.55),
+      0 2px 14px rgba(140, 100, 180, 0.20);
   }
   .cover-cue {
     position: absolute;
@@ -625,9 +634,95 @@
   .reveal-d1 { transition-delay: 0.15s; }
   .reveal-d2 { transition-delay: 0.3s; }
   .reveal-d3 { transition-delay: 0.45s; }
+
+  /* ============================================================
+     CURSOR CUSTOM MAGNÉTICO
+     
+     Dos elementos:
+     - .cursor-dot: punto pequeño que sigue al mouse 1:1 (preciso)
+     - .cursor-ring: círculo grande con delay (efecto magnético/elástico)
+     
+     Estados:
+     - default: ring 32px, dot 4px
+     - .is-hover: ring crece a 64px y se vuelve transparente con borde
+     - .is-link: para links con texto contextual
+     ============================================================ */
+  @media (hover: hover) and (pointer: fine) {
+    html { cursor: none; }
+    a, button, [data-cursor] { cursor: none; }
+  }
+  .cursor-dot, .cursor-ring {
+    position: fixed;
+    top: 0; left: 0;
+    pointer-events: none;
+    z-index: 9999;
+    border-radius: 50%;
+    mix-blend-mode: difference;
+    will-change: transform;
+  }
+  .cursor-dot {
+    width: 5px; height: 5px;
+    background: var(--paper);
+    transform: translate(-50%, -50%);
+    transition: opacity 0.3s var(--ease-soft), width 0.3s var(--ease-soft), height 0.3s var(--ease-soft);
+  }
+  .cursor-ring {
+    width: 32px; height: 32px;
+    border: 1px solid var(--paper);
+    background: transparent;
+    transform: translate(-50%, -50%);
+    transition: width 0.35s var(--ease-soft), height 0.35s var(--ease-soft),
+                border-color 0.35s var(--ease-soft), background 0.35s var(--ease-soft),
+                opacity 0.3s var(--ease-soft);
+  }
+  .cursor-ring.is-hover {
+    width: 72px; height: 72px;
+    border-color: rgba(245, 237, 224, 0.6);
+    background: rgba(245, 237, 224, 0.08);
+  }
+  .cursor-dot.is-hover {
+    opacity: 0;
+  }
+  .cursor-dot.is-hidden, .cursor-ring.is-hidden {
+    opacity: 0;
+  }
+  /* hide on touch / no fine-pointer devices */
+  @media (hover: none), (pointer: coarse) {
+    .cursor-dot, .cursor-ring { display: none; }
+  }
+
+  /* ============================================================
+     SPLIT TEXT — char by char reveal
+     
+     JS envuelve cada palabra en .split-word y cada char en .split-char.
+     Los chars empiezan invisibles (translateY(110%)) y se animan en cascada.
+     Se aplica a .split-text (cover) y .split-title (section titles).
+     ============================================================ */
+  .split-word {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: top;
+  }
+  .split-char {
+    display: inline-block;
+    transform: translateY(110%);
+    opacity: 0;
+    transition: transform 0.9s var(--ease-soft), opacity 0.7s var(--ease-soft);
+  }
+  .split-char.is-revealed {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  /* Cuando el split está dentro de algo con .reveal,
+     desactivamos la animación de reveal global para que no compita */
+  .split-text .reveal, .split-title .reveal { transform: none !important; opacity: 1 !important; }
 </style>
 </head>
 <body>
+
+  <!-- Cursor custom (dot + ring) — solo visible en desktop, oculto en touch -->
+  <div class="cursor-ring" id="cursor-ring"></div>
+  <div class="cursor-dot" id="cursor-dot"></div>
 
   <div class="loader" id="loader">
     <div class="loader-mark">VRM</div>
@@ -656,7 +751,7 @@
       <div class="cover-mark">VRM</div>
     </div>
     <div class="cover-content">
-      <h1 class="cover-title">
+      <h1 class="cover-title" data-split-text data-split-stagger="35" data-split-delay="3000">
         <span class="line">La bahía</span>
         <span class="line">que se habita</span>
       </h1>
@@ -683,7 +778,7 @@
   <section class="section-block philosophy">
     <div class="section-block-inner">
       <div class="section-eyebrow reveal">— Nuestra filosofía</div>
-      <h2 class="philosophy-title reveal reveal-d1">
+      <h2 class="philosophy-title reveal reveal-d1" data-split-text data-split-stagger="20" data-split-trigger="scroll">
         Las mejores casas <em>de la bahía,</em><br>
         atendidas por <em>personas</em><br>
         que viven aquí.
@@ -708,7 +803,7 @@
   <section class="properties" id="properties">
     <div class="properties-header">
       <div class="section-eyebrow reveal">— Casas destacadas</div>
-      <h2 class="section-title reveal reveal-d1">
+      <h2 class="section-title reveal reveal-d1" data-split-text data-split-stagger="22" data-split-trigger="scroll">
         Una selección<br><em>cuidadosamente curada.</em>
       </h2>
     </div>
@@ -972,20 +1067,20 @@ function makeAuroraBackgroundTexture() {
   c.width = w; c.height = h;
   const ctx = c.getContext('2d');
 
-  // Gradiente vertical base (cielo)
+  // Gradiente vertical base (cielo) — paleta más saturada para que se vea viva
   const baseGrad = ctx.createLinearGradient(0, 0, 0, h);
-  baseGrad.addColorStop(0.00, '#c8b0e0');   // top: lavanda saturada
-  baseGrad.addColorStop(0.35, '#d8c8e8');   // upper-mid: lavanda pastel
-  baseGrad.addColorStop(0.55, '#e8d8e8');   // mid: rosa-lavanda blanquecino
-  baseGrad.addColorStop(0.72, '#dce8f0');   // horizon: cyan muy claro
-  baseGrad.addColorStop(1.00, '#b8c8e0');   // bottom: azul-lavanda
+  baseGrad.addColorStop(0.00, '#a888d0');   // top: lavanda saturada vibrante
+  baseGrad.addColorStop(0.30, '#b89cd8');   // upper-mid: lavanda media
+  baseGrad.addColorStop(0.50, '#d8b8e0');   // mid: rosa-lavanda
+  baseGrad.addColorStop(0.65, '#e0c8d8');   // mid-low: rosa pálido cálido
+  baseGrad.addColorStop(0.85, '#a8c0dc');   // azul cyan claro
+  baseGrad.addColorStop(1.00, '#7c98c0');   // bottom: azul-lavanda profundo
   ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, w, h);
 
   function radial(x, y, r, color, alpha) {
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
     g.addColorStop(0, color);
-    const a = alpha.toFixed(2);
     g.addColorStop(0.5, color.replace(/[\d.]+\)$/, (alpha * 0.4).toFixed(2) + ')'));
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.globalCompositeOperation = 'screen';
@@ -994,22 +1089,23 @@ function makeAuroraBackgroundTexture() {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // SOL BLANCO central — el del screenshot Noomo
-  radial(w * 0.5, h * 0.38, 480, 'rgba(255,255,255,1)', 1.0);
-  radial(w * 0.5, h * 0.38, 240, 'rgba(255,255,255,1)', 1.0);
-  radial(w * 0.5, h * 0.38, 110, 'rgba(255,255,255,1)', 1.0);  // núcleo blow-out
+  // ★ SOL BLANCO CENTRAL MUCHO MÁS INTENSO — backlight para destacar la ballena
+  // Triple capa concéntrica para crear blow-out real
+  radial(w * 0.5, h * 0.40, 800, 'rgba(255,250,245,0.85)', 0.85);  // halo amplio
+  radial(w * 0.5, h * 0.40, 500, 'rgba(255,255,255,1)', 1.0);      // halo medio brillante
+  radial(w * 0.5, h * 0.40, 280, 'rgba(255,255,255,1)', 1.0);      // núcleo
+  radial(w * 0.5, h * 0.40, 130, 'rgba(255,255,255,1)', 1.0);      // blow-out central
 
-  // Halos iridiscentes alrededor del sol
-  radial(w * 0.5,  h * 0.38, 700, 'rgba(255,220,235,0.45)', 0.45);  // halo rosa
-  radial(w * 0.30, h * 0.55, 460, 'rgba(200,180,230,0.55)', 0.55);  // lavanda izq
-  radial(w * 0.70, h * 0.55, 460, 'rgba(180,210,240,0.55)', 0.55);  // azul pastel der
-  radial(w * 0.15, h * 0.30, 340, 'rgba(230,200,230,0.45)', 0.45);  // rosa-lavanda
-  radial(w * 0.85, h * 0.30, 340, 'rgba(200,220,245,0.45)', 0.45);  // cyan claro
-  radial(w * 0.45, h * 0.85, 380, 'rgba(220,210,240,0.40)', 0.40);  // lavanda baja
+  // Halos coloridos alrededor del sol — refuerzan la sensación iridiscente
+  radial(w * 0.32, h * 0.55, 520, 'rgba(200,160,230,0.55)', 0.55);  // lavanda izq
+  radial(w * 0.68, h * 0.55, 520, 'rgba(160,200,240,0.55)', 0.55);  // azul der
+  radial(w * 0.20, h * 0.25, 380, 'rgba(240,180,220,0.45)', 0.45);  // rosa-magenta izq sup
+  radial(w * 0.80, h * 0.25, 380, 'rgba(180,210,240,0.45)', 0.45);  // cyan der sup
+  radial(w * 0.50, h * 0.88, 420, 'rgba(200,170,220,0.40)', 0.40);  // lavanda baja
 
-  // Toques coral pastel (calidez sutil)
-  radial(w * 0.78, h * 0.18, 240, 'rgba(255,210,200,0.35)', 0.35);
-  radial(w * 0.22, h * 0.75, 240, 'rgba(255,215,225,0.30)', 0.30);
+  // Toques coral pastel (calidez sutil — Vallarta sunset hour)
+  radial(w * 0.78, h * 0.16, 280, 'rgba(255,200,190,0.40)', 0.40);
+  radial(w * 0.22, h * 0.70, 280, 'rgba(255,205,215,0.35)', 0.35);
 
   // GRAIN sutil — replica el `.grain` del CSS pero dentro del canvas
   const grainPasses = 3000;
@@ -1278,30 +1374,29 @@ const iceNormalTexture = createIceNormalMap();
    El normalMap es lo único pintado: da micro-relieve cristalino.
    ============================================================ */
 const PHYSICAL_PARAMS = {
-  // Color base: blanco con leve tinte lavanda. El environment hace el resto.
-  color: 0xf0e8f5,
+  // Color base: lavanda pastel saturado. El environment refleja encima.
+  // Más saturado que antes para que la silueta lea sobre la aurora brillante.
+  color: 0xd8c0e8,
   
-  // ★ TRANSMISIÓN: la luz pasa a través. Esto convierte la ballena en cristal.
-  // 0.55 (no 0.85) — queremos cristal visible, no fantasma transparente.
-  // Demasiado transmission + bloom = silueta evaporada.
-  transmission: 0.55,
-  thickness: 0.8,             // grosor virtual — cuánto refracta al pasar
-  ior: 1.45,                  // índice de refracción (vidrio)
-  attenuationColor: 0xc8b0e0, // tinte lavanda del interior (la luz se "tiñe" al pasar)
-  attenuationDistance: 1.5,
+  // ★ TRANSMISIÓN: 0.40 (bajado desde 0.55) — cristal con cuerpo visible
+  // Sobre fondo claro, transmission alto hace que la ballena desaparezca.
+  transmission: 0.40,
+  thickness: 1.0,
+  ior: 1.45,
+  attenuationColor: 0xb098d8,   // tinte lavanda saturado del interior
+  attenuationDistance: 1.2,
   
-  // ★ IRIDESCENCIA: efecto petróleo-en-agua (cambia con el ángulo)
-  iridescence: 0.85,           // un pelo menos para que la forma se lea
-  iridescenceIOR: 1.3,
-  iridescenceThicknessRange: [100, 800],
+  // ★ IRIDESCENCIA — efecto petróleo en agua que cambia con el ángulo
+  iridescence: 0.85,
+  iridescenceIOR: 1.35,
+  iridescenceThicknessRange: [120, 700],
   
-  // ★ CLEARCOAT: capa de barniz brillante por encima
-  clearcoat: 0.75,
-  clearcoatRoughness: 0.15,
+  // ★ CLEARCOAT — barniz brillante encima, da highlights "wet"
+  clearcoat: 0.85,
+  clearcoatRoughness: 0.12,
   
-  // Superficie de cristal: poco metálica, muy lisa
   metalness: 0.05,
-  roughness: 0.22,
+  roughness: 0.20,
   
   // ★ Normal map procedural — micro-relieve cristalino
   normalMap: iceNormalTexture,
@@ -1422,12 +1517,13 @@ composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 const renderPass = new RenderPass(scene, camera);
 composer.addPass(renderPass);
 
-// Bloom sutil — solo refuerza highlights blow-out (sol central, bordes wet)
+// Bloom — el sol brillante central va a florecer naturalmente
+// Threshold alto para que solo el sol (y los highlights wet de la ballena) emita
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.55,   // strength medio — refuerza el sol y los bordes wet de la ballena
-  0.75,   // radius medio-amplio
-  0.65    // threshold alto — solo las zonas casi blancas brillan
+  0.45,   // strength medio
+  0.85,   // radius amplio para halo del sol
+  0.78    // threshold ALTO — solo blanco puro brilla (no toda la aurora)
 );
 composer.addPass(bloomPass);
 
@@ -2001,6 +2097,172 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     }
   });
 });
+
+/* ============================================================
+   CURSOR CUSTOM MAGNÉTICO
+   
+   El dot sigue al mouse 1:1 (preciso). El ring sigue con lerp suave
+   (efecto elástico). En hover sobre links, el ring crece y se "ancla"
+   parcialmente al elemento (efecto magnético).
+   ============================================================ */
+(() => {
+  // Detección desktop con fine pointer — en touch no inicializamos
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+  const dot = document.getElementById('cursor-dot');
+  const ring = document.getElementById('cursor-ring');
+  if (!dot || !ring) return;
+
+  // Posiciones target (mouse real) y current (interpoladas para el ring)
+  const target = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  const current = { x: target.x, y: target.y };
+
+  // Tracking del mouse
+  let isVisible = false;
+  window.addEventListener('mousemove', (e) => {
+    target.x = e.clientX;
+    target.y = e.clientY;
+    if (!isVisible) {
+      isVisible = true;
+      dot.classList.remove('is-hidden');
+      ring.classList.remove('is-hidden');
+    }
+  }, { passive: true });
+
+  // Salida del viewport — ocultamos el cursor
+  window.addEventListener('mouseleave', () => {
+    isVisible = false;
+    dot.classList.add('is-hidden');
+    ring.classList.add('is-hidden');
+  });
+  window.addEventListener('mouseenter', () => {
+    isVisible = true;
+    dot.classList.remove('is-hidden');
+    ring.classList.remove('is-hidden');
+  });
+
+  // Hover detection en links, botones, property cards
+  const hoverables = 'a, button, .property-card, [data-cursor]';
+  document.body.addEventListener('mouseover', (e) => {
+    if (e.target.closest && e.target.closest(hoverables)) {
+      ring.classList.add('is-hover');
+      dot.classList.add('is-hover');
+    }
+  });
+  document.body.addEventListener('mouseout', (e) => {
+    if (e.target.closest && e.target.closest(hoverables)) {
+      // Solo desactivar si realmente salimos del hoverable (no entre hijos)
+      if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest(hoverables)) {
+        ring.classList.remove('is-hover');
+        dot.classList.remove('is-hover');
+      }
+    }
+  });
+
+  // Loop de animación: el dot va 1:1, el ring interpola
+  function loop() {
+    // Lerp del ring hacia target (factor 0.18 = elástico suave)
+    current.x += (target.x - current.x) * 0.18;
+    current.y += (target.y - current.y) * 0.18;
+    dot.style.transform = `translate3d(${target.x}px, ${target.y}px, 0) translate(-50%, -50%)`;
+    ring.style.transform = `translate3d(${current.x}px, ${current.y}px, 0) translate(-50%, -50%)`;
+    requestAnimationFrame(loop);
+  }
+  // Empezar oculto, se muestra con primer mousemove
+  dot.classList.add('is-hidden');
+  ring.classList.add('is-hidden');
+  loop();
+})();
+
+/* ============================================================
+   SPLIT TEXT — reveal char by char
+   
+   Para cualquier elemento con [data-split-text], envuelve cada
+   palabra en .split-word y cada char en .split-char. Anima la
+   entrada en cascada con stagger configurable.
+   
+   Attributes:
+   - data-split-stagger: ms entre cada char (default 25)
+   - data-split-delay: ms antes de empezar (default 0)
+   - data-split-trigger: "load" (default) o "scroll" (espera viewport)
+   ============================================================ */
+(() => {
+  function splitElement(el) {
+    // Reemplaza recursivamente texto por wrappers, preservando tags inline (em, br)
+    function walk(node, target) {
+      node.childNodes.forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          const text = child.textContent;
+          // Dividir en palabras conservando los espacios
+          const words = text.split(/(\s+)/);
+          words.forEach(word => {
+            if (/^\s+$/.test(word)) {
+              // espacios literales: van como text node (importante para que las palabras no peguen)
+              target.appendChild(document.createTextNode(word));
+            } else if (word.length > 0) {
+              const wordSpan = document.createElement('span');
+              wordSpan.className = 'split-word';
+              [...word].forEach(ch => {
+                const charSpan = document.createElement('span');
+                charSpan.className = 'split-char';
+                charSpan.textContent = ch;
+                wordSpan.appendChild(charSpan);
+              });
+              target.appendChild(wordSpan);
+            }
+          });
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          // Preservar el tag (em, span, br) pero procesar su contenido
+          const clone = child.cloneNode(false);
+          if (child.tagName === 'BR') {
+            target.appendChild(clone);
+          } else {
+            walk(child, clone);
+            target.appendChild(clone);
+          }
+        }
+      });
+    }
+
+    // Procesar en un fragment para no parpadear
+    const fragment = document.createElement('div');
+    walk(el, fragment);
+    el.innerHTML = fragment.innerHTML;
+    return el.querySelectorAll('.split-char');
+  }
+
+  function animateChars(chars, stagger, baseDelay) {
+    chars.forEach((char, i) => {
+      const totalDelay = baseDelay + i * stagger;
+      setTimeout(() => char.classList.add('is-revealed'), totalDelay);
+    });
+  }
+
+  // Procesar todos los elementos marcados
+  const elements = document.querySelectorAll('[data-split-text]');
+  elements.forEach(el => {
+    const stagger = parseInt(el.dataset.splitStagger, 10) || 25;
+    const baseDelay = parseInt(el.dataset.splitDelay, 10) || 0;
+    const trigger = el.dataset.splitTrigger || 'load';
+
+    const chars = splitElement(el);
+
+    if (trigger === 'scroll') {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            animateChars(chars, stagger, baseDelay);
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.25 });
+      observer.observe(el);
+    } else {
+      // load: arrancar tras un frame (espera a que el loader empiece a fade)
+      requestAnimationFrame(() => animateChars(chars, stagger, baseDelay));
+    }
+  });
+})();
 </script>
 
 </body>
