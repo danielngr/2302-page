@@ -1420,53 +1420,88 @@
   }
 
   /* ============ SEARCH BAR FECHAS + HUÉSPEDES ============ */
+  /* ═══════════════════════════════════════════════════════════════════
+     SEARCH BAR — Filtro de fechas y huéspedes
+     Diseño premium pero VISIBLE: contraste suficiente para que el usuario
+     entienda inmediatamente que esto es interactivo, sin perder elegancia.
+     ═══════════════════════════════════════════════════════════════════ */
   .prop-search-bar {
-    margin: 160px var(--side) 40px;
+    margin: 100px var(--side) 60px;
     max-width: 1100px;
     margin-left: auto;
     margin-right: auto;
   }
+  .prop-search-heading {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .prop-search-eyebrow {
+    font-family: 'Satoshi', sans-serif;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: rgba(232, 228, 218, 0.55);
+    margin-bottom: 12px;
+    display: inline-block;
+    margin-right: -0.34em;  /* compensa letter-spacing fantasma */
+  }
+  .prop-search-title {
+    font-family: 'Boska', 'Times New Roman', serif;
+    font-style: italic;
+    font-size: clamp(28px, 3.6vw, 48px);
+    font-weight: 400;
+    color: var(--paper);
+    margin: 0;
+    line-height: 1.1;
+  }
+  .prop-search-title em {
+    font-style: normal;
+    color: rgba(232, 228, 218, 0.55);
+  }
   .prop-search-inner {
     display: flex;
     align-items: stretch;
-    background: rgba(26, 46, 72, 0.4);
-    border: 1px solid rgba(197, 187, 168, 0.18);
+    background: rgba(26, 46, 72, 0.72);  /* más opaco (era 0.4) */
+    border: 1px solid rgba(197, 187, 168, 0.32);  /* más visible (era 0.18) */
     border-radius: 100px;
-    padding: 8px 10px;
+    padding: 10px 12px;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    transition: border-color 0.3s var(--ease-soft);
+    transition: border-color 0.3s var(--ease-soft), background 0.3s var(--ease-soft);
+    box-shadow: 0 8px 32px rgba(7, 18, 36, 0.3);  /* eleva el bar */
   }
   .prop-search-inner:hover {
-    border-color: rgba(197, 187, 168, 0.32);
+    border-color: rgba(197, 187, 168, 0.55);
+    background: rgba(26, 46, 72, 0.82);
   }
   .prop-search-field {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 10px 24px;
+    padding: 12px 24px;
     cursor: pointer;
     border-radius: 100px;
     transition: background 0.3s var(--ease-soft);
   }
   .prop-search-field:hover {
-    background: rgba(232, 228, 218, 0.04);
+    background: rgba(232, 228, 218, 0.06);
   }
   .prop-search-field-guests { flex: 0.8; }
   .prop-search-label {
     font-family: 'Satoshi', sans-serif;
     font-size: 10px;
-    font-weight: 500;
+    font-weight: 600;
     letter-spacing: 0.24em;
     text-transform: uppercase;
-    color: rgba(232, 228, 218, 0.55);
-    margin-bottom: 4px;
+    color: rgba(232, 228, 218, 0.72);  /* más visible (era 0.55) */
+    margin-bottom: 6px;
   }
   .prop-search-input {
     background: transparent;
     border: none;
     outline: none;
-    color: rgba(232, 228, 218, 0.96);
+    color: rgba(232, 228, 218, 0.98);
     font-family: 'Satoshi', sans-serif;
     font-size: 15px;
     font-weight: 500;
@@ -1475,10 +1510,44 @@
     width: 100%;
     color-scheme: dark;
   }
+  /* Cuando el input no tiene valor, mostrar placeholder más visible */
+  .prop-search-input:not([value]):not(:focus),
+  .prop-search-input[value=""]:not(:focus) {
+    color: rgba(232, 228, 218, 0.42);
+  }
   .prop-search-input::-webkit-calendar-picker-indicator {
-    filter: invert(0.7);
-    opacity: 0.6;
+    filter: invert(0.8);
+    opacity: 0.7;
     cursor: pointer;
+  }
+  /* Botón "Search" explícito al final del search bar */
+  .prop-search-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(232, 228, 218, 0.94);
+    color: var(--ink);
+    border: none;
+    border-radius: 100px;
+    padding: 14px 28px;
+    font-family: 'Satoshi', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.3s var(--ease-soft), transform 0.3s var(--ease-soft);
+    margin-left: 8px;
+    /* Compensar letter-spacing fantasma para padding visualmente simétrico */
+    padding-right: calc(28px - 0.20em);
+  }
+  .prop-search-button:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.02);
+  }
+  .prop-search-button:active {
+    transform: scale(0.98);
   }
   .prop-search-divider {
     width: 1px;
@@ -1518,11 +1587,14 @@
   }
 
   @media (max-width: 768px) {
-    .prop-search-bar { margin: 100px 20px 30px; }
+    .prop-search-bar { margin: 80px 20px 40px; }
+    .prop-search-heading { margin-bottom: 24px; }
+    .prop-search-eyebrow { font-size: 9.5px; letter-spacing: 0.28em; margin-right: -0.28em; }
+    .prop-search-title { font-size: 24px; }
     .prop-search-inner {
       flex-direction: column;
       border-radius: 24px;
-      padding: 4px;
+      padding: 6px;
       gap: 2px;
     }
     .prop-search-field {
@@ -1533,6 +1605,14 @@
       width: 100%;
       height: 1px;
       margin: 0 0;
+    }
+    /* Botón Search en móvil: fila completa, prominente */
+    .prop-search-button {
+      width: 100%;
+      margin: 6px 0 0;
+      padding: 16px 24px;
+      border-radius: 20px;
+      font-size: 13px;
     }
     .prop-search-clear {
       align-self: stretch;
@@ -2368,6 +2448,10 @@
 
     <!-- ============== SEARCH BAR — FECHAS + HUÉSPEDES ============== -->
     <div class="prop-search-bar" id="prop-search-bar">
+      <div class="prop-search-heading">
+        <div class="prop-search-eyebrow">— Find your stay</div>
+        <h3 class="prop-search-title">Pick your dates, <em>see what's open.</em></h3>
+      </div>
       <div class="prop-search-inner">
         <label class="prop-search-field">
           <span class="prop-search-label">Check-in</span>
@@ -2391,6 +2475,13 @@
             <option value="12">12 guests</option>
           </select>
         </label>
+        <button class="prop-search-button" id="search-button" type="button">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span>Search</span>
+        </button>
         <button class="prop-search-clear" id="search-clear" type="button" aria-label="Clear search filters" hidden>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"/>
@@ -4835,6 +4926,23 @@ animate();
       state.checkout = null;
       state.capacity = 0;
       applyFilters();
+    });
+  }
+
+  // Botón Search explícito: aplica filtros y hace scroll al grid de resultados
+  const searchBtn = document.getElementById('search-button');
+  if (searchBtn) {
+    searchBtn.addEventListener('click', () => {
+      // Asegurar que el estado refleja los inputs (por si el usuario no disparó change)
+      if (checkinInput)  state.checkin  = checkinInput.value  || null;
+      if (checkoutInput) state.checkout = checkoutInput.value || null;
+      if (guestsSelect)  state.capacity = parseInt(guestsSelect.value, 10) || 0;
+      applyFilters();
+      // Scroll suave al grid de resultados
+      const gridSection = document.querySelector('.prop-grid-section');
+      if (gridSection) {
+        gridSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
   }
 })();
