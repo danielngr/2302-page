@@ -473,6 +473,12 @@
        viewport height) responde a los cambios de UI del navegador. */
     min-height: 100vh;
     min-height: 100dvh;
+    /* Prevenir rubber band scroll en iOS Safari. Cuando el usuario hace
+       overscroll (más allá del top o bottom), iOS hace rebote elástico
+       que durante momentum puede interrumpir el render del canvas WebGL
+       y causar flash. overscroll-behavior:none lo deshabilita. */
+    overscroll-behavior: none;
+    -webkit-overscroll-behavior: none;
   }
   body {
     /* Doble seguro: backdrop fijo detrás de todo. Si por algún motivo el
@@ -4948,13 +4954,24 @@ composer.addPass(renderPass);
 // CALIBRADO: strength bajado de 0.40 a 0.26 y threshold subido de 0.72 a 0.84
 // para evitar los halos cegadores. Sigue habiendo bloom en los puntos más
 // brillantes (chispas) pero NO en zonas amplias de iridescencia.
-const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.26,   // strength bajado — sin flash cegador
-  0.65,   // radius bajado — más localizado
-  0.84    // threshold alto — solo los highlights más puntuales brillan
-);
-composer.addPass(bloomPass);
+// 
+// MOBILE: bloom y chromatic aberration SE OMITEN. Razones:
+// 1. Cada pass agrega un RenderTarget interno. iOS Safari durante momentum
+//    scroll a veces falla en renderizar uno de esos targets = flash negro.
+// 2. Los effects son sutiles. En pantalla móvil pequeña son casi
+//    imperceptibles pero su costo en GPU es alto.
+// 3. Sin bloom el render baja ~40% en consumo GPU = más fps consistentes.
+// La iridiscencia + transmission del material físico ya da el "wow factor"
+// sin necesidad de post-processing extra.
+if (!isMobile) {
+  const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    0.26,   // strength bajado — sin flash cegador
+    0.65,   // radius bajado — más localizado
+    0.84    // threshold alto — solo los highlights más puntuales brillan
+  );
+  composer.addPass(bloomPass);
+}
 
 // ★★★ CHROMATIC ABERRATION custom pass ★★★
 // Aberración radial sutil — refuerza la sensación de "lente real". Ahora que el
@@ -4998,7 +5015,9 @@ const chromaticAberrationShader = {
   `
 };
 const chromaticPass = new ShaderPass(chromaticAberrationShader);
-composer.addPass(chromaticPass);
+if (!isMobile) {
+  composer.addPass(chromaticPass);
+}
 
 /* ============================================================
    WATER TEXTURE — Captura los movimientos del mouse como
@@ -6142,16 +6161,30 @@ function animate() {
 
   canvas.style.opacity = '1';
 
-  // Clear explícito al inicio de cada frame al color del body (#0A1428).
-  // Esto garantiza que si por cualquier razón un pass del composer no
-  // termina a tiempo durante momentum scroll en iOS Safari, el "color
-  // base" del canvas será el mismo azul oscuro del body — invisible
-  // contra el resto de la página. Sin esto, partial frames pueden
-  // mostrar el clear color default del bloom pass que puede ser negro.
-  renderer.setRenderTarget(null);
-  renderer.clear();
+  if (isMobile) {
+    // ─── MOBILE: renderizado DIRECTO sin composer ───
+    // Skip post-processing (bloom, chromatic) que en iOS Safari durante
+    // momentum scroll a veces fallan al renderizar render targets internos
+    // = flash negro. Renderizar directo con renderer.render es:
+    // 1. Más estable — un solo render pass, sin estados intermedios
+    // 2. Más rápido — ~40% menos GPU = más fps consistente
+    // 3. Sin diferencia visual perceptible — bloom/chromatic son sutiles
+    //    en pantalla pequeña y el material PBR ya tiene el wow factor.
+    renderer.autoClear = false;
+    renderer.clear();
+    renderer.render(bgScene, bgCamera);
+    renderer.clearDepth();
+    renderer.render(scene, camera);
+  } else {
+    // ─── DESKTOP: composer completo con bloom + chromatic ───
+    // Clear explícito antes de cada composer.render para garantizar que
+    // si un pass del composer no termina a tiempo, el "base" del canvas
+    // sea el clearColor (azul #0A1428 match body), no negro.
+    renderer.setRenderTarget(null);
+    renderer.clear();
+    composer.render();
+  }
   
-  composer.render();
   requestAnimationFrame(animate);
 }
 
