@@ -493,6 +493,16 @@
     height: 100vh;
     height: 100dvh;
     transition: opacity 0.6s var(--ease-soft);
+    /* CRÍTICO iOS Safari: fuerza GPU compositing layer.
+       Sin esto, scroll fast causa repaint del canvas en CPU = jank.
+       translateZ(0) + will-change garantizan que el canvas vive en
+       su propio layer en la GPU, scroll y rotación no requieren
+       repaint, solo composite (que es 60fps gratis). */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   /* Aurora pastel + sol blanco central — AHORA renderizada dentro de Three.js
@@ -4179,7 +4189,14 @@ const renderer = new THREE.WebGLRenderer({
   powerPreference: 'high-performance'
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// PixelRatio adaptativo: en móvil capeamos a 1.5 (no 2) para reducir
+// carga de GPU. iPhones modernos tienen DPR=3, eso significa renderizar
+// 9x los pixels. Cappear a 1.5 reduce a 2.25x = ~60% menos pixels que
+// procesar = más headroom para 60fps consistente sin perder claridad
+// perceptible (la ballena se ve igual de nítida).
+const _isMobileForDpr = window.innerWidth < 768;
+const _maxDpr = _isMobileForDpr ? 1.5 : 2;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, _maxDpr));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -4884,7 +4901,7 @@ const bubbles = [];  // array vacío para compatibilidad con loop
    ============================================================ */
 const composer = new EffectComposer(renderer);
 composer.setSize(window.innerWidth, window.innerHeight);
-composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+composer.setPixelRatio(Math.min(window.devicePixelRatio, _maxDpr));
 
 // ★ PRIMER pass: fondo animado de agua (god rays + caustics + sparkles)
 // Se renderiza SIN limpiar el canvas (clear=true) y luego el renderPass
@@ -5580,15 +5597,72 @@ function getSwimDirection(path, sp) {
   };
 }
 
-// Scroll tracking
+// Scroll tracking — Adaptativo para iOS Safari momentum scroll
 let scrollProgress = 0;
 let scrollTarget = 0;
-function updateScroll() {
-  const max = Math.max(1, document.body.scrollHeight - window.innerHeight);
-  scrollTarget = Math.min(1, Math.max(0, window.scrollY / max));
+
+// ════════════════════════════════════════════════════════════════════
+// CRÍTICO: En iOS Safari, window.scrollY se throttlea durante el
+// momentum scroll (inertia). Si solo leemos en el evento 'scroll',
+// la ballena se queda atrás cuando el usuario hace flick rápido.
+// 
+// SOLUCIÓN: leer scrollY DENTRO del animation loop (cada frame), no
+// solo en el evento. Eso garantiza que tengamos el valor más fresco
+// que iOS pueda darnos.
+// 
+// EXTRA: el truco del logDiv invisible fuerza a iOS Safari a actualizar
+// scrollY más consistentemente durante momentum scroll. Es un hack
+// documentado pero efectivo.
+// https://medium.com/@kristiantolleshaugmrch/a-unique-solution-...
+// ════════════════════════════════════════════════════════════════════
+let _scrollMaxCache = 0;
+let _scrollMaxLastUpdate = 0;
+function refreshScrollMax() {
+  _scrollMaxCache = Math.max(1, document.body.scrollHeight - window.innerHeight);
 }
+refreshScrollMax();
+
+function updateScroll() {
+  // Cache el max cada 500ms (no en cada frame para evitar layout thrash)
+  const now = performance.now();
+  if (now - _scrollMaxLastUpdate > 500) {
+    refreshScrollMax();
+    _scrollMaxLastUpdate = now;
+  }
+  scrollTarget = Math.min(1, Math.max(0, window.scrollY / _scrollMaxCache));
+}
+
+// Listener pasivo (no bloquea scroll nativo). Suficiente para desktop.
+// En móvil ADEMÁS llamamos updateScroll() dentro del rAF loop.
 window.addEventListener('scroll', updateScroll, { passive: true });
+window.addEventListener('resize', refreshScrollMax, { passive: true });
 updateScroll();
+
+// Hack iOS Safari: un div invisible que actualiza con scrollY fuerza
+// al engine a hacer commit de scroll updates más frecuente. Solo en
+// iOS porque desktop no lo necesita y es overhead extra.
+const _isIosSafari = (
+  /(iPad|iPhone|iPod)/.test(navigator.userAgent) &&
+  /AppleWebKit/.test(navigator.userAgent) &&
+  !/CriOS|FxiOS|EdgiOS/.test(navigator.userAgent)
+);
+if (_isIosSafari) {
+  const _scrollLogDiv = document.createElement('div');
+  _scrollLogDiv.style.height = '0px';
+  _scrollLogDiv.style.overflow = 'hidden';
+  _scrollLogDiv.style.position = 'fixed';
+  _scrollLogDiv.style.top = '0';
+  _scrollLogDiv.style.left = '0';
+  _scrollLogDiv.style.width = '0';
+  _scrollLogDiv.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(_scrollLogDiv);
+  function _iosScrollPing() {
+    _scrollLogDiv.textContent = window.scrollY | 0;
+  }
+  window.addEventListener('scroll', _iosScrollPing, { passive: true, capture: true });
+  window.addEventListener('touchmove', _iosScrollPing, { passive: true, capture: true });
+  window.addEventListener('touchend', _iosScrollPing, { passive: true, capture: true });
+}
 
 /* ============================================================
    ANIMATION LOOP
@@ -5636,7 +5710,11 @@ let revealStartTime = null;
 bloomPass.strength = 0.26;
 
 function animate() {
-  const dt = clock.getDelta();
+  // Cap dt para evitar saltos cuando el tab regresa de background.
+  // Si dt > 100ms (frame slow o tab inactiva), la animación salta
+  // visualmente. Cap a 33ms (~30fps mínimo) mantiene continuidad.
+  let dt = clock.getDelta();
+  if (dt > 0.033) dt = 0.033;
   const t = clock.getElapsedTime();
 
   if (mixer) mixer.update(dt);
@@ -5660,8 +5738,25 @@ function animate() {
   // DESKTOP: 0.12 sigue bien porque scroll desktop no tiene momentum
   // y los cambios son más graduales (mouse wheel = stepwise).
   // ═══════════════════════════════════════════════════════════════════
-  const scrollSmoothing = isMobile ? 0.06 : 0.12;
-  scrollProgress += (scrollTarget - scrollProgress) * scrollSmoothing;
+  
+  // CRÍTICO iOS Safari: leer scrollY DENTRO del rAF, no solo en
+  // el evento 'scroll'. Eso garantiza valor fresco cada frame
+  // incluso durante momentum scroll que throttlea el evento.
+  if (isMobile) {
+    updateScroll();
+  }
+  
+  // Lerp normalizado por frame rate: en lugar de "fraction por frame"
+  // (que cambia comportamiento entre 60Hz y 120Hz), usamos exponential
+  // decay basado en tiempo real. Resultado: mismo feel en cualquier
+  // refresh rate (iPhone 60Hz, iPad ProMotion 120Hz, etc.).
+  // 
+  // Fórmula: factor = 1 - exp(-rate * dt)
+  // rate = ~4 → equivale a "12% del gap por frame a 60fps" pero correcto
+  // para cualquier dt.
+  const scrollLerpRate = isMobile ? 4.0 : 8.0;
+  const scrollLerpFactor = 1 - Math.exp(-scrollLerpRate * dt);
+  scrollProgress += (scrollTarget - scrollProgress) * scrollLerpFactor;
   window.__vrmScroll = scrollProgress;
   const sp = scrollProgress;
 
@@ -5840,18 +5935,18 @@ function animate() {
   const finalZ = targetPosZ + driftZ;
 
   // ════════════════════════════════════════════════════════════════════
-  // POSITION LERP — Adaptativo móvil/desktop
+  // POSITION LERP — Frame-rate INDEPENDENT con exponential decay
   //
-  // MÓVIL: dt*3.5 (~17% por frame). Más amortiguado porque el scroll
-  // con momentum produce saltos grandes — un lerp alto los amplifica
-  // visualmente como "tirones". Un lerp más bajo distribuye el cambio
-  // entre 6-7 frames extra, sintiéndose flowy.
+  // Forma anterior `dt * rate` falla cuando dt varía (60Hz vs 120Hz vs
+  // un frame slow durante GC). La forma correcta es exponential decay:
+  //   factor = 1 - exp(-rate * dt)
+  // Garantiza el mismo "tiempo de respuesta" en cualquier framerate.
   //
-  // DESKTOP: dt*5.0 (~25% por frame). Más responsivo porque el scroll
-  // es controlado y los cambios son graduales.
+  // MÓVIL: rate más bajo (3.5) = más amortiguado contra momentum scroll.
+  // DESKTOP: rate más alto (5.0) = respuesta más directa al mouse wheel.
   // ════════════════════════════════════════════════════════════════════
   const posLerpRate = isMobile ? 3.5 : 5.0;
-  const posLerp = Math.min(1, dt * posLerpRate);
+  const posLerp = 1 - Math.exp(-posLerpRate * dt);
   whaleGroup.position.x += (finalX - whaleGroup.position.x) * posLerp;
   whaleGroup.position.y += (finalY - whaleGroup.position.y) * posLerp;
   whaleGroup.position.z += (finalZ - whaleGroup.position.z) * posLerp;
@@ -5888,9 +5983,9 @@ function animate() {
     if (dynamicBank < -BANK_MAX) dynamicBank = -BANK_MAX;
   }
 
-  // Banking con lerp moderado — responsivo sin jitter
+  // Banking con lerp moderado — exponential decay framerate-independent
   const targetBank = dynamicBank + cinematicRoll;
-  _smoothedBank += (targetBank - _smoothedBank) * Math.min(1, dt * 2.5);
+  _smoothedBank += (targetBank - _smoothedBank) * (1 - Math.exp(-2.5 * dt));
 
   _whaleEulerRoll.set(0, 0, _smoothedBank, 'XYZ');
   _whaleQuatRoll.setFromEuler(_whaleEulerRoll);
@@ -5939,9 +6034,8 @@ function animate() {
   if (angleToTarget > maxRotationThisFrame && angleToTarget > 0.001) {
     slerpFactor = maxRotationThisFrame / angleToTarget;
   } else {
-    // Ángulo pequeño — slerp responsivo para que respiración y secondary
-    // motion se apliquen casi instantáneamente (la ballena se ve viva).
-    slerpFactor = Math.min(1, dt * 4.0);
+    // Ángulo pequeño — slerp responsivo (exponential decay)
+    slerpFactor = 1 - Math.exp(-4.0 * dt);
   }
   whaleGroup.quaternion.slerp(_whaleQuatFinal, slerpFactor);
 
@@ -5976,10 +6070,12 @@ function animate() {
   // ════════════════════════════════════════════════════════════════════
   // CÁMARA estática
   // ════════════════════════════════════════════════════════════════════
-  camera.position.z += (CAMERA_HERO.z - camera.position.z) * Math.min(1, dt * 1.5);
-  camera.position.y += (CAMERA_HERO.y - camera.position.y) * Math.min(1, dt * 1.5);
+  // Cámara estática con exponential decay
+  const _camLerp = 1 - Math.exp(-1.5 * dt);
+  camera.position.z += (CAMERA_HERO.z - camera.position.z) * _camLerp;
+  camera.position.y += (CAMERA_HERO.y - camera.position.y) * _camLerp;
   if (Math.abs(camera.fov - CAMERA_HERO.fov) > 0.05) {
-    camera.fov += (CAMERA_HERO.fov - camera.fov) * Math.min(1, dt * 1.5);
+    camera.fov += (CAMERA_HERO.fov - camera.fov) * _camLerp;
     camera.updateProjectionMatrix();
   }
   camera.lookAt(0, 0, 0);
@@ -6001,15 +6097,18 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-window.addEventListener('resize', () => {
+// Debounce resize para móvil — iOS Safari dispara resize constantemente
+// cuando aparece/desaparece el address bar al scrollear. Cada resize
+// recrea el framebuffer del canvas = costoso. Debounce evita reset
+// excesivo. En desktop el resize es genuino y aplicamos directo.
+let _resizeRaf = null;
+function _handleResize() {
   const w = window.innerWidth;
   const h = window.innerHeight;
   
-  // ★ Recalcular si estado cambió (rotación de móvil, redimensión de ventana)
+  // ★ Recalcular si estado cambió (rotación de móvil, redimensión)
   const newIsMobile = w < 768;
   if (newIsMobile !== isMobile) {
-    // Si cambió desktop ↔ mobile, reload sería ideal pero invasivo.
-    // Como mínimo: actualizamos FOV de la cámara
     const fovOffset = newIsMobile ? 13 : 0;
     camera.fov = 45 + fovOffset;
   }
@@ -6019,7 +6118,15 @@ window.addEventListener('resize', () => {
   renderer.setSize(w, h);
   composer.setSize(w, h);
   bgMaterial.uniforms.uResolution.value.set(w, h);
-});
+}
+window.addEventListener('resize', () => {
+  // Cancelar resize pendiente y schedule uno nuevo para el próximo frame
+  if (_resizeRaf) cancelAnimationFrame(_resizeRaf);
+  _resizeRaf = requestAnimationFrame(() => {
+    _handleResize();
+    _resizeRaf = null;
+  });
+}, { passive: true });
 
 animate();
 </script>
