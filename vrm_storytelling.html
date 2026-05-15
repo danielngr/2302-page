@@ -6787,7 +6787,13 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   // ═══════════════════════════════════════════════════════════════════
   // EVENT LISTENERS
   // ═══════════════════════════════════════════════════════════════════
-  trigger.addEventListener('click', openPicker);
+  // Click directo en el search bar pill: búsqueda genérica.
+  // Limpia cualquier reserve_intent anterior para que el Confirm
+  // lleve al grid de búsqueda, no a una propiedad zombie.
+  trigger.addEventListener('click', () => {
+    try { sessionStorage.removeItem('vrm_reserve_intent'); } catch(_) {}
+    openPicker();
+  });
   closeBtn.addEventListener('click', closePicker);
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) closePicker();
@@ -6829,12 +6835,53 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   
   confirmBtn.addEventListener('click', () => {
     updateTrigger();
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // ROUTING DEL BOTÓN BUSCAR
+    // 
+    // Dos casos según cómo se abrió el picker:
+    // 
+    // 1. Vino de una propiedad ("Check availability" en una destacada):
+    //    sessionStorage.vrm_reserve_intent contiene el propId.
+    //    → Redirigir a vrm_property.html?id=X&checkin=...&checkout=...
+    //    El usuario aterriza en la página de SU propiedad con todo
+    //    pre-llenado para que solo apriete "Reservar". Estilo Aman.
+    // 
+    // 2. Vino del search bar genérico (intent vacío):
+    //    → Aplicar filtros al grid de 10 y scrollear ahí. El usuario
+    //    está explorando, le mostramos opciones que matchean.
+    // ═══════════════════════════════════════════════════════════════════
+    let reserveIntent = null;
+    if (window.sessionStorage) {
+      try { reserveIntent = sessionStorage.getItem('vrm_reserve_intent'); } catch(_) {}
+    }
+    
+    // CASO 1: Hay intent — redirigir a página individual con params
+    if (reserveIntent) {
+      // Limpiar el intent una vez consumido
+      try { sessionStorage.removeItem('vrm_reserve_intent'); } catch(_) {}
+      
+      // Construir URL con fechas + guests si están seleccionadas
+      const params = new URLSearchParams();
+      params.set('id', reserveIntent);
+      if (state.checkin)  params.set('checkin',  formatYMD(state.checkin));
+      if (state.checkout) params.set('checkout', formatYMD(state.checkout));
+      if (state.guests)   params.set('guests',   state.guests);
+      
+      closePicker();
+      // Pequeño delay para que el cierre del modal sea visible antes de
+      // la navegación (mejor UX, no se siente como "tap → blank")
+      setTimeout(() => {
+        window.location.href = `vrm_property.html?${params.toString()}`;
+      }, 200);
+      return;
+    }
+    
+    // CASO 2: Búsqueda genérica — aplicar filtros + scroll al grid
     closePicker();
-    // Disparar evento change para que filterState del catálogo se entere
     if (hiddenCheckin)  hiddenCheckin.dispatchEvent(new Event('change', { bubbles: true }));
     if (hiddenCheckout) hiddenCheckout.dispatchEvent(new Event('change', { bubbles: true }));
     if (hiddenGuests)   hiddenGuests.dispatchEvent(new Event('change', { bubbles: true }));
-    // Scroll hacia el grid de catálogo para ver resultados
     const grid = document.querySelector('.prop-grid-section');
     if (grid) {
       setTimeout(() => {
