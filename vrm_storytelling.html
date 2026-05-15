@@ -6203,23 +6203,31 @@ function animate() {
 
   canvas.style.opacity = '1';
 
-  // ═══════════════════════════════════════════════════════════════════
-  // RENDER FINAL — usa composer en todos los devices.
-  // 
-  // El composer YA tiene la configuración correcta:
-  //   - DESKTOP: bgRenderPass + renderPass + bloomPass + chromaticPass
-  //   - MOBILE: bgRenderPass + renderPass solamente (bloom/chromatic
-  //     fueron skipeados en el setup arriba)
-  // 
-  // Mantenemos el composer en lugar de renderizar directo porque:
-  // 1. El composer maneja correctamente los buffers internos
-  // 2. Saltar el composer hace que el bgMaterial shader no se pinte
-  //    correctamente (issue: ShaderMaterial con position en clip space
-  //    necesita el manejo de viewport que hace el RenderPass)
-  // 3. Con solo 2 passes en mobile, el riesgo de flash es mínimo
-  // ═══════════════════════════════════════════════════════════════════
-  renderer.autoClear = true;
-  composer.render();
+  if (isMobile) {
+    // ═══════════════════════════════════════════════════════════════
+    // MOBILE: RENDER DIRECTO — cero composer, cero buffers internos.
+    // 
+    // El bgMesh fue añadido a la scene principal con renderOrder=-999
+    // (línea ~4520), entonces UNA SOLA llamada a renderer.render(scene)
+    // pinta TODO: background gradient + ballena, en un solo paso al
+    // screen directo, sin render targets intermedios.
+    // 
+    // Por qué importa: cada render target del composer es un buffer
+    // GPU que iOS Safari puede fallar en renderizar durante momentum
+    // scroll = flash visible. Sin composer = cero chances de flash
+    // arquitectónicamente.
+    // 
+    // Visualmente igual al desktop excepto sin bloom y chromatic
+    // (que son sutiles en pantalla móvil y omitirlos da +40% fps).
+    // ═══════════════════════════════════════════════════════════════
+    renderer.autoClear = true;
+    renderer.setRenderTarget(null);
+    renderer.render(scene, camera);
+  } else {
+    // DESKTOP: composer completo con bloom + chromatic
+    renderer.autoClear = true;
+    composer.render();
+  }
   
   requestAnimationFrame(animate);
 }
