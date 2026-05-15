@@ -250,8 +250,11 @@
     z-index: 5;
     text-align: center;
     white-space: nowrap;
-    /* Compensar letter-spacing fantasma del último carácter (ver .cover-cue-star) */
-    padding-left: 0.42em;
+    /* Absorber el letter-spacing fantasma del último carácter: el navegador
+       cuenta 0.42em extra a la derecha del texto en el ancho del bloque,
+       lo que desplaza el centrado visualmente. margin-right negativo
+       compensa exactamente ese espacio. */
+    margin-right: -0.42em;
   }
 
   /* "VRM" GIGANTE — el héroe del cover */
@@ -426,10 +429,10 @@
     letter-spacing: 0.42em;
     text-transform: uppercase;
     color: rgba(232, 228, 218, 0.55);
-    /* Compensar letter-spacing fantasma del último carácter — sin esto,
-       el navegador cuenta 0.42em extra a la derecha como parte del width,
-       y el centrado del padre desplaza el texto visible hacia la izquierda. */
-    padding-left: 0.42em;
+    /* Absorber letter-spacing fantasma del último carácter — el navegador
+       cuenta 0.42em extra a la derecha en el ancho del bloque, lo que
+       desplaza el centrado del padre. margin-right negativo lo compensa. */
+    margin-right: -0.42em;
   }
   .cover-cue-star::before, .cover-cue-star::after {
     content: '✦';
@@ -3793,19 +3796,26 @@ const WHALE_PATH = [
   _kf(0.78,  1.4,  0.4, -7.0),
   _kf(0.85,  0.4,  1.0, -7.5),
 
-  // ═══════ REVIEWS (sp 85-95%) ═══════
-  // La ballena se sigue alejando, descendiendo a posición horizonte.
-  // Su silueta lejana acompaña la lectura de los reviews sin distraer.
-  _kf(0.90, -0.4,  0.2, -8.0),
-  _kf(0.95, -0.8, -0.2, -8.5),
+  // ═══════ REVIEWS (sp 85-93%) ═══════
+  // Empieza a acercarse desde el horizonte gradualmente — la transición
+  // hacia el cierre es lenta y elegante, no abrupta.
+  _kf(0.88, -0.4,  0.2, -7.0),
+  _kf(0.91, -0.2,  0.1, -5.5),
+  _kf(0.93,  0.0,  0.0, -3.5),
 
-  // ═══════ FINAL CTA (sp 95-100%) ═══════
-  // Cierre: la ballena se aleja completamente al horizonte. Su silueta
-  // distante en el fondo crea sensación de "viaje completado". El usuario
-  // termina con la ballena nadando hacia las profundidades — metáfora
-  // perfecta para "Direct from the bay".
-  _kf(0.98, -1.2, -0.4, -9.0),
-  _kf(1.00, -1.5, -0.5, -9.5)
+  // ═══════ TRANSICIÓN AL CIERRE (sp 93-97%) ═══════
+  // Sigue acercándose, ahora con el clamp de orientación relajado para
+  // que la cabeza pueda rotar hacia la cámara. La ballena gira mientras
+  // se acerca — no es un giro abrupto, es una rotación natural mientras
+  // hace el movimiento de aproximación.
+  _kf(0.95,  0.0,  0.0, -1.5),
+  _kf(0.97,  0.0,  0.0,  1.0),
+
+  // ═══════ FINAL CTA (sp 97-100%) ═══════
+  // CIERRE: la ballena llega cerca y de frente. El saludo final.
+  // Posición similar al hero pero con cabeza orientada hacia ti.
+  _kf(0.99,  0.0,  0.0,  3.0),
+  _kf(1.00,  0.0,  0.0,  4.0)
 ];
 
 // ════════════════════════════════════════════════════════════════════════
@@ -4101,23 +4111,30 @@ function animate() {
     swimDy = futurePose.y - heroPathPose.y;
     swimDz = futurePose.z - heroPathPose.z;
 
-    // ─── REGLA 1: dz siempre negativo (siempre hacia adelante = al fondo)
-    // El path nuevo es Z-monotónico decreciente, así que esto debería ser
-    // redundante. Lo dejamos como red de seguridad para casos extremos.
-    const MIN_FORWARD = 0.3;
-    if (swimDz > -MIN_FORWARD) {
-      swimDz = -MIN_FORWARD;
+    // CIERRE NARRATIVO: en los últimos 7% del scroll, la ballena se
+    // acerca de frente al usuario como un "saludo final". Permitimos
+    // que la cabeza rote hacia la cámara (swimDz positivo) — único
+    // momento en toda la página donde se rompe la regla de "siempre
+    // hacia adelante". Es la excepción que prueba la regla.
+    const inClosingApproach = sp > 0.93;
+
+    if (!inClosingApproach) {
+      // ─── REGLA 1: dz siempre negativo (hacia el fondo) ───
+      const MIN_FORWARD = 0.3;
+      if (swimDz > -MIN_FORWARD) {
+        swimDz = -MIN_FORWARD;
+      }
+
+      // ─── REGLA 2: lateralidad limitada al 55% del avance Z ───
+      const MAX_LATERAL_RATIO = 0.55;
+      const maxLateral = Math.abs(swimDz) * MAX_LATERAL_RATIO;
+      if (swimDx > maxLateral) swimDx = maxLateral;
+      if (swimDx < -maxLateral) swimDx = -maxLateral;
     }
+    // En cierre (sp > 0.93): sin clamps → la ballena puede mirar a +Z
+    // (hacia la cámara) y orientarse de frente al usuario.
 
-    // ─── REGLA 2: lateralidad limitada al 55% del avance Z ───
-    // |dx| no puede ser mayor que |dz| × 0.55. La cabeza siempre apunta
-    // principalmente hacia adelante con un toque lateral, nunca de perfil.
-    const MAX_LATERAL_RATIO = 0.55;
-    const maxLateral = Math.abs(swimDz) * MAX_LATERAL_RATIO;
-    if (swimDx > maxLateral) swimDx = maxLateral;
-    if (swimDx < -maxLateral) swimDx = -maxLateral;
-
-    // ─── REGLA 3: dy libre — la ballena cabecea arriba/abajo natural ───
+    // ─── REGLA 3 (siempre): dy libre — cabeceo natural arriba/abajo ───
   }
 
   const swimLen = Math.hypot(swimDx, swimDy, swimDz);
