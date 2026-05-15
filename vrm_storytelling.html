@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0A1428">
+<meta name="theme-color" content="#0A1428" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A1428" media="(prefers-color-scheme: dark)">
+<!-- iOS Safari: extiende el fondo de la página al área del status bar
+     (donde están hora/batería) y al home indicator area abajo. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
 <title>VRM · La bahía como debe ser</title>
 
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
@@ -78,20 +85,48 @@
     --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
   }
   *, *::before, *::after { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    /* Fondo del html para que cubra status bar + home indicator areas en
+       iOS Safari (cuando viewport-fit: cover está activo, esas zonas
+       pueden quedar del color del navegador si html no tiene fondo). */
+    background-color: #0A1428;
+    /* Permitir que el contenido se extienda hasta los bordes del dispositivo
+       respetando los safe areas. */
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
   html, body {
     margin: 0; padding: 0;
-    /* Fondo del body — un gradient sutil que complementa la aurora del cover */
-    background: linear-gradient(180deg,
-      #1A2E48 0%,       /* arriba: Marine (Bahía) — sale del cover */
-      #0A1428 25%,      /* primera sección: Abyss */
-      #0A1428 100%);    /* resto: Abyss */
+    /* Fondo unificado #0A1428 (Abyss) — consistente desde el notch del iPhone
+       hasta el home indicator. SIN gradient para evitar inconsistencias en
+       safe areas. La aurora cinematográfica del cover se renderiza en Three.js
+       sobre este fondo y crea la transición visual sin tocar background CSS. */
+    background-color: #0A1428;
     color: var(--paper);
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     line-height: 1.5;
     overflow-x: hidden;
+    /* Asegurar que el body siempre cubre el viewport completo, incluyendo
+       cuando la barra de URL de Safari se expande/contrae. dvh (dynamic
+       viewport height) responde a los cambios de UI del navegador. */
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  body {
+    /* Doble seguro: backdrop fijo detrás de todo. Si por algún motivo el
+       body no extiende hasta los bordes, el ::before fijo cubre el viewport. */
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: #0A1428;
+    z-index: -1;
+    pointer-events: none;
   }
   /* No body background extra — confiamos en var(--ink) directo */
 
@@ -265,6 +300,7 @@
   .cover-mark-wrap {
     position: relative;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     width: 100%;
@@ -290,6 +326,31 @@
     user-select: none;
     /* Pequeña perspectiva sutil */
     transform: translateY(20px);
+  }
+  /* Sub-mark debajo del logo grande — legible pero discreto.
+     Aparece junto con el VRM grande pero con un pequeño delay extra
+     para que la jerarquía visual sea clara. */
+  /* "Vacation Rental México" — subtítulo descriptivo bajo VRM.
+     Tipo legible (no uppercase tiny) para que el visitante sepa
+     inmediatamente qué es la marca. */
+  .cover-mark-sub-wrap {
+    text-align: center;
+    margin-top: 8px;
+    opacity: 0;
+    animation: ru 1.4s var(--ease-soft) 3.2s forwards;
+    z-index: 3;
+    position: relative;
+  }
+  .cover-mark-sub {
+    display: inline-block;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(232, 228, 218, 0.62);
+    /* Compensar letter-spacing fantasma para centrado real */
+    margin-right: -0.22em;
   }
 
   /* Sub-título abajo — restraint */
@@ -459,10 +520,14 @@
       gap: 0;
     }
     .cover-eyebrow-top {
-      top: 80px;
       font-size: 9.5px;
       letter-spacing: 0.36em;
-      padding-left: 0.36em;  /* compensa letter-spacing móvil */
+      /* En móvil heredamos el text-align center del wrapper + el inline-block.
+         margin-right negativo absorbe el letter-spacing fantasma. */
+      margin-right: -0.36em;
+    }
+    .cover-eyebrow-wrap {
+      top: 80px;
     }
     .cover-mark-wrap {
       margin-top: 90px;
@@ -474,6 +539,14 @@
       text-shadow:
         0 4px 28px rgba(8, 20, 40, 0.4),
         0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+    .cover-mark-sub {
+      font-size: 13px;
+      letter-spacing: 0.20em;
+      margin-right: -0.20em;
+    }
+    .cover-mark-sub-wrap {
+      margin-top: 6px;
     }
     /* Subtítulo: más prominente en mobile, queda visible bajo el VRM */
     .cover-content {
@@ -944,14 +1017,17 @@
       left: 0;
       right: 0;
       z-index: 100;
-      padding: 12px 16px 18px;
+      /* Padding respeta el safe-area-inset-bottom para que el botón
+         nunca quede tapado por el home indicator del iPhone. */
+      padding: 12px 16px;
+      padding-bottom: calc(12px + env(safe-area-inset-bottom));
       gap: 10px;
       align-items: center;
-      background: rgba(7, 18, 36, 0.78);
+      background: rgba(7, 18, 36, 0.92);
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
       border-top: 1px solid rgba(232, 228, 218, 0.10);
-      transform: translateY(110%);  /* oculto fuera del frame por debajo */
+      transform: translateY(110%);
       transition: transform 0.6s var(--ease-soft), opacity 0.4s ease;
       opacity: 0;
       pointer-events: none;
@@ -1007,8 +1083,14 @@
   }
 
   .footer {
-    border-top: 1px solid var(--rule); padding: 64px 48px;
-    background: var(--ink); position: relative; z-index: 3;
+    border-top: 1px solid var(--rule);
+    padding: 64px 48px;
+    /* Respetar safe-area-inset-bottom para que el color del footer
+       extienda hasta el home indicator area en iPhones modernos. */
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    background: var(--ink);
+    position: relative;
+    z-index: 3;
   }
   .footer-inner {
     max-width: 1400px; margin: 0 auto; display: flex;
@@ -1035,7 +1117,10 @@
   .model-credit a { color: rgba(232, 228, 218, 0.4); text-decoration: none; }
   .model-credit a:hover { color: var(--gold); }
   @media (max-width: 768px) {
-    .footer { padding: 48px 24px; }
+    .footer {
+      padding: 48px 24px;
+      padding-bottom: calc(48px + env(safe-area-inset-bottom));
+    }
     .footer-inner { flex-direction: column; align-items: flex-start; gap: 24px; }
   }
 
@@ -2096,6 +2181,9 @@
 
     <div class="cover-mark-wrap">
       <h1 class="cover-mark" aria-label="VRM">VRM</h1>
+    </div>
+    <div class="cover-mark-sub-wrap">
+      <div class="cover-mark-sub">Vacation Rental México</div>
     </div>
 
     <div class="cover-content">
@@ -3979,19 +4067,18 @@ const WHALE_PATH = [
 // recta sin desviarse. La cámara nunca se mueve. La opacidad sube de 0 a 1
 // con la cercanía (no es un fade, es niebla disipándose).
 
-// REVEAL_FROM: la ballena viene desde una esquina (lateral-arriba-atrás)
-// y se asienta detrás del logo. Cuando termina el reveal está en
-// (0, logo, 4.5) — exactamente la posición de WHALE_PATH[0] (hero).
+// REVEAL_FROM: la ballena viene DESDE EL FONDO profundo en línea recta
+// hacia adelante. Como el movimiento es puramente en Z (sin lateralidad),
+// la orientación natural durante TODO el reveal es frontal (mirando a +Z
+// que es hacia la cámara). Cuando aterriza detrás del logo, ya está
+// perfectamente orientada — CERO giro residual, cero "robotic feel".
 //
-// Dirección durante reveal: REVEAL_FROM → hero = (+x, -y, +z). Cuando
-// llega a hero, la dirección de natación se vuelve casi nula (path[0] a
-// path[1] tiene swim ≈ 0). El _lastValidSwim mantiene la última dirección
-// válida (que apunta hacia el frente-cámara), así la ballena queda
-// orientada hacia el usuario en pose hero, sin rotar.
+// La sensación visual: ballena emerge de las profundidades del agua,
+// nadando directamente hacia el observador. Cinematográfica y natural.
 const REVEAL_FROM = {
-  x: -6.0,                 // izquierda, fuera del frame en mobile
-  y: 2.0 + _logoYWorld,    // arriba
-  z: 1.5,                  // viene desde un poco atrás del cristal
+  x: 0.0,                  // centrada con el logo
+  y: 0.0 + _logoYWorld,    // misma altura que el logo
+  z: -8.0,                 // muy al fondo, casi invisible al inicio
 };
 
 // ════════════════════════════════════════════════════════════════════════
@@ -4252,48 +4339,17 @@ function animate() {
   let swimDx, swimDy, swimDz;
 
   if (revealProgress < 1.0) {
-    // Durante el reveal, la dirección de la cabeza transiciona de:
-    //   - Entry direction (REVEAL_FROM → hero, viene desde la izquierda-arriba)
-    //   - Frontal (0, 0, 1) — mirando hacia el usuario/cámara
+    // REVEAL: ballena viene del fondo hacia adelante. Como REVEAL_FROM
+    // tiene la misma (x, y) que el hero pose y solo difiere en Z (-8 → 4.5),
+    // la dirección de natación durante TODO el reveal es exactamente
+    // (0, 0, positivo) = frontal hacia la cámara.
     //
-    // CRÍTICO PARA NATURALIDAD: el blend debe distribuirse a lo largo de
-    // CASI TODO el reveal (no concentrarse al final) para que el cambio
-    // de orientación de ~77° suceda muy gradualmente — ~25°/s, no 110°/s.
-    //
-    // Antes el blend empezaba al 65% del reveal (1.4s para girar 77°
-    // = movimiento brusco). Ahora empieza al 20% del reveal (3 segundos
-    // para girar 77° = movimiento natural, casi imperceptible).
-    //
-    // Además usamos easing easeOutQuad en lugar de smootherstep: el
-    // smootherstep concentra el cambio en el medio del blend, easeOutQuad
-    // distribuye el cambio más uniformemente con un final suave que
-    // "asienta" la orientación frontal sin movimiento residual.
-    const swimEntry = {
-      dx: heroPathPose.x - REVEAL_FROM.x,
-      dy: heroPathPose.y - REVEAL_FROM.y,
-      dz: heroPathPose.z - REVEAL_FROM.z
-    };
-    const entryLen = Math.hypot(swimEntry.dx, swimEntry.dy, swimEntry.dz);
-    if (entryLen > 0.001) {
-      swimEntry.dx /= entryLen;
-      swimEntry.dy /= entryLen;
-      swimEntry.dz /= entryLen;
-    }
-    const swimFrontal = { dx: 0, dy: 0, dz: 1 };
-
-    // Blend desde 20% del reveal hasta 100% — ~3 segundos para el giro.
-    const blendStart = 0.20;
-    const blendT = revealProgress < blendStart
-      ? 0
-      : Math.min(1, (revealProgress - blendStart) / (1 - blendStart));
-    // easeOutQuad: rápido al inicio, lento al final. Esto hace que la
-    // orientación se "asiente" suavemente cerca del 100% sin overshoot
-    // ni movimiento brusco al terminar el reveal.
-    const eb = 1 - (1 - blendT) * (1 - blendT);
-
-    swimDx = swimEntry.dx * (1 - eb) + swimFrontal.dx * eb;
-    swimDy = swimEntry.dy * (1 - eb) + swimFrontal.dy * eb;
-    swimDz = swimEntry.dz * (1 - eb) + swimFrontal.dz * eb;
+    // No necesitamos blend de orientación porque la entry direction
+    // YA ES la frontal — la ballena emerge nadando hacia el usuario,
+    // y al aterrizar ya está mirando al frente sin cambio de orientación.
+    swimDx = 0;
+    swimDy = 0;
+    swimDz = 1;
   } else {
     // En scroll: mirar hacia donde estará dentro de 15% (ventana grande).
     // 
