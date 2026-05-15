@@ -1627,6 +1627,27 @@ hydratePropertyData();
       }
     } catch (_) {}
   })();
+  
+  // SAFETY TIMEOUT ABSOLUTO — si por cualquier razón el overlay no se
+  // cierra normalmente (Supabase falla, JS crashea, modal no abre, etc.),
+  // garantizamos que SIEMPRE se quita después de 4 segundos. El usuario
+  // nunca debe quedar atascado en pantalla de carga.
+  setTimeout(function() {
+    const overlay = document.getElementById('vrm-transition');
+    if (overlay && overlay.classList.contains('is-active')) {
+      console.warn('[VRM] Transition overlay safety timeout — forcing close');
+      overlay.classList.remove('is-active');
+      try { sessionStorage.removeItem('vrm_transition_active'); } catch (_) {}
+      setTimeout(() => { if (overlay) overlay.remove(); }, 700);
+    }
+  }, 4000);
+  
+  // Si la página se restaura desde bfcache (back/forward), limpiar todo
+  window.addEventListener('pageshow', function() {
+    const overlay = document.getElementById('vrm-transition');
+    if (overlay) overlay.classList.remove('is-active');
+    try { sessionStorage.removeItem('vrm_transition_active'); } catch (_) {}
+  });
 </script>
 
 <!-- ═════════════════════════════════════════════════════════════
@@ -3003,37 +3024,44 @@ hydratePropertyData();
     opts = opts || {};
     const startStep = opts.startStep || 1;
     
+    // ─── PASO 1: Setear el step ANTES de abrir el modal ───
+    // Si vamos a Step 2 directo, NO queremos que el usuario vea
+    // Step 1 brevemente mientras carga Supabase. Por eso seteamos
+    // el step ANTES de hacer visible el modal.
+    goStep(startStep);
+    
+    // ─── PASO 2: Abrir el modal con el step correcto ya visible ───
     document.body.classList.add('lock');
     backdrop.classList.add('open');
     bm.classList.add('open');
     
-    // ★ Asegura que la availability esté cargada antes de renderizar
-    // Si vamos a saltar al Step 2 con fechas pre-llenadas, necesitamos
-    // validar que esas fechas no estén bloqueadas en Supabase ANTES
-    // de mostrar el resumen (si están bloqueadas, mejor regresar a Step 1).
+    // ─── PASO 3: Cargar availability si no está cacheada ───
+    // Bloqueamos hasta que tengamos BLOCKED real para validar
+    // las fechas pre-llenadas contra disponibilidad real.
     if (!_availabilityLoaded) {
       await loadRealAvailability();
     }
     
-    // Validación de fechas pre-llenadas vs BLOCKED set
-    let resolvedStep = startStep;
+    // ─── PASO 4: Validar fechas pre-llenadas vs BLOCKED ───
+    // Si vamos a Step 2 con fechas que en realidad están bloqueadas,
+    // movemos al Step 1 (calendario) para que el usuario escoja otras.
     if (startStep === 2 && state.checkIn && state.checkOut) {
       let conflict = false;
       for (let d = new Date(state.checkIn); d < state.checkOut; d = addDays(d, 1)) {
         if (BLOCKED.has(ymd(d))) { conflict = true; break; }
       }
       if (conflict) {
-        // Fechas pre-llenadas chocan con bloqueos reales. Regresamos al
-        // Step 1 (calendario) para que el usuario escoja otras.
         console.warn('[VRM] Preloaded dates conflict with BLOCKED, falling back to Step 1');
         state.checkIn = null;
         state.checkOut = null;
-        resolvedStep = 1;
+        goStep(1);
       }
     }
     
-    goStep(resolvedStep);
-    if (typeof renderCalendar === 'function') renderCalendar();
+    // Refresh calendar render si el current step es 1
+    if (state.step === 1 && typeof renderCalendar === 'function') {
+      renderCalendar();
+    }
   }
   function closeBooking() {
     bm.classList.remove('open');
@@ -4011,24 +4039,11 @@ document.addEventListener('visibilitychange', () => {
     const bar = document.getElementById('prop-sticky-bar');
     if (!bar) return;
     
-    let revealed = false;
-    function check() {
-      const scrolled = window.scrollY > 200;
-      if (scrolled && !revealed) {
-        document.body.classList.add('sticky-revealed');
-        revealed = true;
-      } else if (!scrolled && revealed) {
-        document.body.classList.remove('sticky-revealed');
-        revealed = false;
-      }
-    }
-    window.addEventListener('scroll', check, { passive: true });
-    // Si el usuario llega aquí desde la transición con modal auto-open,
-    // el modal estará abierto inicialmente. Cuando lo cierre, el sticky
-    // bar debe aparecer inmediatamente sin esperar scroll.
-    // Por eso forzamos revealed=true si ya hay scroll o si el flag de
-    // transición estaba activo.
-    setTimeout(check, 300);
+    // Sticky bar visible INMEDIATAMENTE desde que carga la página.
+    // Es la forma principal del usuario de reservar — debe estar
+    // accesible sin tener que scrollear. Solo se oculta cuando el
+    // booking modal está abierto (body.lock — CSS lo maneja).
+    document.body.classList.add('sticky-revealed');
   })();
 </script>
 
