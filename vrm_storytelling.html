@@ -3753,69 +3753,100 @@ const CAMERA_HERO = {
 // scroll mínimo → todo lento, premium, con peso.
 
 const WHALE_PATH = [
-  // ═══════ HERO (sp 0-10%) ═══════
-  // Pose memorable: ballena cerca del cristal (z=4.5), centrada con el logo.
-  // Apenas se mueve — solo respira en su sitio antes de empezar el viaje.
-  _kf(0.00,  0.0,  0.0,  4.5),
-  _kf(0.05,  0.0,  0.0,  4.4),
-  _kf(0.10,  0.1, -0.1,  4.0),
+  // ════════════════════════════════════════════════════════════════════
+  // ANÁLISIS QUIRÚRGICO DEL PATH
+  // ════════════════════════════════════════════════════════════════════
+  // Principios:
+  //   1. La ballena SIEMPRE está nadando. Nunca se detiene en pose estática.
+  //      Eso significa que entre keyframes adyacentes siempre hay una
+  //      dirección de movimiento clara y consistente.
+  //
+  //   2. La orientación es CONSECUENCIA de la trayectoria. La cabeza
+  //      apunta a donde va el cuerpo. Si el cuerpo curva, la cabeza
+  //      curva con él. Nunca "pivotes sobre el eje".
+  //
+  //   3. Los cambios de orientación grandes (girar para volver hacia
+  //      la cámara al final) se logran trazando un ARCO FÍSICO en el
+  //      espacio. La ballena recorre un camino curvo que la lleva
+  //      gradualmente a la nueva orientación. Como un avión dando la
+  //      vuelta: no rota sobre su eje, traza un círculo amplio.
+  //
+  //   4. Entre cada par de keyframes adyacentes, el ángulo entre las
+  //      dos direcciones de natación debe ser SUAVE (idealmente <30°).
+  //      Cambios bruscos de dirección causan giros visibles.
 
-  // ═══════ REIMAGINE + INICIO PHILOSOPHY (sp 10-25%) ═══════
-  // Empieza el viaje: la ballena empieza a alejarse, deriva ligeramente
-  // a la izquierda. Cabeza apunta principalmente al fondo (z decreciente)
-  // con un toque de lateralidad. Sube ligeramente.
-  _kf(0.18,  0.4,  0.2,  2.5),
-  _kf(0.25,  0.6,  0.4,  1.0),
+  // ═══════ HERO INICIAL — la ballena ya está nadando (sp 0-12%) ═══════
+  // Entra desde la izquierda atrás, viaja hacia la derecha y abajo.
+  // NUNCA está quieta. El usuario al cargar la ve YA en movimiento
+  // — eso es vida desde el primer frame. La ballena pasa POR el área
+  // del logo VRM mientras nada, no se asienta detrás de él.
+  _kf(0.00, -1.5,  0.5,  3.5),    // entra desde izquierda alto, cerca
+  _kf(0.04, -1.0,  0.3,  3.6),    // sigue avanzando hacia centro
+  _kf(0.08, -0.3,  0.0,  3.5),    // pasando por el centro, cerca del logo
+  _kf(0.12,  0.5, -0.3,  3.2),    // emergiendo hacia derecha-abajo
 
-  // ═══════ PHILOSOPHY + WHY DIRECT (sp 25-40%) ═══════
-  // Sigue alejándose. Sube en Y para tener "presencia" cerca de los textos.
-  // X cambia gradualmente — la ballena se desvía hacia la izquierda media
-  // pero su Z sigue decreciendo (nunca vuelve a acercarse).
-  _kf(0.32,  0.0,  0.7, -0.5),
-  _kf(0.40, -0.8,  0.6, -1.8),
+  // ═══════ TRAVESÍA HACIA EL FONDO (sp 12-32%) ═══════
+  // La ballena viaja en línea continua hacia el fondo-derecha.
+  // X siempre creciente, Y bajando, Z decreciente. Dirección consistente.
+  _kf(0.18,  1.2, -0.5,  2.0),
+  _kf(0.25,  1.8, -0.8,  0.5),
+  _kf(0.32,  2.3, -0.9, -1.0),
 
-  // ═══════ PROPERTIES — PRIMERA SECCIÓN (sp 40-55%) ═══════
-  // La ballena baja en Y (debajo del centro) para no tapar las hero
-  // editoriales que están en la zona central del viewport. Z sigue
-  // alejándose. Movimiento lateral suave.
-  _kf(0.48, -1.5,  0.0, -3.0),
-  _kf(0.55, -1.2, -0.6, -4.0),
+  // ═══════ FONDO PROFUNDO (sp 32-52%) ═══════
+  // Sigue en la misma dirección general (derecha-fondo) pero ahora
+  // empieza a subir en Y. Esto cambia la "presencia" sin afectar
+  // mucho la orientación lateral. Z sigue decreciendo monotónicamente.
+  _kf(0.38,  2.6, -0.7, -2.5),
+  _kf(0.45,  2.8, -0.3, -4.0),
+  _kf(0.52,  2.7,  0.2, -5.0),
 
-  // ═══════ PROPERTIES — TRAVESÍA PROFUNDA (sp 55-72%) ═══════
-  // Cruza por el fondo (z más lejos) desde la izquierda hacia el centro.
-  // X cambia gradualmente con dz dominante — la cabeza nunca apunta de
-  // costado porque el avance en Z siempre es mayor que el lateral.
-  _kf(0.62, -0.3, -0.8, -5.0),
-  _kf(0.68,  0.8, -0.6, -5.8),
-  _kf(0.72,  1.6, -0.4, -6.5),
+  // ═══════ TRAVESÍA POR EL FONDO (sp 52-72%) ═══════
+  // AQUÍ es el ÚNICO cambio importante de dirección lateral durante
+  // el viaje principal: la ballena empieza a cruzar de derecha a
+  // izquierda en el fondo. Pero lo hace MUY GRADUAL — 20% de scroll
+  // para cambiar de x=2.7 a x=-1.5. La trayectoria forma una curva
+  // amplia en el fondo. El lookahead grande hace que el giro se
+  // distribuye a lo largo de toda esta sección.
+  _kf(0.58,  2.0,  0.6, -5.8),
+  _kf(0.64,  1.0,  0.9, -6.5),
+  _kf(0.68,  0.0,  1.0, -7.0),    // punto más alto, centro del fondo
+  _kf(0.72, -1.0,  0.9, -7.2),
 
-  // ═══════ GRID PROPERTIES (sp 72-85%) ═══════
-  // Sube otra vez (la ballena emerge en altura sin acercarse al cristal).
-  // Se desplaza al centro-derecha. El usuario la ve "alta y lejana"
-  // pasando por arriba del grid de 10 propiedades.
-  _kf(0.78,  1.4,  0.4, -7.0),
-  _kf(0.85,  0.4,  1.0, -7.5),
+  // ═══════ ZONA DEL GRID (sp 72-84%) ═══════
+  // Sigue hacia la izquierda en el fondo, descendiendo.
+  // La ballena queda lejana y silueta mientras lees el grid.
+  _kf(0.78, -1.8,  0.5, -7.0),
+  _kf(0.84, -2.2,  0.1, -6.5),
 
-  // ═══════ REVIEWS (sp 85-93%) ═══════
-  // Empieza a acercarse desde el horizonte gradualmente — la transición
-  // hacia el cierre es lenta y elegante, no abrupta.
-  _kf(0.88, -0.4,  0.2, -7.0),
-  _kf(0.91, -0.2,  0.1, -5.5),
-  _kf(0.93,  0.0,  0.0, -3.5),
-
-  // ═══════ TRANSICIÓN AL CIERRE (sp 93-97%) ═══════
-  // Sigue acercándose, ahora con el clamp de orientación relajado para
-  // que la cabeza pueda rotar hacia la cámara. La ballena gira mientras
-  // se acerca — no es un giro abrupto, es una rotación natural mientras
-  // hace el movimiento de aproximación.
-  _kf(0.95,  0.0,  0.0, -1.5),
-  _kf(0.97,  0.0,  0.0,  1.0),
-
-  // ═══════ FINAL CTA (sp 97-100%) ═══════
-  // CIERRE: la ballena llega cerca y de frente. El saludo final.
-  // Posición similar al hero pero con cabeza orientada hacia ti.
-  _kf(0.99,  0.0,  0.0,  3.0),
-  _kf(1.00,  0.0,  0.0,  4.0)
+  // ════════════════════════════════════════════════════════════════════
+  // EL GIRO FÍSICO — Arco amplio para volver hacia el usuario (84-100%)
+  // ════════════════════════════════════════════════════════════════════
+  // La ballena debe pasar de "viajando hacia -z" a "viajando hacia +z"
+  // para llegar de frente al usuario en el cierre. Lo hace trazando un
+  // ARCO AMPLIO en el espacio, no rotando sobre su eje.
+  //
+  // El arco se traza así:
+  //   sp 0.84: x=-2.2  y=0.1  z=-6.5  → moving (-x,-y,-z) viaje al fondo izq
+  //   sp 0.88: x=-2.8  y=0.0  z=-5.5  → CURVA: x sigue izq pero z empieza
+  //                                     a subir. La ballena curva hacia
+  //                                     "atrás-arriba" (eje y mundo).
+  //   sp 0.92: x=-2.5  y=0.0  z=-3.0  → x ahora se acerca a 0 mientras
+  //                                     z sube fuerte. Ballena visible
+  //                                     viniendo desde izq-atrás.
+  //   sp 0.95: x=-1.5  y=0.0  z=-1.0  → cruza el plano del cristal por
+  //                                     la izquierda, ya orientada hacia
+  //                                     la cámara.
+  //   sp 0.97: x=-0.5  y=0.0  z= 1.5  → entra al frente, casi centrada
+  //   sp 1.00: x= 0.0  y=0.0  z= 3.5  → cierre: cerca, de frente
+  //
+  // Total: la ballena recorre un arco de ~10 unidades de longitud en
+  // el espacio durante los últimos 16% del scroll. Eso es bastante
+  // recorrido para que el cambio de orientación se distribuya naturalmente.
+  _kf(0.88, -2.8,  0.0, -5.5),
+  _kf(0.92, -2.5,  0.0, -3.0),
+  _kf(0.95, -1.5,  0.0, -1.0),
+  _kf(0.97, -0.5,  0.0,  1.5),
+  _kf(1.00,  0.0,  0.0,  3.5)
 ];
 
 // ════════════════════════════════════════════════════════════════════════
@@ -3829,15 +3860,20 @@ const WHALE_PATH = [
 // recta sin desviarse. La cámara nunca se mueve. La opacidad sube de 0 a 1
 // con la cercanía (no es un fade, es niebla disipándose).
 
+// REVEAL_FROM: la ballena entra al frame DESDE FUERA por la izquierda,
+// ya en movimiento. NO emerge "de la niebla" — viene nadando desde
+// fuera del viewport visible. Cuando la opacidad alcanza 1.0 ella ya
+// cruzó el borde y está visible en su trayectoria.
+//
+// La dirección REVEAL_FROM → WHALE_PATH[0] es derecha-abajo-adelante,
+// que es CONSISTENTE con la dirección del path inicial (derecha-abajo).
+// Al terminar el reveal NO hay cambio de orientación — la ballena
+// sigue nadando hacia el mismo lado.
 const REVEAL_FROM = {
-  x: 0.0,
-  y: 0.0 + _logoYWorld,
-  z: -10.0,    // muy al fondo, casi invisible por la profundidad
+  x: -8.0,                 // muy a la izquierda, FUERA del frame visible
+  y: 2.5 + _logoYWorld,    // arriba
+  z: 2.5,                  // cerca pero no encima del usuario
 };
-
-// El punto final del reveal es exactamente el WHALE_PATH[0] (hero pose).
-// No hay arco, no hay desvío. Línea recta, sutilísima curvatura por la
-// respiración y el drift orgánico que se aplican siempre.
 
 // ════════════════════════════════════════════════════════════════════════
 // SISTEMA DE ROTACIÓN — Variables auxiliares persistentes
@@ -4104,37 +4140,24 @@ function animate() {
     swimDy = heroPathPose.y - REVEAL_FROM.y;
     swimDz = heroPathPose.z - REVEAL_FROM.z;
   } else {
-    // En scroll: mirar hacia donde estará dentro de 15% (ventana grande)
+    // En scroll: mirar hacia donde estará dentro de 15% (ventana grande).
+    // 
+    // EL PATH ESTÁ DISEÑADO para que el lookAt natural funcione
+    // correctamente todo el viaje:
+    //   - Las direcciones de natación cambian suavemente entre keyframes
+    //   - Los cambios de orientación grandes se logran con ARCOS FÍSICOS
+    //     en el espacio (la ballena rodea, no rota sobre su eje)
+    //   - El lookahead grande (15%) hace que la rotación se distribuya
+    //     a lo largo de la curva, nunca se concentra en un punto
+    //
+    // No necesitamos clamps de orientación porque el path no tiene
+    // reversas bruscas — los cambios de dirección son consecuencia de
+    // la geometría de la trayectoria, no de overrides arbitrarios.
     const futureSp = Math.min(1.0, sp + 0.15);
     const futurePose = getPathPoint(WHALE_PATH, futureSp);
     swimDx = futurePose.x - heroPathPose.x;
     swimDy = futurePose.y - heroPathPose.y;
     swimDz = futurePose.z - heroPathPose.z;
-
-    // CIERRE NARRATIVO: en los últimos 7% del scroll, la ballena se
-    // acerca de frente al usuario como un "saludo final". Permitimos
-    // que la cabeza rote hacia la cámara (swimDz positivo) — único
-    // momento en toda la página donde se rompe la regla de "siempre
-    // hacia adelante". Es la excepción que prueba la regla.
-    const inClosingApproach = sp > 0.93;
-
-    if (!inClosingApproach) {
-      // ─── REGLA 1: dz siempre negativo (hacia el fondo) ───
-      const MIN_FORWARD = 0.3;
-      if (swimDz > -MIN_FORWARD) {
-        swimDz = -MIN_FORWARD;
-      }
-
-      // ─── REGLA 2: lateralidad limitada al 55% del avance Z ───
-      const MAX_LATERAL_RATIO = 0.55;
-      const maxLateral = Math.abs(swimDz) * MAX_LATERAL_RATIO;
-      if (swimDx > maxLateral) swimDx = maxLateral;
-      if (swimDx < -maxLateral) swimDx = -maxLateral;
-    }
-    // En cierre (sp > 0.93): sin clamps → la ballena puede mirar a +Z
-    // (hacia la cámara) y orientarse de frente al usuario.
-
-    // ─── REGLA 3 (siempre): dy libre — cabeceo natural arriba/abajo ───
   }
 
   const swimLen = Math.hypot(swimDx, swimDy, swimDz);
