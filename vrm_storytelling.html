@@ -455,7 +455,12 @@
     /* Fondo unificado #0A1428 (Abyss) — consistente desde el notch del iPhone
        hasta el home indicator. SIN gradient para evitar inconsistencias en
        safe areas. La aurora cinematográfica del cover se renderiza en Three.js
-       sobre este fondo y crea la transición visual sin tocar background CSS. */
+       sobre este fondo y crea la transición visual sin tocar background CSS.
+       
+       NOTA: el clearColor del renderer WebGL (renderer.setClearColor) está
+       seteado al MISMO color #0A1428 (0x0a1a2a) para que si por algún motivo
+       el canvas hace un flash mid-scroll en iOS Safari, sea imperceptible
+       contra este fondo. */
     background-color: #0A1428;
     color: var(--paper);
     font-family: var(--font-body);
@@ -493,16 +498,18 @@
     height: 100vh;
     height: 100dvh;
     transition: opacity 0.6s var(--ease-soft);
-    /* CRÍTICO iOS Safari: fuerza GPU compositing layer.
-       Sin esto, scroll fast causa repaint del canvas en CPU = jank.
-       translateZ(0) + will-change garantizan que el canvas vive en
-       su propio layer en la GPU, scroll y rotación no requieren
-       repaint, solo composite (que es 60fps gratis). */
+    /* GPU compositing hint — translateZ(0) y will-change fuerzan al
+       canvas a vivir en su propio layer GPU, lo que reduce repaints
+       costosos durante scroll.
+       
+       NOTA crítica: NO usar backface-visibility:hidden aquí. Causa el
+       bug WebKit 126267 — "portions of the screen not to update" —
+       que se manifiesta como flashes negros durante scroll en iOS.
+       También combinado con backdrop-filter:blur (que tenemos en otros
+       elementos) rompe el rendering (WebKit bug 249952). */
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
     will-change: transform;
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
   }
 
   /* Aurora pastel + sol blanco central — AHORA renderizada dentro de Three.js
@@ -4200,6 +4207,18 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, _maxDpr));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
+// ─── CRÍTICO iOS Safari ───
+// Set explicit clearColor que match EXACTAMENTE el body background-color
+// (#0A1428 Abyss). Si por alguna razón iOS Safari compone un frame parcial
+// durante scroll rápido (donde el bgScene aurora no termina de renderizarse),
+// se verá #0A1428 — el MISMO color del fondo del body — haciéndolo
+// completamente imperceptible.
+// 
+// El bug WebKit conocido (rdar://37152263) puede causar que el canvas WebGL
+// transparente muestre el contenido de abajo durante scroll en iOS 11.3+,
+// O un flash del clearColor. Al hacer match con body bg, ambos casos
+// son invisibles.
+renderer.setClearColor(0x0A1428, 1.0);
 
 /* ============================================================
    ENVIRONMENT MAP — Canvas procedural pasado por PMREMGenerator
