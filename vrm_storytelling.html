@@ -164,6 +164,7 @@
       'feat.bedrooms': 'Bedrooms',
       'feat.baths': 'Baths',
       'feat.price.unit': 'USD · night',
+      'feat.price.short': 'USD · night',
       'feat.cta': 'Check availability',
       
       // Catalog grid
@@ -292,6 +293,7 @@
       'feat.bedrooms': 'Recámaras',
       'feat.baths': 'Baños',
       'feat.price.unit': 'USD · noche',
+      'feat.price.short': 'USD · noche',
       'feat.cta': 'Ver disponibilidad',
       
       // Catalog grid
@@ -965,9 +967,12 @@
     .cover-mark-sub-wrap {
       margin-top: 6px;
     }
-    /* Subtítulo: más prominente en mobile, queda visible bajo el VRM */
+    /* Subtítulo: más prominente en mobile, queda visible bajo el VRM.
+       margin-top más grande (110px vs 60px previo) para dar respiro
+       entre el bloque del logo VRM y el bloque del título descriptivo.
+       El hero ya no se siente apretado. */
     .cover-content {
-      margin-top: 60px;
+      margin-top: 110px;
       padding: 0 24px;
     }
     .cover-title {
@@ -1840,6 +1845,18 @@
     transition: transform 1.5s var(--ease-soft);
   }
   .prop-feature:hover .prop-feature-photo img { transform: scale(1.05); }
+  
+  /* ═══════════════════════════════════════════════════════════════════
+     PHOTO OVERLAY — Precio prominente sobre la foto (sólo móvil)
+     
+     En móvil el formato vertical apretaba el precio al fondo del slide.
+     Ahora el precio flota sobre la foto como pill liquid glass premium,
+     visible inmediatamente sin scroll. En desktop está oculto porque
+     el editorial side-by-side ya muestra el precio en su posición.
+     ═══════════════════════════════════════════════════════════════════ */
+  .prop-feature-photo-overlay {
+    display: none;  /* Por default oculto. Solo móvil lo activa. */
+  }
 
   .prop-feature-content { padding: 40px 0; max-width: 540px; }
 
@@ -2754,18 +2771,58 @@
       scroll-snap-align: center;
       scroll-snap-stop: always;
     }
-    /* Foto arriba, contenido abajo dentro de cada slide */
+    /* Foto arriba, contenido abajo dentro de cada slide.
+       Mantiene 16/10 cinemático. El precio ya no está al final del
+       slide — está en overlay sobre la foto (más visible, menos scroll). */
     .prop-feature-photo {
       width: 100%;
       max-width: none;
-      /* 16/10 cinemático panorámico — antes era 4/5 (muy alto, no entraba
-         descripción + stats + CTA en una vista). 16/10 deja más espacio
-         para el contenido abajo sin perder presencia visual de la foto. */
       aspect-ratio: 16 / 10;
       margin: 0;
       border-radius: 8px;
       box-shadow: 0 24px 60px rgba(0, 20, 40, 0.42);
+      position: relative;  /* para que el overlay absoluto se ancle */
     }
+    /* OVERLAY de precio: pill liquid glass en esquina inferior derecha
+       de la foto. Inmediatamente visible, sin esperar a scroll. */
+    .prop-feature-photo-overlay {
+      display: block !important;
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      pointer-events: none;
+    }
+    .prop-feature-photo-price {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+      padding: 8px 14px 8px 16px;
+      background: rgba(7, 18, 36, 0.62);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border: 1px solid rgba(232, 228, 218, 0.30);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.10) inset,
+        0 4px 16px rgba(7, 18, 36, 0.25);
+      border-radius: 100px;
+    }
+    .prop-feature-photo-price-amount {
+      font-family: 'Boska', 'Times New Roman', serif;
+      font-style: italic;
+      font-weight: 400;
+      font-size: 22px;
+      color: rgba(232, 228, 218, 0.98);
+      line-height: 1;
+    }
+    .prop-feature-photo-price-unit {
+      font-family: 'Satoshi', sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(232, 228, 218, 0.78);
+    }
+    
     .prop-feature-content {
       padding: 0 4px;
       max-width: 100%;
@@ -2776,8 +2833,6 @@
       margin-bottom: 14px;
     }
     .prop-feature-title {
-      /* Reducido de 11vw a 9vw para que título de 2 líneas no domine
-         tanto el viewport vertical. Sigue siendo grande y editorial. */
       font-size: 9vw !important;
       line-height: 0.95;
       margin-bottom: 18px !important;
@@ -2795,10 +2850,16 @@
     }
     .prop-stat-num { font-size: 22px !important; }
     .prop-stat-label { font-size: 10px !important; }
+    /* En móvil el CTA inferior es SOLO el botón Reservar a ancho completo.
+       El precio ya está en overlay sobre la foto, así que ocultamos
+       el bloque de precio duplicado abajo. */
     .prop-feature-cta {
       flex-direction: column;
       align-items: stretch !important;
       gap: 16px !important;
+    }
+    .prop-feature-cta .prop-feature-price {
+      display: none;  /* precio duplicado: ya está en overlay */
     }
     .prop-feature-cta .btn {
       width: 100%;
@@ -3288,6 +3349,12 @@
         <div class="prop-feature-photo">
           <img src="https://i.imgur.com/e8ObYP6.jpeg"
                alt="Vallarta Gardens 2302 — La Cruz de Huanacaxtle" loading="lazy">
+          <div class="prop-feature-photo-overlay">
+            <div class="prop-feature-photo-price">
+              <span class="prop-feature-photo-price-amount">$200</span>
+              <span class="prop-feature-photo-price-unit" data-i18n="feat.price.short">USD · night</span>
+            </div>
+          </div>
         </div>
         <div class="prop-feature-content">
           <div class="prop-feature-eyebrow" data-i18n="feat.1.eyebrow">01 · La Cruz de Huanacaxtle</div>
@@ -3320,6 +3387,12 @@
         <div class="prop-feature-photo">
           <img src="https://i.imgur.com/HtlrbEg.jpeg"
                alt="Marítima 6S — Nuevo Vallarta · Flamingos" loading="lazy">
+          <div class="prop-feature-photo-overlay">
+            <div class="prop-feature-photo-price">
+              <span class="prop-feature-photo-price-amount">$190</span>
+              <span class="prop-feature-photo-price-unit" data-i18n="feat.price.short">USD · night</span>
+            </div>
+          </div>
         </div>
         <div class="prop-feature-content">
           <div class="prop-feature-eyebrow" data-i18n="feat.2.eyebrow">02 · Nuevo Vallarta · Flamingos</div>
@@ -3352,6 +3425,12 @@
         <div class="prop-feature-photo">
           <img src="https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/a2cbb607-d8f6-476d-b001-46d7baf3104c.jpeg?im_w=720"
                alt="Bolongo 211 — Punta de Mita · Riviera Nayarit" loading="lazy">
+          <div class="prop-feature-photo-overlay">
+            <div class="prop-feature-photo-price">
+              <span class="prop-feature-photo-price-amount">$220</span>
+              <span class="prop-feature-photo-price-unit" data-i18n="feat.price.short">USD · night</span>
+            </div>
+          </div>
         </div>
         <div class="prop-feature-content">
           <div class="prop-feature-eyebrow" data-i18n="feat.3.eyebrow">03 · Punta de Mita · Riviera Nayarit</div>
@@ -3384,6 +3463,12 @@
         <div class="prop-feature-photo">
           <img src="https://i.imgur.com/xhooPKT.jpeg"
                alt="Marítima Penthouse — Nuevo Vallarta · Flamingos" loading="lazy">
+          <div class="prop-feature-photo-overlay">
+            <div class="prop-feature-photo-price">
+              <span class="prop-feature-photo-price-amount">$380</span>
+              <span class="prop-feature-photo-price-unit" data-i18n="feat.price.short">USD · night</span>
+            </div>
+          </div>
         </div>
         <div class="prop-feature-content">
           <div class="prop-feature-eyebrow" data-i18n="feat.4.eyebrow">04 · Nuevo Vallarta · Flamingos</div>
@@ -6684,6 +6769,66 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
         }
       }, 700);
     });
+  });
+})();
+
+/* ============================================================
+   SCROLL UNIVERSAL CON OFFSET — Para anchor links #properties etc.
+   
+   Problema: cuando un <a href="#properties"> se clickea, el navegador
+   scrollea EXACTAMENTE al top de la sección. Pero el nav fixed tapa
+   los primeros 60-80px del contenido, así que el usuario aterriza
+   directamente en el carrusel sin ver el título "Casas destacadas".
+   
+   Solución: interceptamos clicks en anchor links y aplicamos un
+   offset adicional para que se vea el eyebrow + título antes del
+   contenido scrolleable.
+   ============================================================ */
+(function() {
+  // Selectores de anchor links que queremos interceptar
+  const selectors = [
+    'a.cover-cta[href^="#"]',
+    'a.nav-link[href^="#"]',
+    'a.nav-reserve[href^="#"]',
+    'a.sticky-action-primary[href^="#"]',
+    '.final-actions a[href^="#"]'
+  ];
+  
+  function scrollWithOffset(targetId) {
+    const target = document.querySelector(targetId);
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const absoluteTop = rect.top + window.pageYOffset;
+    // Offset extra para que se vea el eyebrow + título por encima:
+    // mobile necesita más offset porque el nav es más compacto pero
+    // el eyebrow + título grande ocupan más espacio vertical.
+    const isMobile = window.innerWidth <= 768;
+    const offset = isMobile ? 40 : 80;
+    // Nos posicionamos un poco ANTES del target para que se vea el
+    // padding-top de la sección + el eyebrow + el inicio del título.
+    window.scrollTo({
+      top: Math.max(0, absoluteTop - offset),
+      behavior: 'smooth'
+    });
+  }
+  
+  // Listener delegado en document para todos los anchor links
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href^="#"]');
+    if (!link) return;
+    
+    // Excluir el botón "Reservar" de propiedades (tiene su propio handler)
+    if (link.classList.contains('prop-reserve-trigger')) return;
+    
+    const href = link.getAttribute('href');
+    if (!href || href === '#' || href === '#top') return;
+    
+    const targetId = href;
+    const target = document.querySelector(targetId);
+    if (!target) return;
+    
+    e.preventDefault();
+    scrollWithOffset(targetId);
   });
 })();
 
