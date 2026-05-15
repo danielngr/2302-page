@@ -4509,6 +4509,33 @@ scene.background = null;
 
 console.log('%c[VRM] Tropical underwater background active', 'color:#fff;background:#1f6890;padding:4px 8px;border-radius:4px;font-weight:bold;');
 
+// ═══════════════════════════════════════════════════════════════════
+// MOBILE — Background mesh "shared" con scene principal
+// 
+// En mobile, en lugar de tener dos passes separados (bgRenderPass +
+// renderPass), añadimos UNA COPIA del background mesh a la scene
+// principal con renderOrder=-999 (se pinta primero, antes que todo).
+// 
+// El bgMaterial ya tiene depthTest=false/depthWrite=false → no
+// interfiere con la profundidad de la ballena. La camera perspective
+// de scene renderiza el background plane sin distorsión porque su
+// vertexShader usa gl_Position = vec4(position, 1.0) directo (clip
+// space), ignorando matrices.
+// 
+// Esto simplifica el pipeline mobile a UN solo RenderPass = sin
+// problemas de buffer transfer en iOS Safari.
+// ═══════════════════════════════════════════════════════════════════
+let bgMeshInMainScene = null;
+if (isMobile) {
+  // Clonamos el mesh (compartiendo geometry+material) para que se
+  // renderice en ambas scenes si es necesario. Pero para mobile solo
+  // se usa este, no el original del bgScene.
+  bgMeshInMainScene = new THREE.Mesh(bgGeometry, bgMaterial);
+  bgMeshInMainScene.renderOrder = -999;
+  bgMeshInMainScene.frustumCulled = false;  // siempre visible
+  scene.add(bgMeshInMainScene);
+}
+
 /* ============================================================
    ENVIRONMENT MAP — para reflexiones PBR (iridescencia, transmission)
    Sigue siendo equirectangular para que MeshPhysicalMaterial lo lea correcto.
@@ -4943,11 +4970,22 @@ composer.setPixelRatio(Math.min(window.devicePixelRatio, _maxDpr));
 // Se renderiza SIN limpiar el canvas (clear=true) y luego el renderPass
 // principal renderiza encima la ballena SIN limpiar (clear=false) para
 // preservar el fondo de abajo.
+// 
+// MOBILE: bgRenderPass se OMITE porque el bgMesh fue añadido directamente
+// a scene (la principal) con renderOrder=-999. Eso lo renderiza ANTES de
+// la ballena dentro del renderPass único = pipeline más simple, menos
+// buffers internos, sin riesgo de buffer transfer falle en iOS Safari.
 const bgRenderPass = new RenderPass(bgScene, bgCamera);
-composer.addPass(bgRenderPass);
+if (!isMobile) {
+  composer.addPass(bgRenderPass);
+}
 
 const renderPass = new RenderPass(scene, camera);
-renderPass.clear = false;  // ★ NO limpiar — preservar el fondo de abajo
+// En desktop renderPass NO limpia (preserva bg de bgRenderPass).
+// En mobile renderPass SÍ limpia (es el primer y único pass; necesita
+// limpiar el canvas al clearColor antes de renderizar la scene completa
+// que ya tiene el bg dentro).
+renderPass.clear = isMobile ? true : false;
 composer.addPass(renderPass);
 
 // Bloom — los highlights de Swarovski son puntuales y muy brillantes
