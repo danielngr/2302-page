@@ -2917,33 +2917,70 @@ hydratePropertyData();
 
   const backdrop = document.getElementById('bmBackdrop');
   const bm = document.getElementById('bm');
-  async function openBooking() {
+  
+  // openBooking(opts):
+  //   opts.startStep — qué paso mostrar al abrir. Default 1 (calendario).
+  //   Cuando el usuario viene de la landing con fechas pre-seleccionadas
+  //   vía URL params, llamamos con startStep=2 para saltar el calendario
+  //   (ya escogió fechas, no las pidamos de nuevo).
+  async function openBooking(opts) {
+    opts = opts || {};
+    const startStep = opts.startStep || 1;
+    
     document.body.classList.add('lock');
     backdrop.classList.add('open');
     bm.classList.add('open');
-    goStep(1);  // sincroniza header/footer/CTA con paso actual
+    
     // ★ Asegura que la availability esté cargada antes de renderizar
+    // Si vamos a saltar al Step 2 con fechas pre-llenadas, necesitamos
+    // validar que esas fechas no estén bloqueadas en Supabase ANTES
+    // de mostrar el resumen (si están bloqueadas, mejor regresar a Step 1).
     if (!_availabilityLoaded) {
       await loadRealAvailability();
-      if (typeof renderCalendar === 'function') renderCalendar();
     }
+    
+    // Validación de fechas pre-llenadas vs BLOCKED set
+    let resolvedStep = startStep;
+    if (startStep === 2 && state.checkIn && state.checkOut) {
+      let conflict = false;
+      for (let d = new Date(state.checkIn); d < state.checkOut; d = addDays(d, 1)) {
+        if (BLOCKED.has(ymd(d))) { conflict = true; break; }
+      }
+      if (conflict) {
+        // Fechas pre-llenadas chocan con bloqueos reales. Regresamos al
+        // Step 1 (calendario) para que el usuario escoja otras.
+        console.warn('[VRM] Preloaded dates conflict with BLOCKED, falling back to Step 1');
+        state.checkIn = null;
+        state.checkOut = null;
+        resolvedStep = 1;
+      }
+    }
+    
+    goStep(resolvedStep);
+    if (typeof renderCalendar === 'function') renderCalendar();
   }
   function closeBooking() {
     bm.classList.remove('open');
     backdrop.classList.remove('open');
     document.body.classList.remove('lock');
   }
-  document.querySelectorAll('[data-open-booking]').forEach(b => b.addEventListener('click', openBooking));
+  // Los botones "Reservar" de la página llaman a openBooking() sin params
+  // → empieza en Step 1 (calendario), comportamiento normal manual.
+  document.querySelectorAll('[data-open-booking]').forEach(b => b.addEventListener('click', () => openBooking()));
   
   // ═══════════════════════════════════════════════════════════════════
   // AUTO-OPEN del booking modal si vino con params de la landing.
-  // Esperamos un poco para que la página esté visualmente lista —
-  // así el usuario percibe "aterrizó en la página de la propiedad, 
-  // luego el booking modal se abrió con sus fechas".
+  // 
+  // Si tenemos fechas completas (checkIn + checkOut + guests) en el URL,
+  // saltamos directo al Step 2 (resumen) — el usuario ya escogió fechas
+  // en el picker de la landing, NO pedimos que las elija dos veces.
+  // 
+  // Si solo vino con guests (sin fechas), abrimos en Step 1 normalmente.
   // ═══════════════════════════════════════════════════════════════════
   if (window._VRM_AUTO_OPEN_BOOKING) {
+    const hasFullDates = state.checkIn && state.checkOut;
     setTimeout(() => {
-      openBooking();
+      openBooking({ startStep: hasFullDates ? 2 : 1 });
     }, 600);
   }
   document.getElementById('bmClose').addEventListener('click', closeBooking);
