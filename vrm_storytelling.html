@@ -169,7 +169,7 @@
       'why.title.italic': 'without the middleman.',
       'why.title.full': 'The bay,<br><em>without the middleman.</em>',
       'why.item1.title': 'Real people, not algorithms',
-      'why.item1.text': 'Rodrigo, Paulo and the local team manage every stay from Vallarta. No call centers. No bots. Just neighbors who know the bay.',
+      'why.item1.text': 'Rodrigo and the local team manage every stay from Vallarta. No call centers. No bots. Just neighbors who know the bay.',
       'why.item2.title': 'Save up to 15% vs Airbnb',
       'why.item2.text': 'Airbnb charges hosts 15.5% commission. Book direct and that saving stays with you and us — not a platform thousands of miles away.',
       'why.item3.title': 'Every home, personally curated',
@@ -197,7 +197,7 @@
       'final.title.combined': "We'll send you<br><em>elsewhere if we should.</em>",
       'final.cta': 'Browse stays',
       'final.whatsapp': 'WhatsApp us',
-      'final.caption': 'Based in Vallarta. We answer in English, Spanish, and Italian.',
+      'final.caption': 'Based in Vallarta. We answer in English and Spanish.',
       'final.signature': '"If the house doesn\'t fit you, we\'ll recommend another."',
       
       // Sticky action
@@ -284,7 +284,7 @@
       'why.title.italic': 'sin intermediarios.',
       'why.title.full': 'La bahía,<br><em>sin intermediarios.</em>',
       'why.item1.title': 'Personas reales, no algoritmos',
-      'why.item1.text': 'Rodrigo, Paulo y el equipo local manejan cada estancia desde Vallarta. Sin call centers. Sin bots. Vecinos que conocen la bahía.',
+      'why.item1.text': 'Rodrigo y el equipo local manejan cada estancia desde Vallarta. Sin call centers. Sin bots. Vecinos que conocen la bahía.',
       'why.item2.title': 'Ahorra hasta 15% vs Airbnb',
       'why.item2.text': 'Airbnb cobra a los anfitriones 15.5% de comisión. Reserva directo y ese ahorro queda contigo y con nosotros — no con una plataforma a miles de kilómetros.',
       'why.item3.title': 'Cada casa, personalmente curada',
@@ -312,7 +312,7 @@
       'final.title.combined': 'Te recomendaremos<br><em>otra casa si no encajas.</em>',
       'final.cta': 'Ver casas',
       'final.whatsapp': 'WhatsApp directo',
-      'final.caption': 'Basados en Vallarta. Atendemos en español, inglés e italiano.',
+      'final.caption': 'Basados en Vallarta. Atendemos en español e inglés.',
       'final.signature': '"Si la casa no encaja contigo, te recomendamos otra."',
       
       // Sticky action
@@ -1917,6 +1917,18 @@
     max-width: 1100px;
     margin-left: auto;
     margin-right: auto;
+    transition: transform 0.6s var(--ease-soft);
+  }
+  /* Highlight animation cuando el usuario llega aquí desde "Reservar"
+     en una propiedad destacada. Indica "ESTÁS AQUÍ, escoge fechas". */
+  @keyframes prop-search-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(232, 228, 218, 0.0); }
+    30%  { box-shadow: 0 0 0 12px rgba(232, 228, 218, 0.10); }
+    100% { box-shadow: 0 0 0 0 rgba(232, 228, 218, 0.0); }
+  }
+  .prop-search-bar--highlight .prop-search-inner {
+    animation: prop-search-pulse 1.8s var(--ease-soft) 0s 1;
+    border-color: rgba(232, 228, 218, 0.60) !important;
   }
   .prop-search-heading {
     text-align: center;
@@ -2370,7 +2382,10 @@
     .prop-feature-photo {
       width: 100%;
       max-width: none;
-      aspect-ratio: 4 / 5;               /* vertical premium estilo Aman, no panorámico */
+      /* 16/10 cinemático panorámico — antes era 4/5 (muy alto, no entraba
+         descripción + stats + CTA en una vista). 16/10 deja más espacio
+         para el contenido abajo sin perder presencia visual de la foto. */
+      aspect-ratio: 16 / 10;
       margin: 0;
       border-radius: 8px;
       box-shadow: 0 24px 60px rgba(0, 20, 40, 0.42);
@@ -2382,25 +2397,27 @@
     .prop-feature-eyebrow {
       font-size: 10.5px;
       letter-spacing: 0.28em;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
     .prop-feature-title {
-      font-size: 11vw !important;
+      /* Reducido de 11vw a 9vw para que título de 2 líneas no domine
+         tanto el viewport vertical. Sigue siendo grande y editorial. */
+      font-size: 9vw !important;
       line-height: 0.95;
-      margin-bottom: 20px !important;
+      margin-bottom: 18px !important;
     }
     .prop-feature-desc {
-      font-size: 16px !important;
-      line-height: 1.6 !important;
-      margin-bottom: 24px !important;
+      font-size: 15.5px !important;
+      line-height: 1.55 !important;
+      margin-bottom: 22px !important;
     }
     .prop-feature-stats {
       gap: 18px !important;
-      padding: 18px 0 !important;
-      margin-bottom: 24px !important;
+      padding: 16px 0 !important;
+      margin-bottom: 22px !important;
       justify-content: space-between;
     }
-    .prop-stat-num { font-size: 24px !important; }
+    .prop-stat-num { font-size: 22px !important; }
     .prop-stat-label { font-size: 10px !important; }
     .prop-feature-cta {
       flex-direction: column;
@@ -2912,8 +2929,10 @@
               <span class="prop-price-amount">$200</span>
               <span class="prop-price-unit" data-i18n="feat.price.unit">USD · night</span>
             </div>
-            <a href="vrm_property.html?id=2302"
-               class="btn btn-primary">
+            <a href="#prop-search-bar"
+               class="btn btn-primary prop-reserve-trigger"
+               data-prop-id="2302"
+               data-prop-guests="6">
               <span data-i18n="feat.cta">Check availability</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
@@ -2942,8 +2961,10 @@
               <span class="prop-price-amount">$190</span>
               <span class="prop-price-unit" data-i18n="feat.price.unit">USD · night</span>
             </div>
-            <a href="vrm_property.html?id=6S"
-               class="btn btn-primary">
+            <a href="#prop-search-bar"
+               class="btn btn-primary prop-reserve-trigger"
+               data-prop-id="6S"
+               data-prop-guests="6">
               <span data-i18n="feat.cta">Check availability</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
@@ -2972,8 +2993,10 @@
               <span class="prop-price-amount">$220</span>
               <span class="prop-price-unit" data-i18n="feat.price.unit">USD · night</span>
             </div>
-            <a href="vrm_property.html?id=211"
-               class="btn btn-primary">
+            <a href="#prop-search-bar"
+               class="btn btn-primary prop-reserve-trigger"
+               data-prop-id="211"
+               data-prop-guests="8">
               <span data-i18n="feat.cta">Check availability</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
@@ -3002,8 +3025,10 @@
               <span class="prop-price-amount">$380</span>
               <span class="prop-price-unit" data-i18n="feat.price.unit">USD · night</span>
             </div>
-            <a href="vrm_property.html?id=PHN"
-               class="btn btn-primary">
+            <a href="#prop-search-bar"
+               class="btn btn-primary prop-reserve-trigger"
+               data-prop-id="PHN"
+               data-prop-guests="12">
               <span data-i18n="feat.cta">Check availability</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
@@ -3223,7 +3248,7 @@
         <article class="why-item reveal reveal-d1">
           <div class="why-num">01</div>
           <h3 class="why-item-title" data-i18n="why.item1.title">Real people, not algorithms</h3>
-          <p class="why-item-text" data-i18n="why.item1.text">Rodrigo, Paulo and the local team manage every stay from Vallarta. No call centers. No bots. Just neighbors who know the bay.</p>
+          <p class="why-item-text" data-i18n="why.item1.text">Rodrigo and the local team manage every stay from Vallarta. No call centers. No bots. Just neighbors who know the bay.</p>
         </article>
 
         <article class="why-item reveal reveal-d2">
@@ -3308,7 +3333,7 @@
       <a href="https://wa.me/5213222244488" class="btn btn-secondary" target="_blank" rel="noopener" data-i18n="final.whatsapp">WhatsApp us</a>
     </div>
     <div class="final-rule"></div>
-    <p class="final-caption" data-i18n="final.caption">Based in Vallarta. We answer in English, Spanish, and Italian.</p>
+    <p class="final-caption" data-i18n="final.caption">Based in Vallarta. We answer in English and Spanish.</p>
     <p class="final-signature" data-i18n="final.signature">"If the house doesn't fit you, we'll recommend another."</p>
   </section>
 
@@ -5824,6 +5849,72 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 
   // Estado inicial
   updateCounter(0);
+})();
+
+/* ============================================================
+   PROP RESERVE TRIGGER — Botones "Reservar" de propiedades
+   destacadas. Estilo Aman: al hacer click se desplaza al
+   search bar y pre-llena la capacidad de huéspedes mínima
+   para esa propiedad. El usuario solo escoge fechas y busca.
+   
+   Cuando vrm_property.html tenga flow de reserva real con
+   Stripe, este JS se reemplaza por redirección directa.
+   ============================================================ */
+(function() {
+  const triggers = document.querySelectorAll('.prop-reserve-trigger');
+  if (triggers.length === 0) return;
+  
+  const guestsSelect = document.getElementById('search-guests');
+  const checkinInput = document.getElementById('search-checkin');
+  const searchBar = document.getElementById('prop-search-bar');
+  
+  triggers.forEach(trigger => {
+    trigger.addEventListener('click', (e) => {
+      e.preventDefault();
+      
+      const propGuests = parseInt(trigger.dataset.propGuests, 10) || 0;
+      const propId = trigger.dataset.propId || '';
+      
+      // Guardar el propId en sessionStorage para que cuando el usuario
+      // busque, podamos resaltarla en los resultados (feature futura)
+      if (propId && window.sessionStorage) {
+        try { sessionStorage.setItem('vrm_reserve_intent', propId); } catch(_) {}
+      }
+      
+      // Pre-llenar capacidad de huéspedes con el valor más cercano
+      // ≥ a la capacidad de esa propiedad
+      if (guestsSelect && propGuests > 0) {
+        const options = Array.from(guestsSelect.options);
+        // Buscar el primer valor que ≥ propGuests
+        const match = options.find(o => parseInt(o.value, 10) >= propGuests);
+        if (match) {
+          guestsSelect.value = match.value;
+          // Disparar evento change para que filterState se actualice
+          guestsSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+      
+      // Scroll suave al search bar
+      if (searchBar) {
+        searchBar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Highlight visual breve del search bar para que el usuario sepa
+        // que tiene que escoger fechas ahí
+        searchBar.classList.add('prop-search-bar--highlight');
+        setTimeout(() => {
+          searchBar.classList.remove('prop-search-bar--highlight');
+        }, 2400);
+        
+        // Después del scroll, dar foco al checkin para invitar a la
+        // selección de fechas
+        setTimeout(() => {
+          if (checkinInput) {
+            try { checkinInput.focus({ preventScroll: true }); } catch(_) {}
+          }
+        }, 800);
+      }
+    });
+  });
 })();
 
 /* ============================================================
