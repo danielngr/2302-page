@@ -127,6 +127,8 @@
       'search.button': 'Search',
       'search.dates': 'Dates',
       'search.dates.placeholder': 'Add dates',
+      'search.dates.placeholder.in': 'Add date',
+      'search.dates.placeholder.out': 'Add date',
       
       // Date range picker modal
       'picker.title': 'Select your stay',
@@ -256,6 +258,8 @@
       'search.button': 'Buscar',
       'search.dates': 'Fechas',
       'search.dates.placeholder': 'Agregar fechas',
+      'search.dates.placeholder.in': 'Llegada',
+      'search.dates.placeholder.out': 'Salida',
       
       // Date range picker modal
       'picker.title': 'Elige tu estancia',
@@ -2470,7 +2474,17 @@
     .prop-search-trigger-divider { margin: 4px 0; }
     .prop-search-trigger-icon { width: 40px; height: 40px; margin-left: 6px; }
     
-    /* Modal full-screen en móvil */
+    /* ════════════════════════════════════════════════════════════
+       MODAL PICKER MÓVIL — Layout completo en una pantalla
+       
+       Estructura vertical estricta:
+       - Header (título + cerrar)         ~50px
+       - Summary blocks (in/out)          ~70px
+       - Nav meses (anterior/siguiente)   ~36px
+       - UN solo mes calendar             flex auto
+       - Guests counter                   ~70px
+       - Actions (Clear / Search)         ~56px sticky bottom
+       ════════════════════════════════════════════════════════════ */
     .picker-overlay {
       padding: 0;
       align-items: stretch;
@@ -2478,36 +2492,92 @@
     .picker-modal {
       max-width: 100%;
       min-height: 100%;
+      max-height: 100vh;
+      max-height: 100dvh;
       border-radius: 0;
-      padding: 20px 18px 32px;
+      padding: 18px 18px 0;  /* bottom 0 porque actions se ponen sticky */
       border: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
     }
-    .picker-header { margin-bottom: 20px; }
-    .picker-title { font-size: 22px; }
-    .picker-summary { flex-direction: row; gap: 8px; margin-bottom: 18px; }
-    .picker-summary-block { padding: 12px 14px; }
-    .picker-summary-value { font-size: 16px; }
+    .picker-header { margin-bottom: 14px; flex-shrink: 0; }
+    .picker-title { font-size: 20px; }
+    .picker-summary {
+      flex-direction: row;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+    .picker-summary-block { padding: 10px 14px; }
+    .picker-summary-label { font-size: 9px; letter-spacing: 0.22em; }
+    .picker-summary-value { font-size: 15px; }
     .picker-summary-arrow { font-size: 14px; }
     
-    /* Calendarios apilados verticalmente */
-    .picker-months {
-      grid-template-columns: 1fr;
-      gap: 28px;
+    /* Wrapper del calendario: flex auto para crecer entre summary y guests.
+       En móvil mostramos SOLO el primer mes. Las flechas arriba navegan. */
+    .picker-calendar-wrap {
+      flex: 1 1 auto;
+      min-height: 0;
+      margin-bottom: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
     .picker-calendar-controls {
       position: relative;
-      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      flex-shrink: 0;
+    }
+    .picker-nav {
+      width: 32px;
+      height: 32px;
+    }
+    /* Solo el PRIMER mes visible en móvil — el segundo se oculta.
+       Las flechas arriba avanzan el viewMonth. */
+    .picker-months {
+      grid-template-columns: 1fr;
+      gap: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+    .picker-months .picker-month:nth-child(n+2) {
+      display: none;
     }
     .picker-day { font-size: 13px; }
-    .picker-month-title { font-size: 16px; margin-bottom: 12px; }
+    .picker-month-title {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    .picker-weekdays { margin-bottom: 4px; }
+    .picker-weekday { font-size: 9px; padding: 4px 0; }
     
-    .picker-guests { padding: 16px 18px; margin-bottom: 20px; }
-    .picker-guests-title { font-size: 15px; }
+    .picker-guests {
+      padding: 14px 16px;
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+    .picker-guests-title { font-size: 14px; }
     .picker-guests-sub { font-size: 11px; }
+    .picker-guests-btn { width: 32px; height: 32px; }
+    .picker-guests-count { font-size: 20px; }
     
+    /* ACTIONS pegadas al bottom: SIEMPRE visibles sin scrollear.
+       Padding bottom respeta safe-area del home indicator iOS. */
     .picker-actions {
       flex-direction: row;
       justify-content: space-between;
+      flex-shrink: 0;
+      padding: 14px 0 calc(14px + env(safe-area-inset-bottom, 0px));
+      margin: 0 -18px 0;  /* extiende al borde del modal */
+      padding-left: 18px;
+      padding-right: 18px;
+      background: rgba(26, 46, 72, 0.96);
+      border-top: 1px solid rgba(232, 228, 218, 0.10);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
     }
     .picker-confirm {
       padding: 14px 24px;
@@ -3372,13 +3442,13 @@
               <span class="prop-price-amount">$200</span>
               <span class="prop-price-unit" data-i18n="feat.price.unit">USD · night</span>
             </div>
-            <a href="#prop-search-bar"
+            <button type="button"
                class="btn btn-primary prop-reserve-trigger"
                data-prop-id="2302"
                data-prop-guests="6">
               <span data-i18n="feat.cta">Check availability</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </a>
+            </button>
           </div>
         </div>
       </article>
@@ -3410,13 +3480,13 @@
               <span class="prop-price-amount">$190</span>
               <span class="prop-price-unit" data-i18n="feat.price.unit">USD · night</span>
             </div>
-            <a href="#prop-search-bar"
+            <button type="button"
                class="btn btn-primary prop-reserve-trigger"
                data-prop-id="6S"
                data-prop-guests="6">
               <span data-i18n="feat.cta">Check availability</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </a>
+            </button>
           </div>
         </div>
       </article>
@@ -3448,13 +3518,13 @@
               <span class="prop-price-amount">$220</span>
               <span class="prop-price-unit" data-i18n="feat.price.unit">USD · night</span>
             </div>
-            <a href="#prop-search-bar"
+            <button type="button"
                class="btn btn-primary prop-reserve-trigger"
                data-prop-id="211"
                data-prop-guests="8">
               <span data-i18n="feat.cta">Check availability</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </a>
+            </button>
           </div>
         </div>
       </article>
@@ -3486,13 +3556,13 @@
               <span class="prop-price-amount">$380</span>
               <span class="prop-price-unit" data-i18n="feat.price.unit">USD · night</span>
             </div>
-            <a href="#prop-search-bar"
+            <button type="button"
                class="btn btn-primary prop-reserve-trigger"
                data-prop-id="PHN"
                data-prop-guests="12">
               <span data-i18n="feat.cta">Check availability</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </a>
+            </button>
           </div>
         </div>
       </article>
@@ -3518,16 +3588,21 @@
         <h3 class="prop-search-title" data-i18n-html="search.title.full">Pick your dates, <em>see what's open.</em></h3>
       </div>
 
-      <!-- TRIGGER PILL — un solo elemento clickeable que abre el modal.
-           Muestra el estado resumido (fechas + huéspedes) o un placeholder
-           invitando a agregar. Liquid glass premium, sin inputs nativos. -->
+      <!-- TRIGGER PILL — 3 secciones visibles: Check-in, Check-out, Guests.
+           Cada una con su propio label. Si el usuario tap en cualquier
+           sección, se abre el modal y permite editar todo. Liquid glass. -->
       <button type="button" class="prop-search-trigger" id="search-trigger" aria-haspopup="dialog" aria-expanded="false">
         <div class="prop-search-trigger-section">
-          <span class="prop-search-trigger-label" data-i18n="search.dates">Dates</span>
-          <span class="prop-search-trigger-value" id="search-trigger-dates" data-i18n="search.dates.placeholder">Add dates</span>
+          <span class="prop-search-trigger-label" data-i18n="search.checkin">Check-in</span>
+          <span class="prop-search-trigger-value" id="search-trigger-checkin" data-i18n="search.dates.placeholder.in">Add date</span>
         </div>
         <div class="prop-search-trigger-divider"></div>
         <div class="prop-search-trigger-section">
+          <span class="prop-search-trigger-label" data-i18n="search.checkout">Check-out</span>
+          <span class="prop-search-trigger-value" id="search-trigger-checkout" data-i18n="search.dates.placeholder.out">Add date</span>
+        </div>
+        <div class="prop-search-trigger-divider"></div>
+        <div class="prop-search-trigger-section prop-search-trigger-section-guests">
           <span class="prop-search-trigger-label" data-i18n="search.guests">Guests</span>
           <span class="prop-search-trigger-value" id="search-trigger-guests" data-i18n="search.guests.any">Any</span>
         </div>
@@ -6415,7 +6490,6 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   const confirmBtn     = document.getElementById('picker-confirm');
   const summaryCheckin = document.getElementById('picker-summary-checkin');
   const summaryCheckout= document.getElementById('picker-summary-checkout');
-  const triggerDates   = document.getElementById('search-trigger-dates');
   const triggerGuests  = document.getElementById('search-trigger-guests');
   // Inputs ocultos para integración con filtro existente
   const hiddenCheckin  = document.getElementById('search-checkin');
@@ -6554,21 +6628,30 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   }
   
   function updateTrigger() {
-    // Actualiza el trigger pill afuera del modal con resumen
-    if (state.checkin && state.checkout) {
-      const nights = daysBetween(state.checkin, state.checkout);
-      const nightLabel = nights === 1
-        ? (window.VRM_LANG === 'es' ? 'noche' : 'night')
-        : (window.VRM_LANG === 'es' ? 'noches' : 'nights');
-      triggerDates.textContent = `${formatDate(state.checkin)} — ${formatDate(state.checkout)} · ${nights} ${nightLabel}`;
-      triggerDates.classList.remove('is-placeholder');
-    } else if (state.checkin) {
-      triggerDates.textContent = formatDate(state.checkin) + ' →';
-      triggerDates.classList.remove('is-placeholder');
-    } else {
-      const placeholder = (window.VRM_LANG === 'es') ? 'Agregar fechas' : 'Add dates';
-      triggerDates.textContent = placeholder;
-      triggerDates.classList.add('is-placeholder');
+    // Trigger pill tiene 3 secciones independientes: check-in, check-out, guests
+    // Cada una se actualiza por separado.
+    const triggerCheckin  = document.getElementById('search-trigger-checkin');
+    const triggerCheckout = document.getElementById('search-trigger-checkout');
+    const placeholderIn   = (window.VRM_LANG === 'es') ? 'Llegada' : 'Add date';
+    const placeholderOut  = (window.VRM_LANG === 'es') ? 'Salida' : 'Add date';
+    
+    if (triggerCheckin) {
+      if (state.checkin) {
+        triggerCheckin.textContent = formatDate(state.checkin);
+        triggerCheckin.classList.remove('is-placeholder');
+      } else {
+        triggerCheckin.textContent = placeholderIn;
+        triggerCheckin.classList.add('is-placeholder');
+      }
+    }
+    if (triggerCheckout) {
+      if (state.checkout) {
+        triggerCheckout.textContent = formatDate(state.checkout);
+        triggerCheckout.classList.remove('is-placeholder');
+      } else {
+        triggerCheckout.textContent = placeholderOut;
+        triggerCheckout.classList.add('is-placeholder');
+      }
     }
     
     if (state.guests > 0) {
@@ -6641,6 +6724,12 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     attachDayListeners();
   }
   function closePicker() {
+    // Quita el foco de cualquier elemento dentro del modal ANTES de
+    // marcarlo aria-hidden. Esto evita el warning de accesibilidad
+    // "aria-hidden on element with focused descendant".
+    if (document.activeElement && overlay.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
     overlay.classList.remove('is-open');
     overlay.setAttribute('aria-hidden', 'true');
     trigger.setAttribute('aria-expanded', 'false');
@@ -6723,7 +6812,8 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 
 /* ============================================================
    PROP RESERVE TRIGGER — Botones "Reservar" de propiedades.
-   Llama a window.VRM_openPicker con la capacidad de la propiedad.
+   Ahora son <button>, no <a>, así que el navegador no intenta
+   navegar ni el handler universal de anchor los intercepta.
    ============================================================ */
 (function() {
   const triggers = document.querySelectorAll('.prop-reserve-trigger');
@@ -6733,41 +6823,24 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   
   triggers.forEach(trigger => {
     trigger.addEventListener('click', (e) => {
-      e.preventDefault();
       e.stopPropagation();
       
       const propGuests = parseInt(trigger.dataset.propGuests, 10) || 0;
       const propId = trigger.dataset.propId || '';
       
-      // Guardar el propId en sessionStorage
+      // Guardar el propId en sessionStorage (uso futuro)
       if (propId && window.sessionStorage) {
         try { sessionStorage.setItem('vrm_reserve_intent', propId); } catch(_) {}
       }
       
-      // Scroll robusto: calculamos la posición absoluta del search bar
-      // (NO scrollIntoView que falla con scroll horizontal del carrusel)
-      if (searchBar) {
-        const rect = searchBar.getBoundingClientRect();
-        const absoluteTop = rect.top + window.pageYOffset;
-        const offset = 80; // espacio del nav arriba
-        window.scrollTo({
-          top: Math.max(0, absoluteTop - offset),
-          behavior: 'smooth'
-        });
-        
-        // Highlight visual del search bar
-        searchBar.classList.add('prop-search-bar--highlight');
-        setTimeout(() => {
-          searchBar.classList.remove('prop-search-bar--highlight');
-        }, 2400);
+      // ABRIR EL PICKER INMEDIATAMENTE — sin scroll previo.
+      // El modal es overlay full-screen, así que NO importa dónde
+      // esté el viewport: el usuario verá el calendario al instante.
+      // Esto es lo que hace Aman/Airbnb/Booking — click reservar →
+      // abre directamente picker, no hace scroll lejano.
+      if (window.VRM_openPicker) {
+        window.VRM_openPicker({ guests: propGuests });
       }
-      
-      // Abrir el picker después del scroll
-      setTimeout(() => {
-        if (window.VRM_openPicker) {
-          window.VRM_openPicker({ guests: propGuests });
-        }
-      }, 700);
     });
   });
 })();
