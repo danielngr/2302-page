@@ -125,6 +125,19 @@
       'search.guests': 'Guests',
       'search.guests.any': 'Any',
       'search.button': 'Search',
+      'search.dates': 'Dates',
+      'search.dates.placeholder': 'Add dates',
+      
+      // Date range picker modal
+      'picker.title': 'Select your stay',
+      'picker.summary.empty': '—',
+      'picker.guests.sub': 'How many people',
+      'picker.clear': 'Clear all',
+      'picker.confirm': 'Search',
+      'picker.nights': 'nights',
+      'picker.night': 'night',
+      'picker.guests.label': 'guests',
+      'picker.guest.label': 'guest',
       
       // Featured properties (4 destacadas)
       'feat.1.eyebrow': '01 · La Cruz de Huanacaxtle',
@@ -240,6 +253,19 @@
       'search.guests': 'Huéspedes',
       'search.guests.any': 'Cualquiera',
       'search.button': 'Buscar',
+      'search.dates': 'Fechas',
+      'search.dates.placeholder': 'Agregar fechas',
+      
+      // Date range picker modal
+      'picker.title': 'Elige tu estancia',
+      'picker.summary.empty': '—',
+      'picker.guests.sub': 'Cuántas personas',
+      'picker.clear': 'Limpiar',
+      'picker.confirm': 'Buscar',
+      'picker.nights': 'noches',
+      'picker.night': 'noche',
+      'picker.guests.label': 'huéspedes',
+      'picker.guest.label': 'huésped',
       
       // Featured properties (4 destacadas)
       'feat.1.eyebrow': '01 · La Cruz de Huanacaxtle',
@@ -1908,27 +1934,27 @@
 
   /* ============ SEARCH BAR FECHAS + HUÉSPEDES ============ */
   /* ═══════════════════════════════════════════════════════════════════
-     SEARCH BAR — Filtro de fechas y huéspedes
-     Diseño premium pero VISIBLE: contraste suficiente para que el usuario
-     entienda inmediatamente que esto es interactivo, sin perder elegancia.
+     SEARCH BAR — Date Range Picker premium
+     Trigger pill liquid glass que abre un modal con calendario, guests
+     selector y CTA. Reemplaza los inputs nativos feos por un sistema
+     coherente con el resto del sistema (cards reviews, nav-reserve).
      ═══════════════════════════════════════════════════════════════════ */
   .prop-search-bar {
     margin: 100px var(--side) 60px;
-    max-width: 1100px;
+    max-width: 720px;
     margin-left: auto;
     margin-right: auto;
     transition: transform 0.6s var(--ease-soft);
   }
-  /* Highlight animation cuando el usuario llega aquí desde "Reservar"
-     en una propiedad destacada. Indica "ESTÁS AQUÍ, escoge fechas". */
+  /* Highlight animation cuando se llega aquí desde "Reservar" */
   @keyframes prop-search-pulse {
     0%   { box-shadow: 0 0 0 0 rgba(232, 228, 218, 0.0); }
-    30%  { box-shadow: 0 0 0 12px rgba(232, 228, 218, 0.10); }
+    30%  { box-shadow: 0 0 0 16px rgba(232, 228, 218, 0.10); }
     100% { box-shadow: 0 0 0 0 rgba(232, 228, 218, 0.0); }
   }
-  .prop-search-bar--highlight .prop-search-inner {
+  .prop-search-bar--highlight .prop-search-trigger {
     animation: prop-search-pulse 1.8s var(--ease-soft) 0s 1;
-    border-color: rgba(232, 228, 218, 0.60) !important;
+    border-color: rgba(232, 228, 218, 0.62) !important;
   }
   .prop-search-heading {
     text-align: center;
@@ -1943,7 +1969,7 @@
     color: rgba(232, 228, 218, 0.55);
     margin-bottom: 12px;
     display: inline-block;
-    margin-right: -0.34em;  /* compensa letter-spacing fantasma */
+    margin-right: -0.34em;
   }
   .prop-search-title {
     font-family: 'Boska', 'Times New Roman', serif;
@@ -1958,119 +1984,85 @@
     font-style: normal;
     color: rgba(232, 228, 218, 0.55);
   }
-  .prop-search-inner {
+  /* ═══════════════════════════════════════════════════════════════════
+     TRIGGER PILL — Un solo botón liquid glass que abre el modal.
+     Mismo lenguaje visual que nav-reserve y reviews card.
+     ═══════════════════════════════════════════════════════════════════ */
+  .prop-search-trigger {
     display: flex;
-    align-items: stretch;
-    background: rgba(26, 46, 72, 0.72);  /* más opaco (era 0.4) */
-    border: 1px solid rgba(197, 187, 168, 0.32);  /* más visible (era 0.18) */
+    align-items: center;
+    width: 100%;
+    padding: 14px 18px 14px 28px;
+    background: rgba(26, 46, 72, 0.55);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(232, 228, 218, 0.30);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 8px 28px rgba(7, 18, 36, 0.28);
     border-radius: 100px;
-    padding: 10px 12px;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    transition: border-color 0.3s var(--ease-soft), background 0.3s var(--ease-soft);
-    box-shadow: 0 8px 32px rgba(7, 18, 36, 0.3);  /* eleva el bar */
+    color: var(--paper);
+    cursor: pointer;
+    font-family: 'Satoshi', sans-serif;
+    text-align: left;
+    transition: all 0.4s var(--ease-soft);
+    gap: 0;
   }
-  .prop-search-inner:hover {
-    border-color: rgba(197, 187, 168, 0.55);
-    background: rgba(26, 46, 72, 0.82);
+  .prop-search-trigger:hover {
+    background: rgba(26, 46, 72, 0.72);
+    border-color: rgba(232, 228, 218, 0.50);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.14) inset,
+      0 12px 36px rgba(7, 18, 36, 0.38);
   }
-  .prop-search-field {
+  .prop-search-trigger-section {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 12px 24px;
-    cursor: pointer;
-    border-radius: 100px;
-    transition: background 0.3s var(--ease-soft);
+    gap: 4px;
+    padding: 4px 16px;
+    min-width: 0;
   }
-  .prop-search-field:hover {
-    background: rgba(232, 228, 218, 0.06);
-  }
-  .prop-search-field-guests { flex: 0.8; }
-  .prop-search-label {
-    font-family: 'Satoshi', sans-serif;
+  .prop-search-trigger-label {
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.24em;
+    letter-spacing: 0.28em;
     text-transform: uppercase;
-    color: rgba(232, 228, 218, 0.72);  /* más visible (era 0.55) */
-    margin-bottom: 6px;
+    color: rgba(232, 228, 218, 0.72);
   }
-  .prop-search-input {
-    background: transparent;
-    border: none;
-    outline: none;
-    color: rgba(232, 228, 218, 0.98);
-    font-family: 'Satoshi', sans-serif;
+  .prop-search-trigger-value {
     font-size: 15px;
     font-weight: 500;
-    cursor: pointer;
-    padding: 0;
-    width: 100%;
-    color-scheme: dark;
+    color: rgba(232, 228, 218, 0.98);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  /* Cuando el input no tiene valor, mostrar placeholder más visible */
-  .prop-search-input:not([value]):not(:focus),
-  .prop-search-input[value=""]:not(:focus) {
-    color: rgba(232, 228, 218, 0.42);
+  .prop-search-trigger-value.is-placeholder {
+    color: rgba(232, 228, 218, 0.45);
+    font-style: italic;
   }
-  .prop-search-input::-webkit-calendar-picker-indicator {
-    filter: invert(0.8);
-    opacity: 0.7;
-    cursor: pointer;
+  .prop-search-trigger-divider {
+    width: 1px;
+    align-self: stretch;
+    background: rgba(232, 228, 218, 0.18);
+    margin: 6px 0;
   }
-  /* Botón "Search" explícito al final del search bar */
-  .prop-search-button {
+  .prop-search-trigger-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    background: rgba(232, 228, 218, 0.94);
-    color: var(--ink);
-    border: none;
-    border-radius: 100px;
-    padding: 14px 28px;
-    font-family: 'Satoshi', sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.20em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: background 0.3s var(--ease-soft), transform 0.3s var(--ease-soft);
-    margin-left: 8px;
-    /* Compensar letter-spacing fantasma para padding visualmente simétrico */
-    padding-right: calc(28px - 0.20em);
-  }
-  .prop-search-button:hover {
-    background: rgba(255, 255, 255, 1);
-    transform: scale(1.02);
-  }
-  .prop-search-button:active {
-    transform: scale(0.98);
-  }
-  .prop-search-divider {
-    width: 1px;
-    background: rgba(197, 187, 168, 0.16);
-    margin: 8px 0;
-  }
-  .prop-search-clear {
-    align-self: center;
-    margin: 0 6px 0 4px;
-    width: 40px;
-    height: 40px;
-    background: rgba(217, 119, 87, 0.18);
-    border: 1px solid rgba(217, 119, 87, 0.32);
-    color: var(--coral);
+    width: 44px;
+    height: 44px;
+    margin-left: 12px;
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.25s var(--ease-soft);
+    background: rgba(232, 228, 218, 0.92);
+    color: var(--ink);
+    flex-shrink: 0;
+    transition: background 0.3s var(--ease-soft);
   }
-  .prop-search-clear:hover {
-    background: rgba(217, 119, 87, 0.32);
-    transform: scale(1.05);
+  .prop-search-trigger:hover .prop-search-trigger-icon {
+    background: rgba(255, 255, 255, 1);
   }
   .prop-search-status {
     margin-top: 16px;
@@ -2085,40 +2077,424 @@
     font-weight: 500;
   }
 
+  /* ═══════════════════════════════════════════════════════════════════
+     PICKER MODAL — Overlay full-screen con liquid glass
+     Calendar range picker + guests counter + acciones.
+     ═══════════════════════════════════════════════════════════════════ */
+  .picker-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(7, 18, 36, 0.55);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s var(--ease-soft);
+    padding: 40px 20px;
+    overflow-y: auto;
+  }
+  .picker-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .picker-modal {
+    width: 100%;
+    max-width: 720px;
+    background: rgba(26, 46, 72, 0.92);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(232, 228, 218, 0.18);
+    border-radius: 24px;
+    padding: 32px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 40px 120px rgba(0, 0, 0, 0.55);
+    color: var(--paper);
+    transform: translateY(20px) scale(0.98);
+    transition: transform 0.5s var(--ease-soft);
+    margin: auto;
+  }
+  .picker-overlay.is-open .picker-modal {
+    transform: translateY(0) scale(1);
+  }
+  .picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+  .picker-title {
+    font-family: 'Boska', 'Times New Roman', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 26px;
+    margin: 0;
+    color: var(--paper);
+  }
+  .picker-close {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: rgba(232, 228, 218, 0.08);
+    border: 1px solid rgba(232, 228, 218, 0.18);
+    color: var(--paper);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s var(--ease-soft);
+  }
+  .picker-close:hover {
+    background: rgba(232, 228, 218, 0.16);
+    border-color: rgba(232, 228, 218, 0.40);
+  }
+  
+  /* Summary boxes (check-in / check-out) */
+  .picker-summary {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .picker-summary-block {
+    flex: 1;
+    padding: 16px 20px;
+    background: rgba(232, 228, 218, 0.06);
+    border: 1px solid rgba(232, 228, 218, 0.14);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: all 0.3s var(--ease-soft);
+  }
+  .picker-summary-block.is-active {
+    background: rgba(232, 228, 218, 0.14);
+    border-color: rgba(232, 228, 218, 0.42);
+  }
+  .picker-summary-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(232, 228, 218, 0.62);
+  }
+  .picker-summary-value {
+    font-family: 'Boska', 'Times New Roman', serif;
+    font-style: italic;
+    font-size: 20px;
+    color: var(--paper);
+  }
+  .picker-summary-arrow {
+    align-self: center;
+    color: rgba(232, 228, 218, 0.40);
+    font-size: 20px;
+  }
+  
+  /* Calendar */
+  .picker-calendar-wrap {
+    position: relative;
+    margin-bottom: 24px;
+  }
+  .picker-calendar-controls {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .picker-nav {
+    pointer-events: auto;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(232, 228, 218, 0.08);
+    border: 1px solid rgba(232, 228, 218, 0.18);
+    color: var(--paper);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s var(--ease-soft);
+  }
+  .picker-nav:hover {
+    background: rgba(232, 228, 218, 0.16);
+    border-color: rgba(232, 228, 218, 0.40);
+  }
+  .picker-months {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    padding: 8px 0 0;
+  }
+  .picker-month-title {
+    text-align: center;
+    font-family: 'Boska', 'Times New Roman', serif;
+    font-style: italic;
+    font-size: 18px;
+    margin: 0 0 16px;
+    color: var(--paper);
+  }
+  .picker-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0;
+    margin-bottom: 8px;
+  }
+  .picker-weekday {
+    text-align: center;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    color: rgba(232, 228, 218, 0.50);
+    padding: 6px 0;
+  }
+  .picker-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+  .picker-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(232, 228, 218, 0.88);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: all 0.2s var(--ease-soft);
+    position: relative;
+  }
+  .picker-day:hover:not(:disabled):not(.is-empty) {
+    background: rgba(232, 228, 218, 0.12);
+  }
+  .picker-day:disabled,
+  .picker-day.is-past {
+    color: rgba(232, 228, 218, 0.20);
+    cursor: not-allowed;
+  }
+  .picker-day.is-empty {
+    pointer-events: none;
+  }
+  .picker-day.is-today {
+    font-weight: 700;
+    color: var(--gold-soft);
+  }
+  /* Day in range — fondo continuo */
+  .picker-day.is-in-range {
+    background: rgba(232, 228, 218, 0.14);
+    border-radius: 0;
+  }
+  /* Edges del range */
+  .picker-day.is-range-start,
+  .picker-day.is-range-end {
+    background: rgba(232, 228, 218, 0.94);
+    color: var(--ink);
+    font-weight: 600;
+    border-radius: 50%;
+  }
+  /* Single selection (solo check-in, sin checkout aún) */
+  .picker-day.is-selected-single {
+    background: rgba(232, 228, 218, 0.94);
+    color: var(--ink);
+    font-weight: 600;
+  }
+  /* Conexión visual entre range-start y in-range */
+  .picker-day.is-range-start::before,
+  .picker-day.is-range-end::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+    background: rgba(232, 228, 218, 0.14);
+    z-index: -1;
+  }
+  .picker-day.is-range-start::before { right: 0; }
+  .picker-day.is-range-end::after { left: 0; }
+  .picker-day.is-range-start.is-range-end::before,
+  .picker-day.is-range-start.is-range-end::after {
+    display: none;
+  }
+  
+  /* Guests counter */
+  .picker-guests {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    background: rgba(232, 228, 218, 0.06);
+    border: 1px solid rgba(232, 228, 218, 0.14);
+    border-radius: 14px;
+    margin-bottom: 24px;
+  }
+  .picker-guests-label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .picker-guests-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--paper);
+  }
+  .picker-guests-sub {
+    font-size: 12px;
+    color: rgba(232, 228, 218, 0.60);
+  }
+  .picker-guests-counter {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .picker-guests-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid rgba(232, 228, 218, 0.32);
+    color: var(--paper);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s var(--ease-soft);
+  }
+  .picker-guests-btn:hover:not(:disabled) {
+    background: rgba(232, 228, 218, 0.12);
+    border-color: rgba(232, 228, 218, 0.55);
+  }
+  .picker-guests-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .picker-guests-count {
+    min-width: 32px;
+    text-align: center;
+    font-family: 'Boska', 'Times New Roman', serif;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--paper);
+  }
+  
+  /* Actions */
+  .picker-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .picker-clear {
+    background: transparent;
+    border: none;
+    color: rgba(232, 228, 218, 0.62);
+    font-family: 'Satoshi', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    cursor: pointer;
+    padding: 8px 4px;
+    transition: color 0.25s var(--ease-soft);
+  }
+  .picker-clear:hover { color: var(--paper); }
+  .picker-confirm {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 32px;
+    background: rgba(232, 228, 218, 0.94);
+    color: var(--ink);
+    border: none;
+    border-radius: 100px;
+    font-family: 'Satoshi', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.25s var(--ease-soft);
+    padding-right: calc(32px - 0.22em);
+  }
+  .picker-confirm:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.02);
+  }
+  .picker-confirm:active {
+    transform: scale(0.98);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     MÓVIL — Modal full-screen, calendarios apilados verticalmente
+     ═══════════════════════════════════════════════════════════════════ */
   @media (max-width: 768px) {
-    .prop-search-bar { margin: 80px 20px 40px; }
+    .prop-search-bar { margin: 60px 20px 40px; max-width: 100%; }
     .prop-search-heading { margin-bottom: 24px; }
     .prop-search-eyebrow { font-size: 9.5px; letter-spacing: 0.28em; margin-right: -0.28em; }
     .prop-search-title { font-size: 24px; }
-    .prop-search-inner {
-      flex-direction: column;
-      border-radius: 24px;
-      padding: 6px;
-      gap: 2px;
+    .prop-search-trigger {
+      flex-direction: row;
+      padding: 8px 8px 8px 20px;
+      border-radius: 100px;
     }
-    .prop-search-field {
-      padding: 14px 20px;
-      border-radius: 20px;
+    .prop-search-trigger-section { padding: 6px 8px; }
+    .prop-search-trigger-label { font-size: 9px; letter-spacing: 0.22em; }
+    .prop-search-trigger-value { font-size: 13px; }
+    .prop-search-trigger-divider { margin: 4px 0; }
+    .prop-search-trigger-icon { width: 40px; height: 40px; margin-left: 6px; }
+    
+    /* Modal full-screen en móvil */
+    .picker-overlay {
+      padding: 0;
+      align-items: stretch;
     }
-    .prop-search-divider {
-      width: 100%;
-      height: 1px;
-      margin: 0 0;
+    .picker-modal {
+      max-width: 100%;
+      min-height: 100%;
+      border-radius: 0;
+      padding: 20px 18px 32px;
+      border: none;
     }
-    /* Botón Search en móvil: fila completa, prominente */
-    .prop-search-button {
-      width: 100%;
-      margin: 6px 0 0;
-      padding: 16px 24px;
-      border-radius: 20px;
-      font-size: 13px;
+    .picker-header { margin-bottom: 20px; }
+    .picker-title { font-size: 22px; }
+    .picker-summary { flex-direction: row; gap: 8px; margin-bottom: 18px; }
+    .picker-summary-block { padding: 12px 14px; }
+    .picker-summary-value { font-size: 16px; }
+    .picker-summary-arrow { font-size: 14px; }
+    
+    /* Calendarios apilados verticalmente */
+    .picker-months {
+      grid-template-columns: 1fr;
+      gap: 28px;
     }
-    .prop-search-clear {
-      align-self: stretch;
-      width: auto;
-      height: 44px;
-      border-radius: 20px;
-      margin: 4px 0 0;
+    .picker-calendar-controls {
+      position: relative;
+      margin-bottom: 8px;
+    }
+    .picker-day { font-size: 13px; }
+    .picker-month-title { font-size: 16px; margin-bottom: 12px; }
+    
+    .picker-guests { padding: 16px 18px; margin-bottom: 20px; }
+    .picker-guests-title { font-size: 15px; }
+    .picker-guests-sub { font-size: 11px; }
+    
+    .picker-actions {
+      flex-direction: row;
+      justify-content: space-between;
+    }
+    .picker-confirm {
+      padding: 14px 24px;
+      padding-right: calc(24px - 0.22em);
     }
   }
 
@@ -3050,50 +3426,113 @@
       </div>
     </div>
 
-    <!-- ============== SEARCH BAR — FECHAS + HUÉSPEDES ============== -->
+    <!-- ============== SEARCH BAR — Date Range Picker Premium ============== -->
     <div class="prop-search-bar" id="prop-search-bar">
       <div class="prop-search-heading">
         <div class="prop-search-eyebrow" data-i18n="search.eyebrow">— Find your stay</div>
         <h3 class="prop-search-title" data-i18n-html="search.title.full">Pick your dates, <em>see what's open.</em></h3>
       </div>
-      <div class="prop-search-inner">
-        <label class="prop-search-field">
-          <span class="prop-search-label" data-i18n="search.checkin">Check-in</span>
-          <input type="date" id="search-checkin" class="prop-search-input" />
-        </label>
-        <div class="prop-search-divider"></div>
-        <label class="prop-search-field">
-          <span class="prop-search-label" data-i18n="search.checkout">Check-out</span>
-          <input type="date" id="search-checkout" class="prop-search-input" />
-        </label>
-        <div class="prop-search-divider"></div>
-        <label class="prop-search-field prop-search-field-guests">
-          <span class="prop-search-label" data-i18n="search.guests">Guests</span>
-          <select id="search-guests" class="prop-search-input">
-            <option value="0" data-i18n="search.guests.any">Any</option>
-            <option value="2">2 guests</option>
-            <option value="4">4 guests</option>
-            <option value="6">6 guests</option>
-            <option value="8">8 guests</option>
-            <option value="10">10 guests</option>
-            <option value="12">12 guests</option>
-          </select>
-        </label>
-        <button class="prop-search-button" id="search-button" type="button">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+
+      <!-- TRIGGER PILL — un solo elemento clickeable que abre el modal.
+           Muestra el estado resumido (fechas + huéspedes) o un placeholder
+           invitando a agregar. Liquid glass premium, sin inputs nativos. -->
+      <button type="button" class="prop-search-trigger" id="search-trigger" aria-haspopup="dialog" aria-expanded="false">
+        <div class="prop-search-trigger-section">
+          <span class="prop-search-trigger-label" data-i18n="search.dates">Dates</span>
+          <span class="prop-search-trigger-value" id="search-trigger-dates" data-i18n="search.dates.placeholder">Add dates</span>
+        </div>
+        <div class="prop-search-trigger-divider"></div>
+        <div class="prop-search-trigger-section">
+          <span class="prop-search-trigger-label" data-i18n="search.guests">Guests</span>
+          <span class="prop-search-trigger-value" id="search-trigger-guests" data-i18n="search.guests.any">Any</span>
+        </div>
+        <div class="prop-search-trigger-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"/>
             <line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <span data-i18n="search.button">Search</span>
-        </button>
-        <button class="prop-search-clear" id="search-clear" type="button" aria-label="Clear search filters" hidden>
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
+        </div>
+      </button>
+
+      <!-- Estado oculto que mantiene los valores reales para integrarse
+           con el filtro existente. JS sincroniza estos con el picker. -->
+      <input type="hidden" id="search-checkin" />
+      <input type="hidden" id="search-checkout" />
+      <input type="hidden" id="search-guests" value="0" />
+
       <div class="prop-search-status" id="search-status" hidden></div>
+    </div>
+
+    <!-- ============== MODAL DEL PICKER ============== -->
+    <div class="picker-overlay" id="picker-overlay" aria-hidden="true">
+      <div class="picker-modal" role="dialog" aria-modal="true" aria-labelledby="picker-title">
+        <div class="picker-header">
+          <h3 class="picker-title" id="picker-title" data-i18n="picker.title">Select your stay</h3>
+          <button type="button" class="picker-close" id="picker-close" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Resumen activo: muestra check-in/check-out mientras seleccionas -->
+        <div class="picker-summary">
+          <div class="picker-summary-block" id="picker-summary-checkin">
+            <span class="picker-summary-label" data-i18n="search.checkin">Check-in</span>
+            <span class="picker-summary-value" data-i18n="picker.summary.empty">—</span>
+          </div>
+          <div class="picker-summary-arrow" aria-hidden="true">→</div>
+          <div class="picker-summary-block" id="picker-summary-checkout">
+            <span class="picker-summary-label" data-i18n="search.checkout">Check-out</span>
+            <span class="picker-summary-value" data-i18n="picker.summary.empty">—</span>
+          </div>
+        </div>
+
+        <!-- Calendario: 2 meses lado a lado en desktop, scroll vertical en móvil -->
+        <div class="picker-calendar-wrap">
+          <div class="picker-calendar-controls">
+            <button type="button" class="picker-nav" id="picker-prev" aria-label="Previous month">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <button type="button" class="picker-nav" id="picker-next" aria-label="Next month">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          </div>
+          <div class="picker-months" id="picker-months">
+            <!-- Generado por JS -->
+          </div>
+        </div>
+
+        <!-- Selector de huéspedes -->
+        <div class="picker-guests">
+          <div class="picker-guests-label">
+            <span class="picker-guests-title" data-i18n="search.guests">Guests</span>
+            <span class="picker-guests-sub" data-i18n="picker.guests.sub">How many people</span>
+          </div>
+          <div class="picker-guests-counter">
+            <button type="button" class="picker-guests-btn" id="picker-guests-minus" aria-label="Decrease">−</button>
+            <span class="picker-guests-count" id="picker-guests-count">2</span>
+            <button type="button" class="picker-guests-btn" id="picker-guests-plus" aria-label="Increase">+</button>
+          </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="picker-actions">
+          <button type="button" class="picker-clear" id="picker-clear" data-i18n="picker.clear">Clear all</button>
+          <button type="button" class="picker-confirm" id="picker-confirm">
+            <span data-i18n="picker.confirm">Search</span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- ============== GRID COMPLETO con FILTROS ============== --->
@@ -5852,67 +6291,398 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 })();
 
 /* ============================================================
-   PROP RESERVE TRIGGER — Botones "Reservar" de propiedades
-   destacadas. Estilo Aman: al hacer click se desplaza al
-   search bar y pre-llena la capacidad de huéspedes mínima
-   para esa propiedad. El usuario solo escoge fechas y busca.
+   PROP RESERVE TRIGGER + DATE RANGE PICKER PREMIUM
    
-   Cuando vrm_property.html tenga flow de reserva real con
-   Stripe, este JS se reemplaza por redirección directa.
+   Al hacer click en "Reservar" de una propiedad destacada:
+   1. Scroll robusto al search bar (usa window.scrollTo con offset
+      calculado — NO scrollIntoView que falla en carruseles)
+   2. Pre-llena huéspedes con la capacidad de esa propiedad
+   3. Abre el modal del picker para que el usuario escoja fechas
+   
+   El picker tiene calendarios mes-a-mes con range selection,
+   counter de huéspedes, y CTA Search. Liquid glass premium.
+   ============================================================ */
+(function() {
+  // ═══════════════════════════════════════════════════════════════════
+  // ESTADO DEL PICKER
+  // ═══════════════════════════════════════════════════════════════════
+  const state = {
+    checkin: null,      // Date object o null
+    checkout: null,     // Date object o null
+    guests: 2,
+    viewMonth: new Date(), // primer mes visible
+    selecting: 'checkin', // 'checkin' | 'checkout' — qué estamos escogiendo
+  };
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // REFERENCIAS DOM
+  // ═══════════════════════════════════════════════════════════════════
+  const trigger        = document.getElementById('search-trigger');
+  const overlay        = document.getElementById('picker-overlay');
+  const closeBtn       = document.getElementById('picker-close');
+  const monthsContainer= document.getElementById('picker-months');
+  const prevBtn        = document.getElementById('picker-prev');
+  const nextBtn        = document.getElementById('picker-next');
+  const guestsMinus    = document.getElementById('picker-guests-minus');
+  const guestsPlus     = document.getElementById('picker-guests-plus');
+  const guestsCount    = document.getElementById('picker-guests-count');
+  const clearBtn       = document.getElementById('picker-clear');
+  const confirmBtn     = document.getElementById('picker-confirm');
+  const summaryCheckin = document.getElementById('picker-summary-checkin');
+  const summaryCheckout= document.getElementById('picker-summary-checkout');
+  const triggerDates   = document.getElementById('search-trigger-dates');
+  const triggerGuests  = document.getElementById('search-trigger-guests');
+  // Inputs ocultos para integración con filtro existente
+  const hiddenCheckin  = document.getElementById('search-checkin');
+  const hiddenCheckout = document.getElementById('search-checkout');
+  const hiddenGuests   = document.getElementById('search-guests');
+  
+  if (!trigger || !overlay) return; // safety
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // HELPERS DE FECHAS
+  // ═══════════════════════════════════════════════════════════════════
+  const MONTHS_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const WEEKDAYS_EN = ['S','M','T','W','T','F','S'];
+  const WEEKDAYS_ES = ['D','L','M','X','J','V','S'];
+  const MONTH_SHORT_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const MONTH_SHORT_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  
+  function getMonths() {
+    return (window.VRM_LANG === 'es') ? MONTHS_ES : MONTHS_EN;
+  }
+  function getMonthShort() {
+    return (window.VRM_LANG === 'es') ? MONTH_SHORT_ES : MONTH_SHORT_EN;
+  }
+  function getWeekdays() {
+    return (window.VRM_LANG === 'es') ? WEEKDAYS_ES : WEEKDAYS_EN;
+  }
+  
+  function formatDate(d) {
+    if (!d) return '';
+    const months = getMonthShort();
+    return `${months[d.getMonth()]} ${d.getDate()}`;
+  }
+  function formatYMD(d) {
+    if (!d) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function sameDay(a, b) {
+    if (!a || !b) return false;
+    return a.getFullYear() === b.getFullYear() &&
+           a.getMonth() === b.getMonth() &&
+           a.getDate() === b.getDate();
+  }
+  function daysBetween(a, b) {
+    if (!a || !b) return 0;
+    const ms = b.getTime() - a.getTime();
+    return Math.round(ms / (1000 * 60 * 60 * 24));
+  }
+  function isPast(d) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    return d < today;
+  }
+  function isInRange(d) {
+    if (!state.checkin || !state.checkout) return false;
+    return d > state.checkin && d < state.checkout;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // RENDER DEL CALENDARIO
+  // ═══════════════════════════════════════════════════════════════════
+  function renderMonth(year, month) {
+    const months = getMonths();
+    const weekdays = getWeekdays();
+    const firstDay = new Date(year, month, 1);
+    const startWeekday = firstDay.getDay(); // 0=Sun
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    let html = '<div class="picker-month">';
+    html += `<h4 class="picker-month-title">${months[month]} ${year}</h4>`;
+    html += '<div class="picker-weekdays">';
+    for (let i = 0; i < 7; i++) {
+      html += `<div class="picker-weekday">${weekdays[i]}</div>`;
+    }
+    html += '</div>';
+    html += '<div class="picker-days">';
+    // Empty slots before día 1
+    for (let i = 0; i < startWeekday; i++) {
+      html += '<button class="picker-day is-empty" tabindex="-1"></button>';
+    }
+    // Días del mes
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d);
+      const classes = ['picker-day'];
+      if (date < today) classes.push('is-past');
+      if (sameDay(date, today)) classes.push('is-today');
+      if (sameDay(date, state.checkin)) {
+        classes.push('is-range-start');
+        if (!state.checkout) classes.push('is-selected-single');
+      }
+      if (sameDay(date, state.checkout)) classes.push('is-range-end');
+      if (isInRange(date)) classes.push('is-in-range');
+      const disabled = date < today ? 'disabled' : '';
+      const ymd = formatYMD(date);
+      html += `<button class="${classes.join(' ')}" ${disabled} data-date="${ymd}">${d}</button>`;
+    }
+    html += '</div></div>';
+    return html;
+  }
+  
+  function renderCalendars() {
+    if (!monthsContainer) return;
+    const year = state.viewMonth.getFullYear();
+    const month = state.viewMonth.getMonth();
+    // 2 meses lado a lado en desktop; CSS móvil los apila
+    const nextMonth = new Date(year, month + 1, 1);
+    let html = renderMonth(year, month);
+    html += renderMonth(nextMonth.getFullYear(), nextMonth.getMonth());
+    monthsContainer.innerHTML = html;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // UPDATE UI HELPERS
+  // ═══════════════════════════════════════════════════════════════════
+  function updateSummary() {
+    // Active state según qué estamos escogiendo
+    summaryCheckin.classList.toggle('is-active', state.selecting === 'checkin');
+    summaryCheckout.classList.toggle('is-active', state.selecting === 'checkout');
+    
+    const empty = (window.VRM_LANG === 'es') ? '—' : '—';
+    const checkinValEl = summaryCheckin.querySelector('.picker-summary-value');
+    const checkoutValEl = summaryCheckout.querySelector('.picker-summary-value');
+    checkinValEl.textContent = state.checkin ? formatDate(state.checkin) : empty;
+    checkoutValEl.textContent = state.checkout ? formatDate(state.checkout) : empty;
+  }
+  
+  function updateGuestsCounter() {
+    guestsCount.textContent = state.guests;
+    guestsMinus.disabled = state.guests <= 1;
+    guestsPlus.disabled = state.guests >= 16;
+  }
+  
+  function updateTrigger() {
+    // Actualiza el trigger pill afuera del modal con resumen
+    if (state.checkin && state.checkout) {
+      const nights = daysBetween(state.checkin, state.checkout);
+      const nightLabel = nights === 1
+        ? (window.VRM_LANG === 'es' ? 'noche' : 'night')
+        : (window.VRM_LANG === 'es' ? 'noches' : 'nights');
+      triggerDates.textContent = `${formatDate(state.checkin)} — ${formatDate(state.checkout)} · ${nights} ${nightLabel}`;
+      triggerDates.classList.remove('is-placeholder');
+    } else if (state.checkin) {
+      triggerDates.textContent = formatDate(state.checkin) + ' →';
+      triggerDates.classList.remove('is-placeholder');
+    } else {
+      const placeholder = (window.VRM_LANG === 'es') ? 'Agregar fechas' : 'Add dates';
+      triggerDates.textContent = placeholder;
+      triggerDates.classList.add('is-placeholder');
+    }
+    
+    if (state.guests > 0) {
+      const guestLabel = state.guests === 1
+        ? (window.VRM_LANG === 'es' ? 'huésped' : 'guest')
+        : (window.VRM_LANG === 'es' ? 'huéspedes' : 'guests');
+      triggerGuests.textContent = `${state.guests} ${guestLabel}`;
+      triggerGuests.classList.remove('is-placeholder');
+    } else {
+      triggerGuests.textContent = (window.VRM_LANG === 'es') ? 'Cualquiera' : 'Any';
+    }
+    
+    // Sincronizar con inputs ocultos (para integración con filtro)
+    if (hiddenCheckin)  hiddenCheckin.value  = formatYMD(state.checkin) || '';
+    if (hiddenCheckout) hiddenCheckout.value = formatYMD(state.checkout) || '';
+    if (hiddenGuests)   hiddenGuests.value   = state.guests;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // SELECCIÓN DE DÍA
+  // ═══════════════════════════════════════════════════════════════════
+  function selectDay(ymd) {
+    const [y, m, d] = ymd.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    
+    if (state.selecting === 'checkin' || !state.checkin) {
+      // Empezando nueva selección
+      state.checkin = date;
+      state.checkout = null;
+      state.selecting = 'checkout';
+    } else if (state.selecting === 'checkout') {
+      if (date <= state.checkin) {
+        // Si seleccionaron una fecha anterior al checkin, reinicia
+        state.checkin = date;
+        state.checkout = null;
+        state.selecting = 'checkout';
+      } else {
+        state.checkout = date;
+        state.selecting = 'checkin';
+      }
+    }
+    renderCalendars();
+    updateSummary();
+    attachDayListeners();
+  }
+  
+  function attachDayListeners() {
+    const days = monthsContainer.querySelectorAll('.picker-day:not(.is-empty):not(:disabled)');
+    days.forEach(day => {
+      day.addEventListener('click', (e) => {
+        e.preventDefault();
+        const ymd = day.dataset.date;
+        if (ymd) selectDay(ymd);
+      });
+    });
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // MODAL OPEN/CLOSE
+  // ═══════════════════════════════════════════════════════════════════
+  function openPicker() {
+    overlay.classList.add('is-open');
+    overlay.setAttribute('aria-hidden', 'false');
+    trigger.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden'; // bloquea scroll del body
+    state.selecting = state.checkin && !state.checkout ? 'checkout' : 'checkin';
+    renderCalendars();
+    updateSummary();
+    updateGuestsCounter();
+    attachDayListeners();
+  }
+  function closePicker() {
+    overlay.classList.remove('is-open');
+    overlay.setAttribute('aria-hidden', 'true');
+    trigger.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // EVENT LISTENERS
+  // ═══════════════════════════════════════════════════════════════════
+  trigger.addEventListener('click', openPicker);
+  closeBtn.addEventListener('click', closePicker);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closePicker();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && overlay.classList.contains('is-open')) closePicker();
+  });
+  
+  prevBtn.addEventListener('click', () => {
+    state.viewMonth = new Date(state.viewMonth.getFullYear(), state.viewMonth.getMonth() - 1, 1);
+    renderCalendars();
+    attachDayListeners();
+  });
+  nextBtn.addEventListener('click', () => {
+    state.viewMonth = new Date(state.viewMonth.getFullYear(), state.viewMonth.getMonth() + 1, 1);
+    renderCalendars();
+    attachDayListeners();
+  });
+  
+  guestsMinus.addEventListener('click', () => {
+    if (state.guests > 1) state.guests--;
+    updateGuestsCounter();
+  });
+  guestsPlus.addEventListener('click', () => {
+    if (state.guests < 16) state.guests++;
+    updateGuestsCounter();
+  });
+  
+  clearBtn.addEventListener('click', () => {
+    state.checkin = null;
+    state.checkout = null;
+    state.guests = 2;
+    state.selecting = 'checkin';
+    renderCalendars();
+    updateSummary();
+    updateGuestsCounter();
+    attachDayListeners();
+  });
+  
+  confirmBtn.addEventListener('click', () => {
+    updateTrigger();
+    closePicker();
+    // Disparar evento change para que filterState del catálogo se entere
+    if (hiddenCheckin)  hiddenCheckin.dispatchEvent(new Event('change', { bubbles: true }));
+    if (hiddenCheckout) hiddenCheckout.dispatchEvent(new Event('change', { bubbles: true }));
+    if (hiddenGuests)   hiddenGuests.dispatchEvent(new Event('change', { bubbles: true }));
+    // Scroll hacia el grid de catálogo para ver resultados
+    const grid = document.querySelector('.prop-grid-section');
+    if (grid) {
+      setTimeout(() => {
+        grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    }
+  });
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // EXPONER API PARA EL TRIGGER DE "RESERVAR" DE PROPIEDADES
+  // ═══════════════════════════════════════════════════════════════════
+  window.VRM_openPicker = function(opts = {}) {
+    if (opts.guests && opts.guests > 0) {
+      state.guests = Math.min(16, Math.max(1, opts.guests));
+    }
+    openPicker();
+  };
+  
+  // Inicialización
+  updateTrigger();
+  updateGuestsCounter();
+})();
+
+/* ============================================================
+   PROP RESERVE TRIGGER — Botones "Reservar" de propiedades.
+   Llama a window.VRM_openPicker con la capacidad de la propiedad.
    ============================================================ */
 (function() {
   const triggers = document.querySelectorAll('.prop-reserve-trigger');
   if (triggers.length === 0) return;
   
-  const guestsSelect = document.getElementById('search-guests');
-  const checkinInput = document.getElementById('search-checkin');
   const searchBar = document.getElementById('prop-search-bar');
   
   triggers.forEach(trigger => {
     trigger.addEventListener('click', (e) => {
       e.preventDefault();
+      e.stopPropagation();
       
       const propGuests = parseInt(trigger.dataset.propGuests, 10) || 0;
       const propId = trigger.dataset.propId || '';
       
-      // Guardar el propId en sessionStorage para que cuando el usuario
-      // busque, podamos resaltarla en los resultados (feature futura)
+      // Guardar el propId en sessionStorage
       if (propId && window.sessionStorage) {
         try { sessionStorage.setItem('vrm_reserve_intent', propId); } catch(_) {}
       }
       
-      // Pre-llenar capacidad de huéspedes con el valor más cercano
-      // ≥ a la capacidad de esa propiedad
-      if (guestsSelect && propGuests > 0) {
-        const options = Array.from(guestsSelect.options);
-        // Buscar el primer valor que ≥ propGuests
-        const match = options.find(o => parseInt(o.value, 10) >= propGuests);
-        if (match) {
-          guestsSelect.value = match.value;
-          // Disparar evento change para que filterState se actualice
-          guestsSelect.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }
-      
-      // Scroll suave al search bar
+      // Scroll robusto: calculamos la posición absoluta del search bar
+      // (NO scrollIntoView que falla con scroll horizontal del carrusel)
       if (searchBar) {
-        searchBar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const rect = searchBar.getBoundingClientRect();
+        const absoluteTop = rect.top + window.pageYOffset;
+        const offset = 80; // espacio del nav arriba
+        window.scrollTo({
+          top: Math.max(0, absoluteTop - offset),
+          behavior: 'smooth'
+        });
         
-        // Highlight visual breve del search bar para que el usuario sepa
-        // que tiene que escoger fechas ahí
+        // Highlight visual del search bar
         searchBar.classList.add('prop-search-bar--highlight');
         setTimeout(() => {
           searchBar.classList.remove('prop-search-bar--highlight');
         }, 2400);
-        
-        // Después del scroll, dar foco al checkin para invitar a la
-        // selección de fechas
-        setTimeout(() => {
-          if (checkinInput) {
-            try { checkinInput.focus({ preventScroll: true }); } catch(_) {}
-          }
-        }, 800);
       }
+      
+      // Abrir el picker después del scroll
+      setTimeout(() => {
+        if (window.VRM_openPicker) {
+          window.VRM_openPicker({ guests: propGuests });
+        }
+      }, 700);
     });
   });
 })();
