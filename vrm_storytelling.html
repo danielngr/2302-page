@@ -13,6 +13,27 @@
 <meta name="mobile-web-app-capable" content="yes">
 <title>VRM · La bahía como debe ser</title>
 
+<!-- ════════════════════════════════════════════════════════════════════
+     META TAGS — Open Graph, Twitter Card, favicon
+     Para que al compartir el link en WhatsApp/FB/Twitter aparezca preview
+     bonito con título, descripción e imagen.
+     ════════════════════════════════════════════════════════════════════ -->
+<meta name="description" content="Direct vacation rentals in Puerto Vallarta and Riviera Nayarit. 70 curated homes, booked through the people who actually live in the bay. Since 2018.">
+<meta property="og:title" content="VRM · Direct from the bay">
+<meta property="og:description" content="70 curated homes in Puerto Vallarta and Riviera Nayarit. Book direct — no Airbnb fees, real local hosts.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="es_MX">
+<!-- TODO: añadir og:image cuando haya una imagen de hero hosting estable
+     <meta property="og:image" content="https://danielngr.github.io/.../og-preview.jpg"> -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="VRM · Direct from the bay">
+<meta name="twitter:description" content="70 curated homes in Puerto Vallarta. Book direct.">
+
+<!-- Favicon inline SVG — funciona sin archivo externo.
+     "V" estilizada en color paleta VRM. -->
+<link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%230A1428"/><text x="32" y="46" font-family="Georgia,serif" font-size="40" font-style="italic" font-weight="400" fill="%23E8E4DA" text-anchor="middle">V</text></svg>'>
+
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
@@ -35,6 +56,305 @@
     // Trigger probe — fontshare devuelve 200 para favicon.ico
     probe.src = 'https://api.fontshare.com/favicon.ico?_p=' + Date.now();
   })();
+</script>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     SISTEMA i18n — Detección automática de idioma del navegador
+     
+     Detecta navigator.language. Si empieza con "es" → español, cualquier
+     otro → inglés (default internacional). El usuario puede forzar con
+     ?lang=es o ?lang=en en la URL.
+     
+     Aplica las traducciones a todos los elementos con [data-i18n="key"].
+     Para HTML complejo (con <br>, <em>, etc.), usar [data-i18n-html="key"].
+     
+     Las traducciones están en window.VRM_I18N (definido abajo).
+     ════════════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  // Detección de idioma
+  const urlParams = new URLSearchParams(window.location.search);
+  const forcedLang = urlParams.get('lang');
+  const browserLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+  const lang = forcedLang === 'es' || forcedLang === 'en' 
+    ? forcedLang 
+    : (browserLang.startsWith('es') ? 'es' : 'en');
+  
+  // Guardar en variable global para que el resto del JS pueda accederla
+  window.VRM_LANG = lang;
+  
+  // Aplicar lang al html para CSS y accesibilidad
+  document.documentElement.lang = lang;
+  
+  // Diccionario completo de traducciones
+  window.VRM_I18N = {
+    en: {
+      // Nav
+      'nav.properties': 'Properties',
+      'nav.contact': 'Contact',
+      
+      // Cover / Hero
+      'cover.eyebrow': 'Since 2018',
+      'cover.subtitle': 'Vacation Rental México',
+      'cover.title.line1': 'Direct from',
+      'cover.title.line2': 'the bay.',
+      'cover.subtitle.italic': 'The bay, made home.',
+      'cover.cta': 'Browse stays',
+      'cover.trust.reviews': '4.83 · 517 reviews',
+      'cover.trust.cancel': 'Free cancellation',
+      'cover.trust.secure': 'Secure payment',
+      'cover.scroll': 'Scroll to explore',
+      
+      // Properties intro
+      'properties.eyebrow': '— Featured stays',
+      'properties.title.line1': 'Hand-picked,',
+      'properties.title.line2': 'year after year.',
+      'properties.title.combined': 'Hand-picked,<br><em>year after year.</em>',
+      'properties.caption': 'Four homes that define the bay. We know every room, every view, every host.',
+      'properties.caption.italic': "If it doesn't fit, we'll point you elsewhere.",
+      'properties.caption.full': "Four homes that define the bay. We know every room, every view, every host. <em>If it doesn't fit, we'll point you elsewhere.</em>",
+      
+      // Search bar
+      'search.eyebrow': '— Find your stay',
+      'search.title': 'Pick your dates,',
+      'search.title.italic': "see what's open.",
+      'search.title.full': 'Pick your dates, <em>see what\'s open.</em>',
+      'search.checkin': 'Check-in',
+      'search.checkout': 'Check-out',
+      'search.guests': 'Guests',
+      'search.guests.any': 'Any',
+      'search.button': 'Search',
+      
+      // Featured properties (4 destacadas)
+      'feat.1.eyebrow': '01 · La Cruz de Huanacaxtle',
+      'feat.1.title.italic': 'Vallarta Gardens',
+      'feat.1.title.num': '2302',
+      'feat.1.desc': 'The most requested unit in the complex. Third floor with direct ocean view, large terrace, full access to Vallarta Gardens resort amenities (infinity pool, spa, restaurant). Five minutes walking to La Cruz harbor and its Sunday farmers market.',
+      'feat.1.title.full': '<em>Vallarta Gardens</em><br>2302',
+      'feat.2.eyebrow': '02 · Nuevo Vallarta · Flamingos',
+      'feat.2.title.italic': 'Marítima',
+      'feat.2.title.num': '6S',
+      'feat.2.desc': 'Sixth floor facing the Nuevo Vallarta golf course. Three bedrooms, open kitchen, terrace with outdoor lounge. Five minutes from the airport, ten from the Malecón. Canadian snowbirds return year after year for the amenities and proximity to the hospital.',
+      'feat.2.title.full': '<em>Marítima</em><br>6S',
+      'feat.3.eyebrow': '03 · Punta de Mita · Riviera Nayarit',
+      'feat.3.title.italic': 'Bolongo',
+      'feat.3.title.num': '211',
+      'feat.3.desc': 'Inside the most exclusive residential community in the Riviera. Direct access to private beach, semi-Olympic pool, beach club with restaurant. Three large bedrooms — perfect for families or two couples who prefer space over hotel corridors.',
+      'feat.3.title.full': '<em>Bolongo</em><br>211',
+      'feat.4.eyebrow': '04 · Nuevo Vallarta · Flamingos',
+      'feat.4.title.italic': 'Marítima',
+      'feat.4.title.num': 'Penthouse',
+      'feat.4.desc': 'The Marítima penthouse — six bedrooms across two floors with 270° views of the bay and golf course. Hot tub on the upper terrace, dining for twelve. For celebrations, large family gatherings, or groups coming to get married in Vallarta.',
+      'feat.4.title.full': '<em>Marítima</em><br>Penthouse',
+      'feat.guests': 'Guests',
+      'feat.bedrooms': 'Bedrooms',
+      'feat.baths': 'Baths',
+      'feat.price.unit': 'USD · night',
+      'feat.cta': 'Check availability',
+      
+      // Catalog grid
+      'catalog.eyebrow': '— The catalog',
+      'catalog.title': 'The 10 most',
+      'catalog.title.italic': 'requested this season.',
+      'catalog.filter.all': 'All',
+      'catalog.filter.couples': 'Couples',
+      'catalog.filter.families': 'Families',
+      'catalog.filter.groups': 'Groups',
+      'catalog.filter.oceanfront': 'Oceanfront',
+      
+      // Why direct
+      'why.eyebrow': '— Why book direct',
+      'why.title.line1': 'The bay,',
+      'why.title.italic': 'without the middleman.',
+      'why.title.full': 'The bay,<br><em>without the middleman.</em>',
+      'why.item1.title': 'Real people, not algorithms',
+      'why.item1.text': 'Rodrigo, Paulo and the local team manage every stay from Vallarta. No call centers. No bots. Just neighbors who know the bay.',
+      'why.item2.title': 'Save up to 15% vs Airbnb',
+      'why.item2.text': 'Airbnb charges hosts 15.5% commission. Book direct and that saving stays with you and us — not a platform thousands of miles away.',
+      'why.item3.title': 'Every home, personally curated',
+      'why.item3.text': '70 properties across Vallarta and Riviera Nayarit. Each one visited, photographed and maintained by our local team.',
+      
+      // Experience
+      'experience.eyebrow': '— The bay, lived',
+      'experience.text.pri': 'Banderas Bay,',
+      'experience.text.sec': 'done right.',
+      'experience.caption': '70 curated homes along Puerto Vallarta and Riviera Nayarit. Booked through the people who actually live here.',
+      'experience.stat1.num': '2018',
+      'experience.stat1.label': 'Operating<br>in the bay',
+      'experience.stat2.num': '70+',
+      'experience.stat2.label': 'Curated<br>homes',
+      'experience.stat3.num': '4.83',
+      'experience.stat3.label': '★ · 517<br>guests · avg rating',
+      
+      // Reviews
+      'reviews.placeholder': 'Verified guest reviews coming soon — currently aggregated from 517+ ratings across Airbnb.',
+      'reviews.count': '517 verified reviews · since 2018',
+      
+      // Final
+      'final.title.line1': "We'll send you",
+      'final.title.italic': 'elsewhere if we should.',
+      'final.title.combined': "We'll send you<br><em>elsewhere if we should.</em>",
+      'final.cta': 'Browse stays',
+      'final.whatsapp': 'WhatsApp us',
+      'final.caption': 'Based in Vallarta. We answer in English, Spanish, and Italian.',
+      'final.signature': '"If the house doesn\'t fit you, we\'ll recommend another."',
+      
+      // Sticky action
+      'sticky.cta': 'Browse stays',
+    },
+    es: {
+      // Nav
+      'nav.properties': 'Propiedades',
+      'nav.contact': 'Contacto',
+      
+      // Cover / Hero
+      'cover.eyebrow': 'Desde 2018',
+      'cover.subtitle': 'Vacation Rental México',
+      'cover.title.line1': 'Directo desde',
+      'cover.title.line2': 'la bahía.',
+      'cover.subtitle.italic': 'La bahía que se habita.',
+      'cover.cta': 'Ver casas',
+      'cover.trust.reviews': '4.83 · 517 reseñas',
+      'cover.trust.cancel': 'Cancelación gratis',
+      'cover.trust.secure': 'Pago seguro',
+      'cover.scroll': 'Desliza para explorar',
+      
+      // Properties intro
+      'properties.eyebrow': '— Casas destacadas',
+      'properties.title.line1': 'Cuatro casas,',
+      'properties.title.line2': 'cuatro temporadas.',
+      'properties.title.combined': 'Cuatro casas,<br><em>cuatro temporadas.</em>',
+      'properties.caption': 'Cuatro casas que definen la bahía. Conocemos cada cuarto, cada vista, cada anfitrión.',
+      'properties.caption.italic': 'Si una no encaja contigo, te recomendamos otra.',
+      'properties.caption.full': 'Cuatro casas que definen la bahía. Conocemos cada cuarto, cada vista, cada anfitrión. <em>Si una no encaja contigo, te recomendamos otra.</em>',
+      
+      // Search bar
+      'search.eyebrow': '— Encuentra tu casa',
+      'search.title': 'Elige tus fechas,',
+      'search.title.italic': 've qué hay disponible.',
+      'search.title.full': 'Elige tus fechas, <em>ve qué hay disponible.</em>',
+      'search.checkin': 'Llegada',
+      'search.checkout': 'Salida',
+      'search.guests': 'Huéspedes',
+      'search.guests.any': 'Cualquiera',
+      'search.button': 'Buscar',
+      
+      // Featured properties (4 destacadas)
+      'feat.1.eyebrow': '01 · La Cruz de Huanacaxtle',
+      'feat.1.title.italic': 'Vallarta Gardens',
+      'feat.1.title.num': '2302',
+      'feat.1.desc': 'El departamento más solicitado del complejo. Tercer piso con vista directa al mar, terraza amplia, las amenities del resort Vallarta Gardens (alberca infinity, spa, restaurante). Cinco minutos caminando al puerto de La Cruz y su mercado dominical de productores locales.',
+      'feat.1.title.full': '<em>Vallarta Gardens</em><br>2302',
+      'feat.2.eyebrow': '02 · Nuevo Vallarta · Flamingos',
+      'feat.2.title.italic': 'Marítima',
+      'feat.2.title.num': '6S',
+      'feat.2.desc': 'Piso seis frente al campo de golf de Nuevo Vallarta. Tres recámaras, cocina abierta, terraza con sala exterior. Cinco minutos del aeropuerto y diez del Malecón. Los snowbirds canadienses repiten año tras año por las amenities del condo y la cercanía al hospital.',
+      'feat.2.title.full': '<em>Marítima</em><br>6S',
+      'feat.3.eyebrow': '03 · Punta de Mita · Riviera Nayarit',
+      'feat.3.title.italic': 'Bolongo',
+      'feat.3.title.num': '211',
+      'feat.3.desc': 'Dentro del fraccionamiento residencial más exclusivo de la Riviera. Acceso directo a playa privada, alberca semi-olímpica, club de playa con restaurante. Tres recámaras grandes, perfecto para familias o dos parejas que prefieren espacio antes que pasillos de hotel.',
+      'feat.3.title.full': '<em>Bolongo</em><br>211',
+      'feat.4.eyebrow': '04 · Nuevo Vallarta · Flamingos',
+      'feat.4.title.italic': 'Marítima',
+      'feat.4.title.num': 'Penthouse',
+      'feat.4.desc': 'El penthouse de Marítima — seis recámaras en dos pisos con vista 270° a la bahía y al campo de golf. Hot tub en la terraza superior, comedor para doce. Para celebraciones, reuniones familiares grandes, o grupos que vienen a casarse en Vallarta.',
+      'feat.4.title.full': '<em>Marítima</em><br>Penthouse',
+      'feat.guests': 'Huéspedes',
+      'feat.bedrooms': 'Recámaras',
+      'feat.baths': 'Baños',
+      'feat.price.unit': 'USD · noche',
+      'feat.cta': 'Ver disponibilidad',
+      
+      // Catalog grid
+      'catalog.eyebrow': '— El catálogo',
+      'catalog.title': 'Las 10 más',
+      'catalog.title.italic': 'solicitadas esta temporada.',
+      'catalog.filter.all': 'Todas',
+      'catalog.filter.couples': 'Parejas',
+      'catalog.filter.families': 'Familias',
+      'catalog.filter.groups': 'Grupos',
+      'catalog.filter.oceanfront': 'Frente al mar',
+      
+      // Why direct
+      'why.eyebrow': '— Por qué reservar directo',
+      'why.title.line1': 'La bahía,',
+      'why.title.italic': 'sin intermediarios.',
+      'why.title.full': 'La bahía,<br><em>sin intermediarios.</em>',
+      'why.item1.title': 'Personas reales, no algoritmos',
+      'why.item1.text': 'Rodrigo, Paulo y el equipo local manejan cada estancia desde Vallarta. Sin call centers. Sin bots. Vecinos que conocen la bahía.',
+      'why.item2.title': 'Ahorra hasta 15% vs Airbnb',
+      'why.item2.text': 'Airbnb cobra a los anfitriones 15.5% de comisión. Reserva directo y ese ahorro queda contigo y con nosotros — no con una plataforma a miles de kilómetros.',
+      'why.item3.title': 'Cada casa, personalmente curada',
+      'why.item3.text': '70 propiedades entre Vallarta y Riviera Nayarit. Cada una visitada, fotografiada y mantenida por nuestro equipo local.',
+      
+      // Experience
+      'experience.eyebrow': '— La bahía, vivida',
+      'experience.text.pri': 'Bahía de Banderas,',
+      'experience.text.sec': 'bien hecho.',
+      'experience.caption': '70 casas curadas a lo largo de Puerto Vallarta y Riviera Nayarit. Reservadas a través de las personas que viven aquí.',
+      'experience.stat1.num': '2018',
+      'experience.stat1.label': 'Operando<br>en la bahía',
+      'experience.stat2.num': '70+',
+      'experience.stat2.label': 'Casas<br>curadas',
+      'experience.stat3.num': '4.83',
+      'experience.stat3.label': '★ · 517<br>huéspedes · promedio',
+      
+      // Reviews
+      'reviews.placeholder': 'Reseñas verificadas de huéspedes próximamente — actualmente agregamos 517+ ratings de Airbnb.',
+      'reviews.count': '517 reseñas verificadas · desde 2018',
+      
+      // Final
+      'final.title.line1': 'Te recomendaremos',
+      'final.title.italic': 'otra casa si no encajas.',
+      'final.title.combined': 'Te recomendaremos<br><em>otra casa si no encajas.</em>',
+      'final.cta': 'Ver casas',
+      'final.whatsapp': 'WhatsApp directo',
+      'final.caption': 'Basados en Vallarta. Atendemos en español, inglés e italiano.',
+      'final.signature': '"Si la casa no encaja contigo, te recomendamos otra."',
+      
+      // Sticky action
+      'sticky.cta': 'Ver casas',
+    }
+  };
+  
+  // Función auxiliar para obtener traducción
+  window.t = function(key) {
+    const dict = window.VRM_I18N[window.VRM_LANG] || window.VRM_I18N.en;
+    return dict[key] || window.VRM_I18N.en[key] || key;
+  };
+  
+  // Aplicar traducciones a todos los elementos marcados con data-i18n
+  // Se ejecuta después de DOMContentLoaded para garantizar que el DOM esté listo.
+  function applyI18n() {
+    // Texto plano
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      el.textContent = window.t(key);
+    });
+    // HTML (cuando hay <br>, <em>, etc.)
+    document.querySelectorAll('[data-i18n-html]').forEach(el => {
+      const key = el.getAttribute('data-i18n-html');
+      el.innerHTML = window.t(key);
+    });
+    // Atributos: data-i18n-attr="aria-label:key" o "title:key"
+    document.querySelectorAll('[data-i18n-attr]').forEach(el => {
+      const spec = el.getAttribute('data-i18n-attr');
+      const [attr, key] = spec.split(':');
+      if (attr && key) el.setAttribute(attr, window.t(key));
+    });
+  }
+  
+  // Aplicar inmediatamente si el DOM ya está listo, o esperar a DOMContentLoaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyI18n);
+  } else {
+    applyI18n();
+  }
+  
+  // Exponer la función por si algún script dinámico quiere re-aplicar
+  window.VRM_applyI18n = applyI18n;
+})();
 </script>
 
 <style>
@@ -889,6 +1209,89 @@
     .reviews { padding: 120px 24px; }
     .reviews-list { gap: 120px; }
     .review-mark { font-size: 110px; top: -55px; left: -20px; }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     PLACEHOLDER DE REVIEWS — visible mientras no se integran reviews
+     reales verificadas. Muestra el rating agregado real (4.83 / 517)
+     para conservar el social proof sin inventar testimoniales.
+     ═══════════════════════════════════════════════════════════════════ */
+  .reviews-placeholder {
+    max-width: 720px;
+    margin: 0 auto;
+    text-align: center;
+    padding: 60px 40px;
+    border: 1px solid var(--rule);
+    border-radius: 16px;
+    background: rgba(26, 46, 72, 0.32);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .reviews-aggregate {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+  .reviews-stars {
+    font-size: 28px;
+    letter-spacing: 6px;
+    color: var(--gold);
+    user-select: none;
+  }
+  .reviews-score {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 72px;
+    line-height: 1;
+    color: var(--paper);
+    background: linear-gradient(180deg, var(--paper), var(--gold-bright));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .reviews-count {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--whisper);
+  }
+  .reviews-placeholder-text {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(18px, 2.2vw, 24px);
+    line-height: 1.5;
+    color: rgba(232, 228, 218, 0.82);
+    margin: 0 0 32px;
+    max-width: 540px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .reviews-sources {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .reviews-source-pill {
+    display: inline-block;
+    padding: 8px 16px;
+    border: 1px solid rgba(232, 228, 218, 0.20);
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--whisper);
+  }
+  @media (max-width: 768px) {
+    .reviews-placeholder { padding: 40px 24px; }
+    .reviews-score { font-size: 56px; }
+    .reviews-stars { font-size: 22px; letter-spacing: 4px; }
   }
 
   .team {
@@ -2245,39 +2648,39 @@
   <div class="grain"></div>
 
   <nav class="nav">
-    <a href="#" class="nav-brand">
+    <a href="#top" class="nav-brand" onclick="window.scrollTo({top:0, behavior:'smooth'}); event.preventDefault();">
       <span class="mark"></span>VRM
     </a>
     <div class="nav-links">
-      <a href="#properties" class="nav-link">Properties</a>
-      <a href="#final" class="nav-link">Contact</a>
+      <a href="#properties" class="nav-link" data-i18n="nav.properties">Properties</a>
+      <a href="#final" class="nav-link" data-i18n="nav.contact">Contact</a>
     </div>
   </nav>
 
   <section class="cover">
     <div class="cover-eyebrow-wrap">
-      <div class="cover-eyebrow-top">Since 2018</div>
+      <div class="cover-eyebrow-top" data-i18n="cover.eyebrow">Since 2018</div>
     </div>
 
     <div class="cover-mark-wrap">
       <h1 class="cover-mark" aria-label="VRM">VRM</h1>
     </div>
     <div class="cover-mark-sub-wrap">
-      <div class="cover-mark-sub">Vacation Rental México</div>
+      <div class="cover-mark-sub" data-i18n="cover.subtitle">Vacation Rental México</div>
     </div>
 
     <div class="cover-content">
       <p class="cover-title" data-split-text data-split-stagger="40" data-split-delay="3400">
-        <span class="line">Direct from</span> <span class="line">the bay.</span>
+        <span class="line" data-i18n="cover.title.line1">Direct from</span> <span class="line" data-i18n="cover.title.line2">the bay.</span>
       </p>
-      <p class="cover-subtitle">La bahía que se habita</p>
+      <p class="cover-subtitle" data-i18n="cover.subtitle.italic">The bay, made home.</p>
 
       <!-- CTA editorial + trust signals — el CTA da una vía clara para
            usuarios con intención inmediata sin romper el scrollytelling.
            Trust signals confirman confianza para los que dudan. -->
       <div class="cover-actions">
         <a href="#properties" class="cover-cta">
-          <span>Browse stays</span>
+          <span data-i18n="cover.cta">Browse stays</span>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="5" y1="12" x2="19" y2="12"/>
             <polyline points="13 6 19 12 13 18"/>
@@ -2288,22 +2691,37 @@
             <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" aria-hidden="true">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
-            4.83 · 517 reviews
+            <span data-i18n="cover.trust.reviews">4.83 · 517 reviews</span>
           </span>
           <span class="cover-trust-sep">·</span>
-          <span class="cover-trust-item">Free cancellation</span>
+          <span class="cover-trust-item" data-i18n="cover.trust.cancel">Free cancellation</span>
           <span class="cover-trust-sep">·</span>
-          <span class="cover-trust-item">Secure payment</span>
+          <span class="cover-trust-item" data-i18n="cover.trust.secure">Secure payment</span>
         </div>
       </div>
     </div>
 
     <div class="cover-cue">
-      <div class="cover-cue-star">Scroll to explore</div>
+      <div class="cover-cue-star" data-i18n="cover.scroll">Scroll to explore</div>
       <div class="cover-cue-line"></div>
     </div>
   </section>
 
+  <!-- =========================================================
+       TODO IMPORTANTE — REEMPLAZAR ANTES DE LANZAMIENTO:
+       
+       Datos placeholder (búsqueda global y reemplazar):
+       
+       1. WhatsApp:  5213222244488  →  número real de Rodrigo / línea VRM
+                     (formato internacional sin "+", ej: "5213221234567")
+       
+       2. Email:     hola@vrm.mx  →  confirmar que existe o cambiar
+       
+       3. Instagram: https://instagram.com/vrm.mx  →  handle real de VRM
+       
+       4. Nav-brand link "#" arriba a la izquierda  →  cambiar a "#top" o
+          añadir onclick que haga scrollTo(0, 0)
+       ========================================================= -->
   <!-- =========================================================
        SECCIÓN PROPIEDADES — Doble nivel
        (1) Editorial hero: 4 propiedades destacadas, una por viewport
@@ -2312,11 +2730,11 @@
        ========================================================= -->
   <section class="properties" id="properties">
     <div class="properties-intro">
-      <div class="section-eyebrow reveal">— Featured stays</div>
-      <h2 class="section-title reveal reveal-d1" data-split-text data-split-stagger="32" data-split-trigger="scroll">
+      <div class="section-eyebrow reveal" data-i18n="properties.eyebrow">— Featured stays</div>
+      <h2 class="section-title reveal reveal-d1" data-i18n-html="properties.title.combined">
         Hand-picked,<br><em>year after year.</em>
       </h2>
-      <p class="properties-intro-caption reveal reveal-d2">
+      <p class="properties-intro-caption reveal reveal-d2" data-i18n-html="properties.caption.full">
         Four homes that define the bay. We know every room, every view, every host. <em>If it doesn't fit, we'll point you elsewhere.</em>
       </p>
     </div>
@@ -2330,24 +2748,24 @@
                alt="Vallarta Gardens 2302 — La Cruz de Huanacaxtle" loading="lazy">
         </div>
         <div class="prop-feature-content">
-          <div class="prop-feature-eyebrow">01 · La Cruz de Huanacaxtle</div>
-          <h3 class="prop-feature-title">
+          <div class="prop-feature-eyebrow" data-i18n="feat.1.eyebrow">01 · La Cruz de Huanacaxtle</div>
+          <h3 class="prop-feature-title" data-i18n-html="feat.1.title.full">
             <em>Vallarta Gardens</em><br>2302
           </h3>
-          <p class="prop-feature-desc">El departamento más solicitado del complejo. Tercer piso con vista directa al mar, terraza amplia, las amenities del resort Vallarta Gardens (alberca infinity, spa, restaurante). Cinco minutos caminando al puerto de La Cruz y su mercado dominical de productores locales.</p>
+          <p class="prop-feature-desc" data-i18n="feat.1.desc">El departamento más solicitado del complejo. Tercer piso con vista directa al mar, terraza amplia, las amenities del resort Vallarta Gardens (alberca infinity, spa, restaurante). Cinco minutos caminando al puerto de La Cruz y su mercado dominical de productores locales.</p>
           <div class="prop-feature-stats">
-            <div class="prop-stat"><span class="prop-stat-num">6</span><span class="prop-stat-label">Guests</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">2</span><span class="prop-stat-label">Bedrooms</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">2</span><span class="prop-stat-label">Baths</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">6</span><span class="prop-stat-label" data-i18n="feat.guests">Guests</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">2</span><span class="prop-stat-label" data-i18n="feat.bedrooms">Bedrooms</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">2</span><span class="prop-stat-label" data-i18n="feat.baths">Baths</span></div>
           </div>
           <div class="prop-feature-cta">
             <div class="prop-feature-price">
               <span class="prop-price-amount">$200</span>
-              <span class="prop-price-unit">USD · night</span>
+              <span class="prop-price-unit" data-i18n="feat.price.unit">USD · night</span>
             </div>
             <a href="vrm_property.html?id=2302"
                class="btn btn-primary">
-              Check availability
+              <span data-i18n="feat.cta">Check availability</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
           </div>
@@ -2360,24 +2778,24 @@
                alt="Marítima 6S — Nuevo Vallarta · Flamingos" loading="lazy">
         </div>
         <div class="prop-feature-content">
-          <div class="prop-feature-eyebrow">02 · Nuevo Vallarta · Flamingos</div>
-          <h3 class="prop-feature-title">
+          <div class="prop-feature-eyebrow" data-i18n="feat.2.eyebrow">02 · Nuevo Vallarta · Flamingos</div>
+          <h3 class="prop-feature-title" data-i18n-html="feat.2.title.full">
             <em>Marítima</em><br>6S
           </h3>
-          <p class="prop-feature-desc">Piso seis frente al campo de golf de Nuevo Vallarta. Tres recámaras, cocina abierta, terraza con sala exterior. Cinco minutos del aeropuerto y diez del Malecón. Los snowbirds canadienses repiten año tras año por las amenities del condo y la cercanía al hospital.</p>
+          <p class="prop-feature-desc" data-i18n="feat.2.desc">Piso seis frente al campo de golf de Nuevo Vallarta. Tres recámaras, cocina abierta, terraza con sala exterior. Cinco minutos del aeropuerto y diez del Malecón. Los snowbirds canadienses repiten año tras año por las amenities del condo y la cercanía al hospital.</p>
           <div class="prop-feature-stats">
-            <div class="prop-stat"><span class="prop-stat-num">6</span><span class="prop-stat-label">Guests</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">3</span><span class="prop-stat-label">Bedrooms</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">2</span><span class="prop-stat-label">Baths</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">6</span><span class="prop-stat-label" data-i18n="feat.guests">Guests</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">3</span><span class="prop-stat-label" data-i18n="feat.bedrooms">Bedrooms</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">2</span><span class="prop-stat-label" data-i18n="feat.baths">Baths</span></div>
           </div>
           <div class="prop-feature-cta">
             <div class="prop-feature-price">
               <span class="prop-price-amount">$190</span>
-              <span class="prop-price-unit">USD · night</span>
+              <span class="prop-price-unit" data-i18n="feat.price.unit">USD · night</span>
             </div>
             <a href="vrm_property.html?id=6S"
                class="btn btn-primary">
-              Check availability
+              <span data-i18n="feat.cta">Check availability</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
           </div>
@@ -2390,24 +2808,24 @@
                alt="Bolongo 211 — Punta de Mita · Riviera Nayarit" loading="lazy">
         </div>
         <div class="prop-feature-content">
-          <div class="prop-feature-eyebrow">03 · Punta de Mita · Riviera Nayarit</div>
-          <h3 class="prop-feature-title">
+          <div class="prop-feature-eyebrow" data-i18n="feat.3.eyebrow">03 · Punta de Mita · Riviera Nayarit</div>
+          <h3 class="prop-feature-title" data-i18n-html="feat.3.title.full">
             <em>Bolongo</em><br>211
           </h3>
-          <p class="prop-feature-desc">Dentro del fraccionamiento residencial más exclusivo de la Riviera. Acceso directo a playa privada, alberca semi-olímpica, club de playa con restaurante. Tres recámaras grandes, perfecto para familias o dos parejas que prefieren espacio antes que pasillos de hotel.</p>
+          <p class="prop-feature-desc" data-i18n="feat.3.desc">Dentro del fraccionamiento residencial más exclusivo de la Riviera. Acceso directo a playa privada, alberca semi-olímpica, club de playa con restaurante. Tres recámaras grandes, perfecto para familias o dos parejas que prefieren espacio antes que pasillos de hotel.</p>
           <div class="prop-feature-stats">
-            <div class="prop-stat"><span class="prop-stat-num">7</span><span class="prop-stat-label">Guests</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">3</span><span class="prop-stat-label">Bedrooms</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">3</span><span class="prop-stat-label">Baths</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">7</span><span class="prop-stat-label" data-i18n="feat.guests">Guests</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">3</span><span class="prop-stat-label" data-i18n="feat.bedrooms">Bedrooms</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">3</span><span class="prop-stat-label" data-i18n="feat.baths">Baths</span></div>
           </div>
           <div class="prop-feature-cta">
             <div class="prop-feature-price">
               <span class="prop-price-amount">$220</span>
-              <span class="prop-price-unit">USD · night</span>
+              <span class="prop-price-unit" data-i18n="feat.price.unit">USD · night</span>
             </div>
             <a href="vrm_property.html?id=211"
                class="btn btn-primary">
-              Check availability
+              <span data-i18n="feat.cta">Check availability</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
           </div>
@@ -2420,24 +2838,24 @@
                alt="Marítima Penthouse — Nuevo Vallarta · Flamingos" loading="lazy">
         </div>
         <div class="prop-feature-content">
-          <div class="prop-feature-eyebrow">04 · Nuevo Vallarta · Flamingos</div>
-          <h3 class="prop-feature-title">
+          <div class="prop-feature-eyebrow" data-i18n="feat.4.eyebrow">04 · Nuevo Vallarta · Flamingos</div>
+          <h3 class="prop-feature-title" data-i18n-html="feat.4.title.full">
             <em>Marítima</em><br>Penthouse
           </h3>
-          <p class="prop-feature-desc">El penthouse de Marítima — seis recámaras en dos pisos con vista 270° a la bahía y al campo de golf. Hot tub en la terraza superior, comedor para doce. Para celebraciones, reuniones familiares grandes, o grupos que vienen a casarse en Vallarta.</p>
+          <p class="prop-feature-desc" data-i18n="feat.4.desc">El penthouse de Marítima — seis recámaras en dos pisos con vista 270° a la bahía y al campo de golf. Hot tub en la terraza superior, comedor para doce. Para celebraciones, reuniones familiares grandes, o grupos que vienen a casarse en Vallarta.</p>
           <div class="prop-feature-stats">
-            <div class="prop-stat"><span class="prop-stat-num">12</span><span class="prop-stat-label">Guests</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">6</span><span class="prop-stat-label">Bedrooms</span></div>
-            <div class="prop-stat"><span class="prop-stat-num">4</span><span class="prop-stat-label">Baths</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">12</span><span class="prop-stat-label" data-i18n="feat.guests">Guests</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">6</span><span class="prop-stat-label" data-i18n="feat.bedrooms">Bedrooms</span></div>
+            <div class="prop-stat"><span class="prop-stat-num">4</span><span class="prop-stat-label" data-i18n="feat.baths">Baths</span></div>
           </div>
           <div class="prop-feature-cta">
             <div class="prop-feature-price">
               <span class="prop-price-amount">$380</span>
-              <span class="prop-price-unit">USD · night</span>
+              <span class="prop-price-unit" data-i18n="feat.price.unit">USD · night</span>
             </div>
             <a href="vrm_property.html?id=PHN"
                class="btn btn-primary">
-              Check availability
+              <span data-i18n="feat.cta">Check availability</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
           </div>
@@ -2449,24 +2867,24 @@
     <!-- ============== SEARCH BAR — FECHAS + HUÉSPEDES ============== -->
     <div class="prop-search-bar" id="prop-search-bar">
       <div class="prop-search-heading">
-        <div class="prop-search-eyebrow">— Find your stay</div>
-        <h3 class="prop-search-title">Pick your dates, <em>see what's open.</em></h3>
+        <div class="prop-search-eyebrow" data-i18n="search.eyebrow">— Find your stay</div>
+        <h3 class="prop-search-title" data-i18n-html="search.title.full">Pick your dates, <em>see what's open.</em></h3>
       </div>
       <div class="prop-search-inner">
         <label class="prop-search-field">
-          <span class="prop-search-label">Check-in</span>
+          <span class="prop-search-label" data-i18n="search.checkin">Check-in</span>
           <input type="date" id="search-checkin" class="prop-search-input" />
         </label>
         <div class="prop-search-divider"></div>
         <label class="prop-search-field">
-          <span class="prop-search-label">Check-out</span>
+          <span class="prop-search-label" data-i18n="search.checkout">Check-out</span>
           <input type="date" id="search-checkout" class="prop-search-input" />
         </label>
         <div class="prop-search-divider"></div>
         <label class="prop-search-field prop-search-field-guests">
-          <span class="prop-search-label">Guests</span>
+          <span class="prop-search-label" data-i18n="search.guests">Guests</span>
           <select id="search-guests" class="prop-search-input">
-            <option value="0">Any</option>
+            <option value="0" data-i18n="search.guests.any">Any</option>
             <option value="2">2 guests</option>
             <option value="4">4 guests</option>
             <option value="6">6 guests</option>
@@ -2480,7 +2898,7 @@
             <circle cx="11" cy="11" r="8"/>
             <line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <span>Search</span>
+          <span data-i18n="search.button">Search</span>
         </button>
         <button class="prop-search-clear" id="search-clear" type="button" aria-label="Clear search filters" hidden>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2500,11 +2918,11 @@
           <h3 class="prop-grid-title reveal reveal-d1">The 10 most <em>requested this season.</em></h3>
         </div>
         <div class="prop-filters reveal reveal-d2">
-          <button class="prop-filter active" data-filter="all">All</button>
-          <button class="prop-filter" data-filter="couple">Couples</button>
-          <button class="prop-filter" data-filter="family">Families</button>
-          <button class="prop-filter" data-filter="group">Groups</button>
-          <button class="prop-filter" data-filter="oceanfront">Oceanfront</button>
+          <button class="prop-filter active" data-filter="all" data-i18n="catalog.filter.all">All</button>
+          <button class="prop-filter" data-filter="couple" data-i18n="catalog.filter.couples">Couples</button>
+          <button class="prop-filter" data-filter="family" data-i18n="catalog.filter.families">Families</button>
+          <button class="prop-filter" data-filter="group" data-i18n="catalog.filter.groups">Groups</button>
+          <button class="prop-filter" data-filter="oceanfront" data-i18n="catalog.filter.oceanfront">Oceanfront</button>
         </div>
       </div>
 
@@ -2636,39 +3054,27 @@
        ========================================================= -->
   <section class="section-block why-direct">
     <div class="section-block-inner">
-      <div class="section-eyebrow reveal">— Why book direct</div>
-      <h2 class="why-title reveal reveal-d1">
-        The bay,<br>
-        <em>without the middleman.</em>
-      </h2>
+      <div class="section-eyebrow reveal" data-i18n="why.eyebrow">— Why book direct</div>
+      <h2 class="why-title reveal reveal-d1" data-i18n-html="why.title.full">The bay,<br><em>without the middleman.</em></h2>
       <div class="why-rule"></div>
 
       <div class="why-grid">
         <article class="why-item reveal reveal-d1">
           <div class="why-num">01</div>
-          <h3 class="why-item-title">Real people, not algorithms</h3>
-          <p class="why-item-text">
-            Rodrigo, Paulo and the local team manage every stay from Vallarta.
-            No call centers. No bots. Just neighbors who know the bay.
-          </p>
+          <h3 class="why-item-title" data-i18n="why.item1.title">Real people, not algorithms</h3>
+          <p class="why-item-text" data-i18n="why.item1.text">Rodrigo, Paulo and the local team manage every stay from Vallarta. No call centers. No bots. Just neighbors who know the bay.</p>
         </article>
 
         <article class="why-item reveal reveal-d2">
           <div class="why-num">02</div>
-          <h3 class="why-item-title">No hidden fees</h3>
-          <p class="why-item-text">
-            The price you see is the price you pay. No Airbnb commissions,
-            no service fees. Direct, transparent, fair.
-          </p>
+          <h3 class="why-item-title" data-i18n="why.item2.title">Save up to 15% vs Airbnb</h3>
+          <p class="why-item-text" data-i18n="why.item2.text">Airbnb charges hosts 15.5% commission. Book direct and that saving stays with you and us — not a platform thousands of miles away.</p>
         </article>
 
         <article class="why-item reveal reveal-d3">
           <div class="why-num">03</div>
-          <h3 class="why-item-title">Every home, personally curated</h3>
-          <p class="why-item-text">
-            70 properties across Vallarta and Riviera Nayarit. Each one
-            visited, photographed and maintained by our local team.
-          </p>
+          <h3 class="why-item-title" data-i18n="why.item3.title">Every home, personally curated</h3>
+          <p class="why-item-text" data-i18n="why.item3.text">70 properties across Vallarta and Riviera Nayarit. Each one visited, photographed and maintained by our local team.</p>
         </article>
       </div>
     </div>
@@ -2683,26 +3089,24 @@
        ========================================================= -->
   <section class="section-block experience">
     <div class="section-block-inner">
-      <div class="section-eyebrow reveal">— The bay, lived</div>
+      <div class="section-eyebrow reveal" data-i18n="experience.eyebrow">— The bay, lived</div>
       <p class="reimagine-text reveal" data-split-text data-split-stagger="35" data-split-trigger="scroll">
-        <span class="pri">Banderas Bay,</span>
-        <span class="sec">done right.</span>
+        <span class="pri" data-i18n="experience.text.pri">Banderas Bay,</span>
+        <span class="sec" data-i18n="experience.text.sec">done right.</span>
       </p>
-      <p class="reimagine-caption reveal reveal-d2">
-        70 curated homes along Puerto Vallarta and Riviera Nayarit. Booked through the people who actually live here.
-      </p>
+      <p class="reimagine-caption reveal reveal-d2" data-i18n="experience.caption">70 curated homes along Puerto Vallarta and Riviera Nayarit. Booked through the people who actually live here.</p>
       <div class="stats">
         <div class="stat-item reveal reveal-d1">
           <div class="stat-num">2018</div>
-          <div class="stat-label">Operating<br>in the bay</div>
+          <div class="stat-label" data-i18n-html="experience.stat1.label">Operating<br>in the bay</div>
         </div>
         <div class="stat-item reveal reveal-d2">
           <div class="stat-num">70+</div>
-          <div class="stat-label">Curated<br>homes</div>
+          <div class="stat-label" data-i18n-html="experience.stat2.label">Curated<br>homes</div>
         </div>
         <div class="stat-item reveal reveal-d3">
           <div class="stat-num">4.83</div>
-          <div class="stat-label">★ · 517<br>guests · avg rating</div>
+          <div class="stat-label" data-i18n-html="experience.stat3.label">★ · 517<br>guests · avg rating</div>
         </div>
       </div>
     </div>
@@ -2711,66 +3115,40 @@
 
   <section class="reviews">
     <div class="reviews-list">
-      <div class="review reveal">
-        <div class="review-mark">"</div>
-        <blockquote class="review-text">
-          Llegamos a Vallarta cansados y Rodrigo nos recibió en la casa con todo
-          listo. <em>Sentimos que reservamos con un amigo,</em> no con una empresa.
-        </blockquote>
-        <div class="review-attr">
-          <span class="review-attr-name">Margaret &amp; David K.</span>
-          <span class="review-attr-sep">—</span>
-          <span class="review-attr-property">Toronto · January 2026</span>
+      <!-- PLACEHOLDER: reviews verificados pendientes de integración.
+           Los 517+ reviews REALES están agregados en el dashboard de VRM,
+           se pueden importar dinámicamente cuando se conecte el módulo. -->
+      <div class="reviews-placeholder reveal">
+        <div class="reviews-aggregate">
+          <div class="reviews-stars" aria-hidden="true">★ ★ ★ ★ ★</div>
+          <div class="reviews-score">4.83</div>
+          <div class="reviews-count" data-i18n="reviews.count">517 verified reviews · since 2018</div>
         </div>
-      </div>
-
-      <div class="review reveal">
-        <div class="review-mark">"</div>
-        <blockquote class="review-text">
-          Es la cuarta vez que rentamos con VRM. La diferencia es la gente — siempre disponibles, siempre honestos sobre qué casa nos conviene. <em>Ya somos amigos.</em>
-        </blockquote>
-        <div class="review-attr">
-          <span class="review-attr-name">Robert M.</span>
-          <span class="review-attr-sep">—</span>
-          <span class="review-attr-property">Calgary · March 2026</span>
-        </div>
-      </div>
-
-      <div class="review reveal">
-        <div class="review-mark">"</div>
-        <blockquote class="review-text">
-          We've stayed in many vacation rentals across Mexico. VRM's attention to detail and local knowledge stands apart. <em>They know which restaurant to recommend, where the fresh tuna is.</em>
-        </blockquote>
-        <div class="review-attr">
-          <span class="review-attr-name">Linda &amp; Tom W.</span>
-          <span class="review-attr-sep">—</span>
-          <span class="review-attr-property">Vancouver · December 2025</span>
+        <p class="reviews-placeholder-text" data-i18n="reviews.placeholder">
+          Verified guest reviews coming soon — currently aggregated from 517+ ratings across Airbnb.
+        </p>
+        <div class="reviews-sources">
+          <span class="reviews-source-pill">Airbnb · 4.83</span>
         </div>
       </div>
     </div>
   </section>
 
   <section class="final" id="final">
-    <h2 class="final-title reveal">
-      We'll send you<br><em>elsewhere if we should.</em>
-    </h2>
+    <h2 class="final-title reveal" data-i18n-html="final.title.combined">We'll send you<br><em>elsewhere if we should.</em></h2>
     <div class="final-actions reveal reveal-d1">
       <a href="#properties" class="btn btn-primary">
-        Browse stays
+        <span data-i18n="final.cta">Browse stays</span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <line x1="5" y1="12" x2="19" y2="12"/>
           <polyline points="12 5 19 12 12 19"/>
         </svg>
       </a>
-      <a href="https://wa.me/523221234567" class="btn btn-secondary" target="_blank" rel="noopener">
-        WhatsApp Rodrigo
-      </a>
+      <a href="https://wa.me/5213222244488" class="btn btn-secondary" target="_blank" rel="noopener" data-i18n="final.whatsapp">WhatsApp us</a>
     </div>
     <div class="final-rule"></div>
-    <p class="final-caption">
-      Based in Vallarta. We answer in English, Spanish, and Italian.
-    </p>
-    <p class="final-signature">“Si la casa no encaja contigo, te recomendamos otra.”</p>
+    <p class="final-caption" data-i18n="final.caption">Based in Vallarta. We answer in English, Spanish, and Italian.</p>
+    <p class="final-signature" data-i18n="final.signature">"If the house doesn't fit you, we'll recommend another."</p>
   </section>
 
   <!-- =========================================================
@@ -2781,13 +3159,13 @@
        ========================================================= -->
   <div class="sticky-action" id="stickyAction" aria-hidden="true">
     <a href="#properties" class="sticky-action-primary">
-      <span>Browse stays</span>
+      <span data-i18n="sticky.cta">Browse stays</span>
       <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <line x1="5" y1="12" x2="19" y2="12"/>
         <polyline points="13 6 19 12 13 18"/>
       </svg>
     </a>
-    <a href="https://wa.me/523221234567" class="sticky-action-wa" aria-label="WhatsApp">
+    <a href="https://wa.me/5213222244488" class="sticky-action-wa" aria-label="WhatsApp">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
       </svg>
@@ -2811,9 +3189,9 @@
         <span>Puerto Vallarta · Riviera Nayarit</span>
       </div>
       <div class="footer-socials">
-        <a href="#" class="footer-social">Instagram</a>
+        <a href="https://instagram.com/vrm.mx" target="_blank" rel="noopener" class="footer-social">Instagram</a>
         <a href="mailto:hola@vrm.mx" class="footer-social">Email</a>
-        <a href="https://wa.me/523221234567" class="footer-social">WhatsApp</a>
+        <a href="https://wa.me/5213222244488" class="footer-social">WhatsApp</a>
       </div>
     </div>
   </footer>
