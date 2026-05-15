@@ -234,11 +234,18 @@
   }
 
   /* Eyebrow arriba: BANDERAS BAY · SINCE 2018 */
-  .cover-eyebrow-top {
+  /* Wrapper que ocupa todo el ancho para centrar el contenido */
+  .cover-eyebrow-wrap {
     position: absolute;
     top: 90px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
+    text-align: center;
+    z-index: 5;
+    pointer-events: none;
+  }
+  .cover-eyebrow-top {
+    display: inline-block;
     font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
     font-size: 11px;
     font-weight: 500;
@@ -247,13 +254,10 @@
     color: rgba(232, 228, 218, 0.55);
     opacity: 0;
     animation: ru 1.4s var(--ease-soft) 2.0s forwards;
-    z-index: 5;
-    text-align: center;
-    white-space: nowrap;
-    /* Absorber el letter-spacing fantasma del último carácter: el navegador
-       cuenta 0.42em extra a la derecha del texto en el ancho del bloque,
-       lo que desplaza el centrado visualmente. margin-right negativo
-       compensa exactamente ese espacio. */
+    /* margin-right negativo absorbe el letter-spacing fantasma del último
+       carácter. Esto hace que el inline-block sea del ancho del texto
+       VISIBLE, no del texto + space fantasma. Combinado con el wrapper
+       que tiene text-align: center, el resultado es centrado perfecto. */
     margin-right: -0.42em;
   }
 
@@ -408,47 +412,39 @@
     .cover-trust { font-size: 10px; gap: 10px; }
   }
 
-  /* Scroll cue abajo */
+  /* Scroll cue abajo — centrado simple, sin flex ambigüedades */
   .cover-cue {
     position: absolute;
     bottom: 36px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 14px;
+    left: 0;
+    right: 0;
+    text-align: center;
     opacity: 0;
     animation: ru 1.2s var(--ease-soft) 4.0s forwards;
     z-index: 5;
+    pointer-events: none;  /* no interfiere con clicks debajo */
   }
   .cover-cue-star {
-    display: flex;
-    align-items: center;
-    gap: 14px;
+    display: inline-block;
     font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
     font-size: 9px;
     font-weight: 500;
     letter-spacing: 0.42em;
     text-transform: uppercase;
     color: rgba(232, 228, 218, 0.55);
-    /* Absorber letter-spacing fantasma del último carácter — el navegador
-       cuenta 0.42em extra a la derecha en el ancho del bloque, lo que
-       desplaza el centrado del padre. margin-right negativo lo compensa. */
+    margin-bottom: 14px;
+    /* Compensación del letter-spacing fantasma del último carácter:
+       - text-indent: 0.42em mueve el texto a la derecha (compensa)
+       - margin-right: -0.42em absorbe el espacio fantasma del ancho
+       Resultado: el texto visible queda perfectamente centrado en su padre. */
+    text-indent: 0.42em;
     margin-right: -0.42em;
   }
-  .cover-cue-star::before, .cover-cue-star::after {
-    content: '✦';
-    font-size: 9px;
-    color: rgba(232, 228, 218, 0.45);
-    animation: sp 3s ease-in-out infinite;
-  }
-  @keyframes sp {
-    0%, 100% { opacity: 0.5; transform: scale(1); }
-    50% { opacity: 0.9; transform: scale(1.2); }
-  }
   .cover-cue-line {
-    width: 1px; height: 40px;
+    display: block;
+    margin: 0 auto;
+    width: 1px;
+    height: 40px;
     background: linear-gradient(180deg, rgba(232, 228, 218, 0.5) 0%, transparent 100%);
   }
   @keyframes ru { to { opacity: 1; transform: translateY(0); } }
@@ -466,8 +462,7 @@
       top: 80px;
       font-size: 9.5px;
       letter-spacing: 0.36em;
-      /* "Since 2018" cabe en una línea — no necesita padding ni wrap.
-         El centrado base (left: 50%; transform: translateX(-50%)) funciona. */
+      padding-left: 0.36em;  /* compensa letter-spacing móvil */
     }
     .cover-mark-wrap {
       margin-top: 90px;
@@ -495,7 +490,7 @@
       display: inline;
     }
     .cover-cue { bottom: 28px; }
-    .cover-cue-star { font-size: 8.5px; letter-spacing: 0.36em; }
+    .cover-cue-star { font-size: 8.5px; letter-spacing: 0.36em; padding-left: 0.36em; }
     .cover-cue-line { height: 32px; }
   }
   
@@ -2095,7 +2090,9 @@
   </nav>
 
   <section class="cover">
-    <div class="cover-eyebrow-top">Since 2018</div>
+    <div class="cover-eyebrow-wrap">
+      <div class="cover-eyebrow-top">Since 2018</div>
+    </div>
 
     <div class="cover-mark-wrap">
       <h1 class="cover-mark" aria-label="VRM">VRM</h1>
@@ -3886,22 +3883,33 @@ const WHALE_PATH = [
   //      dos direcciones de natación debe ser SUAVE (idealmente <30°).
   //      Cambios bruscos de dirección causan giros visibles.
 
-  // ═══════ HERO INICIAL — la ballena ya está nadando (sp 0-12%) ═══════
-  // Entra desde la izquierda atrás, viaja hacia la derecha y abajo.
-  // NUNCA está quieta. El usuario al cargar la ve YA en movimiento
-  // — eso es vida desde el primer frame. La ballena pasa POR el área
-  // del logo VRM mientras nada, no se asienta detrás de él.
-  _kf(0.00, -1.5,  0.5,  3.5),    // entra desde izquierda alto, cerca
-  _kf(0.04, -1.0,  0.3,  3.6),    // sigue avanzando hacia centro
-  _kf(0.08, -0.3,  0.0,  3.5),    // pasando por el centro, cerca del logo
-  _kf(0.12,  0.5, -0.3,  3.2),    // emergiendo hacia derecha-abajo
+  // ═══════ HERO ESTÁTICO — Detrás del logo, casi sin desplazarse (sp 0-12%) ═══════
+  // La ballena llega del reveal, se asienta detrás del logo y se queda
+  // ahí casi quieta. NO atraviesa el frame. NO sigue moviéndose lateralmente.
+  // El secondary motion (cola, respiración, dorsal bob) le da vida sin
+  // que la posición o orientación cambien.
+  //
+  // X≈0 durante todo este tramo → la ballena no se mueve lateralmente.
+  // Z varía sutilmente (4.5 a 4.0) — apenas una respiración de profundidad.
+  // Y varía sutilmente (0 a -0.1) — apenas un cabeceo.
+  //
+  // Como el swim direction entre estos keyframes es casi nulo, el código
+  // usa _lastValidSwim (que fue inicializado para mirar hacia la cámara
+  // al final del reveal). Resultado: la ballena queda viendo al frente,
+  // sin rotar.
+  _kf(0.00,  0.0,  0.0,  4.5),    // detrás del logo, centrada
+  _kf(0.04,  0.0,  0.0,  4.4),    // microvariación de profundidad (respiración)
+  _kf(0.08,  0.0, -0.05, 4.3),    // microvariación vertical
+  _kf(0.12,  0.0, -0.1,  4.2),    // empieza apenas a alejarse al final del hero
 
   // ═══════ TRAVESÍA HACIA EL FONDO (sp 12-32%) ═══════
-  // La ballena viaja en línea continua hacia el fondo-derecha.
-  // X siempre creciente, Y bajando, Z decreciente. Dirección consistente.
-  _kf(0.18,  1.2, -0.5,  2.0),
-  _kf(0.25,  1.8, -0.8,  0.5),
-  _kf(0.32,  2.3, -0.9, -1.0),
+  // La ballena se "despega" del hero gradualmente. X crece lentamente
+  // hacia la derecha. Y baja. Z decrece. Cambios suaves para que el
+  // movimiento se vea como una "decisión" de la ballena de empezar
+  // el viaje, no como un salto brusco.
+  _kf(0.18,  0.5, -0.4,  2.5),
+  _kf(0.25,  1.2, -0.7,  1.0),
+  _kf(0.32,  1.8, -0.9, -0.5),
 
   // ═══════ FONDO PROFUNDO (sp 32-52%) ═══════
   // Sigue en la misma dirección general (derecha-fondo) pero ahora
@@ -3971,19 +3979,19 @@ const WHALE_PATH = [
 // recta sin desviarse. La cámara nunca se mueve. La opacidad sube de 0 a 1
 // con la cercanía (no es un fade, es niebla disipándose).
 
-// REVEAL_FROM: la ballena entra al frame DESDE FUERA por la izquierda,
-// ya en movimiento. NO emerge "de la niebla" — viene nadando desde
-// fuera del viewport visible. Cuando la opacidad alcanza 1.0 ella ya
-// cruzó el borde y está visible en su trayectoria.
+// REVEAL_FROM: la ballena viene desde una esquina (lateral-arriba-atrás)
+// y se asienta detrás del logo. Cuando termina el reveal está en
+// (0, logo, 4.5) — exactamente la posición de WHALE_PATH[0] (hero).
 //
-// La dirección REVEAL_FROM → WHALE_PATH[0] es derecha-abajo-adelante,
-// que es CONSISTENTE con la dirección del path inicial (derecha-abajo).
-// Al terminar el reveal NO hay cambio de orientación — la ballena
-// sigue nadando hacia el mismo lado.
+// Dirección durante reveal: REVEAL_FROM → hero = (+x, -y, +z). Cuando
+// llega a hero, la dirección de natación se vuelve casi nula (path[0] a
+// path[1] tiene swim ≈ 0). El _lastValidSwim mantiene la última dirección
+// válida (que apunta hacia el frente-cámara), así la ballena queda
+// orientada hacia el usuario en pose hero, sin rotar.
 const REVEAL_FROM = {
-  x: -8.0,                 // muy a la izquierda, FUERA del frame visible
-  y: 2.5 + _logoYWorld,    // arriba
-  z: 2.5,                  // cerca pero no encima del usuario
+  x: -6.0,                 // izquierda, fuera del frame en mobile
+  y: 2.0 + _logoYWorld,    // arriba
+  z: 1.5,                  // viene desde un poco atrás del cristal
 };
 
 // ════════════════════════════════════════════════════════════════════════
@@ -4244,12 +4252,43 @@ function animate() {
   let swimDx, swimDy, swimDz;
 
   if (revealProgress < 1.0) {
-    // Durante reveal: dirección REVEAL_FROM → hero. La ballena emerge
-    // del fondo hacia el cristal, mirando hacia la cámara — eso ES
-    // "adelante" para ella en este momento. NO aplicamos clamps aquí.
-    swimDx = heroPathPose.x - REVEAL_FROM.x;
-    swimDy = heroPathPose.y - REVEAL_FROM.y;
-    swimDz = heroPathPose.z - REVEAL_FROM.z;
+    // Durante reveal hay DOS fases:
+    //   - Fase A (0 - 0.65): dirección REVEAL_FROM → hero. La ballena
+    //     entra al frame nadando hacia el centro.
+    //   - Fase B (0.65 - 1.0): la dirección transiciona hacia (0, 0, 1)
+    //     — de frente a la cámara. Es lo que permite que cuando llega
+    //     a pose hero, esté mirando al usuario, no de costado.
+    //
+    // Sin esta transición, la ballena terminaría el reveal viendo hacia
+    // donde venía (derecha-abajo) y al empezar el path con swim ≈ 0,
+    // mantendría esa orientación → se vería "girada".
+    const swimEntry = {
+      dx: heroPathPose.x - REVEAL_FROM.x,
+      dy: heroPathPose.y - REVEAL_FROM.y,
+      dz: heroPathPose.z - REVEAL_FROM.z
+    };
+    // Normalizar entry
+    const entryLen = Math.hypot(swimEntry.dx, swimEntry.dy, swimEntry.dz);
+    if (entryLen > 0.001) {
+      swimEntry.dx /= entryLen;
+      swimEntry.dy /= entryLen;
+      swimEntry.dz /= entryLen;
+    }
+    // Target final: mirando hacia +Z (cámara)
+    const swimFrontal = { dx: 0, dy: 0, dz: 1 };
+
+    // Blend entre entry direction y frontal, basado en revealProgress.
+    // Empieza a transicionar al 65% del reveal, completo al 100%.
+    const blendStart = 0.65;
+    const blendT = revealProgress < blendStart
+      ? 0
+      : Math.min(1, (revealProgress - blendStart) / (1 - blendStart));
+    // smootherstep para que la transición sea muy suave
+    const eb = blendT * blendT * blendT * (blendT * (blendT * 6 - 15) + 10);
+
+    swimDx = swimEntry.dx * (1 - eb) + swimFrontal.dx * eb;
+    swimDy = swimEntry.dy * (1 - eb) + swimFrontal.dy * eb;
+    swimDz = swimEntry.dz * (1 - eb) + swimFrontal.dz * eb;
   } else {
     // En scroll: mirar hacia donde estará dentro de 15% (ventana grande).
     // 
@@ -4260,15 +4299,43 @@ function animate() {
     //     en el espacio (la ballena rodea, no rota sobre su eje)
     //   - El lookahead grande (15%) hace que la rotación se distribuya
     //     a lo largo de la curva, nunca se concentra en un punto
-    //
-    // No necesitamos clamps de orientación porque el path no tiene
-    // reversas bruscas — los cambios de dirección son consecuencia de
-    // la geometría de la trayectoria, no de overrides arbitrarios.
     const futureSp = Math.min(1.0, sp + 0.15);
     const futurePose = getPathPoint(WHALE_PATH, futureSp);
     swimDx = futurePose.x - heroPathPose.x;
     swimDy = futurePose.y - heroPathPose.y;
     swimDz = futurePose.z - heroPathPose.z;
+
+    // ═══════════════════════════════════════════════════════════════════
+    // FROZEN HERO POSE — Ballena quieta de frente cuando NO has scrolleado
+    // ═══════════════════════════════════════════════════════════════════
+    // Después del reveal, mientras sp < 0.05 (usuario aún no ha scrolleado),
+    // la cabeza queda FROZEN apuntando a +Z (frontal). El path normal pide
+    // mirar hacia el fondo (z negativo), pero eso causaría que la ballena
+    // gire 180° apenas aterriza. Lo congelamos.
+    //
+    // Entre sp 0.05 y 0.20 hay un blend gradual: la ballena pasa de
+    // "mirar frontal" a "mirar hacia donde va en el path". El blend es
+    // suave (smootherstep) para que el giro se distribuya en 15% del scroll
+    // y nunca se vea brusco.
+    //
+    // A partir de sp=0.20: swim direction del path puro.
+    const FREEZE_END = 0.05;
+    const BLEND_END = 0.20;
+    if (sp < BLEND_END) {
+      const swimFrontal = { dx: 0, dy: 0, dz: 1 };
+      let frontalWeight;
+      if (sp < FREEZE_END) {
+        frontalWeight = 1.0;  // completamente frontal
+      } else {
+        const blendT = (sp - FREEZE_END) / (BLEND_END - FREEZE_END);
+        // smootherstep para transición sin esquinas perceptibles
+        const eb = blendT * blendT * blendT * (blendT * (blendT * 6 - 15) + 10);
+        frontalWeight = 1 - eb;
+      }
+      swimDx = swimDx * (1 - frontalWeight) + swimFrontal.dx * frontalWeight;
+      swimDy = swimDy * (1 - frontalWeight) + swimFrontal.dy * frontalWeight;
+      swimDz = swimDz * (1 - frontalWeight) + swimFrontal.dz * frontalWeight;
+    }
   }
 
   const swimLen = Math.hypot(swimDx, swimDy, swimDz);
