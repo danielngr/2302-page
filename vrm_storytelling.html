@@ -1518,6 +1518,17 @@
   .sticky-action {
     display: none;  /* oculto en desktop por defecto */
   }
+  /* Cuando el modal del picker está abierto, ocultamos sticky bar y
+     nav-reserve para que no compitan visualmente con el botón "Buscar"
+     dentro del modal. También quitamos el padding-bottom del body que
+     compensaba el sticky bar (ya no es necesario). */
+  body.picker-open .sticky-action,
+  body.picker-open .nav-reserve {
+    display: none !important;
+  }
+  body.picker-open {
+    padding-bottom: 0 !important;
+  }
   @media (max-width: 768px) {
     .sticky-action {
       display: flex;
@@ -2753,9 +2764,11 @@
     margin-top: 1px;
     letter-spacing: 0.02em;
   }
-  @media (max-width: 600px) {
-    .wa-floating { padding: 12px; }
-    .wa-floating-text { display: none; }
+  @media (max-width: 768px) {
+    /* En móvil el sticky-action-bar inferior ya incluye un botón WhatsApp,
+       así que ocultamos el flotante .wa-floating para evitar el "doble
+       círculo verde" superpuesto. En desktop sigue visible como CTA. */
+    .wa-floating { display: none; }
   }
   /* =============================================================
      MOBILE PREMIUM — Optimizaciones globales para experiencia móvil
@@ -6712,11 +6725,45 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   // ═══════════════════════════════════════════════════════════════════
   // MODAL OPEN/CLOSE
   // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════
+  // SCROLL LOCK iOS-SAFE
+  // 
+  // iOS Safari IGNORA `body { overflow: hidden }` para el momentum
+  // scroll. La única forma confiable de bloquear el scroll en iOS es:
+  //   1. Guardar la posición de scroll actual
+  //   2. position: fixed; top: -scrollY en el body
+  //   3. Al cerrar, restaurar position y scroll a la posición guardada
+  // 
+  // Esto bloquea el fondo en TODOS los browsers (no solo iOS).
+  // ═══════════════════════════════════════════════════════════════════
+  let _scrollLockY = 0;
+  function lockBodyScroll() {
+    _scrollLockY = window.scrollY || window.pageYOffset;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${_scrollLockY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
+  }
+  function unlockBodyScroll() {
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    document.body.style.overflow = '';
+    window.scrollTo(0, _scrollLockY);
+  }
+  
   function openPicker() {
+    lockBodyScroll();
     overlay.classList.add('is-open');
     overlay.setAttribute('aria-hidden', 'false');
     trigger.setAttribute('aria-expanded', 'true');
-    document.body.style.overflow = 'hidden'; // bloquea scroll del body
+    // Marcar el body para que CSS oculte el sticky-bar y nav-reserve
+    // (no deben competir visualmente con el modal y su botón Buscar).
+    document.body.classList.add('picker-open');
     state.selecting = state.checkin && !state.checkout ? 'checkout' : 'checkin';
     renderCalendars();
     updateSummary();
@@ -6733,7 +6780,8 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     overlay.classList.remove('is-open');
     overlay.setAttribute('aria-hidden', 'true');
     trigger.setAttribute('aria-expanded', 'false');
-    document.body.style.overflow = '';
+    document.body.classList.remove('picker-open');
+    unlockBodyScroll();
   }
   
   // ═══════════════════════════════════════════════════════════════════
