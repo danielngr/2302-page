@@ -560,6 +560,26 @@ function _getUnitIdFromUrl() {
   return params.get('id');
 }
 
+// ───── Helper: lee fechas + huéspedes preseleccionados del URL ─────
+// Cuando el usuario viene de la landing tras click "Check availability"
+// en una propiedad destacada y escogió fechas en el picker, redirigimos
+// aquí con ?id=X&checkin=YYYY-MM-DD&checkout=YYYY-MM-DD&guests=N
+function _getBookingParamsFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const checkin  = params.get('checkin');
+  const checkout = params.get('checkout');
+  const guests   = parseInt(params.get('guests'), 10);
+  
+  // Validación básica de fechas formato YYYY-MM-DD
+  const isValidYMD = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  
+  return {
+    checkin:  isValidYMD(checkin)  ? checkin  : null,
+    checkout: isValidYMD(checkout) ? checkout : null,
+    guests:   (Number.isFinite(guests) && guests > 0) ? guests : null,
+  };
+}
+
 // ───── Hidratación: rellena DOM antes de cualquier render ─────
 function hydratePropertyData() {
   const id = _getUnitIdFromUrl();
@@ -568,12 +588,20 @@ function hydratePropertyData() {
     console.warn('[VRM] No valid ?id= in URL, defaulting to 2302');
     window.VRM_UNIT_ID = '2302';
     window.VRM_UNIT = UNITS['2302'];
-    return UNITS['2302'];
+  } else {
+    window.VRM_UNIT_ID = id;
+    window.VRM_UNIT = UNITS[id];
+    console.log('[VRM] Hydrated property:', id, UNITS[id].name);
   }
-  window.VRM_UNIT_ID = id;
-  window.VRM_UNIT = UNITS[id];
-  console.log('[VRM] Hydrated property:', id, UNITS[id].name);
-  return UNITS[id];
+  
+  // Guardar params de booking si vienen en la URL — JS de booking modal
+  // los usa para pre-llenar y auto-abrir el modal.
+  window.VRM_PRELOAD_BOOKING = _getBookingParamsFromUrl();
+  if (window.VRM_PRELOAD_BOOKING.checkin || window.VRM_PRELOAD_BOOKING.guests) {
+    console.log('[VRM] Preloaded booking params:', window.VRM_PRELOAD_BOOKING);
+  }
+  
+  return window.VRM_UNIT;
 }
 
 // Se ejecuta INMEDIATAMENTE para que tenga UNIT antes que cualquier otro JS
@@ -1546,9 +1574,9 @@ hydratePropertyData();
 <header class="topbar" id="topbar">
   <!-- Botón "All homes" — regresa a la landing principal.
        Usa history.back() si el usuario vino de la landing (preserva
-       scroll position perfecto), fallback a navegación directa
-       si vino por link directo de WhatsApp/email/otro sitio. -->
-  <a href="vrm_storytelling.html#properties" class="topbar-back" aria-label="Volver a propiedades"
+       scroll position perfecto), fallback a "index.html" si vino
+       por link directo de WhatsApp/email/otro sitio. -->
+  <a href="index.html#properties" class="topbar-back" aria-label="Volver a propiedades"
      onclick="if (document.referrer && document.referrer.indexOf(window.location.host) >= 0) { event.preventDefault(); history.back(); }">
     <svg width="18" height="12" viewBox="0 0 18 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
       <line x1="17" y1="6" x2="1" y2="6"/>
@@ -1557,7 +1585,7 @@ hydratePropertyData();
     <span>All homes</span>
   </a>
   <!-- Logo VRM — también regresa a la landing. -->
-  <a href="vrm_storytelling.html" class="topbar-brand">
+  <a href="index.html" class="topbar-brand">
     <span class="mk"></span>
     <span>vrm</span>
   </a>
@@ -2841,6 +2869,51 @@ hydratePropertyData();
     guests: 2,
     visibleMonth: new Date(TODAY.getFullYear(), TODAY.getMonth(), 1)
   };
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // PRELOAD desde URL params — viene de la landing tras click
+  // "Check availability" en una propiedad destacada.
+  // Si hay checkin/checkout/guests en la URL, los aplicamos al state
+  // inicial Y auto-abrimos el booking modal para el usuario.
+  // ═══════════════════════════════════════════════════════════════════
+  function _parseYMDLocal(ymdStr) {
+    // Parser sin timezone issues — interpreta YYYY-MM-DD como local date
+    // (new Date('YYYY-MM-DD') usa UTC y se desfasa 1 día en zonas
+    // negativas como México UTC-6).
+    if (!ymdStr) return null;
+    const [y, m, d] = ymdStr.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
+  }
+  
+  if (window.VRM_PRELOAD_BOOKING) {
+    const pre = window.VRM_PRELOAD_BOOKING;
+    let shouldAutoOpen = false;
+    
+    if (pre.checkin) {
+      state.checkIn = _parseYMDLocal(pre.checkin);
+      if (state.checkIn) {
+        // Ajustar el calendario para que muestre el mes del check-in
+        state.visibleMonth = new Date(state.checkIn.getFullYear(), state.checkIn.getMonth(), 1);
+        shouldAutoOpen = true;
+      }
+    }
+    if (pre.checkout) {
+      state.checkOut = _parseYMDLocal(pre.checkout);
+    }
+    if (pre.guests && pre.guests > 0) {
+      // Ajustamos al máximo permitido por la unidad si excede
+      const maxGuests = (window.VRM_UNIT && window.VRM_UNIT.guests) ? window.VRM_UNIT.guests : 16;
+      state.guests = Math.min(maxGuests, Math.max(1, pre.guests));
+      shouldAutoOpen = true;
+    }
+    
+    // Auto-abrir el booking modal después de un breve delay (deja que
+    // la página renderice primero, da contexto al usuario)
+    if (shouldAutoOpen) {
+      window._VRM_AUTO_OPEN_BOOKING = true;
+    }
+  }
 
   const backdrop = document.getElementById('bmBackdrop');
   const bm = document.getElementById('bm');
@@ -2861,6 +2934,18 @@ hydratePropertyData();
     document.body.classList.remove('lock');
   }
   document.querySelectorAll('[data-open-booking]').forEach(b => b.addEventListener('click', openBooking));
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // AUTO-OPEN del booking modal si vino con params de la landing.
+  // Esperamos un poco para que la página esté visualmente lista —
+  // así el usuario percibe "aterrizó en la página de la propiedad, 
+  // luego el booking modal se abrió con sus fechas".
+  // ═══════════════════════════════════════════════════════════════════
+  if (window._VRM_AUTO_OPEN_BOOKING) {
+    setTimeout(() => {
+      openBooking();
+    }, 600);
+  }
   document.getElementById('bmClose').addEventListener('click', closeBooking);
   backdrop.addEventListener('click', closeBooking);
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && bm.classList.contains('open')) closeBooking(); });
