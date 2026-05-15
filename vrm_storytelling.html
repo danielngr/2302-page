@@ -498,18 +498,15 @@
     height: 100vh;
     height: 100dvh;
     transition: opacity 0.6s var(--ease-soft);
-    /* GPU compositing hint — translateZ(0) y will-change fuerzan al
-       canvas a vivir en su propio layer GPU, lo que reduce repaints
-       costosos durante scroll.
+    /* IMPORTANTE: NO usar transform:translateZ(0) ni will-change:transform
+       aquí. En teoría fuerzan GPU compositing layer (bueno), pero en la
+       práctica con iOS Safari + canvas WebGL fixed + bloom pass causan
+       flashes del clearColor durante scroll. El layer GPU separado a
+       veces no recompone a tiempo durante scroll = flash visible.
        
-       NOTA crítica: NO usar backface-visibility:hidden aquí. Causa el
-       bug WebKit 126267 — "portions of the screen not to update" —
-       que se manifiesta como flashes negros durante scroll en iOS.
-       También combinado con backdrop-filter:blur (que tenemos en otros
-       elementos) rompe el rendering (WebKit bug 249952). */
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    will-change: transform;
+       Sin esos hints, iOS Safari maneja el canvas WebGL en su propio
+       path optimizado (los canvases WebGL ya viven en GPU por naturaleza,
+       no necesitan promotion CSS extra). */
   }
 
   /* Aurora pastel + sol blanco central — AHORA renderizada dentro de Three.js
