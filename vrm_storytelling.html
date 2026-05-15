@@ -3405,6 +3405,26 @@
       </div>
     </div>
   </div>
+  <script>
+    // Si la landing se carga (incluyendo restauración desde bfcache cuando
+    // el usuario presiona "All homes" o el back del navegador en property),
+    // limpiar cualquier overlay activo y el flag de transición.
+    // 
+    // Sin esto, el bfcache restaura el DOM con .is-active y el overlay se
+    // queda mostrando "Preparing your stay" para siempre.
+    (function() {
+      function clearTransitionState() {
+        const overlay = document.getElementById('vrm-transition');
+        if (overlay) overlay.classList.remove('is-active');
+        try { sessionStorage.removeItem('vrm_transition_active'); } catch(_) {}
+      }
+      // pageshow: dispara tanto en carga normal como en restore de bfcache
+      // event.persisted === true cuando viene del cache
+      window.addEventListener('pageshow', clearTransitionState);
+      // También al cargar inicialmente (por si el flag quedó por error)
+      clearTransitionState();
+    })();
+  </script>
 
   <!-- WhatsApp floating CTA — siempre visible (la ventaja real sobre Airbnb) -->
   <a href="https://wa.me/15559472509?text=Hi!%20I'm%20interested%20in%20a%20property%20in%20Bah%C3%ADa%20de%20Banderas"
@@ -6992,7 +7012,6 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       try { sessionStorage.setItem('vrm_transition_active', '1'); } catch(_) {}
       const overlay = document.getElementById('vrm-transition');
       if (overlay) overlay.classList.add('is-active');
-      
       // 500ms = tiempo para que el overlay haga su fade-in completo
       // antes de la navegación. Sin esto, se ve un parpadeo durante
       // la transición.
