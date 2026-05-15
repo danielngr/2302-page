@@ -92,6 +92,7 @@
       // Nav
       'nav.properties': 'Properties',
       'nav.contact': 'Contact',
+      'nav.reserve': 'Reserve',
       
       // Cover / Hero
       'cover.eyebrow': 'Since 2018',
@@ -200,12 +201,13 @@
       'final.signature': '"If the house doesn\'t fit you, we\'ll recommend another."',
       
       // Sticky action
-      'sticky.cta': 'Browse stays',
+      'sticky.cta': 'Reserve',
     },
     es: {
       // Nav
       'nav.properties': 'Propiedades',
       'nav.contact': 'Contacto',
+      'nav.reserve': 'Reservar',
       
       // Cover / Hero
       'cover.eyebrow': 'Desde 2018',
@@ -314,7 +316,7 @@
       'final.signature': '"Si la casa no encaja contigo, te recomendamos otra."',
       
       // Sticky action
-      'sticky.cta': 'Ver casas',
+      'sticky.cta': 'Reservar',
     }
   };
   
@@ -562,10 +564,79 @@
     filter: none;
   }
   .nav-link:hover { opacity: 1; color: var(--mist); }
+  
+  /* ═══════════════════════════════════════════════════════════════════
+     BOTÓN RESERVE — Liquid glass premium
+     
+     Mismo lenguaje visual que el card de reviews (4.83 / 517):
+     fondo translúcido azul oscuro + backdrop blur + borde sutil beige
+     + inner shadow para profundidad. NO es sólido pesado, es un cristal
+     flotando sobre el contenido — estilo Aman/Apple liquid glass.
+     
+     Aparece tras pasar el hero (body.nav--scrolled).
+     ═══════════════════════════════════════════════════════════════════ */
+  .nav-reserve {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 24px;
+    /* Glass background — semi-transparente azul oscuro */
+    background: rgba(26, 46, 72, 0.45);
+    /* Backdrop blur con saturate para sentir el cristal */
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    /* Texto beige cristal */
+    color: rgba(232, 228, 218, 0.95);
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    text-decoration: none;
+    /* Borde sutil beige + inner highlight para efecto cristal */
+    border: 1px solid rgba(232, 228, 218, 0.28);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 8px 24px rgba(7, 18, 36, 0.25);
+    border-radius: 100px;
+    transition:
+      background 0.5s var(--ease-soft),
+      border-color 0.5s var(--ease-soft),
+      box-shadow 0.5s var(--ease-soft),
+      transform 0.4s var(--ease-soft),
+      opacity 0.5s var(--ease-soft);
+    margin-left: 28px;
+    /* Compensar letter-spacing fantasma para padding visualmente simétrico */
+    padding-right: calc(24px - 0.28em);
+    /* Inicialmente oculto: aparece cuando body.nav--scrolled */
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+  }
+  body.nav--scrolled .nav-reserve {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .nav-reserve:hover {
+    background: rgba(232, 228, 218, 0.16);
+    border-color: rgba(232, 228, 218, 0.48);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.16) inset,
+      0 12px 36px rgba(7, 18, 36, 0.35);
+    transform: translateY(-1px);
+  }
+  .nav-reserve:active {
+    transform: translateY(0);
+  }
+  
   @media (max-width: 768px) {
     .nav { padding: 20px 24px; }
     .nav-links { display: none; }
     .nav-brand { font-size: 18px; }
+    /* En móvil el nav-reserve se oculta — usamos el sticky bar inferior
+       con su botón "Reserve" en su lugar. */
+    .nav-reserve { display: none; }
   }
 
   section { position: relative; z-index: 3; }
@@ -1453,19 +1524,29 @@
       justify-content: center;
       gap: 10px;
       padding: 14px 18px;
-      background: rgba(232, 228, 218, 0.94);
-      color: rgba(7, 18, 36, 1);
+      /* Liquid glass — mismo lenguaje que nav-reserve y reviews card */
+      background: rgba(26, 46, 72, 0.55);
+      backdrop-filter: blur(14px) saturate(180%);
+      -webkit-backdrop-filter: blur(14px) saturate(180%);
+      color: rgba(232, 228, 218, 0.96);
       font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
       font-size: 12.5px;
-      font-weight: 600;
-      letter-spacing: 0.20em;
+      font-weight: 500;
+      letter-spacing: 0.24em;
       text-transform: uppercase;
       text-decoration: none;
+      border: 1px solid rgba(232, 228, 218, 0.30);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.08) inset,
+        0 6px 16px rgba(7, 18, 36, 0.20);
       border-radius: 100px;
-      transition: background 0.3s ease;
+      transition: background 0.3s ease, border-color 0.3s ease;
+      /* Compensar letter-spacing fantasma */
+      padding-right: calc(18px - 0.24em);
     }
     .sticky-action-primary:active {
-      background: rgba(232, 228, 218, 1);
+      background: rgba(232, 228, 218, 0.18);
+      border-color: rgba(232, 228, 218, 0.50);
     }
     .sticky-action-wa {
       display: inline-flex;
@@ -1706,6 +1787,9 @@
 
   /* ============ HERO EDITORIAL ============ */
   .prop-editorial { display: flex; flex-direction: column; gap: 200px; padding: 0 var(--side); }
+  /* Counter del carrusel — solo visible en móvil. JS lo activa cuando el
+     carrusel se renderiza en formato horizontal. */
+  .prop-editorial-counter { display: none; }
 
   .prop-feature {
     display: grid;
@@ -2246,29 +2330,53 @@
     }
     .properties-intro-caption { font-size: 17px !important; }
 
-    /* === HERO EDITORIAL — Mobile: editorial compacto, no fullbleed === */
+    /* ════════════════════════════════════════════════════════════════
+       HERO EDITORIAL — Mobile: CARRUSEL horizontal swipeable
+       Estilo Aman/Six Senses: una propiedad a la vez, foto enorme,
+       peek del siguiente slide al borde para invitar al swipe.
+       NO auto-rotate. Usuario en control.
+       ════════════════════════════════════════════════════════════════ */
     .prop-editorial {
-      gap: 90px !important;
-      padding: 0 !important;
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      gap: 16px !important;
+      padding: 0 7.5vw !important;       /* el padding crea el "peek" del slide siguiente */
+      overflow-x: auto !important;
+      overflow-y: visible !important;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;             /* Firefox: oculta scrollbar */
+      scroll-padding: 0 7.5vw;
+    }
+    .prop-editorial::-webkit-scrollbar {
+      display: none;                     /* Safari/Chrome: oculta scrollbar */
     }
     .prop-feature, .prop-feature.reverse {
-      grid-template-columns: 1fr !important;
+      display: flex !important;
+      flex-direction: column !important;
+      flex: 0 0 85vw !important;         /* cada slide ocupa 85vw */
+      min-width: 85vw !important;
+      grid-template-columns: none !important;
       direction: ltr !important;
-      gap: 28px !important;
+      gap: 24px !important;
       min-height: auto !important;
       padding: 0;
-      align-items: center;            /* centra la foto en el grid */
+      scroll-snap-align: center;
+      scroll-snap-stop: always;
     }
+    /* Foto arriba, contenido abajo dentro de cada slide */
     .prop-feature-photo {
-      width: 72vw;                    /* compacto, editorial — NO fullbleed */
-      max-width: 380px;
-      aspect-ratio: 16 / 9;           /* cinematográfico panorámico, NO vertical */
-      margin: 0 auto;                 /* centrado, NO desborda */
-      border-radius: 6px;
-      box-shadow: 0 20px 50px rgba(0, 20, 40, 0.35);
+      width: 100%;
+      max-width: none;
+      aspect-ratio: 4 / 5;               /* vertical premium estilo Aman, no panorámico */
+      margin: 0;
+      border-radius: 8px;
+      box-shadow: 0 24px 60px rgba(0, 20, 40, 0.42);
     }
     .prop-feature-content {
-      padding: 0 24px;
+      padding: 0 4px;
       max-width: 100%;
     }
     .prop-feature-eyebrow {
@@ -2277,35 +2385,75 @@
       margin-bottom: 16px;
     }
     .prop-feature-title {
-      font-size: 12vw !important;
+      font-size: 11vw !important;
       line-height: 0.95;
-      margin-bottom: 24px !important;
+      margin-bottom: 20px !important;
     }
     .prop-feature-desc {
-      font-size: 17px !important;
+      font-size: 16px !important;
       line-height: 1.6 !important;
-      margin-bottom: 28px !important;
+      margin-bottom: 24px !important;
     }
     .prop-feature-stats {
-      gap: 24px !important;
-      padding: 20px 0 !important;
-      margin-bottom: 28px !important;
+      gap: 18px !important;
+      padding: 18px 0 !important;
+      margin-bottom: 24px !important;
       justify-content: space-between;
     }
-    .prop-stat-num { font-size: 26px !important; }
+    .prop-stat-num { font-size: 24px !important; }
     .prop-stat-label { font-size: 10px !important; }
     .prop-feature-cta {
       flex-direction: column;
       align-items: stretch !important;
-      gap: 20px !important;
+      gap: 16px !important;
     }
     .prop-feature-cta .btn {
       width: 100%;
       justify-content: center;
       padding: 16px 24px !important;
-      font-size: 15px !important;
+      font-size: 14px !important;
     }
-    .prop-price-amount { font-size: 32px !important; }
+    .prop-price-amount { font-size: 30px !important; }
+
+    /* COUNTER + barra de progreso — estilo Aman */
+    .prop-editorial-counter {
+      display: flex !important;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      margin: 40px auto 0;
+      padding: 0 24px;
+      max-width: 280px;
+    }
+    .prop-editorial-counter-track {
+      width: 100%;
+      height: 1px;
+      background: rgba(232, 228, 218, 0.18);
+      position: relative;
+      overflow: hidden;
+    }
+    .prop-editorial-counter-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 25%;                        /* inicia en 1/4 = 25% */
+      background: rgba(232, 228, 218, 0.85);
+      transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                  transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .prop-editorial-counter-text {
+      font-family: 'Satoshi', system-ui, sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.34em;
+      color: rgba(232, 228, 218, 0.62);
+      text-transform: uppercase;
+    }
+    .prop-editorial-counter-current {
+      color: rgba(232, 228, 218, 0.95);
+      font-weight: 600;
+    }
 
     /* === GRID HEADER === */
     .prop-grid-section {
@@ -2654,6 +2802,7 @@
     <div class="nav-links">
       <a href="#properties" class="nav-link" data-i18n="nav.properties">Properties</a>
       <a href="#final" class="nav-link" data-i18n="nav.contact">Contact</a>
+      <a href="#properties" class="nav-reserve" data-i18n="nav.reserve">Reserve</a>
     </div>
   </nav>
 
@@ -2862,6 +3011,18 @@
         </div>
       </article>
 
+    </div>
+
+    <!-- Counter del carrusel — solo visible en móvil (CSS gestiona visibilidad).
+         JS actualiza el current/fill basado en cuál slide está en vista. -->
+    <div class="prop-editorial-counter" id="prop-editorial-counter" aria-hidden="true">
+      <div class="prop-editorial-counter-track">
+        <div class="prop-editorial-counter-fill" id="prop-editorial-counter-fill"></div>
+      </div>
+      <div class="prop-editorial-counter-text">
+        <span class="prop-editorial-counter-current" id="prop-editorial-counter-current">01</span>
+        <span> / 04</span>
+      </div>
     </div>
 
     <!-- ============== SEARCH BAR — FECHAS + HUÉSPEDES ============== -->
@@ -4714,10 +4875,25 @@ function animate() {
   waterTexture.update();
   bgMaterial.uniforms.uTime.value = t;
 
-  // Lerp del scroll target — 0.12 = más responsivo al scroll del usuario.
-  // El path en sí ya es suave (CatmullRom), no necesitamos sobre-suavizar
-  // aquí. Resultado: la ballena responde al scroll sin retraso perceptible.
-  scrollProgress += (scrollTarget - scrollProgress) * 0.12;
+  // ═══════════════════════════════════════════════════════════════════
+  // SCROLL SMOOTHING — Adaptativo entre desktop y mobile
+  // 
+  // PROBLEMA EN MÓVIL: el scroll nativo iOS/Android tiene momentum
+  // (inertia scrolling). En un flick rápido el scrollTarget puede
+  // saltar 30-50% del path en 100ms. Con un smoothing alto (0.12)
+  // la ballena tiene que cubrir mucho path por frame → la velocidad
+  // angular cap se satura → se ve robótica/rezagada.
+  //
+  // SOLUCIÓN: en móvil usamos smoothing MUCHO más bajo (0.06) que
+  // distribuye los cambios bruscos entre más frames. La ballena
+  // queda un poco "atrás" del scroll real pero su movimiento se
+  // siente continuo y orgánico, no a tirones.
+  //
+  // DESKTOP: 0.12 sigue bien porque scroll desktop no tiene momentum
+  // y los cambios son más graduales (mouse wheel = stepwise).
+  // ═══════════════════════════════════════════════════════════════════
+  const scrollSmoothing = isMobile ? 0.06 : 0.12;
+  scrollProgress += (scrollTarget - scrollProgress) * scrollSmoothing;
   window.__vrmScroll = scrollProgress;
   const sp = scrollProgress;
 
@@ -4895,9 +5071,19 @@ function animate() {
   const finalY = targetPosY + driftY;
   const finalZ = targetPosZ + driftZ;
 
-  // Lerp temporal — dt*5.0 = ~25% del gap por frame. Cierra 95% en ~12
-  // frames (200ms). Responsivo al scroll del usuario sin verse nervioso.
-  const posLerp = Math.min(1, dt * 5.0);
+  // ════════════════════════════════════════════════════════════════════
+  // POSITION LERP — Adaptativo móvil/desktop
+  //
+  // MÓVIL: dt*3.5 (~17% por frame). Más amortiguado porque el scroll
+  // con momentum produce saltos grandes — un lerp alto los amplifica
+  // visualmente como "tirones". Un lerp más bajo distribuye el cambio
+  // entre 6-7 frames extra, sintiéndose flowy.
+  //
+  // DESKTOP: dt*5.0 (~25% por frame). Más responsivo porque el scroll
+  // es controlado y los cambios son graduales.
+  // ════════════════════════════════════════════════════════════════════
+  const posLerpRate = isMobile ? 3.5 : 5.0;
+  const posLerp = Math.min(1, dt * posLerpRate);
   whaleGroup.position.x += (finalX - whaleGroup.position.x) * posLerp;
   whaleGroup.position.y += (finalY - whaleGroup.position.y) * posLerp;
   whaleGroup.position.z += (finalZ - whaleGroup.position.z) * posLerp;
@@ -4952,11 +5138,26 @@ function animate() {
   _whaleQuatSecondary.setFromEuler(_whaleEulerSecondary);
   _whaleQuatFinal.multiply(_whaleQuatSecondary);
 
-  // Slerp con velocidad angular limitada — cinemático pero responsivo.
-  // 0.8 rad/s = ~46°/s. Lo suficientemente rápido para no sentir lag,
-  // lo suficientemente lento para no verse nervioso. Combinado con el
-  // path suave (CatmullRom + lookahead 15%) los giros son orgánicos.
-  const MAX_ANGULAR_SPEED = revealProgress < 1.0 ? 1.2 : 0.8;
+  // ════════════════════════════════════════════════════════════════════
+  // Slerp con velocidad angular limitada — adaptativo móvil/desktop.
+  //
+  // MÓVIL: scroll con momentum salta más, necesitamos angular speed
+  // más alto (1.4 rad/s = ~80°/s) para que la ballena nunca se rezague.
+  // El movimiento se ve menos extremo en móvil porque la ballena ocupa
+  // menos pixels visuales (cámara más alejada + FOV más amplio).
+  //
+  // DESKTOP: scroll controlado (mouse wheel), 0.8 rad/s suficiente
+  // para que se vea cinemático sin verse robótico.
+  //
+  // REVEAL: 1.2 rad/s en ambos para que la rotación entry → frontal
+  // (~77°) se complete en los 3 segundos del blend.
+  // ════════════════════════════════════════════════════════════════════
+  let MAX_ANGULAR_SPEED;
+  if (revealProgress < 1.0) {
+    MAX_ANGULAR_SPEED = 1.2;
+  } else {
+    MAX_ANGULAR_SPEED = isMobile ? 1.4 : 0.8;
+  }
   const dotProduct = Math.abs(
     whaleGroup.quaternion.x * _whaleQuatFinal.x +
     whaleGroup.quaternion.y * _whaleQuatFinal.y +
@@ -5566,11 +5767,145 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 })();
 
 /* ============================================================
+   CARRUSEL DE PROPIEDADES DESTACADAS — Mobile only
+   IntersectionObserver detecta qué slide está visible y actualiza
+   el counter (01/04 → 04/04) con la barra de progreso.
+   No interfiere con scroll del usuario — solo lee la posición.
+   ============================================================ */
+(function() {
+  const editorial = document.querySelector('.prop-editorial');
+  const counter = document.getElementById('prop-editorial-counter');
+  const fill = document.getElementById('prop-editorial-counter-fill');
+  const currentEl = document.getElementById('prop-editorial-counter-current');
+  if (!editorial || !counter || !fill || !currentEl) return;
+
+  const slides = editorial.querySelectorAll('.prop-feature');
+  const total = slides.length;
+  if (total === 0) return;
+
+  const isMobile = () => window.innerWidth <= 768;
+
+  // IntersectionObserver con root en el contenedor del carrusel
+  // y threshold alto para detectar cuando un slide está "centrado".
+  let currentIndex = 0;
+
+  function updateCounter(index) {
+    currentIndex = index;
+    const display = String(index + 1).padStart(2, '0');
+    currentEl.textContent = display;
+    // Barra crece proporcionalmente: slide 1 = 25%, slide 4 = 100%
+    const percent = ((index + 1) / total) * 100;
+    fill.style.width = percent + '%';
+  }
+
+  // Observer detecta cuál slide tiene más visibilidad
+  const observer = new IntersectionObserver((entries) => {
+    if (!isMobile()) return;
+    // Encontrar el slide con mayor intersección
+    let maxRatio = 0;
+    let maxIndex = currentIndex;
+    entries.forEach(entry => {
+      if (entry.intersectionRatio > maxRatio) {
+        maxRatio = entry.intersectionRatio;
+        const slideIndex = Array.from(slides).indexOf(entry.target);
+        if (slideIndex >= 0) maxIndex = slideIndex;
+      }
+    });
+    if (maxIndex !== currentIndex && maxRatio > 0.4) {
+      updateCounter(maxIndex);
+    }
+  }, {
+    root: editorial,
+    threshold: [0.4, 0.6, 0.8, 1.0],
+    rootMargin: '0px'
+  });
+
+  slides.forEach(slide => observer.observe(slide));
+
+  // Estado inicial
+  updateCounter(0);
+})();
+
+/* ============================================================
+   STICKY ACTION BAR + NAV RESERVE BUTTON
+   
+   Ambos comparten el mismo trigger: "el usuario pasó el hero".
+   Lógica:
+   - Mientras estás en el hero: nav-reserve oculto + sticky bar oculto
+     (no compitan con la primera impresión + la ballena)
+   - Tras pasar el hero: nav-reserve aparece (desktop) + sticky bar
+     aparece (mobile) — ambos dan acceso permanente a la acción
+   - Cerca del final CTA: sticky bar desaparece (ya hay CTAs grandes)
+     pero nav-reserve permanece (ofrece el shortcut hacia properties)
+   ============================================================ */
+(function() {
+  const stickyBar = document.getElementById('stickyAction');
+  const body = document.body;
+
+  // Solo móvil — comprobamos por viewport, no por touch (algunos
+  // laptops tienen pantalla táctil pero no necesitan sticky bar)
+  const isMobile = () => window.innerWidth <= 768;
+
+  const coverEl = document.querySelector('.cover');
+  const finalEl = document.getElementById('final');
+  if (!coverEl) return;
+
+  let ticking = false;
+
+  function updateVisibility() {
+    const scrollY = window.scrollY;
+    const coverBottom = coverEl.offsetTop + coverEl.offsetHeight;
+    const finalTop = finalEl ? finalEl.offsetTop : Infinity;
+    const viewportH = window.innerHeight;
+
+    // Aparecer cuando hemos pasado el hero (con buffer de 80px)
+    const pastHero = scrollY > coverBottom - 80;
+    // Cerca del final
+    const nearFinal = scrollY + viewportH > finalTop;
+
+    // === NAV RESERVE BUTTON (desktop) — visible después del hero
+    //     hasta el final completo. Es el "anchor" persistente. ===
+    if (pastHero) {
+      body.classList.add('nav--scrolled');
+    } else {
+      body.classList.remove('nav--scrolled');
+    }
+
+    // === STICKY BAR (mobile only) — visible después del hero,
+    //     se oculta cerca del final donde ya hay CTAs grandes ===
+    if (stickyBar) {
+      if (isMobile() && pastHero && !nearFinal) {
+        stickyBar.classList.add('is-visible');
+      } else {
+        stickyBar.classList.remove('is-visible');
+      }
+    }
+
+    ticking = false;
+  }
+
+  function onScroll() {
+    if (!ticking) {
+      window.requestAnimationFrame(updateVisibility);
+      ticking = true;
+    }
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', updateVisibility, { passive: true });
+  // Estado inicial
+  updateVisibility();
+})();
+
+/* ============================================================
    STICKY ACTION BAR — Mobile only
    Aparece después de scrollear pasado el hero (cover).
    Desaparece cuando llegamos cerca de la sección final.
    ============================================================ */
 (function() {
+  // Bloque legacy — la lógica está consolidada arriba.
+  // Este IIFE vacío preserva la estructura del archivo.
+  return;
   const stickyBar = document.getElementById('stickyAction');
   if (!stickyBar) return;
 
