@@ -2596,6 +2596,92 @@
     }
   }
 
+  /* ═══════════════════════════════════════════════════════════════════
+     TRANSITION OVERLAY — Pantalla de carga entre páginas
+     
+     Editorial premium. Logo VRM serif + línea animándose + texto sutil.
+     z-index altísimo (9999) para tapar todo. Fade in suave, fade out
+     cuando la nueva página/modal se monta.
+     ═══════════════════════════════════════════════════════════════════ */
+  .vrm-transition {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: var(--ink, #071224);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s var(--ease-soft);
+  }
+  .vrm-transition.is-active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .vrm-transition-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    text-align: center;
+  }
+  .vrm-transition-logo {
+    font-family: 'Boska', 'Times New Roman', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 64px;
+    color: var(--paper, #e8e4da);
+    letter-spacing: -0.02em;
+    opacity: 0.95;
+    animation: vrm-transition-fade-in 0.6s var(--ease-soft) 0.1s both;
+  }
+  .vrm-transition-line {
+    width: 200px;
+    height: 1px;
+    background: rgba(232, 228, 218, 0.18);
+    overflow: hidden;
+    position: relative;
+    animation: vrm-transition-fade-in 0.6s var(--ease-soft) 0.3s both;
+  }
+  .vrm-transition-line-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 40%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(232, 228, 218, 0.85) 50%,
+      transparent 100%
+    );
+    animation: vrm-transition-sweep 1.6s cubic-bezier(0.65, 0.05, 0.36, 1) infinite;
+  }
+  .vrm-transition-text {
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: rgba(232, 228, 218, 0.55);
+    margin-right: -0.32em;  /* compensa letter-spacing fantasma */
+    animation: vrm-transition-fade-in 0.6s var(--ease-soft) 0.5s both;
+  }
+  @keyframes vrm-transition-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes vrm-transition-sweep {
+    0%   { left: -40%; }
+    100% { left: 100%; }
+  }
+  @media (max-width: 768px) {
+    .vrm-transition-logo { font-size: 52px; }
+    .vrm-transition-line { width: 160px; }
+    .vrm-transition-text { font-size: 10px; letter-spacing: 0.28em; margin-right: -0.28em; }
+  }
+
   /* ============ GRID CON FILTROS ============ */
   .prop-grid-section {
     margin-top: 60px;
@@ -3294,6 +3380,31 @@
 
 </head>
 <body>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       TRANSITION OVERLAY — Pantalla de carga entre landing y propiedad
+       
+       Se muestra cuando el usuario hace "Buscar" en el picker y va a
+       redirigirse a vrm_property.html. Permanece visible durante toda
+       la navegación + carga de la página de propiedad + apertura del
+       booking modal. Resultado: el usuario percibe UNA transición fluida
+       en lugar de "landing → blanco → propiedad → modal".
+       
+       Diseño: editorial premium. Logo VRM en Boska serif italic + línea
+       horizontal animándose tipo "barra de progreso indeterminada".
+       No childish, no genérico.
+       ═══════════════════════════════════════════════════════════════════ -->
+  <div class="vrm-transition" id="vrm-transition" aria-hidden="true">
+    <div class="vrm-transition-inner">
+      <div class="vrm-transition-logo">vrm</div>
+      <div class="vrm-transition-line">
+        <div class="vrm-transition-line-fill"></div>
+      </div>
+      <div class="vrm-transition-text" id="vrm-transition-text">
+        Preparing your stay
+      </div>
+    </div>
+  </div>
 
   <!-- WhatsApp floating CTA — siempre visible (la ventaja real sobre Airbnb) -->
   <a href="https://wa.me/15559472509?text=Hi!%20I'm%20interested%20in%20a%20property%20in%20Bah%C3%ADa%20de%20Banderas"
@@ -6869,11 +6980,25 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       if (state.guests)   params.set('guests',   state.guests);
       
       closePicker();
-      // Pequeño delay para que el cierre del modal sea visible antes de
-      // la navegación (mejor UX, no se siente como "tap → blank")
+      
+      // ═══════════════════════════════════════════════════════════════
+      // MOSTRAR TRANSITION OVERLAY antes de redirigir
+      // 
+      // Guardamos flag en sessionStorage para que vrm_property.html
+      // sepa que viene de una transición y mantenga el overlay visible
+      // hasta que su booking modal esté listo. Resultado: el usuario
+      // percibe una sola transición continua, sin flashes blancos.
+      // ═══════════════════════════════════════════════════════════════
+      try { sessionStorage.setItem('vrm_transition_active', '1'); } catch(_) {}
+      const overlay = document.getElementById('vrm-transition');
+      if (overlay) overlay.classList.add('is-active');
+      
+      // 500ms = tiempo para que el overlay haga su fade-in completo
+      // antes de la navegación. Sin esto, se ve un parpadeo durante
+      // la transición.
       setTimeout(() => {
         window.location.href = `vrm_property.html?${params.toString()}`;
-      }, 200);
+      }, 500);
       return;
     }
     
