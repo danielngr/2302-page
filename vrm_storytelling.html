@@ -4252,39 +4252,44 @@ function animate() {
   let swimDx, swimDy, swimDz;
 
   if (revealProgress < 1.0) {
-    // Durante reveal hay DOS fases:
-    //   - Fase A (0 - 0.65): dirección REVEAL_FROM → hero. La ballena
-    //     entra al frame nadando hacia el centro.
-    //   - Fase B (0.65 - 1.0): la dirección transiciona hacia (0, 0, 1)
-    //     — de frente a la cámara. Es lo que permite que cuando llega
-    //     a pose hero, esté mirando al usuario, no de costado.
+    // Durante el reveal, la dirección de la cabeza transiciona de:
+    //   - Entry direction (REVEAL_FROM → hero, viene desde la izquierda-arriba)
+    //   - Frontal (0, 0, 1) — mirando hacia el usuario/cámara
     //
-    // Sin esta transición, la ballena terminaría el reveal viendo hacia
-    // donde venía (derecha-abajo) y al empezar el path con swim ≈ 0,
-    // mantendría esa orientación → se vería "girada".
+    // CRÍTICO PARA NATURALIDAD: el blend debe distribuirse a lo largo de
+    // CASI TODO el reveal (no concentrarse al final) para que el cambio
+    // de orientación de ~77° suceda muy gradualmente — ~25°/s, no 110°/s.
+    //
+    // Antes el blend empezaba al 65% del reveal (1.4s para girar 77°
+    // = movimiento brusco). Ahora empieza al 20% del reveal (3 segundos
+    // para girar 77° = movimiento natural, casi imperceptible).
+    //
+    // Además usamos easing easeOutQuad en lugar de smootherstep: el
+    // smootherstep concentra el cambio en el medio del blend, easeOutQuad
+    // distribuye el cambio más uniformemente con un final suave que
+    // "asienta" la orientación frontal sin movimiento residual.
     const swimEntry = {
       dx: heroPathPose.x - REVEAL_FROM.x,
       dy: heroPathPose.y - REVEAL_FROM.y,
       dz: heroPathPose.z - REVEAL_FROM.z
     };
-    // Normalizar entry
     const entryLen = Math.hypot(swimEntry.dx, swimEntry.dy, swimEntry.dz);
     if (entryLen > 0.001) {
       swimEntry.dx /= entryLen;
       swimEntry.dy /= entryLen;
       swimEntry.dz /= entryLen;
     }
-    // Target final: mirando hacia +Z (cámara)
     const swimFrontal = { dx: 0, dy: 0, dz: 1 };
 
-    // Blend entre entry direction y frontal, basado en revealProgress.
-    // Empieza a transicionar al 65% del reveal, completo al 100%.
-    const blendStart = 0.65;
+    // Blend desde 20% del reveal hasta 100% — ~3 segundos para el giro.
+    const blendStart = 0.20;
     const blendT = revealProgress < blendStart
       ? 0
       : Math.min(1, (revealProgress - blendStart) / (1 - blendStart));
-    // smootherstep para que la transición sea muy suave
-    const eb = blendT * blendT * blendT * (blendT * (blendT * 6 - 15) + 10);
+    // easeOutQuad: rápido al inicio, lento al final. Esto hace que la
+    // orientación se "asiente" suavemente cerca del 100% sin overshoot
+    // ni movimiento brusco al terminar el reveal.
+    const eb = 1 - (1 - blendT) * (1 - blendT);
 
     swimDx = swimEntry.dx * (1 - eb) + swimFrontal.dx * eb;
     swimDy = swimEntry.dy * (1 - eb) + swimFrontal.dy * eb;
