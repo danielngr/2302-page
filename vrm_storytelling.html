@@ -572,7 +572,21 @@
     align-items: center;
     justify-content: space-between;
     pointer-events: none;
-    /* mix-blend-mode removido (fix A.1) — causaba duplicado/sombra rara en nav-links */
+    /* Por default transparente — cover-mark gigante se ve completo limpio.
+       Cuando scrolleas el body, body.scrolled se aplica y el nav se
+       convierte en frosted glass (opaco con blur). Eso evita que el
+       cover-mark de la portada (que pasa por encima al scrollear)
+       se vea "rasgado" a través del nav. */
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transition: background 0.45s var(--ease-soft), backdrop-filter 0.45s var(--ease-soft);
+  }
+  body.scrolled .nav {
+    background: rgba(10, 20, 40, 0.72);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: 0 1px 0 rgba(232, 228, 218, 0.06);
   }
   .nav > * { pointer-events: auto; }
   .nav-brand {
@@ -5654,6 +5668,25 @@ window.addEventListener('scroll', updateScroll, { passive: true });
 window.addEventListener('resize', refreshScrollMax, { passive: true });
 updateScroll();
 
+// ═══════════════════════════════════════════════════════════════════
+// NAV FROSTED GLASS — se activa al scrollear más de 80px
+// 
+// Cuando body.scrolled está aplicado, el nav top cambia de transparent
+// a frosted glass opaco. Sin esto, el cover-mark VRM gigante de la
+// portada se ve "cortado" pasando detrás del nav transparente cuando
+// scrolleas hacia abajo.
+// ═══════════════════════════════════════════════════════════════════
+let _navScrolledState = false;
+function updateNavScrolledState() {
+  const shouldBeScrolled = window.scrollY > 80;
+  if (shouldBeScrolled !== _navScrolledState) {
+    _navScrolledState = shouldBeScrolled;
+    document.body.classList.toggle('scrolled', shouldBeScrolled);
+  }
+}
+window.addEventListener('scroll', updateNavScrolledState, { passive: true });
+updateNavScrolledState();
+
 // Hack iOS Safari: un div invisible que actualiza con scrollY fuerza
 // al engine a hacer commit de scroll updates más frecuente. Solo en
 // iOS porque desktop no lo necesita y es overhead extra.
@@ -6109,6 +6142,15 @@ function animate() {
 
   canvas.style.opacity = '1';
 
+  // Clear explícito al inicio de cada frame al color del body (#0A1428).
+  // Esto garantiza que si por cualquier razón un pass del composer no
+  // termina a tiempo durante momentum scroll en iOS Safari, el "color
+  // base" del canvas será el mismo azul oscuro del body — invisible
+  // contra el resto de la página. Sin esto, partial frames pueden
+  // mostrar el clear color default del bloom pass que puede ser negro.
+  renderer.setRenderTarget(null);
+  renderer.clear();
+  
   composer.render();
   requestAnimationFrame(animate);
 }
