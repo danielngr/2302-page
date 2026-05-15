@@ -5001,13 +5001,17 @@ composer.addPass(renderPass);
 // 3. Sin bloom el render baja ~40% en consumo GPU = más fps consistentes.
 // La iridiscencia + transmission del material físico ya da el "wow factor"
 // sin necesidad de post-processing extra.
+// Bloom — los highlights de Swarovski son puntuales y muy brillantes.
+// MOBILE: bloom y chromatic aberration se OMITEN del pipeline (no se
+// añaden al composer) pero las instancias EXISTEN globalmente porque
+// código posterior accede a bloomPass.strength, etc.
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  0.26,
+  0.65,
+  0.84
+);
 if (!isMobile) {
-  const bloomPass = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.26,   // strength bajado — sin flash cegador
-    0.65,   // radius bajado — más localizado
-    0.84    // threshold alto — solo los highlights más puntuales brillan
-  );
   composer.addPass(bloomPass);
 }
 
