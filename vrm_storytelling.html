@@ -6161,29 +6161,23 @@ function animate() {
 
   canvas.style.opacity = '1';
 
-  if (isMobile) {
-    // ─── MOBILE: renderizado DIRECTO sin composer ───
-    // Skip post-processing (bloom, chromatic) que en iOS Safari durante
-    // momentum scroll a veces fallan al renderizar render targets internos
-    // = flash negro. Renderizar directo con renderer.render es:
-    // 1. Más estable — un solo render pass, sin estados intermedios
-    // 2. Más rápido — ~40% menos GPU = más fps consistente
-    // 3. Sin diferencia visual perceptible — bloom/chromatic son sutiles
-    //    en pantalla pequeña y el material PBR ya tiene el wow factor.
-    renderer.autoClear = false;
-    renderer.clear();
-    renderer.render(bgScene, bgCamera);
-    renderer.clearDepth();
-    renderer.render(scene, camera);
-  } else {
-    // ─── DESKTOP: composer completo con bloom + chromatic ───
-    // Clear explícito antes de cada composer.render para garantizar que
-    // si un pass del composer no termina a tiempo, el "base" del canvas
-    // sea el clearColor (azul #0A1428 match body), no negro.
-    renderer.setRenderTarget(null);
-    renderer.clear();
-    composer.render();
-  }
+  // ═══════════════════════════════════════════════════════════════════
+  // RENDER FINAL — usa composer en todos los devices.
+  // 
+  // El composer YA tiene la configuración correcta:
+  //   - DESKTOP: bgRenderPass + renderPass + bloomPass + chromaticPass
+  //   - MOBILE: bgRenderPass + renderPass solamente (bloom/chromatic
+  //     fueron skipeados en el setup arriba)
+  // 
+  // Mantenemos el composer en lugar de renderizar directo porque:
+  // 1. El composer maneja correctamente los buffers internos
+  // 2. Saltar el composer hace que el bgMaterial shader no se pinte
+  //    correctamente (issue: ShaderMaterial con position en clip space
+  //    necesita el manejo de viewport que hace el RenderPass)
+  // 3. Con solo 2 passes en mobile, el riesgo de flash es mínimo
+  // ═══════════════════════════════════════════════════════════════════
+  renderer.autoClear = true;
+  composer.render();
   
   requestAnimationFrame(animate);
 }
