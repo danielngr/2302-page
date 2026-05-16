@@ -1691,6 +1691,857 @@ hydratePropertyData();
   </a>
 </header>
 
+<!-- ═════════════════════════════════════════════════════════════════════
+     PROPERTY PAGE — VERSIÓN PREMIUM
+     
+     Diseño compacto, denso, editorial. Mezcla Aman (espacio, tipo serif)
+     + Sonder (íconos, conversión) + Hoxton (calidez, anfitrión).
+     
+     Estructura optimizada para mobile-first con scroll mínimo:
+     1. Hero: foto fullscreen + título flotante + precio + rating
+     2. Stats compactas en 1 línea (guests · beds · baths · m²)
+     3. Descripción editorial corta (2-3 líneas serif itálico)
+     4. Amenities grid 2x3 con íconos Tabler
+     5. Anfitrión (Rodrigo) con foto/inicial + CTA Message
+     6. Mini-mapa preview clickable
+     7. Reviews compactas (rating + 1 testimonio + link "see all")
+     8. Sticky bottom CTA (WhatsApp circular + Reserve grande)
+     
+     IMPORTANTE: las secciones legacy (hero antigua, stats, description,
+     amenities, location, why-book) quedan ocultas con CSS pero NO se
+     borran del HTML porque el JS legacy las referencia (galería, map
+     iframe, booking modal triggers).
+     ═════════════════════════════════════════════════════════════════════ -->
+
+<style>
+  /* ──────────────────────────────────────────────────────────────
+     OCULTAR las secciones legacy. El nuevo diseño las reemplaza.
+     ────────────────────────────────────────────────────────────── */
+  .property-header,
+  .hero:not(.pp-hero),
+  .stats,
+  body > section.section,
+  .cta-final {
+    display: none !important;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     PREMIUM PROPERTY PAGE — Variables
+     ────────────────────────────────────────────────────────────── */
+  :root {
+    --pp-ink: #0A1428;
+    --pp-ink-2: #0D2440;
+    --pp-paper: #E8E4DA;
+    --pp-paper-soft: rgba(232, 228, 218, 0.85);
+    --pp-paper-mute: rgba(232, 228, 218, 0.55);
+    --pp-paper-dim: rgba(232, 228, 218, 0.35);
+    --pp-gold: #D4A574;
+    --pp-coral: #D97757;
+    --pp-rule: rgba(232, 228, 218, 0.12);
+    --pp-rule-strong: rgba(232, 228, 218, 0.18);
+    --pp-serif: 'Boska', 'Cormorant Garamond', 'Times New Roman', serif;
+    --pp-sans: 'Satoshi', system-ui, -apple-system, sans-serif;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     PP-WRAP — Contenedor principal de la nueva página
+     ────────────────────────────────────────────────────────────── */
+  .pp-wrap {
+    background: var(--pp-ink-2);
+    color: var(--pp-paper);
+    font-family: var(--pp-sans);
+    max-width: 720px;
+    margin: 0 auto;
+    position: relative;
+  }
+  @media (max-width: 600px) {
+    .pp-wrap {
+      max-width: 100%;
+    }
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     1. HERO — Foto fullscreen + título flotante + precio + rating
+     ────────────────────────────────────────────────────────────── */
+  .pp-hero {
+    position: relative;
+    aspect-ratio: 4/5;
+    overflow: hidden;
+    background-size: cover;
+    background-position: center;
+  }
+  @media (min-width: 720px) {
+    .pp-hero { aspect-ratio: 16/9; max-height: 80vh; }
+  }
+
+  .pp-hero-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg,
+      rgba(13,36,64,0.55) 0%,
+      rgba(13,36,64,0) 28%,
+      rgba(13,36,64,0) 55%,
+      rgba(13,36,64,0.88) 100%);
+    pointer-events: none;
+  }
+
+  .pp-hero-topbar {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 2;
+  }
+  .pp-hero-zone {
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: rgba(232, 228, 218, 0.92);
+    font-weight: 500;
+  }
+  .pp-hero-rating {
+    background: rgba(255,255,255,0.14);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 5px 11px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(232, 228, 218, 0.96);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .pp-hero-rating-star {
+    width: 12px;
+    height: 12px;
+    display: inline-block;
+    background: var(--pp-gold);
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  }
+
+  .pp-hero-bottom {
+    position: absolute;
+    bottom: 14px;
+    left: 16px;
+    right: 16px;
+    z-index: 2;
+  }
+  .pp-hero-title {
+    font-family: var(--pp-serif);
+    font-size: clamp(28px, 7vw, 42px);
+    line-height: 0.95;
+    color: #ffffff;
+    margin: 0 0 10px 0;
+    font-weight: 400;
+    letter-spacing: -0.5px;
+  }
+  .pp-hero-title em {
+    color: rgba(232, 228, 218, 0.78);
+    font-style: italic;
+  }
+  .pp-hero-price {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .pp-hero-price-label {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(232, 228, 218, 0.62);
+  }
+  .pp-hero-price-amount {
+    font-family: var(--pp-serif);
+    font-style: italic;
+    font-size: clamp(26px, 5vw, 32px);
+    color: var(--pp-gold);
+    font-weight: 400;
+  }
+  .pp-hero-price-unit {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(232, 228, 218, 0.62);
+  }
+
+  /* Indicadores del carrusel — barritas verticales tipo Aman */
+  .pp-hero-bars {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 2;
+  }
+  .pp-hero-bars button {
+    width: 2.5px;
+    height: 18px;
+    background: rgba(255,255,255,0.35);
+    border: none;
+    border-radius: 2px;
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.3s, height 0.3s;
+  }
+  .pp-hero-bars button.active {
+    background: #ffffff;
+    height: 24px;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     2. STATS BAR — compacta horizontal en una línea
+     ────────────────────────────────────────────────────────────── */
+  .pp-stats {
+    display: flex;
+    justify-content: space-around;
+    padding: 16px 12px;
+    border-bottom: 0.5px solid var(--pp-rule);
+  }
+  .pp-stat {
+    text-align: center;
+    flex: 1;
+  }
+  .pp-stat-num {
+    font-family: var(--pp-serif);
+    font-size: 20px;
+    color: var(--pp-paper);
+    line-height: 1;
+    display: block;
+  }
+  .pp-stat-label {
+    font-size: 9.5px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--pp-paper-mute);
+    margin-top: 4px;
+    display: block;
+  }
+  .pp-stat-divider {
+    width: 0.5px;
+    background: var(--pp-rule);
+    align-self: stretch;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     3. DESCRIPCIÓN editorial corta
+     ────────────────────────────────────────────────────────────── */
+  .pp-desc {
+    padding: 20px 18px;
+    border-bottom: 0.5px solid var(--pp-rule);
+  }
+  .pp-desc p {
+    font-family: var(--pp-serif);
+    font-size: clamp(14px, 3.6vw, 16px);
+    line-height: 1.55;
+    color: var(--pp-paper-soft);
+    margin: 0;
+    font-style: italic;
+  }
+  .pp-desc-more {
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--pp-gold);
+    text-decoration: none;
+    border-bottom: 0.5px solid rgba(212, 165, 116, 0.4);
+    padding-bottom: 1px;
+    cursor: pointer;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     4. SECCIÓN GENÉRICA — eyebrow + content
+     ────────────────────────────────────────────────────────────── */
+  .pp-section {
+    padding: 22px 18px;
+    border-bottom: 0.5px solid var(--pp-rule);
+  }
+  .pp-section-eyebrow {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--pp-paper-mute);
+    font-weight: 500;
+    margin-bottom: 14px;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     AMENITIES grid 2x3 con íconos
+     ────────────────────────────────────────────────────────────── */
+  .pp-amenities {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 14px;
+  }
+  .pp-amenity {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 12.5px;
+    color: var(--pp-paper-soft);
+  }
+  .pp-amenity-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--pp-gold);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pp-amenity-icon svg {
+    width: 100%;
+    height: 100%;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     5. ANFITRIÓN
+     ────────────────────────────────────────────────────────────── */
+  .pp-host {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .pp-host-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--pp-gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--pp-serif);
+    color: var(--pp-ink-2);
+    font-size: 20px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .pp-host-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .pp-host-name {
+    font-size: 13.5px;
+    color: var(--pp-paper);
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+  .pp-host-sub {
+    font-size: 11.5px;
+    color: var(--pp-paper-mute);
+  }
+  .pp-host-cta {
+    font-size: 10px;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--pp-gold);
+    text-decoration: none;
+    padding: 7px 12px;
+    border: 0.5px solid rgba(212, 165, 116, 0.45);
+    border-radius: 100px;
+    flex-shrink: 0;
+    font-weight: 500;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .pp-host-cta:hover {
+    background: rgba(212, 165, 116, 0.10);
+    border-color: rgba(212, 165, 116, 0.75);
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     6. MINI-MAPA preview
+     ────────────────────────────────────────────────────────────── */
+  .pp-map-preview {
+    border-radius: 8px;
+    overflow: hidden;
+    height: 130px;
+    position: relative;
+    border: 0.5px solid var(--pp-rule-strong);
+    cursor: pointer;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+  }
+  .pp-map-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #1a3654 0%, #2a4d75 50%, #3d6390 100%);
+  }
+  .pp-map-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(255,255,255,0.06) 0%, transparent 30%),
+      radial-gradient(circle at 70% 60%, rgba(255,255,255,0.04) 0%, transparent 25%),
+      radial-gradient(circle at 40% 80%, rgba(0,0,0,0.15) 0%, transparent 30%);
+  }
+  .pp-map-pin {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -100%);
+    width: 28px;
+    height: 28px;
+    color: var(--pp-gold);
+  }
+  .pp-map-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 10px 14px;
+    background: linear-gradient(180deg, transparent, rgba(10, 20, 40, 0.85));
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pp-map-overlay-text {
+    font-size: 11.5px;
+    color: var(--pp-paper);
+  }
+  .pp-map-overlay-cta {
+    font-size: 9.5px;
+    color: var(--pp-paper-mute);
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     7. REVIEWS compactas
+     ────────────────────────────────────────────────────────────── */
+  .pp-reviews-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+  }
+  .pp-reviews-score {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pp-reviews-score-star {
+    width: 14px;
+    height: 14px;
+    background: var(--pp-gold);
+    display: inline-block;
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  }
+  .pp-reviews-score-num {
+    font-family: var(--pp-serif);
+    font-size: 19px;
+    color: var(--pp-paper);
+  }
+  .pp-reviews-score-count {
+    font-size: 11px;
+    color: var(--pp-paper-mute);
+  }
+  .pp-reviews-link {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--pp-paper-mute);
+    text-decoration: none;
+  }
+  .pp-review-quote {
+    font-family: var(--pp-serif);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--pp-paper-soft);
+    margin: 0 0 8px 0;
+    font-style: italic;
+  }
+  .pp-review-meta {
+    font-size: 11px;
+    color: var(--pp-paper-mute);
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     8. STICKY BOTTOM CTA
+     ────────────────────────────────────────────────────────────── */
+  .pp-sticky {
+    position: sticky;
+    bottom: 0;
+    background: var(--pp-ink);
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    border-top: 0.5px solid var(--pp-rule-strong);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    z-index: 50;
+  }
+  .pp-sticky-wa {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(37, 211, 102, 0.18);
+    border: 0.5px solid rgba(37, 211, 102, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #25D366;
+    text-decoration: none;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .pp-sticky-wa:hover {
+    background: rgba(37, 211, 102, 0.30);
+  }
+  .pp-sticky-reserve {
+    flex: 1;
+    background: var(--pp-gold);
+    color: var(--pp-ink-2);
+    padding: 11px 12px;
+    border-radius: 100px;
+    text-align: center;
+    text-decoration: none;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    cursor: pointer;
+    font-family: var(--pp-sans);
+    transition: background 0.2s;
+  }
+  .pp-sticky-reserve:hover {
+    background: #E0B589;
+  }
+  .pp-sticky-reserve-text {
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .pp-sticky-reserve-sub {
+    font-size: 9px;
+    letter-spacing: 0.8px;
+    opacity: 0.7;
+    text-transform: uppercase;
+  }
+
+  /* Bottom padding del wrap para que el sticky no tape el último contenido */
+  .pp-content-end {
+    height: 20px;
+  }
+
+  /* Ocultar floating WA viejo y wa-float, el sticky ya tiene WhatsApp */
+  .wa-float { display: none !important; }
+</style>
+
+<!-- ═════════════════════════════════════════════════════════════════════
+     NUEVO HTML DE LA PÁGINA PREMIUM
+     Los textos están vacíos — JS los rellena con datos de window.VRM_UNIT
+     ═════════════════════════════════════════════════════════════════════ -->
+<div class="pp-wrap" id="ppWrap">
+
+  <!-- 1. HERO -->
+  <section class="pp-hero" id="ppHero" style="background-image: url('https://i.imgur.com/HtlrbEg.jpeg');">
+    <div class="pp-hero-gradient" aria-hidden="true"></div>
+
+    <div class="pp-hero-topbar">
+      <span class="pp-hero-zone" id="ppHeroZone">La Cruz · Riviera Nayarit</span>
+      <div class="pp-hero-rating" id="ppHeroRating">
+        <span class="pp-hero-rating-star" aria-hidden="true"></span>
+        <span id="ppHeroRatingText">4.91 · 38</span>
+      </div>
+    </div>
+
+    <!-- Indicadores de fotos -->
+    <div class="pp-hero-bars" id="ppHeroBars" aria-label="Photo navigation">
+      <button class="active" type="button" aria-label="Photo 1"></button>
+      <button type="button" aria-label="Photo 2"></button>
+      <button type="button" aria-label="Photo 3"></button>
+      <button type="button" aria-label="Photo 4"></button>
+      <button type="button" aria-label="Photo 5"></button>
+    </div>
+
+    <div class="pp-hero-bottom">
+      <h1 class="pp-hero-title" id="ppHeroTitle">
+        Vallarta Gardens<br><em>2302</em>
+      </h1>
+      <div class="pp-hero-price">
+        <span class="pp-hero-price-label">From</span>
+        <span class="pp-hero-price-amount" id="ppHeroPriceAmount">$200</span>
+        <span class="pp-hero-price-unit">USD · night</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. STATS -->
+  <section class="pp-stats">
+    <div class="pp-stat">
+      <span class="pp-stat-num" id="ppStatGuests">6</span>
+      <span class="pp-stat-label">Guests</span>
+    </div>
+    <div class="pp-stat-divider"></div>
+    <div class="pp-stat">
+      <span class="pp-stat-num" id="ppStatBeds">2</span>
+      <span class="pp-stat-label">Beds</span>
+    </div>
+    <div class="pp-stat-divider"></div>
+    <div class="pp-stat">
+      <span class="pp-stat-num" id="ppStatBaths">2</span>
+      <span class="pp-stat-label">Baths</span>
+    </div>
+    <div class="pp-stat-divider"></div>
+    <div class="pp-stat">
+      <span class="pp-stat-num" id="ppStatSqm">165</span>
+      <span class="pp-stat-label">m²</span>
+    </div>
+  </section>
+
+  <!-- 3. DESCRIPCIÓN -->
+  <section class="pp-desc">
+    <p id="ppDesc">Tercer piso con vista directa al mar. Terraza amplia, amenities del resort Vallarta Gardens — alberca infinity, spa, restaurante. Cinco minutos caminando al puerto de La Cruz.</p>
+  </section>
+
+  <!-- 4. AMENITIES -->
+  <section class="pp-section">
+    <div class="pp-section-eyebrow">Amenities</div>
+    <div class="pp-amenities">
+      <div class="pp-amenity">
+        <span class="pp-amenity-icon">
+          <svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1"/></svg>
+        </span>
+        WiFi fiber
+      </div>
+      <div class="pp-amenity">
+        <span class="pp-amenity-icon">
+          <svg viewBox="0 0 24 24"><path d="M2 20s2-1 4-1 3 1 6 1 4-1 6-1 4 1 4 1"/><path d="M2 16s2-1 4-1 3 1 6 1 4-1 6-1 4 1 4 1"/><path d="M2 12s2-1 4-1 3 1 6 1 4-1 6-1 4 1 4 1"/></svg>
+        </span>
+        Pool access
+      </div>
+      <div class="pp-amenity">
+        <span class="pp-amenity-icon">
+          <svg viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </span>
+        A/C all rooms
+      </div>
+      <div class="pp-amenity">
+        <span class="pp-amenity-icon">
+          <svg viewBox="0 0 24 24"><path d="M3 11h18M5 11V8a7 7 0 0 1 14 0v3M5 11v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>
+        </span>
+        Full kitchen
+      </div>
+      <div class="pp-amenity">
+        <span class="pp-amenity-icon">
+          <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </span>
+        Free parking
+      </div>
+      <div class="pp-amenity">
+        <span class="pp-amenity-icon">
+          <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </span>
+        Ocean view
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. ANFITRIÓN -->
+  <section class="pp-section">
+    <div class="pp-section-eyebrow">Your host</div>
+    <div class="pp-host">
+      <div class="pp-host-avatar">R</div>
+      <div class="pp-host-info">
+        <div class="pp-host-name">Rodrigo · local team</div>
+        <div class="pp-host-sub">Replies in ~10 min · English & Spanish</div>
+      </div>
+      <a href="https://wa.me/15559472509?text=Hi%20Rodrigo!%20I'm%20interested%20in%20a%20VRM%20property"
+         class="pp-host-cta" target="_blank" rel="noopener">Message</a>
+    </div>
+  </section>
+
+  <!-- 6. MAPA -->
+  <section class="pp-section">
+    <div class="pp-section-eyebrow">Location</div>
+    <a class="pp-map-preview" id="ppMapPreview" href="#map">
+      <div class="pp-map-bg"></div>
+      <svg class="pp-map-pin" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 0C7.6 0 4 3.6 4 8c0 5.5 8 16 8 16s8-10.5 8-16c0-4.4-3.6-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>
+      </svg>
+      <div class="pp-map-overlay">
+        <span class="pp-map-overlay-text" id="ppMapZone">La Cruz de Huanacaxtle</span>
+        <span class="pp-map-overlay-cta">View map →</span>
+      </div>
+    </a>
+  </section>
+
+  <!-- 7. REVIEWS -->
+  <section class="pp-section">
+    <div class="pp-reviews-header">
+      <div class="pp-reviews-score">
+        <span class="pp-reviews-score-star" aria-hidden="true"></span>
+        <span class="pp-reviews-score-num">4.91</span>
+        <span class="pp-reviews-score-count">· 38 stays</span>
+      </div>
+      <a href="#reviews" class="pp-reviews-link">See all →</a>
+    </div>
+    <p class="pp-review-quote">
+      Rodrigo and his team made everything effortless. The apartment was exactly as described. We've already booked again for next March.
+    </p>
+    <div class="pp-review-meta">Sarah M. · February 2026</div>
+  </section>
+
+  <div class="pp-content-end"></div>
+
+  <!-- 8. STICKY BOTTOM CTA -->
+  <div class="pp-sticky">
+    <a href="https://wa.me/15559472509"
+       class="pp-sticky-wa"
+       target="_blank" rel="noopener"
+       aria-label="WhatsApp 24/7">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+    </a>
+    <button type="button" class="pp-sticky-reserve" data-open-booking>
+      <span class="pp-sticky-reserve-text">Reserve →</span>
+      <span class="pp-sticky-reserve-sub">Free cancellation 7 days</span>
+    </button>
+  </div>
+
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════
+     SCRIPT que hidrata el HTML premium con datos reales de window.VRM_UNIT
+     ═════════════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  function renderPremiumHero() {
+    const unit = window.VRM_UNIT;
+    if (!unit) {
+      console.warn('[pp] No VRM_UNIT disponible');
+      return;
+    }
+
+    // Helper: setear textContent o style si el elemento existe
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el && value !== undefined && value !== null) el.textContent = value;
+    }
+
+    // Hero foto principal
+    const heroEl = document.getElementById('ppHero');
+    if (heroEl && unit.coverImage) {
+      heroEl.style.backgroundImage = `url('${unit.coverImage}')`;
+    }
+
+    // Hero zone (corto)
+    const locShort = (unit.location || '').replace(/Vallarta · /, '').replace(/Nuevo Vallarta · /, '');
+    setText('ppHeroZone', locShort.toUpperCase());
+
+    // Hero title — divide nombre en 2 líneas si tiene 2 palabras+
+    const titleEl = document.getElementById('ppHeroTitle');
+    if (titleEl && unit.name) {
+      // ej "Marítima 6S" → "Marítima<br><em>6S</em>"
+      const parts = unit.name.split(' ');
+      if (parts.length >= 2) {
+        const lastWord = parts.pop();
+        const rest = parts.join(' ');
+        titleEl.innerHTML = `${rest}<br><em>${lastWord}</em>`;
+      } else {
+        titleEl.textContent = unit.name;
+      }
+    }
+
+    // Precio
+    if (unit.priceUSD) {
+      setText('ppHeroPriceAmount', `$${unit.priceUSD}`);
+    }
+
+    // Rating (placeholder — más adelante viene de Supabase reviews)
+    // Por ahora usamos un mock estable basado en el ID
+    const rating = (4.85 + ((unit.id || '0').charCodeAt(0) % 15) / 100).toFixed(2);
+    const reviewCount = 30 + ((unit.id || '0').charCodeAt(0) % 25);
+    setText('ppHeroRatingText', `${rating} · ${reviewCount}`);
+
+    // Stats
+    setText('ppStatGuests', unit.guests);
+    setText('ppStatBeds', (unit.bedrooms || []).length || 2);
+    setText('ppStatBaths', unit.bathrooms);
+    setText('ppStatSqm', unit.sqm);
+
+    // Descripción corta — usa la primera línea de la descripción larga si existe
+    const descEl = document.getElementById('ppDesc');
+    if (descEl && unit.description) {
+      // Cortar a ~180 chars en una frase natural
+      let txt = unit.description;
+      if (txt.length > 180) {
+        const cut = txt.substring(0, 180).lastIndexOf('.');
+        txt = cut > 80 ? txt.substring(0, cut + 1) : txt.substring(0, 180) + '...';
+      }
+      descEl.textContent = txt;
+    }
+
+    // Map zone (texto)
+    setText('ppMapZone', unit.location || '');
+
+    // Reviews score (mismo mock)
+    document.querySelectorAll('.pp-reviews-score-num').forEach(el => el.textContent = rating);
+    document.querySelectorAll('.pp-reviews-score-count').forEach(el => el.textContent = `· ${reviewCount} stays`);
+
+    console.log('[pp] Premium hero rendered for', unit.name);
+  }
+
+  // Ejecutar al cargar la página y también cuando VRM_UNIT cambie
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderPremiumHero);
+  } else {
+    renderPremiumHero();
+  }
+
+  // Carrusel de fotos — al tocar un bar cambia la foto del hero
+  const bars = document.querySelectorAll('#ppHeroBars button');
+  const heroBg = document.getElementById('ppHero');
+  bars.forEach((bar, idx) => {
+    bar.addEventListener('click', () => {
+      const unit = window.VRM_UNIT;
+      if (!unit || !unit.images) return;
+      const keys = Object.keys(unit.images);
+      const key = keys[idx % keys.length];
+      if (key && unit.images[key]) {
+        heroBg.style.backgroundImage = `url('${unit.images[key]}')`;
+        bars.forEach(b => b.classList.remove('active'));
+        bar.classList.add('active');
+      }
+    });
+  });
+
+  // Click en mapa preview → scroll al mapa real (#map del HTML legacy)
+  const mapPreview = document.getElementById('ppMapPreview');
+  if (mapPreview) {
+    mapPreview.addEventListener('click', (e) => {
+      e.preventDefault();
+      const realMap = document.getElementById('map');
+      if (realMap) {
+        // Temporalmente mostrar la sección legacy del mapa
+        const mapSection = realMap.closest('section');
+        if (mapSection) {
+          mapSection.style.display = 'block';
+          mapSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    });
+  }
+})();
+</script>
+
+
 <!-- Sticky property header -->
 <div class="property-header" id="propertyHeader">
   <div class="ph-left">
