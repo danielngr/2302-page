@@ -1672,24 +1672,47 @@ hydratePropertyData();
   <!-- Botón "All homes" — regresa a la landing principal.
        Usa history.back() si el usuario vino de la landing (preserva
        scroll position perfecto), fallback a "index.html" si vino
-       por link directo de WhatsApp/email/otro sitio.
-       
-       La landing principal vive en index.html en el repo de GitHub
-       Pages (danielngr/2302-page). -->
+       por link directo de WhatsApp/email/otro sitio. -->
   <a href="index.html#properties" class="topbar-back" aria-label="Volver a propiedades"
      onclick="if (document.referrer && document.referrer.indexOf(window.location.host) >= 0) { event.preventDefault(); history.back(); }">
-    <svg width="18" height="12" viewBox="0 0 18 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+    <svg width="16" height="11" viewBox="0 0 18 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
       <line x1="17" y1="6" x2="1" y2="6"/>
       <polyline points="6 1 1 6 6 11"/>
     </svg>
     <span>All homes</span>
   </a>
-  <!-- Logo VRM — también regresa a la landing. -->
-  <a href="index.html" class="topbar-brand">
-    <span class="mk"></span>
-    <span>vrm</span>
-  </a>
+
+  <!-- Botones de acción a la derecha: Share + Logo VRM -->
+  <div class="topbar-actions">
+    <!-- Botón SHARE — copia el link de esta propiedad al clipboard, o
+         abre share nativo en mobile. Permite a propietarios/huéspedes
+         mandar el link directo del depa por WhatsApp/email/etc. -->
+    <button type="button" class="topbar-share" id="topbarShare" aria-label="Share property link">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="18" cy="5" r="3"/>
+        <circle cx="6" cy="12" r="3"/>
+        <circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+      <span class="topbar-share-label">Share</span>
+    </button>
+
+    <!-- Logo VRM — también regresa a la landing. -->
+    <a href="index.html" class="topbar-brand">
+      <span class="mk"></span>
+      <span>vrm</span>
+    </a>
+  </div>
 </header>
+
+<!-- Toast de confirmación cuando se copia el link al clipboard -->
+<div class="pp-toast" id="ppToast" hidden>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+  <span id="ppToastText">Link copied</span>
+</div>
 
 <!-- ═════════════════════════════════════════════════════════════════════
      PROPERTY PAGE — VERSIÓN PREMIUM
@@ -1772,6 +1795,89 @@ hydratePropertyData();
     font-size: 16px !important;
   }
   .topbar-brand .mk { display: none !important; }
+
+  /* TOPBAR ACTIONS — Contenedor del Share button + Logo VRM a la derecha.
+     Span horizontal con gap entre los dos elementos. */
+  .topbar-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+  }
+
+  /* SHARE BUTTON — Pill con icono + texto, fondo glass sutil.
+     Al click: usa navigator.share() nativo (móvil) o copia URL al
+     clipboard (desktop). Toast de confirmación arriba derecha. */
+  .topbar-share {
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    background: rgba(255, 255, 255, 0.10) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.20) !important;
+    border-radius: 100px !important;
+    padding: 5px 11px 5px 9px !important;
+    color: rgba(255, 255, 255, 0.92) !important;
+    font-size: 10px !important;
+    letter-spacing: 1.4px !important;
+    text-transform: uppercase !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    text-shadow: none !important;
+    transition: background 0.2s, border-color 0.2s !important;
+  }
+  .topbar-share:hover {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(255, 255, 255, 0.32) !important;
+  }
+  .topbar-share:active {
+    transform: scale(0.96);
+  }
+  .topbar-share svg {
+    flex-shrink: 0;
+  }
+  @media (max-width: 380px) {
+    /* En pantallas chicas escondemos el label "Share", solo icono */
+    .topbar-share-label { display: none !important; }
+    .topbar-share { padding: 6px !important; width: 28px; justify-content: center !important; }
+  }
+
+  /* TOAST — Confirmación flotante "Link copied" arriba derecha.
+     Aparece con fade-in al copiar el link, desaparece después de 2s. */
+  .pp-toast {
+    position: fixed;
+    top: 70px;
+    right: 16px;
+    z-index: 1100;
+    background: rgba(13, 36, 64, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 0.5px solid rgba(212, 165, 116, 0.40);
+    border-radius: 100px;
+    padding: 9px 16px 9px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--pp-paper);
+    font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    animation: ppToastIn 0.3s ease;
+  }
+  .pp-toast[hidden] { display: none !important; }
+  .pp-toast.is-fading {
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .pp-toast svg {
+    color: var(--pp-gold);
+    flex-shrink: 0;
+  }
+  @keyframes ppToastIn {
+    from { opacity: 0; transform: translateY(-12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 
   /* El positioning del .pp-hero-topbar se define más abajo (sección Hero).
      Aquí solo manejamos visibilidad de elementos internos. */
@@ -1939,14 +2045,13 @@ hydratePropertyData();
     30% { transform: translateX(6px); }
   }
 
-  /* DOTS indicator — barritas finas tipo Aman/Belmond. ARRIBA del hero,
-     centrados horizontalmente. Cada barrita es una foto. La activa es más
-     larga y dorada. Reemplaza al contador "1 / 8" (más limpio, premium). */
+  /* DOTS indicator — barritas finas tipo Aman/Belmond. Posicionadas
+     a la izquierda del hero (debajo del topbar). Cada barrita es una
+     foto. La activa es más larga y dorada. */
   .pp-hero-dots {
     position: absolute;
-    top: 56px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 58px;
+    left: 16px;
     display: flex;
     gap: 4px;
     z-index: 3;
@@ -1955,15 +2060,18 @@ hydratePropertyData();
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-radius: 100px;
-    max-width: calc(100% - 200px);
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-wrap: nowrap;
+    /* Calculamos espacio que ocupa el rating pill (~80px) + un margin
+       de respiro. El rating queda a la derecha y los dots a la izquierda
+       sin pisarse. */
+    max-width: calc(100% - 130px);
+    overflow: hidden;
   }
   @media (min-width: 720px) {
-    .pp-hero-dots { top: 64px; }
+    .pp-hero-dots { top: 66px; }
   }
   .pp-hero-dot {
-    width: 14px;
+    width: 12px;
     height: 2px;
     background: rgba(255, 255, 255, 0.4);
     border-radius: 2px;
@@ -1972,23 +2080,20 @@ hydratePropertyData();
   }
   .pp-hero-dot.active {
     background: var(--pp-gold);
-    width: 22px;
+    width: 20px;
   }
   @media (max-width: 380px) {
-    .pp-hero-dot { width: 10px; }
-    .pp-hero-dot.active { width: 16px; }
-    .pp-hero-dots { gap: 3px; padding: 5px 8px; }
+    .pp-hero-dot { width: 9px; }
+    .pp-hero-dot.active { width: 14px; }
+    .pp-hero-dots { gap: 3px; padding: 5px 8px; top: 56px; }
   }
 
-  /* Contador "1 / 8" eliminado — los dots arriba ya cumplen esa función
-     y mostrar ambos es ruidoso. Ocultamos el contador con CSS. */
-  .pp-hero-counter { display: none !important; }
-
+  /* Rating pill — a la derecha, en la misma fila que los dots */
   .pp-hero-topbar {
     position: absolute;
-    top: 56px;
-    left: 16px;
+    top: 58px;
     right: 16px;
+    left: auto;
     display: flex;
     justify-content: flex-end;
     align-items: center;
@@ -1996,9 +2101,14 @@ hydratePropertyData();
     pointer-events: none;
   }
   @media (min-width: 720px) {
-    .pp-hero-topbar { top: 64px; }
+    .pp-hero-topbar { top: 66px; }
   }
   .pp-hero-topbar > * { pointer-events: auto; }
+
+  /* Contador "1 / 8" eliminado — los dots arriba ya cumplen esa función. */
+  .pp-hero-counter { display: none !important; }
+
+  /* (Definición de .pp-hero-topbar movida arriba para evitar duplicación) */
   .pp-hero-zone {
     font-size: 10px;
     letter-spacing: 2.5px;
@@ -3316,6 +3426,78 @@ hydratePropertyData();
   }
   // Mostrar el chip después de un breve delay (deja que la página cargue)
   setTimeout(showDatesChip, 600);
+
+  // ──────────────────────────────────────────────────────────────
+  // SHARE BUTTON — Comparte el link de esta propiedad.
+  // 
+  // En mobile (Android/iOS) usa navigator.share() — abre la hoja
+  // nativa con WhatsApp, Mail, Messages, etc.
+  // En desktop o si navigator.share no existe, copia el URL al
+  // clipboard y muestra un toast "Link copied" arriba derecha.
+  // ──────────────────────────────────────────────────────────────
+  const shareBtn = document.getElementById('topbarShare');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const unit = window.VRM_UNIT || {};
+      const propName = unit.name || 'this property';
+      const propUrl = window.location.href;
+      const shareData = {
+        title: `${propName} · VRM`,
+        text: `Check out ${propName} on VRM — Vacation Rental Mexico`,
+        url: propUrl
+      };
+
+      // Mobile: usar share nativo si está disponible
+      if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        try {
+          await navigator.share(shareData);
+          return;
+        } catch (err) {
+          // Si el usuario cancela, no hacemos nada. Si falla, caemos al clipboard.
+          if (err.name === 'AbortError') return;
+          console.warn('[share] navigator.share falló, fallback a clipboard:', err);
+        }
+      }
+
+      // Desktop o fallback: copiar al clipboard
+      try {
+        await navigator.clipboard.writeText(propUrl);
+        showToast('Link copied');
+      } catch (err) {
+        // Último fallback: textarea + execCommand (browsers viejos)
+        const ta = document.createElement('textarea');
+        ta.value = propUrl;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          showToast('Link copied');
+        } catch (_) {
+          showToast('Copy failed — select the URL manually');
+        }
+        document.body.removeChild(ta);
+      }
+    });
+  }
+
+  // Toast utility — muestra mensaje arriba derecha por 2 segundos
+  function showToast(text) {
+    const toast = document.getElementById('ppToast');
+    const toastText = document.getElementById('ppToastText');
+    if (!toast || !toastText) return;
+    toastText.textContent = text;
+    toast.hidden = false;
+    toast.classList.remove('is-fading');
+    // Fade out después de 2s
+    clearTimeout(window._ppToastTimer);
+    window._ppToastTimer = setTimeout(() => {
+      toast.classList.add('is-fading');
+      setTimeout(() => { toast.hidden = true; }, 300);
+    }, 2000);
+  }
 
   // ──────────────────────────────────────────────────────────────
   // INICIALIZAR Leaflet mini-mapa con tiles dark de CartoDB
