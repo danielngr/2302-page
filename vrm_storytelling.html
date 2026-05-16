@@ -890,6 +890,188 @@
   .cover-trust-sep {
     color: rgba(232, 228, 218, 0.28);
   }
+
+  /* ═════════════════════════════════════════════════════════════
+     HERO SEARCH WIDGET — Liquid glass booking filter
+     
+     Reemplaza el CTA "Browse stays" con un filtro tipo Volaris/Airbnb:
+     fechas + huéspedes + zona + botón buscar. Mismo lenguaje visual que
+     el glass de nav-reserve y reviews-card (azul oscuro semi-transparente,
+     backdrop blur, borde beige cristal).
+     
+     UX familiar: la gente ya usa este patrón en Airbnb/Booking/Despegar.
+     Reduce fricción cognitiva, aumenta conversión.
+     
+     Comportamiento: al buscar, hace scroll suave a #properties y filtra
+     las cards por capacidad (guests) y zona. Las fechas se guardan en
+     sessionStorage para que cuando el usuario clickee "Check availability"
+     en una propiedad, el modal de booking las pre-llene.
+     ═════════════════════════════════════════════════════════════ */
+  .hero-search {
+    /* Card glass — mismo lenguaje que el resto del sistema */
+    background: rgba(26, 46, 72, 0.45);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(232, 228, 218, 0.22);
+    border-radius: 20px;
+    /* Inner highlight beige para el efecto cristal real */
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.10) inset,
+      0 12px 40px rgba(7, 18, 36, 0.35),
+      0 2px 8px rgba(7, 18, 36, 0.18);
+    padding: 18px;
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .hero-search-row {
+    display: flex;
+    gap: 10px;
+  }
+  .hero-search-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 16px;
+    background: rgba(232, 228, 218, 0.04);
+    border: 1px solid rgba(232, 228, 218, 0.14);
+    border-radius: 12px;
+    transition: border-color 0.3s var(--ease-soft), background 0.3s var(--ease-soft);
+    cursor: pointer;
+    min-width: 0;
+  }
+  .hero-search-field:hover,
+  .hero-search-field:focus-within {
+    background: rgba(232, 228, 218, 0.07);
+    border-color: rgba(232, 228, 218, 0.28);
+  }
+  .hero-search-label {
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    color: rgba(232, 228, 218, 0.55);
+    pointer-events: none;
+  }
+  .hero-search-value {
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: rgba(232, 228, 218, 0.95);
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0;
+    width: 100%;
+    /* Para overflow de texto largo (zonas con nombre extenso) */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* iOS Safari: prevenir zoom al focus si input < 16px */
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  /* Date inputs nativos: estética coherente con el resto */
+  input.hero-search-value[type="date"] {
+    color-scheme: dark;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    cursor: pointer;
+  }
+  input.hero-search-value[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.85) sepia(0.1);
+    opacity: 0.55;
+    cursor: pointer;
+  }
+  /* Select de zona */
+  select.hero-search-value {
+    color-scheme: dark;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 18px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'><path d='M1 1l4 4 4-4' stroke='%23E8E4DA' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0 center;
+  }
+  select.hero-search-value option {
+    background: #0E2238;
+    color: rgba(232, 228, 218, 0.95);
+  }
+  /* Botón buscar — coral del sistema, mismo lenguaje */
+  .hero-search-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px 24px;
+    background: var(--gold-bright, #D97757);
+    color: #FFFFFF;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.3s var(--ease-soft), transform 0.3s var(--ease-soft), box-shadow 0.3s var(--ease-soft);
+    box-shadow: 0 4px 16px rgba(217, 119, 87, 0.32);
+    /* Compensar letter-spacing fantasma */
+    padding-right: calc(24px - 0.24em);
+  }
+  .hero-search-submit:hover {
+    background: #C5654A;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(217, 119, 87, 0.42);
+  }
+  .hero-search-submit:active {
+    transform: translateY(0);
+  }
+  .hero-search-submit svg {
+    transition: transform 0.3s var(--ease-soft);
+  }
+  .hero-search-submit:hover svg {
+    transform: translateX(3px);
+  }
+
+  /* Mobile: stack vertical (fechas row + huéspedes + zona + buscar) */
+  @media (max-width: 600px) {
+    .hero-search {
+      padding: 14px;
+      gap: 8px;
+      max-width: 100%;
+    }
+    .hero-search-row {
+      gap: 8px;
+    }
+    .hero-search-field {
+      padding: 10px 12px;
+    }
+    .hero-search-label {
+      font-size: 8px;
+      letter-spacing: 0.18em;
+    }
+    .hero-search-value {
+      font-size: 15px;  /* >= 16px - 1 para evitar zoom iOS Safari pero compacto */
+    }
+    /* Las fechas siempre en row (lado a lado), guests+zona siempre full width */
+    .hero-search-row.hero-search-row-dates {
+      flex-direction: row;
+    }
+    .hero-search-row.hero-search-row-single {
+      flex-direction: column;
+    }
+    .hero-search-submit {
+      padding: 14px 20px;
+      font-size: 11px;
+    }
+  }
+
   @media (max-width: 768px) {
     .cover-actions { margin-top: 32px; gap: 22px; }
     .cover-cta { padding: 14px 26px; font-size: 12px; }
@@ -2751,6 +2933,11 @@
   .prop-card.filtered-out {
     display: none;
   }
+  /* También filtrar las cards editoriales (hero features) cuando se usa
+     el hero search widget */
+  .prop-feature.filtered-out {
+    display: none;
+  }
   .prop-card:hover { transform: translateY(-4px); }
 
   .prop-card-photo {
@@ -3492,17 +3679,61 @@
       </p>
       <p class="cover-subtitle" data-i18n="cover.subtitle.italic">The bay, made home.</p>
 
-      <!-- CTA editorial + trust signals — el CTA da una vía clara para
-           usuarios con intención inmediata sin romper el scrollytelling.
-           Trust signals confirman confianza para los que dudan. -->
+      <!-- ═════════════════════════════════════════════════════════════
+           HERO SEARCH WIDGET — Filtro tipo Volaris/Airbnb/Booking
+           
+           Patrón familiar para reducir fricción cognitiva. La gente ya
+           sabe usar este widget. Filtra el grid de propiedades por fechas,
+           huéspedes y zona. Las fechas se guardan en sessionStorage para
+           pre-llenar el booking modal cuando elijan propiedad.
+           ═════════════════════════════════════════════════════════════ -->
       <div class="cover-actions">
-        <a href="#properties" class="cover-cta">
-          <span data-i18n="cover.cta">Browse stays</span>
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <line x1="5" y1="12" x2="19" y2="12"/>
-            <polyline points="13 6 19 12 13 18"/>
-          </svg>
-        </a>
+        <form class="hero-search" id="heroSearch" onsubmit="return false;">
+          <div class="hero-search-row hero-search-row-dates">
+            <label class="hero-search-field" for="heroSearchCheckin">
+              <span class="hero-search-label" data-i18n="search.checkin">Check-in</span>
+              <input type="date" class="hero-search-value" id="heroSearchCheckin" autocomplete="off">
+            </label>
+            <label class="hero-search-field" for="heroSearchCheckout">
+              <span class="hero-search-label" data-i18n="search.checkout">Check-out</span>
+              <input type="date" class="hero-search-value" id="heroSearchCheckout" autocomplete="off">
+            </label>
+          </div>
+          <div class="hero-search-row hero-search-row-single">
+            <label class="hero-search-field" for="heroSearchGuests">
+              <span class="hero-search-label" data-i18n="search.guests">Guests</span>
+              <select class="hero-search-value" id="heroSearchGuests">
+                <option value="">Any</option>
+                <option value="1">1 guest</option>
+                <option value="2">2 guests</option>
+                <option value="3">3 guests</option>
+                <option value="4">4 guests</option>
+                <option value="5">5 guests</option>
+                <option value="6">6 guests</option>
+                <option value="7">7 guests</option>
+                <option value="8">8+ guests</option>
+              </select>
+            </label>
+          </div>
+          <div class="hero-search-row hero-search-row-single">
+            <label class="hero-search-field" for="heroSearchZone">
+              <span class="hero-search-label" data-i18n="search.zone">Area</span>
+              <select class="hero-search-value" id="heroSearchZone">
+                <option value="">All areas</option>
+                <option value="La Cruz">La Cruz de Huanacaxtle</option>
+                <option value="Nuevo Vallarta">Nuevo Vallarta · Flamingos</option>
+                <option value="Punta de Mita">Punta de Mita · Riviera Nayarit</option>
+              </select>
+            </label>
+          </div>
+          <button type="button" class="hero-search-submit" id="heroSearchSubmit">
+            <span data-i18n="search.cta">Search stays</span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="13 6 19 12 13 18"/>
+            </svg>
+          </button>
+        </form>
         <div class="cover-trust">
           <span class="cover-trust-item">
             <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" aria-hidden="true">
@@ -7279,10 +7510,133 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   updateStickyVisibility();
 })();
 
-/* ============================================================
-   (Reservado para efecto de fondo tipo "ondas de mar premium"
-   — se implementará tras confirmar dirección con el usuario.)
-   ============================================================ */
+/* ════════════════════════════════════════════════════════════════════════
+   HERO SEARCH WIDGET — Handler
+   
+   Comportamiento:
+   1. Setear fechas mínimas (hoy en adelante) y validar que checkout > checkin
+   2. Al clickear "Search stays":
+      - Guardar fechas + guests en sessionStorage (vrm_search_intent)
+      - Hacer scroll suave a #properties
+      - Filtrar las cards del grid por capacidad (>=guests) y zona match
+      - Después de un delay, scroll a la primera card visible
+   3. Cuando el usuario clickea "Check availability" en una card, el modal
+      de booking de vrm_property.html pre-llena las fechas (ya existe lógica
+      VRM_PRELOAD_BOOKING que lee sessionStorage)
+   ════════════════════════════════════════════════════════════════════════ */
+(function initHeroSearch() {
+  const $checkin = document.getElementById('heroSearchCheckin');
+  const $checkout = document.getElementById('heroSearchCheckout');
+  const $guests = document.getElementById('heroSearchGuests');
+  const $zone = document.getElementById('heroSearchZone');
+  const $submit = document.getElementById('heroSearchSubmit');
+  
+  if (!$checkin || !$checkout || !$guests || !$zone || !$submit) return;
+
+  // Setear min dates a hoy
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  $checkin.min = todayStr;
+  $checkout.min = todayStr;
+
+  // Auto-ajustar checkout cuando se cambia checkin (mínimo +1 día)
+  $checkin.addEventListener('change', () => {
+    if (!$checkin.value) return;
+    const ci = new Date($checkin.value + 'T00:00:00');
+    const nextDay = new Date(ci);
+    nextDay.setDate(ci.getDate() + 1);
+    const minCheckout = nextDay.toISOString().split('T')[0];
+    $checkout.min = minCheckout;
+    // Si checkout es antes que checkin, ajustarlo
+    if (!$checkout.value || new Date($checkout.value) <= ci) {
+      $checkout.value = minCheckout;
+    }
+  });
+
+  // Restaurar valores guardados si vienen de otra navegación
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('vrm_search_intent') || '{}');
+    if (saved.checkin) $checkin.value = saved.checkin;
+    if (saved.checkout) $checkout.value = saved.checkout;
+    if (saved.guests) $guests.value = saved.guests;
+    if (saved.zone) $zone.value = saved.zone;
+  } catch (_) {}
+
+  // Submit handler
+  $submit.addEventListener('click', () => {
+    const checkin = $checkin.value;
+    const checkout = $checkout.value;
+    const guests = $guests.value;
+    const zone = $zone.value;
+
+    // Guardar intent en sessionStorage para que el booking modal lo recoja
+    try {
+      sessionStorage.setItem('vrm_search_intent', JSON.stringify({
+        checkin, checkout, guests, zone
+      }));
+    } catch (_) {}
+
+    // Filtrar las propiedades visibles
+    filterProperties({ guests: guests ? parseInt(guests, 10) : null, zone });
+
+    // Scroll suave a la sección de properties
+    const $props = document.getElementById('properties');
+    if ($props) {
+      $props.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+
+  /**
+   * Filtra las cards del grid de propiedades según los criterios del search.
+   * Aplica la clase .filtered-out a las que NO matchean (CSS ya las oculta
+   * con opacity:0 + display:none). Las que matchean quedan visibles.
+   */
+  function filterProperties({ guests, zone }) {
+    // Filtra prop-card (grid cards) + prop-feature (cards editoriales)
+    const cards = document.querySelectorAll('.prop-card, .prop-feature');
+    let visibleCount = 0;
+    
+    cards.forEach(card => {
+      let matches = true;
+
+      // Filtro por capacidad
+      if (guests) {
+        const capacity = parseInt(card.dataset.capacity || card.getAttribute('data-prop-guests') || '0', 10);
+        // Si no hay capacity declarada en la card, intentamos leerla del texto
+        // (busca "X Guests" dentro del card como fallback)
+        let cap = capacity;
+        if (!cap) {
+          const statNum = card.querySelector('.prop-stat-num');
+          if (statNum) {
+            const txt = statNum.textContent.trim();
+            const num = parseInt(txt, 10);
+            if (!isNaN(num)) cap = num;
+          }
+        }
+        if (cap && cap < guests) matches = false;
+      }
+
+      // Filtro por zona (matching parcial sobre el texto de zona)
+      if (zone && matches) {
+        const zoneEl = card.querySelector('.prop-card-zone, .prop-feature-eyebrow');
+        if (zoneEl) {
+          const zoneText = zoneEl.textContent.toLowerCase();
+          if (!zoneText.includes(zone.toLowerCase())) matches = false;
+        }
+      }
+
+      if (matches) {
+        card.classList.remove('filtered-out');
+        visibleCount++;
+      } else {
+        card.classList.add('filtered-out');
+      }
+    });
+
+    // Log informativo (debug)
+    console.log(`[hero-search] Filtros aplicados: ${visibleCount} propiedades visibles`);
+  }
+})();
 
 </script>
 
