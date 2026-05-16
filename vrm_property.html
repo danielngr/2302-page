@@ -1918,8 +1918,14 @@ hydratePropertyData();
     border: 0.5px solid rgba(255, 255, 255, 0.18);
   }
   .pp-hero-hint.is-hidden {
-    opacity: 0;
-    pointer-events: none;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    animation: none !important;
+    transition: opacity 0.4s ease;
+    /* Eliminar del flujo al final del fade out */
+    visibility: hidden;
+    transition-delay: 0s, 0.4s;
+    transition-property: opacity, visibility;
   }
   .pp-hero-hint svg {
     color: var(--pp-gold);
@@ -2551,10 +2557,18 @@ hydratePropertyData();
   }
 
   /* ──────────────────────────────────────────────────────────────
-     8. STICKY BOTTOM CTA
+     8. STICKY BOTTOM CTA — SIEMPRE visible desde el primer scroll.
+     
+     Antes era `position: sticky` con bottom:0, pero eso solo se "pega"
+     cuando el contenido alcanza el borde — el usuario tenía que scrollear
+     hasta el final para ver el Reserve. Ahora es `position: fixed` para
+     que esté SIEMPRE flotando al fondo de la pantalla, accesible al
+     instante de cargar la página (estilo Airbnb mobile).
      ────────────────────────────────────────────────────────────── */
   .pp-sticky {
-    position: sticky;
+    position: fixed;
+    left: 0;
+    right: 0;
     bottom: 0;
     background: var(--pp-ink);
     padding: 12px 16px;
@@ -2564,6 +2578,14 @@ hydratePropertyData();
     gap: 10px;
     align-items: center;
     z-index: 50;
+    max-width: 720px;
+    margin: 0 auto;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
+  }
+  /* En mobile (sin max-width restriction visible) el max-width: 720px
+     centra el sticky bar en tablets pero en mobile ocupa full width */
+  @media (max-width: 720px) {
+    .pp-sticky { max-width: 100%; }
   }
   .pp-sticky-wa {
     width: 44px;
@@ -2615,34 +2637,51 @@ hydratePropertyData();
     text-transform: uppercase;
   }
 
-  /* Bottom padding del wrap para que el sticky no tape el último contenido */
+  /* Bottom padding del wrap para que el sticky fixed no tape el contenido.
+     - 80px = altura del sticky + un margen de respiro
+     - 50px extra cuando hay dates bar arriba del sticky
+     - env() para safe-area en iPhone con notch */
   .pp-content-end {
-    height: 20px;
+    height: calc(90px + env(safe-area-inset-bottom));
+  }
+  /* Si la dates bar está visible, agregar más espacio al final */
+  body:has(.pp-dates-bar:not([hidden])) .pp-content-end {
+    height: calc(140px + env(safe-area-inset-bottom));
   }
 
   /* Ocultar floating WA viejo y wa-float, el sticky ya tiene WhatsApp */
   .wa-float { display: none !important; }
 
   /* ──────────────────────────────────────────────────────────────
-     DATES BAR — Pegada arriba del sticky bottom CTA.
+     DATES BAR — Pegada arriba del sticky bottom CTA, también FIXED.
      
      Aparece cuando el cliente vino de la landing con fechas filtradas.
      Confirma visualmente que sus fechas están guardadas. Click "Edit"
      abre el calendario para cambiarlas.
      ────────────────────────────────────────────────────────────── */
   .pp-dates-bar {
-    position: sticky;
-    bottom: 70px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    /* Posicionada justo arriba del sticky (~70px de alto incluyendo safe-area).
+       Usamos calc para considerar el safe-area-inset-bottom de iPhone. */
+    bottom: calc(70px + env(safe-area-inset-bottom));
     background: rgba(13, 36, 64, 0.95);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-top: 0.5px solid rgba(212, 165, 116, 0.30);
+    border-bottom: 0.5px solid rgba(212, 165, 116, 0.18);
     padding: 10px 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
     z-index: 49;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  @media (max-width: 720px) {
+    .pp-dates-bar { max-width: 100%; }
   }
   .pp-dates-bar[hidden] { display: none !important; }
   .pp-dates-bar-info {
@@ -2992,8 +3031,16 @@ hydratePropertyData();
       const counterCurrent = document.getElementById('ppHeroCounterCurrent');
       const hint = document.getElementById('ppHeroHint');
       
-      // Listener de scroll del track — actualiza contador, dots, oculta hint
+      // Si el usuario ya hizo swipe en una visita anterior, ocultar hint ya
       let hintHidden = false;
+      try {
+        if (sessionStorage.getItem('vrm_pp_hint_seen') === '1') {
+          if (hint) hint.classList.add('is-hidden');
+          hintHidden = true;
+        }
+      } catch (_) {}
+      
+      // Listener de scroll del track — actualiza contador, dots, oculta hint
       track.addEventListener('scroll', () => {
         const idx = Math.round(track.scrollLeft / track.clientWidth);
         const oneIndexed = idx + 1;
@@ -3001,10 +3048,11 @@ hydratePropertyData();
         // Actualizar dots
         const dots = dotsContainer ? dotsContainer.querySelectorAll('.pp-hero-dot') : [];
         dots.forEach((d, i) => d.classList.toggle('active', i === idx));
-        // Ocultar hint al primer swipe
+        // Ocultar hint al primer swipe (y guardar en sessionStorage)
         if (!hintHidden && idx > 0 && hint) {
           hint.classList.add('is-hidden');
           hintHidden = true;
+          try { sessionStorage.setItem('vrm_pp_hint_seen', '1'); } catch (_) {}
         }
       }, { passive: true });
     }
