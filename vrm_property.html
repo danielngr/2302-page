@@ -2360,6 +2360,78 @@ hydratePropertyData();
 
   /* Ocultar floating WA viejo y wa-float, el sticky ya tiene WhatsApp */
   .wa-float { display: none !important; }
+
+  /* ──────────────────────────────────────────────────────────────
+     CHIP DE FECHAS PRE-SELECCIONADAS
+     
+     Aparece como pill flotante encima del sticky bar cuando el cliente
+     vino de la landing con fechas filtradas. Le confirma visualmente
+     que sus fechas están guardadas y al tocar "Reserve" se aplicarán.
+     Tiene botón "Edit" por si quiere cambiarlas (abre el calendario).
+     ────────────────────────────────────────────────────────────── */
+  .pp-dates-chip {
+    position: fixed;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(232, 228, 218, 0.95);
+    color: var(--pp-ink-2);
+    padding: 8px 6px 8px 14px;
+    border-radius: 100px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25),
+                0 1px 0 rgba(255, 255, 255, 0.6) inset;
+    z-index: 49;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    max-width: calc(100% - 32px);
+    animation: ppChipIn 0.5s 0.3s both;
+  }
+  @keyframes ppChipIn {
+    from { transform: translate(-50%, 20px); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
+  }
+  .pp-dates-chip[hidden] { display: none !important; }
+  .pp-dates-chip-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--pp-gold);
+    color: var(--pp-ink-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .pp-dates-chip-text {
+    font-size: 11.5px;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pp-dates-chip-edit {
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    background: rgba(13, 36, 64, 0.10);
+    color: var(--pp-ink-2);
+    border: none;
+    border-radius: 100px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .pp-dates-chip-edit:hover {
+    background: rgba(13, 36, 64, 0.18);
+  }
 </style>
 
 <!-- ═════════════════════════════════════════════════════════════════════
@@ -2544,10 +2616,19 @@ hydratePropertyData();
     </a>
     <button type="button" class="pp-sticky-reserve" data-open-booking>
       <span class="pp-sticky-reserve-text">Reserve →</span>
-      <span class="pp-sticky-reserve-sub">Free cancellation 7 days</span>
+      <span class="pp-sticky-reserve-sub" id="ppStickySub">Free cancellation 7 days</span>
     </button>
   </div>
 
+</div>
+
+<!-- Chip flotante de fechas pre-seleccionadas (solo aparece si el cliente
+     vino de la landing con fechas filtradas). Se posiciona arriba del
+     sticky bar para que el cliente vea que sus fechas están guardadas. -->
+<div class="pp-dates-chip" id="ppDatesChip" hidden>
+  <span class="pp-dates-chip-icon">✓</span>
+  <span class="pp-dates-chip-text" id="ppDatesChipText">Your dates · May 25 — May 29</span>
+  <button type="button" class="pp-dates-chip-edit" id="ppDatesChipEdit" aria-label="Edit dates">Edit</button>
 </div>
 
 <!-- ═════════════════════════════════════════════════════════════════════
@@ -2671,6 +2752,64 @@ hydratePropertyData();
       window.open(url, '_blank', 'noopener');
     });
   }
+
+  // ──────────────────────────────────────────────────────────────
+  // CHIP DE FECHAS PRE-SELECCIONADAS
+  // 
+  // Si el cliente llegó con ?checkin=...&checkout=... en URL, le
+  // mostramos un chip flotante confirmando "tus fechas están guardadas".
+  // También cambia el subtexto del botón Reserve para reforzar.
+  // ──────────────────────────────────────────────────────────────
+  function showDatesChip() {
+    const chip = document.getElementById('ppDatesChip');
+    const chipText = document.getElementById('ppDatesChipText');
+    const stickySub = document.getElementById('ppStickySub');
+    if (!chip || !chipText) return;
+    
+    const pre = window.VRM_PRELOAD_BOOKING || {};
+    if (!pre.checkin || !pre.checkout) {
+      chip.hidden = true;
+      return;
+    }
+    
+    // Formatear fechas: "May 25 — May 29"
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    function fmt(ymd) {
+      const [y, m, d] = ymd.split('-').map(Number);
+      return `${months[m-1]} ${d}`;
+    }
+    const ci = fmt(pre.checkin);
+    const co = fmt(pre.checkout);
+    
+    // Calcular noches
+    const start = new Date(pre.checkin);
+    const end = new Date(pre.checkout);
+    const nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
+    
+    chipText.textContent = `${ci} — ${co} · ${nights} night${nights > 1 ? 's' : ''}`;
+    chip.hidden = false;
+    
+    // Cambiar subtexto del Reserve para reforzar
+    if (stickySub) {
+      const guests = pre.guests || (window.VRM_UNIT && window.VRM_UNIT.guests) || '';
+      stickySub.textContent = guests ? `For ${guests} guests · ${nights} nights` : `${nights} nights selected`;
+    }
+    
+    // Click "Edit" → abre el modal en Step 1 (calendario) para cambiar fechas
+    const editBtn = document.getElementById('ppDatesChipEdit');
+    if (editBtn) {
+      editBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Trigger del modal en Step 1
+        if (typeof openBooking === 'function') {
+          openBooking({ startStep: 1 });
+        }
+      });
+    }
+  }
+  // Mostrar el chip después de un breve delay (deja que la página cargue)
+  setTimeout(showDatesChip, 600);
 
   // ──────────────────────────────────────────────────────────────
   // INICIALIZAR Leaflet mini-mapa con tiles dark de CartoDB
@@ -4148,31 +4287,44 @@ hydratePropertyData();
   
   if (window.VRM_PRELOAD_BOOKING) {
     const pre = window.VRM_PRELOAD_BOOKING;
-    let shouldAutoOpen = false;
+    
+    // Importante: aunque haya fechas en la URL, NO auto-abrimos el modal.
+    // 
+    // Razón UX: el cliente acaba de filtrar fechas en la landing y hace
+    // click en una propiedad. Si lo mandamos directo al checkout, nunca
+    // ve fotos del depa, amenities, mapa, reviews — toda la información
+    // que necesita para "enamorarse" antes de pagar.
+    //
+    // Flujo correcto (Airbnb, Booking, Sonder hacen esto):
+    // 1. Cliente ve la página completa de la propiedad
+    // 2. Si le gusta, toca "Reserve" abajo
+    // 3. AHÍ se abre el modal en Step 2 (Summary) con sus fechas ya
+    //    pre-cargadas — saltando el calendario porque ya eligió.
+    //
+    // Por eso guardamos las fechas en state pero NO seteamos el flag
+    // _VRM_AUTO_OPEN_BOOKING. Cuando el usuario toque "Reserve", el
+    // handler ve que state ya tiene checkIn+checkOut y abre Step 2.
     
     if (pre.checkin) {
       state.checkIn = _parseYMDLocal(pre.checkin);
       if (state.checkIn) {
         // Ajustar el calendario para que muestre el mes del check-in
+        // (por si el usuario abre el modal y termina yendo al Step 1)
         state.visibleMonth = new Date(state.checkIn.getFullYear(), state.checkIn.getMonth(), 1);
-        shouldAutoOpen = true;
       }
     }
     if (pre.checkout) {
       state.checkOut = _parseYMDLocal(pre.checkout);
     }
     if (pre.guests && pre.guests > 0) {
-      // Ajustamos al máximo permitido por la unidad si excede
       const maxGuests = (window.VRM_UNIT && window.VRM_UNIT.guests) ? window.VRM_UNIT.guests : 16;
       state.guests = Math.min(maxGuests, Math.max(1, pre.guests));
-      shouldAutoOpen = true;
     }
     
-    // Auto-abrir el booking modal después de un breve delay (deja que
-    // la página renderice primero, da contexto al usuario)
-    if (shouldAutoOpen) {
-      window._VRM_AUTO_OPEN_BOOKING = true;
-    }
+    // NO seteamos _VRM_AUTO_OPEN_BOOKING — el cliente debe ver la página
+    // primero. Cuando toque "Reserve" arriba/abajo, el handler decide si
+    // saltar a Step 2 (si ya tiene state.checkIn + state.checkOut) o ir
+    // a Step 1 (calendario) si no.
   }
 
   const backdrop = document.getElementById('bmBackdrop');
@@ -4267,27 +4419,37 @@ hydratePropertyData();
     backdrop.classList.remove('open');
     document.body.classList.remove('lock');
   }
-  // Los botones "Reservar" de la página llaman a openBooking() sin params
-  // → empieza en Step 1 (calendario), comportamiento normal manual.
-  // Event delegation: funciona aunque los botones se añadan después
-  // del DOM (ej: sticky bar que está al final del body, agregado por
-  // script posterior). No más querySelectorAll con timing frágil.
+  // Los botones "Reservar" de la página usan event delegation.
+  // 
+  // Si state ya tiene fechas (porque vino de la landing con checkin/
+  // checkout en URL), abrimos directo en Step 2 (Summary) saltando el
+  // calendario — el usuario ya eligió fechas, no las pidamos otra vez.
+  //
+  // Si state está vacío (entró por link directo sin params), abrimos
+  // normalmente en Step 1 (Calendar) para que elija sus fechas.
   document.addEventListener('click', (e) => {
     const trigger = e.target.closest('[data-open-booking]');
     if (trigger) {
       e.preventDefault();
-      openBooking();
+      const hasFullDates = state.checkIn && state.checkOut;
+      openBooking({ startStep: hasFullDates ? 2 : 1 });
     }
   });
   
   // ═══════════════════════════════════════════════════════════════════
-  // AUTO-OPEN del booking modal si vino con params de la landing.
+  // AUTO-OPEN del booking modal DESACTIVADO.
   // 
-  // Si tenemos fechas completas (checkIn + checkOut + guests) en el URL,
-  // saltamos directo al Step 2 (resumen) — el usuario ya escogió fechas
-  // en el picker de la landing, NO pedimos que las elija dos veces.
+  // Antes el modal se abría automáticamente cuando había fechas en URL.
+  // Eso saltaba la página entera de fotos/info y el cliente nunca veía
+  // el contenido del depa antes de pagar.
   // 
-  // Si solo vino con guests (sin fechas), abrimos en Step 1 normalmente.
+  // Nuevo flujo: dejamos al cliente ver la página completa (fotos, mapa,
+  // amenities, anfitrión, reviews). Cuando él decida, toca "Reserve" y
+  // ahí el modal abre en Step 2 con sus fechas pre-cargadas.
+  // 
+  // El flag _VRM_AUTO_OPEN_BOOKING ya no se setea desde
+  // VRM_PRELOAD_BOOKING. Pero dejamos el bloque por si alguien lo activa
+  // manualmente desde consola para debugging.
   // ═══════════════════════════════════════════════════════════════════
   if (window._VRM_AUTO_OPEN_BOOKING) {
     const hasFullDates = state.checkIn && state.checkOut;
