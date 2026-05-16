@@ -6954,7 +6954,24 @@ animate();
         }
       }
 
-      card.classList.toggle('filtered-out', !visible);
+      // ─────────────────────────────────────────────────────────────
+      // BUG FIX: el sistema legacy NO debe sobrescribir el filtered-out
+      // que el hero search widget ya aplicó. Antes hacíamos
+      // card.classList.toggle('filtered-out', !visible) acá, pero eso
+      // causaba que el legacy reabra propiedades que el hero marcó
+      // como NO DISPONIBLE (porque acá `visible` se calcula con state
+      // distinto al del hero).
+      //
+      // El hero search es ahora la fuente de verdad de la visibilidad
+      // de cards. Solo aplicamos filtered-out si el hero NO lo aplicó
+      // todavía (matchCount sigue funcionando para el status message).
+      // ─────────────────────────────────────────────────────────────
+      if (!visible && !card.classList.contains('filtered-out')) {
+        card.classList.add('filtered-out');
+      }
+      // Importante: NO removemos filtered-out aunque visible sea true,
+      // porque puede que el hero lo haya aplicado por una razón válida
+      // (no disponibilidad real verificada en Supabase).
       if (visible) matchCount++;
     }
 
@@ -8510,6 +8527,38 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     if ($submitLabel) {
       const searchingLabel = (window.VRM_t && window.VRM_t('search.searching')) || 'Searching…';
       $submitLabel.textContent = searchingLabel;
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // SINCRONIZAR el sistema legacy del catalog grid.
+    // 
+    // Hay un sistema secundario de filtros (applyFilters) que actúa
+    // sobre las .prop-card del catalog. Vive en un IIFE separado y
+    // tiene su propio estado interno basado en hidden inputs.
+    // 
+    // Bug que estaba causando: el hero filtraba PHN como NO DISPONIBLE,
+    // pero el catalog legacy corría después sin fechas (porque los
+    // hidden inputs estaban vacíos) → quitaba el filtered-out y dejaba
+    // PHN visible al usuario aunque el filtro decía que no.
+    // 
+    // Fix: actualizamos hidden inputs y disparamos los eventos 'change'
+    // que el sistema legacy escucha. Así ambos sistemas usan las mismas
+    // fechas y aplican el mismo criterio de disponibilidad.
+    // ────────────────────────────────────────────────────────────────
+    const $hCheckin  = document.getElementById('search-checkin');
+    const $hCheckout = document.getElementById('search-checkout');
+    const $hGuests   = document.getElementById('search-guests');
+    if ($hCheckin) {
+      $hCheckin.value = checkin || '';
+      $hCheckin.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if ($hCheckout) {
+      $hCheckout.value = checkout || '';
+      $hCheckout.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if ($hGuests) {
+      $hGuests.value = String(guests || 0);
+      $hGuests.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
     try {
