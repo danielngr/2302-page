@@ -1939,21 +1939,28 @@ hydratePropertyData();
     30% { transform: translateX(6px); }
   }
 
-  /* DOTS indicator — barritas finas tipo Aman/Belmond. Cada barrita
-     representa una foto. La activa es más larga y dorada. */
+  /* DOTS indicator — barritas finas tipo Aman/Belmond. ARRIBA del hero,
+     centrados horizontalmente. Cada barrita es una foto. La activa es más
+     larga y dorada. Reemplaza al contador "1 / 8" (más limpio, premium). */
   .pp-hero-dots {
     position: absolute;
-    bottom: 130px;
+    top: 56px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
     gap: 4px;
     z-index: 3;
     padding: 6px 10px;
-    background: rgba(0, 0, 0, 0.25);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border-radius: 100px;
+    max-width: calc(100% - 200px);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  @media (min-width: 720px) {
+    .pp-hero-dots { top: 64px; }
   }
   .pp-hero-dot {
     width: 14px;
@@ -1961,16 +1968,21 @@ hydratePropertyData();
     background: rgba(255, 255, 255, 0.4);
     border-radius: 2px;
     transition: background 0.3s, width 0.3s;
+    flex-shrink: 0;
   }
   .pp-hero-dot.active {
     background: var(--pp-gold);
     width: 22px;
   }
   @media (max-width: 380px) {
-    .pp-hero-dots { bottom: 116px; }
-    .pp-hero-dot { width: 12px; }
-    .pp-hero-dot.active { width: 18px; }
+    .pp-hero-dot { width: 10px; }
+    .pp-hero-dot.active { width: 16px; }
+    .pp-hero-dots { gap: 3px; padding: 5px 8px; }
   }
+
+  /* Contador "1 / 8" eliminado — los dots arriba ya cumplen esa función
+     y mostrar ambos es ruidoso. Ocultamos el contador con CSS. */
+  .pp-hero-counter { display: none !important; }
 
   .pp-hero-topbar {
     position: absolute;
@@ -2671,11 +2683,12 @@ hydratePropertyData();
     -webkit-backdrop-filter: blur(10px);
     border-top: 0.5px solid rgba(212, 165, 116, 0.30);
     border-bottom: 0.5px solid rgba(212, 165, 116, 0.18);
-    padding: 10px 16px;
+    /* Padding aumentado horizontalmente y respetando safe-area en notch */
+    padding: 11px max(16px, env(safe-area-inset-right)) 11px max(16px, env(safe-area-inset-left));
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 12px;
     z-index: 49;
     max-width: 720px;
     margin: 0 auto;
@@ -2719,11 +2732,13 @@ hydratePropertyData();
     font-size: 10px;
     letter-spacing: 1.5px;
     text-transform: uppercase;
-    padding: 5px 12px;
+    padding: 6px 14px;
     border-radius: 100px;
     cursor: pointer;
     font-weight: 600;
     flex-shrink: 0;
+    /* Margin right adicional para que no quede pegado al borde derecho */
+    margin-right: 2px;
   }
   .pp-dates-bar-edit:hover {
     background: rgba(212, 165, 116, 0.10);
