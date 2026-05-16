@@ -1721,8 +1721,77 @@ hydratePropertyData();
   .hero:not(.pp-hero),
   .stats,
   body > section.section,
-  .cta-final {
+  .cta-final,
+  body > footer.footer {
     display: none !important;
+  }
+
+  /* TOPBAR — superponerlo sobre el hero pero con estilo glass para
+     que se lea bien y no choque visualmente con el título. */
+  .topbar {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-bottom: none !important;
+    padding: 14px 16px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    pointer-events: none;
+  }
+  .topbar > * { pointer-events: auto; }
+  .topbar a {
+    color: rgba(255, 255, 255, 0.92) !important;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    font-size: 11px !important;
+    letter-spacing: 2px !important;
+    text-transform: uppercase !important;
+    text-decoration: none !important;
+  }
+  .topbar-back {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+  .topbar-back svg {
+    width: 14px !important;
+    height: 10px !important;
+    stroke-width: 1.5 !important;
+  }
+  .topbar-brand {
+    font-family: var(--pp-serif) !important;
+    font-style: italic !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    font-size: 16px !important;
+  }
+  .topbar-brand .mk { display: none !important; }
+
+  /* Compensar el hero — el rating pill estaba en top:14px y choca con
+     el topbar. Lo movemos al lado del título abajo. */
+  .pp-hero-topbar {
+    /* Sigue arriba pero solo con el rating, ya que la zona se va al
+       título bottom para evitar el choque con "ALL HOMES" del topbar */
+    top: 14px;
+    justify-content: flex-end;
+  }
+  .pp-hero-zone {
+    /* Movido abajo, dentro del bloque del título */
+    display: none;
+  }
+  .pp-hero-zone-bottom {
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: rgba(232, 228, 218, 0.85);
+    font-weight: 500;
+    margin-bottom: 8px;
+    display: block;
   }
 
   /* ──────────────────────────────────────────────────────────────
@@ -2062,41 +2131,58 @@ hydratePropertyData();
   }
 
   /* ──────────────────────────────────────────────────────────────
-     6. MINI-MAPA preview
+     6. MINI-MAPA premium con Leaflet (tiles dark CartoDB)
      ────────────────────────────────────────────────────────────── */
   .pp-map-preview {
     border-radius: 8px;
     overflow: hidden;
-    height: 130px;
+    height: 180px;
     position: relative;
     border: 0.5px solid var(--pp-rule-strong);
     cursor: pointer;
-    display: block;
-    text-decoration: none;
-    color: inherit;
   }
-  .pp-map-bg {
+  .pp-map-leaflet {
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, #1a3654 0%, #2a4d75 50%, #3d6390 100%);
+    background: #1a3654;
   }
-  .pp-map-bg::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image:
-      radial-gradient(circle at 20% 30%, rgba(255,255,255,0.06) 0%, transparent 30%),
-      radial-gradient(circle at 70% 60%, rgba(255,255,255,0.04) 0%, transparent 25%),
-      radial-gradient(circle at 40% 80%, rgba(0,0,0,0.15) 0%, transparent 30%);
+  /* Override Leaflet container para mantener el dark theme */
+  .pp-map-leaflet.leaflet-container {
+    background: #1a3654 !important;
+    font-family: var(--pp-sans) !important;
   }
-  .pp-map-pin {
+  /* Pin custom dorado */
+  .pp-map-pin-marker {
+    width: 32px;
+    height: 32px;
+    margin-left: -16px;
+    margin-top: -32px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .pp-map-pin-marker svg {
+    width: 32px;
+    height: 32px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  }
+  /* Pulso animado alrededor del pin */
+  .pp-map-pin-pulse {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -100%);
-    width: 28px;
-    height: 28px;
-    color: var(--pp-gold);
+    transform: translate(-50%, -50%);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(212, 165, 116, 0.25);
+    animation: ppPulse 2s ease-out infinite;
+    pointer-events: none;
+    z-index: 1000;
+  }
+  @keyframes ppPulse {
+    0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0.85; }
+    100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
   }
   .pp-map-overlay {
     position: absolute;
@@ -2104,20 +2190,52 @@ hydratePropertyData();
     left: 0;
     right: 0;
     padding: 10px 14px;
-    background: linear-gradient(180deg, transparent, rgba(10, 20, 40, 0.85));
+    background: linear-gradient(180deg, transparent, rgba(10, 20, 40, 0.92));
     display: flex;
     justify-content: space-between;
     align-items: center;
+    z-index: 1001;
+    pointer-events: none;
   }
   .pp-map-overlay-text {
     font-size: 11.5px;
     color: var(--pp-paper);
+    font-weight: 500;
   }
   .pp-map-overlay-cta {
     font-size: 9.5px;
-    color: var(--pp-paper-mute);
+    color: var(--pp-gold);
     letter-spacing: 1.2px;
     text-transform: uppercase;
+  }
+  /* Ocultar controles de zoom de Leaflet en mini-mapa preview */
+  .pp-map-leaflet .leaflet-control-container,
+  .pp-map-leaflet .leaflet-control-attribution {
+    display: none !important;
+  }
+
+  /* Lista "what's nearby" — bullets con dot dorado */
+  .pp-map-nearby {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .pp-nearby-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .pp-nearby-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--pp-gold);
+    flex-shrink: 0;
+  }
+  .pp-nearby-text {
+    font-size: 12px;
+    color: var(--pp-paper-soft);
   }
 
   /* ──────────────────────────────────────────────────────────────
@@ -2272,6 +2390,7 @@ hydratePropertyData();
     </div>
 
     <div class="pp-hero-bottom">
+      <span class="pp-hero-zone-bottom" id="ppHeroZoneBottom">La Cruz · Riviera Nayarit</span>
       <h1 class="pp-hero-title" id="ppHeroTitle">
         Vallarta Gardens<br><em>2302</em>
       </h1>
@@ -2371,16 +2490,30 @@ hydratePropertyData();
   <!-- 6. MAPA -->
   <section class="pp-section">
     <div class="pp-section-eyebrow">Location</div>
-    <a class="pp-map-preview" id="ppMapPreview" href="#map">
-      <div class="pp-map-bg"></div>
-      <svg class="pp-map-pin" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 0C7.6 0 4 3.6 4 8c0 5.5 8 16 8 16s8-10.5 8-16c0-4.4-3.6-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>
-      </svg>
+    <div class="pp-map-preview" id="ppMapPreview">
+      <!-- Mini-mapa Leaflet real con tiles dark de CartoDB -->
+      <div class="pp-map-leaflet" id="ppMapLeaflet"></div>
+      <!-- Overlay con info de la zona y CTA -->
       <div class="pp-map-overlay">
         <span class="pp-map-overlay-text" id="ppMapZone">La Cruz de Huanacaxtle</span>
-        <span class="pp-map-overlay-cta">View map →</span>
+        <span class="pp-map-overlay-cta">Tap to explore →</span>
       </div>
-    </a>
+    </div>
+    <!-- Lista de "what's nearby" — bullets con distancias -->
+    <div class="pp-map-nearby">
+      <div class="pp-nearby-item">
+        <span class="pp-nearby-dot"></span>
+        <span class="pp-nearby-text">Marina La Cruz · 5 min walk</span>
+      </div>
+      <div class="pp-nearby-item">
+        <span class="pp-nearby-dot"></span>
+        <span class="pp-nearby-text">Sunday Farmers Market · 5 min walk</span>
+      </div>
+      <div class="pp-nearby-item">
+        <span class="pp-nearby-dot"></span>
+        <span class="pp-nearby-text">Puerto Vallarta Airport · 35 min drive</span>
+      </div>
+    </div>
   </section>
 
   <!-- 7. REVIEWS -->
@@ -2444,6 +2577,7 @@ hydratePropertyData();
     // Hero zone (corto)
     const locShort = (unit.location || '').replace(/Vallarta · /, '').replace(/Nuevo Vallarta · /, '');
     setText('ppHeroZone', locShort.toUpperCase());
+    setText('ppHeroZoneBottom', locShort.toUpperCase());
 
     // Hero title — divide nombre en 2 líneas si tiene 2 palabras+
     const titleEl = document.getElementById('ppHeroTitle');
@@ -2522,22 +2656,95 @@ hydratePropertyData();
     });
   });
 
-  // Click en mapa preview → scroll al mapa real (#map del HTML legacy)
+  // Click en mapa preview → expandir / abrir Google Maps
   const mapPreview = document.getElementById('ppMapPreview');
   if (mapPreview) {
     mapPreview.addEventListener('click', (e) => {
-      e.preventDefault();
-      const realMap = document.getElementById('map');
-      if (realMap) {
-        // Temporalmente mostrar la sección legacy del mapa
-        const mapSection = realMap.closest('section');
-        if (mapSection) {
-          mapSection.style.display = 'block';
-          mapSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+      // Abre Google Maps en nueva pestaña con la ubicación
+      const unit = window.VRM_UNIT;
+      let url = 'https://maps.google.com/?q=La+Cruz+de+Huanacaxtle+Nayarit';
+      if (unit && unit.coords) {
+        url = `https://maps.google.com/?q=${unit.coords.lat},${unit.coords.lng}`;
+      } else if (unit && unit.location) {
+        url = `https://maps.google.com/?q=${encodeURIComponent(unit.location + ' Mexico')}`;
       }
+      window.open(url, '_blank', 'noopener');
     });
   }
+
+  // ──────────────────────────────────────────────────────────────
+  // INICIALIZAR Leaflet mini-mapa con tiles dark de CartoDB
+  // ──────────────────────────────────────────────────────────────
+  function initMiniMap() {
+    const mapEl = document.getElementById('ppMapLeaflet');
+    if (!mapEl || typeof L === 'undefined') {
+      // Leaflet aún no cargado, reintentar
+      setTimeout(initMiniMap, 200);
+      return;
+    }
+    // Si ya está inicializado, no duplicar
+    if (mapEl._leaflet_id) return;
+
+    // Coordenadas por zona basado en el location
+    const unit = window.VRM_UNIT;
+    const zoneCoords = {
+      'la cruz': [20.7536, -105.3719],
+      'nuevo vallarta': [20.6951, -105.2911],
+      'flamingos': [20.7250, -105.3210],
+      'punta de mita': [20.7700, -105.5300],
+      'punta mita': [20.7700, -105.5300],
+      'riviera nayarit': [20.7000, -105.4000]
+    };
+    let coords = [20.7536, -105.3719]; // default La Cruz
+    if (unit && unit.location) {
+      const loc = unit.location.toLowerCase();
+      for (const [k, v] of Object.entries(zoneCoords)) {
+        if (loc.includes(k)) { coords = v; break; }
+      }
+    }
+    if (unit && unit.coords) {
+      coords = [unit.coords.lat, unit.coords.lng];
+    }
+
+    const map = L.map(mapEl, {
+      center: coords,
+      zoom: 14,
+      zoomControl: false,
+      attributionControl: false,
+      scrollWheelZoom: false,
+      dragging: false,
+      tap: false,
+      touchZoom: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      keyboard: false
+    });
+
+    // Tiles dark premium de CartoDB
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19
+    }).addTo(map);
+
+    // Pin custom dorado (SVG inline como Leaflet divIcon)
+    const goldPinIcon = L.divIcon({
+      className: 'pp-map-pin-marker',
+      html: `<svg viewBox="0 0 24 24" fill="#D4A574" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 0C7.6 0 4 3.6 4 8c0 5.5 8 16 8 16s8-10.5 8-16c0-4.4-3.6-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>
+      </svg>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 32]
+    });
+    L.marker(coords, { icon: goldPinIcon }).addTo(map);
+
+    // Agregar pulso animado en el centro
+    const pulse = document.createElement('div');
+    pulse.className = 'pp-map-pin-pulse';
+    mapEl.appendChild(pulse);
+
+    console.log('[pp] Mini-map initialized at', coords);
+  }
+  // Inicializar después del render
+  setTimeout(initMiniMap, 100);
 })();
 </script>
 
