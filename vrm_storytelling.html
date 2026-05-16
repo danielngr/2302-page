@@ -112,6 +112,7 @@
       'search.guests': 'Guests',
       'search.zone': 'Area',
       'search.button': 'Search',
+      'search.searching': 'Searching…',
       'search.dates.placeholder.in': 'Add date',
       'search.dates.placeholder.out': 'Add date',
       'search.guests.any': 'Any',
@@ -262,6 +263,7 @@
       'search.guests': 'Huéspedes',
       'search.zone': 'Zona',
       'search.button': 'Buscar',
+      'search.searching': 'Buscando…',
       'search.dates.placeholder.in': 'Selecciona',
       'search.dates.placeholder.out': 'Selecciona',
       'search.guests.any': 'Cualquiera',
@@ -2353,6 +2355,119 @@
      PROPIEDADES — Sección editorial + grid + filtros
      ============================================================= */
   .properties { position: relative; z-index: 4; padding: 0 0 200px; }
+
+  /* ═════════════════════════════════════════════════════════════
+     HERO SEARCH — UI auxiliar después del filtro
+     
+     Componentes que aparecen en la sección #properties cuando el
+     usuario ha filtrado:
+     
+     1. FILTER BADGE — chip arriba mostrando filtros activos +
+        botón "Limpiar" rápido
+     2. NO RESULTS — mensaje cuando no hay propiedades disponibles
+        para los criterios seleccionados
+     ═════════════════════════════════════════════════════════════ */
+  .hero-filter-badge {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin: -60px auto 60px;
+    padding: 12px 18px;
+    max-width: 720px;
+    background: rgba(26, 46, 72, 0.55);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(232, 228, 218, 0.18);
+    border-radius: 100px;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset,
+                0 8px 24px rgba(7, 18, 36, 0.25);
+  }
+  .hero-filter-badge-text {
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(232, 228, 218, 0.92);
+    letter-spacing: 0.02em;
+  }
+  .hero-filter-badge-clear {
+    background: transparent;
+    border: 1px solid rgba(232, 228, 218, 0.28);
+    color: rgba(232, 228, 218, 0.78);
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+  .hero-filter-badge-clear:hover {
+    background: rgba(232, 228, 218, 0.10);
+    border-color: rgba(232, 228, 218, 0.45);
+    color: rgba(232, 228, 218, 0.98);
+  }
+
+  .hero-no-results {
+    display: none;
+    margin: 0 auto 80px;
+    padding: 40px 24px;
+    max-width: 520px;
+    text-align: center;
+    background: rgba(26, 46, 72, 0.30);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(232, 228, 218, 0.14);
+    border-radius: 16px;
+  }
+  .hero-no-results-title {
+    font-family: 'Boska', 'Times New Roman', serif;
+    font-style: italic;
+    font-size: clamp(20px, 2vw, 26px);
+    color: rgba(232, 228, 218, 0.92);
+    margin-bottom: 10px;
+  }
+  .hero-no-results-sub {
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    color: rgba(232, 228, 218, 0.62);
+    margin-bottom: 22px;
+  }
+  .hero-no-results-btn {
+    background: var(--gold-bright, #D97757);
+    color: #FFFFFF;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+    padding-right: calc(24px - 0.20em);
+  }
+  .hero-no-results-btn:hover {
+    background: #C5654A;
+    transform: translateY(-1px);
+  }
+  @media (max-width: 600px) {
+    .hero-filter-badge {
+      margin: -40px 16px 40px;
+      padding: 10px 14px;
+      gap: 10px;
+    }
+    .hero-filter-badge-text { font-size: 12px; }
+    .hero-no-results {
+      margin: 0 16px 60px;
+      padding: 30px 18px;
+    }
+  }
 
   .properties-intro {
     max-width: 920px;
@@ -7685,10 +7800,27 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   
   // ═══════════════════════════════════════════════════════════════════
   // EXPONER API PARA EL TRIGGER DE "RESERVAR" DE PROPIEDADES
+  // 
+  // Acepta: { guests, checkin, checkout, propId }
+  // - guests: número de huéspedes (entero 1-16)
+  // - checkin/checkout: YYYY-MM-DD (opcional, pre-fill del calendario)
+  // - propId: ID de propiedad para filtrar disponibilidad en el picker
+  // 
+  // Esto permite que el HERO SEARCH WIDGET pase su contexto al picker:
+  // si el usuario ya seleccionó fechas/huéspedes en el hero, al clickear
+  // "Check availability" en una propiedad ya entra con esos valores
+  // pre-cargados — sin tener que volver a elegir.
   // ═══════════════════════════════════════════════════════════════════
   window.VRM_openPicker = function(opts = {}) {
     if (opts.guests && opts.guests > 0) {
       state.guests = Math.min(16, Math.max(1, opts.guests));
+    }
+    // Pre-fill fechas si vienen del hero search widget
+    if (opts.checkin && /^\d{4}-\d{2}-\d{2}$/.test(opts.checkin)) {
+      state.checkin = opts.checkin;
+    }
+    if (opts.checkout && /^\d{4}-\d{2}-\d{2}$/.test(opts.checkout)) {
+      state.checkout = opts.checkout;
     }
     openPicker();
   };
@@ -7721,13 +7853,33 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
         try { sessionStorage.setItem('vrm_reserve_intent', propId); } catch(_) {}
       }
       
+      // ──────────────────────────────────────────────────────────────
+      // CONTEXTO DEL HERO SEARCH — Si el usuario ya seleccionó fechas
+      // y huéspedes en el widget de búsqueda de la portada, leemos esos
+      // valores del sessionStorage y los pasamos al picker. Así el modal
+      // se abre YA con las fechas pre-rellenadas → un solo flujo, sin
+      // tener que volver a elegir.
+      // ──────────────────────────────────────────────────────────────
+      const openOpts = { guests: propGuests, propId };
+      try {
+        const heroIntent = JSON.parse(sessionStorage.getItem('vrm_search_intent') || '{}');
+        if (heroIntent.checkin && heroIntent.checkout) {
+          openOpts.checkin = heroIntent.checkin;
+          openOpts.checkout = heroIntent.checkout;
+        }
+        // Si el hero tiene más huéspedes que la propiedad declara, usa el del hero
+        if (heroIntent.guests && parseInt(heroIntent.guests, 10) > propGuests) {
+          openOpts.guests = parseInt(heroIntent.guests, 10);
+        }
+      } catch (_) { /* no-op: si falla seguimos sin pre-fill */ }
+
       // ABRIR EL PICKER INMEDIATAMENTE — sin scroll previo.
       // El modal es overlay full-screen, así que NO importa dónde
       // esté el viewport: el usuario verá el calendario al instante.
       // Esto es lo que hace Aman/Airbnb/Booking — click reservar →
       // abre directamente picker, no hace scroll lejano.
       if (window.VRM_openPicker) {
-        window.VRM_openPicker({ guests: propGuests });
+        window.VRM_openPicker(openOpts);
       }
     });
   });
@@ -8323,38 +8475,78 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   // ───────────────────────────────────────────────────────────────────
   // SUBMIT — Guardar intent + filtrar + scroll a #properties
   // ───────────────────────────────────────────────────────────────────
-  $submit.addEventListener('click', () => {
+  $submit.addEventListener('click', async () => {
     const checkin  = ymd(state.checkin);
     const checkout = ymd(state.checkout);
     const guests   = state.guests ? parseInt(state.guests, 10) : 0;
     const zone     = $zone ? $zone.value : '';
 
+    // Guardar intent ANTES de filtrar — incluso si no aplica fechas
+    // todavía, lo que el usuario eligió queda guardado para el booking modal
     try {
       sessionStorage.setItem('vrm_search_intent', JSON.stringify({
         checkin, checkout, guests: guests || '', zone
       }));
     } catch (_) {}
 
-    filterProperties({ guests: guests > 0 ? guests : null, zone });
+    // ───────────────────────────────────────────────────────────────
+    // LOADING STATE — bloquear botón mientras consulta Supabase
+    // ───────────────────────────────────────────────────────────────
+    const $submitLabel = $submit.querySelector('span');
+    const originalLabel = $submitLabel ? $submitLabel.textContent : '';
+    $submit.disabled = true;
+    $submit.style.opacity = '0.7';
+    $submit.style.cursor = 'wait';
+    if ($submitLabel) {
+      const searchingLabel = (window.VRM_t && window.VRM_t('search.searching')) || 'Searching…';
+      $submitLabel.textContent = searchingLabel;
+    }
 
+    try {
+      await filterProperties({
+        guests: guests > 0 ? guests : null,
+        zone,
+        checkin: checkin || null,
+        checkout: checkout || null
+      });
+    } finally {
+      // Restaurar botón pase lo que pase
+      $submit.disabled = false;
+      $submit.style.opacity = '';
+      $submit.style.cursor = '';
+      if ($submitLabel) $submitLabel.textContent = originalLabel;
+    }
+
+    // Scroll suave a la sección properties
     const $props = document.getElementById('properties');
     if ($props) {
       $props.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+
+    // Actualizar el indicador de filtros activos
+    updateFilterBadge({ checkin, checkout, guests, zone });
   });
 
   /**
-   * Filtra las cards del grid por capacidad y zona.
-   * Aplica .filtered-out a las que no matchean.
+   * Filtra las cards del grid por capacidad, zona Y DISPONIBILIDAD REAL.
+   *
+   * Si hay fechas seleccionadas, consulta Supabase (vía window.isUnitAvailableInRange)
+   * para cada propiedad y oculta las que están bookeadas en ese rango.
+   *
+   * Usa preloadAvailability para batch cargar todas las disponibilidades en
+   * una sola query antes del filtrado individual (más rápido que N queries).
    */
-  function filterProperties({ guests, zone }) {
+  async function filterProperties({ guests, zone, checkin, checkout }) {
     const cards = document.querySelectorAll('.prop-card, .prop-feature');
     let visibleCount = 0;
+    let unavailableCount = 0;
 
+    // Paso 1: filtros síncronos (capacity + zone) — descartan rápido
+    const candidates = [];
     cards.forEach(card => {
       let matches = true;
 
-      // Filtro por capacidad
+      // Filtro capacidad
       if (guests) {
         const capacity = parseInt(card.dataset.capacity || card.getAttribute('data-prop-guests') || '0', 10);
         let cap = capacity;
@@ -8368,7 +8560,7 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
         if (cap && cap < guests) matches = false;
       }
 
-      // Filtro por zona
+      // Filtro zona
       if (zone && matches) {
         const zoneEl = card.querySelector('.prop-card-zone, .prop-feature-eyebrow');
         if (zoneEl) {
@@ -8378,15 +8570,198 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       }
 
       if (matches) {
-        card.classList.remove('filtered-out');
-        visibleCount++;
+        candidates.push(card);
       } else {
         card.classList.add('filtered-out');
       }
     });
 
-    console.log(`[hero-search] Filtros aplicados: ${visibleCount} propiedades visibles`);
+    // Paso 2: filtro de disponibilidad (asíncrono) — solo sobre candidatos
+    if (checkin && checkout && typeof window.isUnitAvailableInRange === 'function') {
+      // Recolectar unit IDs únicos para batch preload (1 query en lugar de N)
+      const unitIds = new Set();
+      candidates.forEach(card => {
+        const unitId = card.dataset.unitId
+          || card.getAttribute('data-prop-id')
+          || (card.querySelector('[data-prop-id]') && card.querySelector('[data-prop-id]').getAttribute('data-prop-id'));
+        if (unitId) unitIds.add(unitId);
+      });
+
+      // Preload batch si está disponible (mucho más rápido)
+      if (typeof window.preloadAvailability === 'function' && unitIds.size > 0) {
+        try {
+          await window.preloadAvailability(Array.from(unitIds));
+        } catch (e) {
+          console.warn('[hero-search] preloadAvailability falló, fallback a queries individuales:', e.message);
+        }
+      }
+
+      // Ahora verificar cada candidato (cache hits, super rápido)
+      await Promise.all(candidates.map(async card => {
+        const unitId = card.dataset.unitId
+          || card.getAttribute('data-prop-id')
+          || (card.querySelector('[data-prop-id]') && card.querySelector('[data-prop-id]').getAttribute('data-prop-id'));
+
+        if (!unitId) {
+          // Sin ID no podemos verificar → mostrar (mejor falso positivo
+          // que ocultar algo válido)
+          card.classList.remove('filtered-out');
+          visibleCount++;
+          return;
+        }
+
+        try {
+          const available = await window.isUnitAvailableInRange(unitId, checkin, checkout);
+          if (available) {
+            card.classList.remove('filtered-out');
+            visibleCount++;
+          } else {
+            card.classList.add('filtered-out');
+            unavailableCount++;
+          }
+        } catch (e) {
+          // En error de red mostrar la card (no penalizar al usuario)
+          console.warn(`[hero-search] availability check falló para ${unitId}:`, e.message);
+          card.classList.remove('filtered-out');
+          visibleCount++;
+        }
+      }));
+    } else {
+      // Sin fechas → todos los candidatos se muestran
+      candidates.forEach(card => {
+        card.classList.remove('filtered-out');
+        visibleCount++;
+      });
+    }
+
+    console.log(`[hero-search] Resultados: ${visibleCount} visibles, ${unavailableCount} no disponibles en fechas`);
+
+    // Mostrar/ocultar el "no results" message
+    updateNoResultsMessage(visibleCount, { guests, zone, checkin, checkout });
   }
+
+  // ───────────────────────────────────────────────────────────────────
+  // NO RESULTS MESSAGE — se inserta dinámicamente arriba del grid
+  // ───────────────────────────────────────────────────────────────────
+  function updateNoResultsMessage(visibleCount, criteria) {
+    let $msg = document.getElementById('heroNoResults');
+    const $props = document.getElementById('properties');
+    if (!$props) return;
+
+    // Crear si no existe
+    if (!$msg) {
+      $msg = document.createElement('div');
+      $msg.id = 'heroNoResults';
+      $msg.className = 'hero-no-results';
+      // Insertar después del intro de properties (antes del primer hijo article/div)
+      const $intro = $props.querySelector('.properties-intro');
+      if ($intro && $intro.nextSibling) {
+        $props.insertBefore($msg, $intro.nextSibling);
+      } else {
+        $props.appendChild($msg);
+      }
+    }
+
+    if (visibleCount === 0) {
+      const isES = (document.documentElement.lang || 'en').startsWith('es');
+      const title = isES ? 'Sin disponibilidad en estas fechas' : 'No availability for these dates';
+      const subtitle = isES
+        ? 'Prueba con otras fechas o ajusta los filtros de huéspedes y zona.'
+        : 'Try different dates or adjust the guest and area filters.';
+      const btnText = isES ? 'Limpiar filtros' : 'Clear filters';
+      $msg.innerHTML = `
+        <div class="hero-no-results-title">${title}</div>
+        <div class="hero-no-results-sub">${subtitle}</div>
+        <button type="button" class="hero-no-results-btn" id="heroClearFilters">${btnText}</button>
+      `;
+      $msg.style.display = 'block';
+      // Wire up clear button
+      const $clearBtn = document.getElementById('heroClearFilters');
+      if ($clearBtn) {
+        $clearBtn.addEventListener('click', clearAllFilters);
+      }
+    } else {
+      $msg.style.display = 'none';
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // FILTER BADGE — mini chip flotante mostrando filtros activos
+  // ───────────────────────────────────────────────────────────────────
+  function updateFilterBadge({ checkin, checkout, guests, zone }) {
+    let $badge = document.getElementById('heroFilterBadge');
+    const hasFilters = checkin || checkout || guests || zone;
+    const $properties = document.getElementById('properties');
+    if (!$properties) return;
+
+    if (!$badge && hasFilters) {
+      $badge = document.createElement('div');
+      $badge.id = 'heroFilterBadge';
+      $badge.className = 'hero-filter-badge';
+      const $intro = $properties.querySelector('.properties-intro');
+      if ($intro && $intro.nextSibling) {
+        $properties.insertBefore($badge, $intro.nextSibling);
+      } else {
+        $properties.appendChild($badge);
+      }
+    }
+    if (!$badge) return;
+
+    if (!hasFilters) {
+      $badge.style.display = 'none';
+      return;
+    }
+
+    const isES = (document.documentElement.lang || 'en').startsWith('es');
+    const parts = [];
+    if (checkin && checkout) {
+      const ci = formatShort(fromYmd(checkin));
+      const co = formatShort(fromYmd(checkout));
+      parts.push(`${ci} — ${co}`);
+    }
+    if (guests) {
+      const suffix = guests === 1
+        ? (isES ? 'huésped' : 'guest')
+        : (isES ? 'huéspedes' : 'guests');
+      parts.push(`${guests} ${suffix}`);
+    }
+    if (zone) {
+      parts.push(zone);
+    }
+
+    const clearLbl = isES ? 'Limpiar' : 'Clear';
+    $badge.innerHTML = `
+      <span class="hero-filter-badge-text">${parts.join(' · ')}</span>
+      <button type="button" class="hero-filter-badge-clear" id="heroFilterBadgeClear">${clearLbl} ✕</button>
+    `;
+    $badge.style.display = 'flex';
+    const $clearBadge = document.getElementById('heroFilterBadgeClear');
+    if ($clearBadge) $clearBadge.addEventListener('click', clearAllFilters);
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // CLEAR ALL FILTERS — resetea estado, UI y muestra todas las propiedades
+  // ───────────────────────────────────────────────────────────────────
+  function clearAllFilters() {
+    state.checkin = null;
+    state.checkout = null;
+    state.guests = '';
+    if ($zone) $zone.value = '';
+    try { sessionStorage.removeItem('vrm_search_intent'); } catch (_) {}
+    syncHeroDisplay();
+    // Mostrar todas las cards
+    document.querySelectorAll('.prop-card, .prop-feature').forEach(c => {
+      c.classList.remove('filtered-out');
+    });
+    // Ocultar mensajes
+    const $msg = document.getElementById('heroNoResults');
+    if ($msg) $msg.style.display = 'none';
+    const $badge = document.getElementById('heroFilterBadge');
+    if ($badge) $badge.style.display = 'none';
+  }
+
+  // Exponer para uso externo (ej. desde otros componentes)
+  window.VRM_clearHeroFilters = clearAllFilters;
 })();
 
 
