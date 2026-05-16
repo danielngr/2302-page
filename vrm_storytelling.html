@@ -106,6 +106,25 @@
       'cover.trust.secure': 'Secure payment',
       'cover.scroll': 'Scroll to explore',
       
+      // Hero search widget
+      'search.checkin': 'Check-in',
+      'search.checkout': 'Check-out',
+      'search.guests': 'Guests',
+      'search.zone': 'Area',
+      'search.button': 'Search',
+      'search.dates.placeholder.in': 'Add date',
+      'search.dates.placeholder.out': 'Add date',
+      'search.guests.any': 'Any',
+      'search.guests.suffix': 'guests',
+      'search.guests.suffix_one': 'guest',
+      'search.zone.all': 'All areas',
+      'search.picker.title': 'Select your dates',
+      'search.picker.clear': 'Clear',
+      'search.picker.done': 'Done',
+      'search.picker.guests.title': 'How many guests?',
+      'search.picker.nights_one': 'night',
+      'search.picker.nights_many': 'nights',
+      
       // Properties intro
       'properties.eyebrow': '— Featured stays',
       'properties.title.line1': 'Hand-picked,',
@@ -236,6 +255,25 @@
       'cover.trust.cancel': 'Cancelación gratis',
       'cover.trust.secure': 'Pago seguro',
       'cover.scroll': 'Desliza para explorar',
+      
+      // Hero search widget
+      'search.checkin': 'Llegada',
+      'search.checkout': 'Salida',
+      'search.guests': 'Huéspedes',
+      'search.zone': 'Zona',
+      'search.button': 'Buscar',
+      'search.dates.placeholder.in': 'Selecciona',
+      'search.dates.placeholder.out': 'Selecciona',
+      'search.guests.any': 'Cualquiera',
+      'search.guests.suffix': 'huéspedes',
+      'search.guests.suffix_one': 'huésped',
+      'search.zone.all': 'Todas las zonas',
+      'search.picker.title': 'Selecciona tus fechas',
+      'search.picker.clear': 'Limpiar',
+      'search.picker.done': 'Listo',
+      'search.picker.guests.title': '¿Cuántos huéspedes?',
+      'search.picker.nights_one': 'noche',
+      'search.picker.nights_many': 'noches',
       
       // Properties intro
       'properties.eyebrow': '— Casas destacadas',
@@ -824,11 +862,12 @@
      primero el botón "Browse stays" (acción), luego trust signals
      (confirmación). 24px de separación da jerarquía sin distancia. */
   .cover-actions {
-    margin-top: 44px;
+    /* Reducido para subir el widget más cerca del subtitle (pedido del jefe) */
+    margin-top: 12px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 24px;
+    gap: 18px;
     opacity: 0;
     animation: ru 1.4s var(--ease-soft) 3.8s forwards;
   }
@@ -942,11 +981,22 @@
     transition: border-color 0.3s var(--ease-soft), background 0.3s var(--ease-soft);
     cursor: pointer;
     min-width: 0;
+    /* Reset button default styles si es <button> */
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    /* Para que el label arriba quede a la izquierda */
+    align-items: flex-start;
+    width: 100%;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
   }
   .hero-search-field:hover,
-  .hero-search-field:focus-within {
+  .hero-search-field:focus-within,
+  .hero-search-field:focus {
     background: rgba(232, 228, 218, 0.07);
     border-color: rgba(232, 228, 218, 0.28);
+    outline: none;
   }
   .hero-search-label {
     font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
@@ -975,17 +1025,8 @@
     /* iOS Safari: prevenir zoom al focus si input < 16px */
     -webkit-appearance: none;
     appearance: none;
-  }
-  /* Date inputs nativos: estética coherente con el resto */
-  input.hero-search-value[type="date"] {
-    color-scheme: dark;
-    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
-    cursor: pointer;
-  }
-  input.hero-search-value[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(0.85) sepia(0.1);
-    opacity: 0.55;
-    cursor: pointer;
+    text-align: left;
+    display: block;
   }
   /* Select de zona */
   select.hero-search-value {
@@ -1072,8 +1113,320 @@
     }
   }
 
+  /* ═════════════════════════════════════════════════════════════
+     DATE RANGE PICKER + GUESTS PICKER — Modales liquid glass
+     
+     Patrón visual: backdrop oscuro + card glass marine con calendario
+     o grid de opciones. Selección con coral accent. Mobile: ocupa
+     ~92% width. Desktop: max-width 480px centrado.
+     ═════════════════════════════════════════════════════════════ */
+  .date-picker-modal,
+  .guests-picker-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s var(--ease-soft);
+  }
+  .date-picker-modal.open,
+  .guests-picker-modal.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .date-picker-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(7, 18, 36, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .date-picker-card {
+    position: relative;
+    background: rgba(14, 34, 56, 0.92);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(232, 228, 218, 0.22);
+    border-radius: 18px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.10) inset,
+      0 24px 60px rgba(0, 0, 0, 0.45);
+    width: 100%;
+    max-width: 420px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 20px;
+    transform: scale(0.96) translateY(8px);
+    transition: transform 0.3s var(--ease-soft);
+  }
+  .date-picker-modal.open .date-picker-card,
+  .guests-picker-modal.open .date-picker-card {
+    transform: scale(1) translateY(0);
+  }
+  .date-picker-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .date-picker-title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .date-picker-eyebrow {
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(232, 228, 218, 0.65);
+  }
+  .date-picker-summary {
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(232, 228, 218, 0.92);
+    min-height: 18px;
+  }
+  .date-picker-close {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(232, 228, 218, 0.06);
+    border: 1px solid rgba(232, 228, 218, 0.16);
+    color: rgba(232, 228, 218, 0.85);
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .date-picker-close:hover {
+    background: rgba(232, 228, 218, 0.12);
+    border-color: rgba(232, 228, 218, 0.32);
+  }
+  .date-picker-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .date-picker-nav-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(232, 228, 218, 0.05);
+    border: 1px solid rgba(232, 228, 218, 0.14);
+    color: rgba(232, 228, 218, 0.85);
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .date-picker-nav-btn:hover:not(:disabled) {
+    background: rgba(232, 228, 218, 0.10);
+    border-color: rgba(232, 228, 218, 0.28);
+  }
+  .date-picker-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .date-picker-month-label {
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: rgba(232, 228, 218, 0.95);
+    text-transform: capitalize;
+  }
+  .date-picker-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-bottom: 6px;
+  }
+  .date-picker-weekday {
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: rgba(232, 228, 218, 0.45);
+    text-align: center;
+    text-transform: uppercase;
+    padding: 6px 0;
+  }
+  .date-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-bottom: 16px;
+  }
+  .date-picker-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(232, 228, 218, 0.85);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    position: relative;
+  }
+  .date-picker-day.empty {
+    visibility: hidden;
+  }
+  .date-picker-day.disabled {
+    color: rgba(232, 228, 218, 0.18);
+    cursor: not-allowed;
+  }
+  .date-picker-day:not(.disabled):not(.in-range):not(.selected):hover {
+    background: rgba(232, 228, 218, 0.08);
+  }
+  .date-picker-day.in-range {
+    background: rgba(217, 119, 87, 0.22);
+    color: rgba(232, 228, 218, 0.95);
+    border-radius: 0;
+  }
+  .date-picker-day.in-range.range-start {
+    border-radius: 8px 0 0 8px;
+  }
+  .date-picker-day.in-range.range-end {
+    border-radius: 0 8px 8px 0;
+  }
+  .date-picker-day.selected {
+    background: var(--gold-bright, #D97757);
+    color: #FFFFFF;
+    font-weight: 600;
+    border-radius: 8px;
+    z-index: 1;
+  }
+  .date-picker-day.today:not(.selected) {
+    border-color: rgba(232, 228, 218, 0.32);
+  }
+  .date-picker-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(232, 228, 218, 0.10);
+  }
+  .date-picker-clear,
+  .date-picker-done {
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 12px 22px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.2s;
+    padding-right: calc(22px - 0.18em);
+  }
+  .date-picker-clear {
+    background: transparent;
+    color: rgba(232, 228, 218, 0.70);
+    border: 1px solid rgba(232, 228, 218, 0.20);
+  }
+  .date-picker-clear:hover {
+    color: rgba(232, 228, 218, 0.95);
+    border-color: rgba(232, 228, 218, 0.40);
+  }
+  .date-picker-done {
+    background: var(--gold-bright, #D97757);
+    color: #FFFFFF;
+    border: 1px solid var(--gold-bright, #D97757);
+    box-shadow: 0 4px 14px rgba(217, 119, 87, 0.32);
+  }
+  .date-picker-done:hover {
+    background: #C5654A;
+    transform: translateY(-1px);
+  }
+  .date-picker-done:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--gold-bright, #D97757);
+    transform: none;
+  }
+
+  /* GUESTS PICKER — Grid de opciones tipo pills */
+  .guests-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .guests-picker-option {
+    padding: 16px 12px;
+    background: rgba(232, 228, 218, 0.04);
+    border: 1px solid rgba(232, 228, 218, 0.16);
+    border-radius: 12px;
+    color: rgba(232, 228, 218, 0.92);
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .guests-picker-option:hover {
+    background: rgba(232, 228, 218, 0.10);
+    border-color: rgba(232, 228, 218, 0.32);
+  }
+  .guests-picker-option.selected {
+    background: var(--gold-bright, #D97757);
+    border-color: var(--gold-bright, #D97757);
+    color: #FFFFFF;
+    font-weight: 600;
+  }
+
+  /* Mobile date picker */
+  @media (max-width: 600px) {
+    .date-picker-modal,
+    .guests-picker-modal {
+      padding: 12px;
+      align-items: flex-end;
+    }
+    .date-picker-card {
+      max-width: 100%;
+      max-height: 88vh;
+      padding: 16px;
+      transform: translateY(40px);
+    }
+    .date-picker-modal.open .date-picker-card,
+    .guests-picker-modal.open .date-picker-card {
+      transform: translateY(0);
+    }
+    .date-picker-day {
+      font-size: 13px;
+    }
+    .guests-picker-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+  }
+
   @media (max-width: 768px) {
-    .cover-actions { margin-top: 32px; gap: 22px; }
+    .cover-actions { margin-top: 8px; gap: 14px; }
     .cover-cta { padding: 14px 26px; font-size: 12px; }
     .cover-trust { font-size: 10px; gap: 10px; }
   }
@@ -3682,44 +4035,38 @@
       <!-- ═════════════════════════════════════════════════════════════
            HERO SEARCH WIDGET — Filtro tipo Volaris/Airbnb/Booking
            
-           Patrón familiar para reducir fricción cognitiva. La gente ya
-           sabe usar este widget. Filtra el grid de propiedades por fechas,
-           huéspedes y zona. Las fechas se guardan en sessionStorage para
-           pre-llenar el booking modal cuando elijan propiedad.
+           Los campos de fecha NO son inputs nativos. Son botones que
+           abren el date-range-picker premium ya existente (#picker-overlay).
+           El picker es un calendario visual donde el usuario selecciona
+           check-in y check-out en una sola interacción.
+           
+           Los valores sincronizados se reflejan automáticamente en los
+           hidden inputs #search-checkin / #search-checkout / #search-guests,
+           que disparan eventos 'change' que el filtro del grid escucha.
            ═════════════════════════════════════════════════════════════ -->
       <div class="cover-actions">
-        <form class="hero-search" id="heroSearch" onsubmit="return false;">
+        <div class="hero-search" id="heroSearch">
           <div class="hero-search-row hero-search-row-dates">
-            <label class="hero-search-field" for="heroSearchCheckin">
+            <button type="button" class="hero-search-field" id="heroSearchCheckinBtn" aria-label="Select check-in date">
               <span class="hero-search-label" data-i18n="search.checkin">Check-in</span>
-              <input type="date" class="hero-search-value" id="heroSearchCheckin" autocomplete="off">
-            </label>
-            <label class="hero-search-field" for="heroSearchCheckout">
+              <span class="hero-search-value" id="heroSearchCheckinValue" data-i18n="search.dates.placeholder.in">Add date</span>
+            </button>
+            <button type="button" class="hero-search-field" id="heroSearchCheckoutBtn" aria-label="Select check-out date">
               <span class="hero-search-label" data-i18n="search.checkout">Check-out</span>
-              <input type="date" class="hero-search-value" id="heroSearchCheckout" autocomplete="off">
-            </label>
+              <span class="hero-search-value" id="heroSearchCheckoutValue" data-i18n="search.dates.placeholder.out">Add date</span>
+            </button>
           </div>
           <div class="hero-search-row hero-search-row-single">
-            <label class="hero-search-field" for="heroSearchGuests">
+            <button type="button" class="hero-search-field" id="heroSearchGuestsBtn" aria-label="Select number of guests">
               <span class="hero-search-label" data-i18n="search.guests">Guests</span>
-              <select class="hero-search-value" id="heroSearchGuests">
-                <option value="">Any</option>
-                <option value="1">1 guest</option>
-                <option value="2">2 guests</option>
-                <option value="3">3 guests</option>
-                <option value="4">4 guests</option>
-                <option value="5">5 guests</option>
-                <option value="6">6 guests</option>
-                <option value="7">7 guests</option>
-                <option value="8">8+ guests</option>
-              </select>
-            </label>
+              <span class="hero-search-value" id="heroSearchGuestsValue" data-i18n="search.guests.any">Any</span>
+            </button>
           </div>
           <div class="hero-search-row hero-search-row-single">
             <label class="hero-search-field" for="heroSearchZone">
               <span class="hero-search-label" data-i18n="search.zone">Area</span>
               <select class="hero-search-value" id="heroSearchZone">
-                <option value="">All areas</option>
+                <option value="" data-i18n="search.zone.all">All areas</option>
                 <option value="La Cruz">La Cruz de Huanacaxtle</option>
                 <option value="Nuevo Vallarta">Nuevo Vallarta · Flamingos</option>
                 <option value="Punta de Mita">Punta de Mita · Riviera Nayarit</option>
@@ -3727,13 +4074,13 @@
             </label>
           </div>
           <button type="button" class="hero-search-submit" id="heroSearchSubmit">
-            <span data-i18n="search.cta">Search stays</span>
+            <span data-i18n="search.button">Search</span>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <line x1="5" y1="12" x2="19" y2="12"/>
               <polyline points="13 6 19 12 13 18"/>
             </svg>
           </button>
-        </form>
+        </div>
         <div class="cover-trust">
           <span class="cover-trust-item">
             <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" aria-hidden="true">
@@ -3754,6 +4101,72 @@
       <div class="cover-cue-line"></div>
     </div>
   </section>
+
+  <!-- ═════════════════════════════════════════════════════════════
+       DATE RANGE PICKER — Modal liquid glass para seleccionar rango
+       
+       UX: tap en una fecha = check-in. Tap en otra fecha posterior =
+       check-out. Las fechas entre ambas se pintan como rango visible.
+       Volver a tap en una fecha < check-in resetea check-in.
+       
+       Posicionado fuera del cover-content para que cubra fullscreen
+       sin ser afectado por transforms/clips del hero.
+       ═════════════════════════════════════════════════════════════ -->
+  <div class="date-picker-modal" id="datePickerModal" aria-hidden="true">
+    <div class="date-picker-backdrop" id="datePickerBackdrop"></div>
+    <div class="date-picker-card" role="dialog" aria-labelledby="datePickerTitle">
+      <div class="date-picker-head">
+        <div class="date-picker-title-wrap">
+          <span class="date-picker-eyebrow" data-i18n="search.picker.title">Select your dates</span>
+          <span class="date-picker-summary" id="datePickerSummary"></span>
+        </div>
+        <button type="button" class="date-picker-close" id="datePickerClose" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="date-picker-nav">
+        <button type="button" class="date-picker-nav-btn" id="datePickerPrev" aria-label="Previous month">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="date-picker-month-label" id="datePickerMonthLabel"></div>
+        <button type="button" class="date-picker-nav-btn" id="datePickerNext" aria-label="Next month">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <div class="date-picker-weekdays" id="datePickerWeekdays"></div>
+      <div class="date-picker-grid" id="datePickerGrid"></div>
+      <div class="date-picker-actions">
+        <button type="button" class="date-picker-clear" id="datePickerClear" data-i18n="search.picker.clear">Clear</button>
+        <button type="button" class="date-picker-done" id="datePickerDone" data-i18n="search.picker.done">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════════════════════════════════════════════════════════
+       GUESTS PICKER — Modal liquid glass para seleccionar huéspedes
+       ═════════════════════════════════════════════════════════════ -->
+  <div class="guests-picker-modal" id="guestsPickerModal" aria-hidden="true">
+    <div class="date-picker-backdrop" id="guestsPickerBackdrop"></div>
+    <div class="date-picker-card guests-picker-card" role="dialog">
+      <div class="date-picker-head">
+        <span class="date-picker-eyebrow" data-i18n="search.picker.guests.title">How many guests?</span>
+        <button type="button" class="date-picker-close" id="guestsPickerClose" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="guests-picker-grid" id="guestsPickerGrid">
+        <button type="button" class="guests-picker-option" data-guests="">Any</button>
+        <button type="button" class="guests-picker-option" data-guests="1">1</button>
+        <button type="button" class="guests-picker-option" data-guests="2">2</button>
+        <button type="button" class="guests-picker-option" data-guests="3">3</button>
+        <button type="button" class="guests-picker-option" data-guests="4">4</button>
+        <button type="button" class="guests-picker-option" data-guests="5">5</button>
+        <button type="button" class="guests-picker-option" data-guests="6">6</button>
+        <button type="button" class="guests-picker-option" data-guests="7">7</button>
+        <button type="button" class="guests-picker-option" data-guests="8">8+</button>
+      </div>
+    </div>
+  </div>
 
   <!-- =========================================================
        TODO IMPORTANTE — REEMPLAZAR ANTES DE LANZAMIENTO:
@@ -7511,75 +7924,414 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 })();
 
 /* ════════════════════════════════════════════════════════════════════════
-   HERO SEARCH WIDGET — Handler
+   HERO SEARCH WIDGET — Handler completo
    
-   Comportamiento:
-   1. Setear fechas mínimas (hoy en adelante) y validar que checkout > checkin
-   2. Al clickear "Search stays":
-      - Guardar fechas + guests en sessionStorage (vrm_search_intent)
-      - Hacer scroll suave a #properties
-      - Filtrar las cards del grid por capacidad (>=guests) y zona match
-      - Después de un delay, scroll a la primera card visible
-   3. Cuando el usuario clickea "Check availability" en una card, el modal
-      de booking de vrm_property.html pre-llena las fechas (ya existe lógica
-      VRM_PRELOAD_BOOKING que lee sessionStorage)
+   Componentes:
+   1. Date Range Picker — modal calendario custom (no inputs nativos)
+      - Tap 1 = selecciona check-in
+      - Tap 2 (fecha posterior) = selecciona check-out
+      - Tap 3 (en otra fecha) = resetea check-in a esa nueva fecha
+      - Rango se pinta con coral semi-transparente
+      - Hover preview entre check-in y posible check-out
+   2. Guests Picker — modal grid de opciones
+   3. Zone — select nativo (ya en HTML)
+   4. Submit — guarda en sessionStorage + filtra grid + scroll a #properties
    ════════════════════════════════════════════════════════════════════════ */
 (function initHeroSearch() {
-  const $checkin = document.getElementById('heroSearchCheckin');
-  const $checkout = document.getElementById('heroSearchCheckout');
-  const $guests = document.getElementById('heroSearchGuests');
-  const $zone = document.getElementById('heroSearchZone');
-  const $submit = document.getElementById('heroSearchSubmit');
-  
-  if (!$checkin || !$checkout || !$guests || !$zone || !$submit) return;
+  // ───────────────────────────────────────────────────────────────────
+  // REFERENCIAS DOM
+  // ───────────────────────────────────────────────────────────────────
+  const $checkinBtn    = document.getElementById('heroSearchCheckinBtn');
+  const $checkoutBtn   = document.getElementById('heroSearchCheckoutBtn');
+  const $guestsBtn     = document.getElementById('heroSearchGuestsBtn');
+  const $checkinValue  = document.getElementById('heroSearchCheckinValue');
+  const $checkoutValue = document.getElementById('heroSearchCheckoutValue');
+  const $guestsValue   = document.getElementById('heroSearchGuestsValue');
+  const $zone          = document.getElementById('heroSearchZone');
+  const $submit        = document.getElementById('heroSearchSubmit');
 
-  // Setear min dates a hoy
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-  $checkin.min = todayStr;
-  $checkout.min = todayStr;
+  // Date picker modal
+  const $dpModal     = document.getElementById('datePickerModal');
+  const $dpBackdrop  = document.getElementById('datePickerBackdrop');
+  const $dpClose     = document.getElementById('datePickerClose');
+  const $dpPrev      = document.getElementById('datePickerPrev');
+  const $dpNext      = document.getElementById('datePickerNext');
+  const $dpMonthLbl  = document.getElementById('datePickerMonthLabel');
+  const $dpWeekdays  = document.getElementById('datePickerWeekdays');
+  const $dpGrid      = document.getElementById('datePickerGrid');
+  const $dpSummary   = document.getElementById('datePickerSummary');
+  const $dpClear     = document.getElementById('datePickerClear');
+  const $dpDone      = document.getElementById('datePickerDone');
 
-  // Auto-ajustar checkout cuando se cambia checkin (mínimo +1 día)
-  $checkin.addEventListener('change', () => {
-    if (!$checkin.value) return;
-    const ci = new Date($checkin.value + 'T00:00:00');
-    const nextDay = new Date(ci);
-    nextDay.setDate(ci.getDate() + 1);
-    const minCheckout = nextDay.toISOString().split('T')[0];
-    $checkout.min = minCheckout;
-    // Si checkout es antes que checkin, ajustarlo
-    if (!$checkout.value || new Date($checkout.value) <= ci) {
-      $checkout.value = minCheckout;
+  // Guests picker modal
+  const $gpModal     = document.getElementById('guestsPickerModal');
+  const $gpBackdrop  = document.getElementById('guestsPickerBackdrop');
+  const $gpClose     = document.getElementById('guestsPickerClose');
+  const $gpGrid      = document.getElementById('guestsPickerGrid');
+
+  if (!$checkinBtn || !$submit || !$dpModal) return;
+
+  // ───────────────────────────────────────────────────────────────────
+  // ESTADO INTERNO
+  // ───────────────────────────────────────────────────────────────────
+  const state = {
+    checkin: null,     // Date object o null
+    checkout: null,    // Date object o null
+    guests: '',        // string ('' o '1'..'8')
+    viewMonth: null,   // Date del primer día del mes que se está viendo
+    pickerOpenedFrom: null  // 'checkin' o 'checkout' (para saber qué se está editando)
+  };
+
+  // ───────────────────────────────────────────────────────────────────
+  // UTILIDADES DE FECHA
+  // ───────────────────────────────────────────────────────────────────
+  function ymd(date) {
+    // Convierte Date → 'YYYY-MM-DD' sin problemas de timezone
+    if (!date) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  function fromYmd(str) {
+    if (!str) return null;
+    const parts = str.split('-');
+    if (parts.length !== 3) return null;
+    return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  }
+  function startOfDay(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  function sameDay(a, b) {
+    if (!a || !b) return false;
+    return a.getFullYear() === b.getFullYear() &&
+           a.getMonth() === b.getMonth() &&
+           a.getDate() === b.getDate();
+  }
+  function isBetween(date, start, end) {
+    if (!start || !end) return false;
+    const t = date.getTime();
+    return t > start.getTime() && t < end.getTime();
+  }
+  function getLocale() {
+    const lang = document.documentElement.lang || 'en';
+    return lang.startsWith('es') ? 'es-MX' : (lang.startsWith('it') ? 'it-IT' : 'en-US');
+  }
+  function formatShort(date) {
+    if (!date) return null;
+    return date.toLocaleDateString(getLocale(), { month: 'short', day: 'numeric' });
+  }
+  function nightsBetween(start, end) {
+    if (!start || !end) return 0;
+    const ms = end.getTime() - start.getTime();
+    return Math.round(ms / (1000 * 60 * 60 * 24));
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // RENDER DEL CALENDARIO
+  // ───────────────────────────────────────────────────────────────────
+  function renderWeekdays() {
+    if (!$dpWeekdays) return;
+    const locale = getLocale();
+    // Generar nombres de días de la semana empezando en domingo
+    const refSunday = new Date(2024, 0, 7); // 7 enero 2024 fue domingo
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(refSunday);
+      d.setDate(refSunday.getDate() + i);
+      days.push(d.toLocaleDateString(locale, { weekday: 'short' }).substring(0, 2));
+    }
+    $dpWeekdays.innerHTML = days.map(d => `<div class="date-picker-weekday">${d}</div>`).join('');
+  }
+
+  function renderMonth() {
+    if (!$dpGrid || !state.viewMonth) return;
+    const today = startOfDay(new Date());
+    const year = state.viewMonth.getFullYear();
+    const month = state.viewMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startWeekday = firstDay.getDay(); // 0=domingo
+    const daysInMonth = lastDay.getDate();
+
+    // Label del mes
+    if ($dpMonthLbl) {
+      $dpMonthLbl.textContent = firstDay.toLocaleDateString(getLocale(), {
+        month: 'long', year: 'numeric'
+      });
+    }
+
+    // Disable "prev" si estamos en el mes actual
+    if ($dpPrev) {
+      const todayMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      $dpPrev.disabled = firstDay.getTime() <= todayMonth.getTime();
+    }
+
+    // Generar grid
+    let html = '';
+    // Celdas vacías al inicio
+    for (let i = 0; i < startWeekday; i++) {
+      html += '<div class="date-picker-day empty"></div>';
+    }
+    // Días del mes
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d);
+      const isDisabled = date < today;
+      const isToday = sameDay(date, today);
+      const isCheckin = sameDay(date, state.checkin);
+      const isCheckout = sameDay(date, state.checkout);
+      const isSelected = isCheckin || isCheckout;
+      const inRange = isBetween(date, state.checkin, state.checkout);
+
+      const classes = ['date-picker-day'];
+      if (isDisabled) classes.push('disabled');
+      if (isToday) classes.push('today');
+      if (isSelected) classes.push('selected');
+      if (inRange) classes.push('in-range');
+      if (isCheckin && state.checkout) classes.push('range-start');
+      if (isCheckout && state.checkin) classes.push('range-end');
+
+      html += `<button type="button" class="${classes.join(' ')}" data-date="${ymd(date)}" ${isDisabled ? 'disabled' : ''}>${d}</button>`;
+    }
+    $dpGrid.innerHTML = html;
+
+    // Re-attach click listeners (event delegation alternative)
+    $dpGrid.querySelectorAll('.date-picker-day:not(.disabled):not(.empty)').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const dateStr = btn.getAttribute('data-date');
+        const date = fromYmd(dateStr);
+        if (!date) return;
+        handleDayClick(date);
+      });
+    });
+  }
+
+  function renderSummary() {
+    if (!$dpSummary) return;
+    if (state.checkin && state.checkout) {
+      const n = nightsBetween(state.checkin, state.checkout);
+      const nightLbl = (n === 1)
+        ? ((window.VRM_t && window.VRM_t('search.picker.nights_one')) || 'night')
+        : ((window.VRM_t && window.VRM_t('search.picker.nights_many')) || 'nights');
+      $dpSummary.textContent = `${formatShort(state.checkin)} — ${formatShort(state.checkout)} · ${n} ${nightLbl}`;
+    } else if (state.checkin) {
+      $dpSummary.textContent = formatShort(state.checkin);
+    } else {
+      $dpSummary.textContent = '';
+    }
+    // Done button habilitado solo si hay ambos
+    if ($dpDone) {
+      $dpDone.disabled = !(state.checkin && state.checkout);
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // LÓGICA DE SELECCIÓN
+  // ───────────────────────────────────────────────────────────────────
+  function handleDayClick(date) {
+    // Lógica tipo Airbnb:
+    // - Sin checkin → setea checkin
+    // - Con checkin, sin checkout, y date > checkin → setea checkout
+    // - Con checkin, sin checkout, y date <= checkin → resetea checkin
+    // - Con ambos → resetea checkin a date, limpia checkout
+    if (!state.checkin) {
+      state.checkin = date;
+      state.checkout = null;
+    } else if (!state.checkout) {
+      if (date.getTime() > state.checkin.getTime()) {
+        state.checkout = date;
+      } else {
+        state.checkin = date;
+      }
+    } else {
+      // Ya hay ambos → empezar de nuevo
+      state.checkin = date;
+      state.checkout = null;
+    }
+    renderMonth();
+    renderSummary();
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // ABRIR / CERRAR DATE PICKER
+  // ───────────────────────────────────────────────────────────────────
+  function openDatePicker(from) {
+    state.pickerOpenedFrom = from;
+    // Determinar mes inicial: si hay checkin usar ese, sino el mes actual
+    state.viewMonth = state.checkin
+      ? new Date(state.checkin.getFullYear(), state.checkin.getMonth(), 1)
+      : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    renderWeekdays();
+    renderMonth();
+    renderSummary();
+    $dpModal.classList.add('open');
+    $dpModal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDatePicker() {
+    $dpModal.classList.remove('open');
+    $dpModal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    syncHeroDisplay();
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // ABRIR / CERRAR GUESTS PICKER
+  // ───────────────────────────────────────────────────────────────────
+  function openGuestsPicker() {
+    // Marcar la opción actualmente seleccionada
+    if ($gpGrid) {
+      $gpGrid.querySelectorAll('.guests-picker-option').forEach(btn => {
+        const val = btn.getAttribute('data-guests') || '';
+        btn.classList.toggle('selected', val === state.guests);
+      });
+    }
+    $gpModal.classList.add('open');
+    $gpModal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeGuestsPicker() {
+    $gpModal.classList.remove('open');
+    $gpModal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // SYNC del display visible del widget hero
+  // ───────────────────────────────────────────────────────────────────
+  function syncHeroDisplay() {
+    // Check-in
+    if ($checkinValue) {
+      const formatted = formatShort(state.checkin);
+      if (formatted) {
+        $checkinValue.textContent = formatted;
+        $checkinValue.removeAttribute('data-i18n');
+        $checkinBtn.setAttribute('data-empty', 'false');
+      } else {
+        $checkinValue.setAttribute('data-i18n', 'search.dates.placeholder.in');
+        $checkinValue.textContent = (window.VRM_t && window.VRM_t('search.dates.placeholder.in')) || 'Add date';
+        $checkinBtn.setAttribute('data-empty', 'true');
+      }
+    }
+    // Check-out
+    if ($checkoutValue) {
+      const formatted = formatShort(state.checkout);
+      if (formatted) {
+        $checkoutValue.textContent = formatted;
+        $checkoutValue.removeAttribute('data-i18n');
+        $checkoutBtn.setAttribute('data-empty', 'false');
+      } else {
+        $checkoutValue.setAttribute('data-i18n', 'search.dates.placeholder.out');
+        $checkoutValue.textContent = (window.VRM_t && window.VRM_t('search.dates.placeholder.out')) || 'Add date';
+        $checkoutBtn.setAttribute('data-empty', 'true');
+      }
+    }
+    // Guests
+    if ($guestsValue) {
+      const g = state.guests ? parseInt(state.guests, 10) : 0;
+      if (g > 0) {
+        const suffix = (g === 1)
+          ? ((window.VRM_t && window.VRM_t('search.guests.suffix_one')) || 'guest')
+          : ((window.VRM_t && window.VRM_t('search.guests.suffix')) || 'guests');
+        $guestsValue.textContent = `${g} ${suffix}`;
+        $guestsValue.removeAttribute('data-i18n');
+      } else {
+        $guestsValue.setAttribute('data-i18n', 'search.guests.any');
+        $guestsValue.textContent = (window.VRM_t && window.VRM_t('search.guests.any')) || 'Any';
+      }
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // RESTAURAR ESTADO desde sessionStorage si existe
+  // ───────────────────────────────────────────────────────────────────
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('vrm_search_intent') || '{}');
+    if (saved.checkin) state.checkin = fromYmd(saved.checkin);
+    if (saved.checkout) state.checkout = fromYmd(saved.checkout);
+    if (saved.guests) state.guests = String(saved.guests);
+    if (saved.zone && $zone) $zone.value = saved.zone;
+  } catch (_) {}
+  syncHeroDisplay();
+
+  // ───────────────────────────────────────────────────────────────────
+  // EVENT LISTENERS — Widget triggers
+  // ───────────────────────────────────────────────────────────────────
+  $checkinBtn.addEventListener('click', () => openDatePicker('checkin'));
+  $checkoutBtn.addEventListener('click', () => openDatePicker('checkout'));
+  if ($guestsBtn) $guestsBtn.addEventListener('click', openGuestsPicker);
+
+  // Date picker controls
+  if ($dpClose)    $dpClose.addEventListener('click', closeDatePicker);
+  if ($dpBackdrop) $dpBackdrop.addEventListener('click', closeDatePicker);
+  if ($dpDone)     $dpDone.addEventListener('click', closeDatePicker);
+  if ($dpClear) {
+    $dpClear.addEventListener('click', () => {
+      state.checkin = null;
+      state.checkout = null;
+      renderMonth();
+      renderSummary();
+    });
+  }
+  if ($dpPrev) {
+    $dpPrev.addEventListener('click', () => {
+      if (!state.viewMonth) return;
+      state.viewMonth = new Date(state.viewMonth.getFullYear(), state.viewMonth.getMonth() - 1, 1);
+      renderMonth();
+    });
+  }
+  if ($dpNext) {
+    $dpNext.addEventListener('click', () => {
+      if (!state.viewMonth) return;
+      state.viewMonth = new Date(state.viewMonth.getFullYear(), state.viewMonth.getMonth() + 1, 1);
+      renderMonth();
+    });
+  }
+
+  // Guests picker controls
+  if ($gpClose)    $gpClose.addEventListener('click', closeGuestsPicker);
+  if ($gpBackdrop) $gpBackdrop.addEventListener('click', closeGuestsPicker);
+  if ($gpGrid) {
+    $gpGrid.querySelectorAll('.guests-picker-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.guests = btn.getAttribute('data-guests') || '';
+        $gpGrid.querySelectorAll('.guests-picker-option').forEach(b => {
+          b.classList.toggle('selected', b === btn);
+        });
+        syncHeroDisplay();
+        // Cerrar con pequeño delay para que se vea el highlight
+        setTimeout(closeGuestsPicker, 180);
+      });
+    });
+  }
+
+  // Escape key cierra modales
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if ($dpModal.classList.contains('open')) closeDatePicker();
+      if ($gpModal.classList.contains('open')) closeGuestsPicker();
     }
   });
 
-  // Restaurar valores guardados si vienen de otra navegación
-  try {
-    const saved = JSON.parse(sessionStorage.getItem('vrm_search_intent') || '{}');
-    if (saved.checkin) $checkin.value = saved.checkin;
-    if (saved.checkout) $checkout.value = saved.checkout;
-    if (saved.guests) $guests.value = saved.guests;
-    if (saved.zone) $zone.value = saved.zone;
-  } catch (_) {}
-
-  // Submit handler
+  // ───────────────────────────────────────────────────────────────────
+  // SUBMIT — Guardar intent + filtrar + scroll a #properties
+  // ───────────────────────────────────────────────────────────────────
   $submit.addEventListener('click', () => {
-    const checkin = $checkin.value;
-    const checkout = $checkout.value;
-    const guests = $guests.value;
-    const zone = $zone.value;
+    const checkin  = ymd(state.checkin);
+    const checkout = ymd(state.checkout);
+    const guests   = state.guests ? parseInt(state.guests, 10) : 0;
+    const zone     = $zone ? $zone.value : '';
 
-    // Guardar intent en sessionStorage para que el booking modal lo recoja
     try {
       sessionStorage.setItem('vrm_search_intent', JSON.stringify({
-        checkin, checkout, guests, zone
+        checkin, checkout, guests: guests || '', zone
       }));
     } catch (_) {}
 
-    // Filtrar las propiedades visibles
-    filterProperties({ guests: guests ? parseInt(guests, 10) : null, zone });
+    filterProperties({ guests: guests > 0 ? guests : null, zone });
 
-    // Scroll suave a la sección de properties
     const $props = document.getElementById('properties');
     if ($props) {
       $props.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -7587,36 +8339,31 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   });
 
   /**
-   * Filtra las cards del grid de propiedades según los criterios del search.
-   * Aplica la clase .filtered-out a las que NO matchean (CSS ya las oculta
-   * con opacity:0 + display:none). Las que matchean quedan visibles.
+   * Filtra las cards del grid por capacidad y zona.
+   * Aplica .filtered-out a las que no matchean.
    */
   function filterProperties({ guests, zone }) {
-    // Filtra prop-card (grid cards) + prop-feature (cards editoriales)
     const cards = document.querySelectorAll('.prop-card, .prop-feature');
     let visibleCount = 0;
-    
+
     cards.forEach(card => {
       let matches = true;
 
       // Filtro por capacidad
       if (guests) {
         const capacity = parseInt(card.dataset.capacity || card.getAttribute('data-prop-guests') || '0', 10);
-        // Si no hay capacity declarada en la card, intentamos leerla del texto
-        // (busca "X Guests" dentro del card como fallback)
         let cap = capacity;
         if (!cap) {
           const statNum = card.querySelector('.prop-stat-num');
           if (statNum) {
-            const txt = statNum.textContent.trim();
-            const num = parseInt(txt, 10);
+            const num = parseInt(statNum.textContent.trim(), 10);
             if (!isNaN(num)) cap = num;
           }
         }
         if (cap && cap < guests) matches = false;
       }
 
-      // Filtro por zona (matching parcial sobre el texto de zona)
+      // Filtro por zona
       if (zone && matches) {
         const zoneEl = card.querySelector('.prop-card-zone, .prop-feature-eyebrow');
         if (zoneEl) {
@@ -7633,10 +8380,10 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       }
     });
 
-    // Log informativo (debug)
     console.log(`[hero-search] Filtros aplicados: ${visibleCount} propiedades visibles`);
   }
 })();
+
 
 </script>
 
