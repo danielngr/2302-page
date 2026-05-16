@@ -1722,7 +1722,8 @@ hydratePropertyData();
   .stats,
   body > section.section,
   .cta-final,
-  body > footer.footer {
+  body > footer.footer,
+  .prop-sticky-bar {
     display: none !important;
   }
 
@@ -1772,13 +1773,15 @@ hydratePropertyData();
   }
   .topbar-brand .mk { display: none !important; }
 
-  /* Compensar el hero — el rating pill estaba en top:14px y choca con
-     el topbar. Lo movemos al lado del título abajo. */
+  /* Compensar el hero — el rating pill debe quedar DEBAJO del topbar
+     para no chocar con "ALL HOMES" y el logo "vrm". El topbar ocupa
+     aprox 44px de alto en mobile, así que bajamos el rating a 56px. */
   .pp-hero-topbar {
-    /* Sigue arriba pero solo con el rating, ya que la zona se va al
-       título bottom para evitar el choque con "ALL HOMES" del topbar */
-    top: 14px;
+    top: 56px;
     justify-content: flex-end;
+  }
+  @media (min-width: 720px) {
+    .pp-hero-topbar { top: 64px; }
   }
   .pp-hero-zone {
     /* Movido abajo, dentro del bloque del título */
@@ -1830,17 +1833,39 @@ hydratePropertyData();
   }
 
   /* ──────────────────────────────────────────────────────────────
-     1. HERO — Foto fullscreen + título flotante + precio + rating
+     1. HERO — Carrusel swipeable horizontal con todas las fotos
      ────────────────────────────────────────────────────────────── */
   .pp-hero {
     position: relative;
     aspect-ratio: 4/5;
     overflow: hidden;
-    background-size: cover;
-    background-position: center;
+    background: var(--pp-ink);
   }
   @media (min-width: 720px) {
     .pp-hero { aspect-ratio: 16/9; max-height: 80vh; }
+  }
+  
+  /* Track horizontal con scroll-snap para swipe nativo */
+  .pp-hero-track {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .pp-hero-track::-webkit-scrollbar { display: none; }
+  
+  .pp-hero-slide {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
   }
 
   .pp-hero-gradient {
@@ -1852,6 +1877,27 @@ hydratePropertyData();
       rgba(13,36,64,0) 55%,
       rgba(13,36,64,0.88) 100%);
     pointer-events: none;
+    z-index: 2;
+  }
+
+  /* Contador de fotos X / Y */
+  .pp-hero-counter {
+    position: absolute;
+    top: 56px;
+    left: 16px;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.92);
+    z-index: 3;
+    pointer-events: none;
+    font-feature-settings: 'tnum';
+  }
+  @media (min-width: 720px) {
+    .pp-hero-counter { top: 64px; }
   }
 
   .pp-hero-topbar {
@@ -1862,8 +1908,10 @@ hydratePropertyData();
     display: flex;
     justify-content: space-between;
     align-items: center;
-    z-index: 2;
+    z-index: 3;
+    pointer-events: none;
   }
+  .pp-hero-topbar > * { pointer-events: auto; }
   .pp-hero-zone {
     font-size: 10px;
     letter-spacing: 2.5px;
@@ -1897,8 +1945,10 @@ hydratePropertyData();
     bottom: 14px;
     left: 16px;
     right: 16px;
-    z-index: 2;
+    z-index: 3;
+    pointer-events: none;
   }
+  .pp-hero-bottom > * { pointer-events: auto; }
   .pp-hero-title {
     font-family: var(--pp-serif);
     font-size: clamp(28px, 7vw, 42px);
@@ -1962,6 +2012,149 @@ hydratePropertyData();
   .pp-hero-bars button.active {
     background: #ffffff;
     height: 24px;
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     GALERÍA DE FOTOS — grid 2 columnas, clickable abre lightbox
+     ────────────────────────────────────────────────────────────── */
+  .pp-photos-section {
+    padding-top: 22px;
+    padding-bottom: 22px;
+  }
+  .pp-photos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .pp-photos-count {
+    font-size: 11px;
+    color: var(--pp-paper-mute);
+    letter-spacing: 0.3px;
+  }
+  .pp-photos-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .pp-photo-tile {
+    aspect-ratio: 1;
+    background-size: cover;
+    background-position: center;
+    border-radius: 6px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s var(--ease-soft, ease);
+    border: none;
+    padding: 0;
+  }
+  .pp-photo-tile:active {
+    transform: scale(0.97);
+  }
+  .pp-photo-tile-label {
+    position: absolute;
+    bottom: 8px;
+    left: 10px;
+    right: 10px;
+    font-size: 10.5px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    font-weight: 500;
+  }
+  .pp-photo-tile-shade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 60%, rgba(0, 0, 0, 0.55) 100%);
+    pointer-events: none;
+  }
+
+  /* LIGHTBOX modal fullscreen para ver foto en grande */
+  .pp-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(10, 20, 40, 0.97);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+  }
+  .pp-lightbox[hidden] { display: none !important; }
+  .pp-lightbox-img {
+    width: 100%;
+    height: 100%;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+  .pp-lightbox-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pp-lightbox-counter {
+    position: absolute;
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 12px;
+    letter-spacing: 1px;
+    font-feature-settings: 'tnum';
+  }
+  .pp-lightbox-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: none;
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pp-lightbox-prev { left: 16px; }
+  .pp-lightbox-next { right: 16px; }
+  .pp-lightbox-label {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 500;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 6px 14px;
+    border-radius: 100px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 
   /* ──────────────────────────────────────────────────────────────
@@ -2440,8 +2633,12 @@ hydratePropertyData();
      ═════════════════════════════════════════════════════════════════════ -->
 <div class="pp-wrap" id="ppWrap">
 
-  <!-- 1. HERO -->
-  <section class="pp-hero" id="ppHero" style="background-image: url('https://i.imgur.com/HtlrbEg.jpeg');">
+  <!-- 1. HERO con carrusel swipeable -->
+  <section class="pp-hero" id="ppHero">
+    <!-- Track horizontal swipeable con todas las fotos -->
+    <div class="pp-hero-track" id="ppHeroTrack">
+      <!-- JS rellena con slides según unit.images -->
+    </div>
     <div class="pp-hero-gradient" aria-hidden="true"></div>
 
     <div class="pp-hero-topbar">
@@ -2452,13 +2649,9 @@ hydratePropertyData();
       </div>
     </div>
 
-    <!-- Indicadores de fotos -->
-    <div class="pp-hero-bars" id="ppHeroBars" aria-label="Photo navigation">
-      <button class="active" type="button" aria-label="Photo 1"></button>
-      <button type="button" aria-label="Photo 2"></button>
-      <button type="button" aria-label="Photo 3"></button>
-      <button type="button" aria-label="Photo 4"></button>
-      <button type="button" aria-label="Photo 5"></button>
+    <!-- Contador de fotos (X / Y) abajo derecha -->
+    <div class="pp-hero-counter" id="ppHeroCounter">
+      <span id="ppHeroCounterCurrent">1</span> / <span id="ppHeroCounterTotal">8</span>
     </div>
 
     <div class="pp-hero-bottom">
@@ -2496,6 +2689,27 @@ hydratePropertyData();
       <span class="pp-stat-label">m²</span>
     </div>
   </section>
+
+  <!-- 2.5 GALERÍA DE FOTOS — Grid clickable que abre lightbox -->
+  <section class="pp-section pp-photos-section">
+    <div class="pp-photos-header">
+      <span class="pp-section-eyebrow" style="margin-bottom: 0;">Photos</span>
+      <span class="pp-photos-count" id="ppPhotosCount">8 photos</span>
+    </div>
+    <div class="pp-photos-grid" id="ppPhotosGrid">
+      <!-- JS rellena con tiles según unit.images -->
+    </div>
+  </section>
+
+  <!-- Lightbox modal para ver fotos en grande -->
+  <div class="pp-lightbox" id="ppLightbox" hidden>
+    <button class="pp-lightbox-close" id="ppLightboxClose" aria-label="Close">✕</button>
+    <div class="pp-lightbox-counter" id="ppLightboxCounter">1 / 8</div>
+    <button class="pp-lightbox-nav pp-lightbox-prev" id="ppLightboxPrev" aria-label="Previous">‹</button>
+    <div class="pp-lightbox-img" id="ppLightboxImg"></div>
+    <button class="pp-lightbox-nav pp-lightbox-next" id="ppLightboxNext" aria-label="Next">›</button>
+    <div class="pp-lightbox-label" id="ppLightboxLabel">Living room</div>
+  </div>
 
   <!-- 3. DESCRIPCIÓN -->
   <section class="pp-desc">
@@ -2649,11 +2863,50 @@ hydratePropertyData();
       if (el && value !== undefined && value !== null) el.textContent = value;
     }
 
-    // Hero foto principal
-    const heroEl = document.getElementById('ppHero');
-    if (heroEl && unit.coverImage) {
-      heroEl.style.backgroundImage = `url('${unit.coverImage}')`;
+    // Hero foto principal — ahora llenamos el track con TODAS las fotos
+    const track = document.getElementById('ppHeroTrack');
+    let imageList = [];
+    if (track && unit.images) {
+      const labels = {
+        living: 'Living', kitchen: 'Kitchen', bedroom1: 'Bedroom 1',
+        bedroom2: 'Bedroom 2', bedroom3: 'Bedroom 3', bedroom4: 'Bedroom 4',
+        bathroom1: 'Bathroom', bathroom2: 'Bathroom 2',
+        terrace: 'Terrace', pool: 'Pool', view: 'View', dining: 'Dining'
+      };
+      // Construir lista preservando orden — cover primero
+      const seen = new Set();
+      if (unit.coverImage) {
+        imageList.push({ url: unit.coverImage, label: 'Cover' });
+        seen.add(unit.coverImage);
+      }
+      Object.entries(unit.images).forEach(([key, url]) => {
+        if (!seen.has(url)) {
+          imageList.push({ url, label: labels[key] || key });
+          seen.add(url);
+        }
+      });
+      // Pintar slides del hero
+      track.innerHTML = '';
+      imageList.forEach((img, idx) => {
+        const slide = document.createElement('div');
+        slide.className = 'pp-hero-slide';
+        slide.style.backgroundImage = `url('${img.url}')`;
+        slide.setAttribute('data-photo-idx', idx);
+        track.appendChild(slide);
+      });
+      // Contador inicial
+      const counterTotal = document.getElementById('ppHeroCounterTotal');
+      if (counterTotal) counterTotal.textContent = imageList.length;
+      const counterCurrent = document.getElementById('ppHeroCounterCurrent');
+      // Listener de scroll del track para actualizar contador
+      track.addEventListener('scroll', () => {
+        const idx = Math.round(track.scrollLeft / track.clientWidth) + 1;
+        if (counterCurrent) counterCurrent.textContent = Math.min(idx, imageList.length);
+      }, { passive: true });
     }
+
+    // Guardar imageList para que la galería + lightbox lo usen
+    window._ppImageList = imageList;
 
     // Hero zone (corto)
     const locShort = (unit.location || '').replace(/Vallarta · /, '').replace(/Nuevo Vallarta · /, '');
@@ -2720,22 +2973,100 @@ hydratePropertyData();
     renderPremiumHero();
   }
 
-  // Carrusel de fotos — al tocar un bar cambia la foto del hero
-  const bars = document.querySelectorAll('#ppHeroBars button');
-  const heroBg = document.getElementById('ppHero');
-  bars.forEach((bar, idx) => {
-    bar.addEventListener('click', () => {
-      const unit = window.VRM_UNIT;
-      if (!unit || !unit.images) return;
-      const keys = Object.keys(unit.images);
-      const key = keys[idx % keys.length];
-      if (key && unit.images[key]) {
-        heroBg.style.backgroundImage = `url('${unit.images[key]}')`;
-        bars.forEach(b => b.classList.remove('active'));
-        bar.classList.add('active');
-      }
+  // ──────────────────────────────────────────────────────────────
+  // GALERÍA DE FOTOS — Grid 2 columnas con todas las fotos
+  // ──────────────────────────────────────────────────────────────
+  function buildPhotoGrid() {
+    const grid = document.getElementById('ppPhotosGrid');
+    const countEl = document.getElementById('ppPhotosCount');
+    const imageList = window._ppImageList || [];
+    if (!grid || imageList.length === 0) return;
+    
+    grid.innerHTML = '';
+    imageList.forEach((img, idx) => {
+      const tile = document.createElement('button');
+      tile.type = 'button';
+      tile.className = 'pp-photo-tile';
+      tile.style.backgroundImage = `url('${img.url}')`;
+      tile.setAttribute('data-photo-idx', idx);
+      tile.setAttribute('aria-label', `View photo ${idx + 1}: ${img.label}`);
+      
+      const shade = document.createElement('div');
+      shade.className = 'pp-photo-tile-shade';
+      tile.appendChild(shade);
+      
+      const label = document.createElement('div');
+      label.className = 'pp-photo-tile-label';
+      label.textContent = img.label;
+      tile.appendChild(label);
+      
+      tile.addEventListener('click', () => openLightbox(idx));
+      grid.appendChild(tile);
     });
+    
+    if (countEl) countEl.textContent = `${imageList.length} photos`;
+  }
+  
+  // ──────────────────────────────────────────────────────────────
+  // LIGHTBOX — Modal fullscreen para ver fotos en grande
+  // ──────────────────────────────────────────────────────────────
+  let lightboxIdx = 0;
+  function openLightbox(idx) {
+    const list = window._ppImageList || [];
+    if (list.length === 0) return;
+    lightboxIdx = idx;
+    updateLightbox();
+    document.getElementById('ppLightbox').hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLightbox() {
+    document.getElementById('ppLightbox').hidden = true;
+    document.body.style.overflow = '';
+  }
+  function updateLightbox() {
+    const list = window._ppImageList || [];
+    if (list.length === 0) return;
+    const img = list[lightboxIdx];
+    document.getElementById('ppLightboxImg').style.backgroundImage = `url('${img.url}')`;
+    document.getElementById('ppLightboxCounter').textContent = `${lightboxIdx + 1} / ${list.length}`;
+    document.getElementById('ppLightboxLabel').textContent = img.label;
+  }
+  
+  // Wire up lightbox controls
+  document.getElementById('ppLightboxClose').addEventListener('click', closeLightbox);
+  document.getElementById('ppLightboxPrev').addEventListener('click', () => {
+    const list = window._ppImageList || [];
+    lightboxIdx = (lightboxIdx - 1 + list.length) % list.length;
+    updateLightbox();
   });
+  document.getElementById('ppLightboxNext').addEventListener('click', () => {
+    const list = window._ppImageList || [];
+    lightboxIdx = (lightboxIdx + 1) % list.length;
+    updateLightbox();
+  });
+  // Cerrar lightbox con tap en el fondo
+  document.getElementById('ppLightbox').addEventListener('click', (e) => {
+    if (e.target.id === 'ppLightbox' || e.target.id === 'ppLightboxImg') {
+      closeLightbox();
+    }
+  });
+  // ESC para cerrar lightbox
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'ArrowLeft' && !document.getElementById('ppLightbox').hidden) {
+      document.getElementById('ppLightboxPrev').click();
+    }
+    if (e.key === 'ArrowRight' && !document.getElementById('ppLightbox').hidden) {
+      document.getElementById('ppLightboxNext').click();
+    }
+  });
+
+  // Llamar buildPhotoGrid después que VRM_UNIT esté cargado
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', buildPhotoGrid);
+  } else {
+    setTimeout(buildPhotoGrid, 100);
+  }
 
   // Click en mapa preview → expandir / abrir Google Maps
   const mapPreview = document.getElementById('ppMapPreview');
