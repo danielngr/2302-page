@@ -1672,7 +1672,10 @@ hydratePropertyData();
   <!-- Botón "All homes" — regresa a la landing principal.
        Usa history.back() si el usuario vino de la landing (preserva
        scroll position perfecto), fallback a "index.html" si vino
-       por link directo de WhatsApp/email/otro sitio. -->
+       por link directo de WhatsApp/email/otro sitio.
+       
+       La landing principal vive en index.html en el repo de GitHub
+       Pages (danielngr/2302-page). -->
   <a href="index.html#properties" class="topbar-back" aria-label="Volver a propiedades"
      onclick="if (document.referrer && document.referrer.indexOf(window.location.host) >= 0) { event.preventDefault(); history.back(); }">
     <svg width="18" height="12" viewBox="0 0 18 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
@@ -3392,10 +3395,12 @@ hydratePropertyData();
     for (let i = 0; i < monthsToShow; i++) {
       const ref = new Date(m.getFullYear(), m.getMonth() + i, 1);
       const wrap = document.createElement('div');
-      const title = document.createElement('div');
-      title.className = 'cal-month-title';
-      title.textContent = MONTHS_EN[ref.getMonth()] + ' ' + ref.getFullYear();
-      wrap.appendChild(title);
+
+      // NOTA: Antes había un .cal-month-title aquí con el nombre del mes,
+      // pero el header del calendario (#calLabel arriba, entre las flechas
+      // de navegación) ya muestra exactamente esa misma info. Eso causaba
+      // un duplicado visual "May 2026 / May 2026". Lo removimos: el
+      // calLabel es suficiente y es el patrón estándar (Airbnb, Booking).
 
       const grid = document.createElement('div');
       grid.className = 'cal-grid';
