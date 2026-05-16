@@ -1773,16 +1773,8 @@ hydratePropertyData();
   }
   .topbar-brand .mk { display: none !important; }
 
-  /* Compensar el hero — el rating pill debe quedar DEBAJO del topbar
-     para no chocar con "ALL HOMES" y el logo "vrm". El topbar ocupa
-     aprox 44px de alto en mobile, así que bajamos el rating a 56px. */
-  .pp-hero-topbar {
-    top: 56px;
-    justify-content: flex-end;
-  }
-  @media (min-width: 720px) {
-    .pp-hero-topbar { top: 64px; }
-  }
+  /* El positioning del .pp-hero-topbar se define más abajo (sección Hero).
+     Aquí solo manejamos visibilidad de elementos internos. */
   .pp-hero-zone {
     /* Movido abajo, dentro del bloque del título */
     display: none;
@@ -1900,16 +1892,93 @@ hydratePropertyData();
     .pp-hero-counter { top: 64px; }
   }
 
+  /* SWIPE HINT — aparece al cargar, desaparece al primer swipe.
+     Pill animada que dice "Swipe for more" con flechita en movimiento.
+     Centrado vertical-horizontal en el hero para máxima visibilidad. */
+  .pp-hero-hint {
+    position: absolute;
+    bottom: 28%;
+    right: 16px;
+    z-index: 4;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 7px 14px;
+    border-radius: 100px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 500;
+    pointer-events: none;
+    animation: ppHintIn 0.6s 1.2s both, ppHintNudge 1.8s 2s infinite;
+    transition: opacity 0.4s ease;
+    border: 0.5px solid rgba(255, 255, 255, 0.18);
+  }
+  .pp-hero-hint.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .pp-hero-hint svg {
+    color: var(--pp-gold);
+  }
+  @keyframes ppHintIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes ppHintNudge {
+    0%, 60%, 100% { transform: translateX(0); }
+    30% { transform: translateX(6px); }
+  }
+
+  /* DOTS indicator — barritas finas tipo Aman/Belmond. Cada barrita
+     representa una foto. La activa es más larga y dorada. */
+  .pp-hero-dots {
+    position: absolute;
+    bottom: 130px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 4px;
+    z-index: 3;
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 100px;
+  }
+  .pp-hero-dot {
+    width: 14px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 2px;
+    transition: background 0.3s, width 0.3s;
+  }
+  .pp-hero-dot.active {
+    background: var(--pp-gold);
+    width: 22px;
+  }
+  @media (max-width: 380px) {
+    .pp-hero-dots { bottom: 116px; }
+    .pp-hero-dot { width: 12px; }
+    .pp-hero-dot.active { width: 18px; }
+  }
+
   .pp-hero-topbar {
     position: absolute;
-    top: 14px;
+    top: 56px;
     left: 16px;
     right: 16px;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     z-index: 3;
     pointer-events: none;
+  }
+  @media (min-width: 720px) {
+    .pp-hero-topbar { top: 64px; }
   }
   .pp-hero-topbar > * { pointer-events: auto; }
   .pp-hero-zone {
@@ -2555,41 +2624,35 @@ hydratePropertyData();
   .wa-float { display: none !important; }
 
   /* ──────────────────────────────────────────────────────────────
-     CHIP DE FECHAS PRE-SELECCIONADAS
+     DATES BAR — Pegada arriba del sticky bottom CTA.
      
-     Aparece como pill flotante encima del sticky bar cuando el cliente
-     vino de la landing con fechas filtradas. Le confirma visualmente
-     que sus fechas están guardadas y al tocar "Reserve" se aplicarán.
-     Tiene botón "Edit" por si quiere cambiarlas (abre el calendario).
+     Aparece cuando el cliente vino de la landing con fechas filtradas.
+     Confirma visualmente que sus fechas están guardadas. Click "Edit"
+     abre el calendario para cambiarlas.
      ────────────────────────────────────────────────────────────── */
-  .pp-dates-chip {
-    position: fixed;
-    bottom: calc(78px + env(safe-area-inset-bottom));
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(232, 228, 218, 0.95);
-    color: var(--pp-ink-2);
-    padding: 8px 6px 8px 14px;
-    border-radius: 100px;
+  .pp-dates-bar {
+    position: sticky;
+    bottom: 70px;
+    background: rgba(13, 36, 64, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 0.5px solid rgba(212, 165, 116, 0.30);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    z-index: 49;
+  }
+  .pp-dates-bar[hidden] { display: none !important; }
+  .pp-dates-bar-info {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
-    font-weight: 500;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25),
-                0 1px 0 rgba(255, 255, 255, 0.6) inset;
-    z-index: 49;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    max-width: calc(100% - 32px);
-    animation: ppChipIn 0.5s 0.3s both;
+    flex: 1;
+    min-width: 0;
   }
-  @keyframes ppChipIn {
-    from { transform: translate(-50%, 20px); opacity: 0; }
-    to { transform: translate(-50%, 0); opacity: 1; }
-  }
-  .pp-dates-chip[hidden] { display: none !important; }
-  .pp-dates-chip-icon {
+  .pp-dates-bar-check {
     width: 16px;
     height: 16px;
     border-radius: 50%;
@@ -2602,28 +2665,29 @@ hydratePropertyData();
     font-weight: 700;
     flex-shrink: 0;
   }
-  .pp-dates-chip-text {
-    font-size: 11.5px;
-    letter-spacing: 0.2px;
+  .pp-dates-bar-text {
+    font-size: 12px;
+    color: var(--pp-paper);
+    font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .pp-dates-chip-edit {
+  .pp-dates-bar-edit {
+    background: transparent;
+    border: 0.5px solid rgba(212, 165, 116, 0.5);
+    color: var(--pp-gold);
     font-size: 10px;
-    letter-spacing: 1.2px;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
-    background: rgba(13, 36, 64, 0.10);
-    color: var(--pp-ink-2);
-    border: none;
+    padding: 5px 12px;
     border-radius: 100px;
-    padding: 5px 10px;
     cursor: pointer;
     font-weight: 600;
     flex-shrink: 0;
   }
-  .pp-dates-chip-edit:hover {
-    background: rgba(13, 36, 64, 0.18);
+  .pp-dates-bar-edit:hover {
+    background: rgba(212, 165, 116, 0.10);
   }
 </style>
 
@@ -2652,6 +2716,19 @@ hydratePropertyData();
     <!-- Contador de fotos (X / Y) abajo derecha -->
     <div class="pp-hero-counter" id="ppHeroCounter">
       <span id="ppHeroCounterCurrent">1</span> / <span id="ppHeroCounterTotal">8</span>
+    </div>
+
+    <!-- Swipe hint — desaparece al primer swipe -->
+    <div class="pp-hero-hint" id="ppHeroHint">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+        <path d="M9 18l6-6-6-6"/>
+      </svg>
+      <span>Swipe for more</span>
+    </div>
+
+    <!-- Dots indicator — barritas finas tipo Aman -->
+    <div class="pp-hero-dots" id="ppHeroDots" aria-hidden="true">
+      <!-- JS rellena con un dot por foto -->
     </div>
 
     <div class="pp-hero-bottom">
@@ -2820,7 +2897,18 @@ hydratePropertyData();
 
   <div class="pp-content-end"></div>
 
-  <!-- 8. STICKY BOTTOM CTA -->
+  <!-- 8. STICKY BOTTOM CTA con dates bar integrada -->
+  
+  <!-- Info bar de fechas pre-seleccionadas (aparece arriba del sticky
+       cuando el cliente vino con fechas del filtro de la landing) -->
+  <div class="pp-dates-bar" id="ppDatesBar" hidden>
+    <div class="pp-dates-bar-info">
+      <span class="pp-dates-bar-check">✓</span>
+      <span class="pp-dates-bar-text" id="ppDatesBarText">May 25 — May 29 · 4 nights</span>
+    </div>
+    <button type="button" class="pp-dates-bar-edit" id="ppDatesBarEdit">Edit</button>
+  </div>
+
   <div class="pp-sticky">
     <a href="https://wa.me/15559472509"
        class="pp-sticky-wa"
@@ -2834,15 +2922,6 @@ hydratePropertyData();
     </button>
   </div>
 
-</div>
-
-<!-- Chip flotante de fechas pre-seleccionadas (solo aparece si el cliente
-     vino de la landing con fechas filtradas). Se posiciona arriba del
-     sticky bar para que el cliente vea que sus fechas están guardadas. -->
-<div class="pp-dates-chip" id="ppDatesChip" hidden>
-  <span class="pp-dates-chip-icon">✓</span>
-  <span class="pp-dates-chip-text" id="ppDatesChipText">Your dates · May 25 — May 29</span>
-  <button type="button" class="pp-dates-chip-edit" id="ppDatesChipEdit" aria-label="Edit dates">Edit</button>
 </div>
 
 <!-- ═════════════════════════════════════════════════════════════════════
@@ -2894,14 +2973,39 @@ hydratePropertyData();
         slide.setAttribute('data-photo-idx', idx);
         track.appendChild(slide);
       });
+      
+      // Crear dots indicator dinámicamente
+      const dotsContainer = document.getElementById('ppHeroDots');
+      if (dotsContainer) {
+        dotsContainer.innerHTML = '';
+        imageList.forEach((_, idx) => {
+          const dot = document.createElement('div');
+          dot.className = 'pp-hero-dot' + (idx === 0 ? ' active' : '');
+          dot.setAttribute('data-dot-idx', idx);
+          dotsContainer.appendChild(dot);
+        });
+      }
+      
       // Contador inicial
       const counterTotal = document.getElementById('ppHeroCounterTotal');
       if (counterTotal) counterTotal.textContent = imageList.length;
       const counterCurrent = document.getElementById('ppHeroCounterCurrent');
-      // Listener de scroll del track para actualizar contador
+      const hint = document.getElementById('ppHeroHint');
+      
+      // Listener de scroll del track — actualiza contador, dots, oculta hint
+      let hintHidden = false;
       track.addEventListener('scroll', () => {
-        const idx = Math.round(track.scrollLeft / track.clientWidth) + 1;
-        if (counterCurrent) counterCurrent.textContent = Math.min(idx, imageList.length);
+        const idx = Math.round(track.scrollLeft / track.clientWidth);
+        const oneIndexed = idx + 1;
+        if (counterCurrent) counterCurrent.textContent = Math.min(oneIndexed, imageList.length);
+        // Actualizar dots
+        const dots = dotsContainer ? dotsContainer.querySelectorAll('.pp-hero-dot') : [];
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+        // Ocultar hint al primer swipe
+        if (!hintHidden && idx > 0 && hint) {
+          hint.classList.add('is-hidden');
+          hintHidden = true;
+        }
       }, { passive: true });
     }
 
@@ -3092,14 +3196,14 @@ hydratePropertyData();
   // También cambia el subtexto del botón Reserve para reforzar.
   // ──────────────────────────────────────────────────────────────
   function showDatesChip() {
-    const chip = document.getElementById('ppDatesChip');
-    const chipText = document.getElementById('ppDatesChipText');
+    const bar = document.getElementById('ppDatesBar');
+    const barText = document.getElementById('ppDatesBarText');
     const stickySub = document.getElementById('ppStickySub');
-    if (!chip || !chipText) return;
+    if (!bar || !barText) return;
     
     const pre = window.VRM_PRELOAD_BOOKING || {};
     if (!pre.checkin || !pre.checkout) {
-      chip.hidden = true;
+      bar.hidden = true;
       return;
     }
     
@@ -3117,8 +3221,8 @@ hydratePropertyData();
     const end = new Date(pre.checkout);
     const nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
     
-    chipText.textContent = `${ci} — ${co} · ${nights} night${nights > 1 ? 's' : ''}`;
-    chip.hidden = false;
+    barText.textContent = `${ci} — ${co} · ${nights} night${nights > 1 ? 's' : ''}`;
+    bar.hidden = false;
     
     // Cambiar subtexto del Reserve para reforzar
     if (stickySub) {
@@ -3127,12 +3231,11 @@ hydratePropertyData();
     }
     
     // Click "Edit" → abre el modal en Step 1 (calendario) para cambiar fechas
-    const editBtn = document.getElementById('ppDatesChipEdit');
+    const editBtn = document.getElementById('ppDatesBarEdit');
     if (editBtn) {
       editBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        // Trigger del modal en Step 1
         if (typeof openBooking === 'function') {
           openBooking({ startStep: 1 });
         }
