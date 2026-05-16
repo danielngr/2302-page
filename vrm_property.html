@@ -3002,18 +3002,47 @@ hydratePropertyData();
   async function loadRealAvailability() {
     if (_availabilityLoaded) return BLOCKED;
     const unitId = window.VRM_UNIT_ID;
-    if (!unitId || !window.loadAvailability) {
-      console.warn('[VRM] No unit_id or loadAvailability — falling back to mock data');
-      BLOCKED = buildBlockedSet();
+    
+    // FIX CRÍTICO: eliminar fallback a mock data.
+    // 
+    // Antes, si window.loadAvailability no estaba todavía cargado (timing
+    // issue del script loader), entrábamos al mock que bloqueaba 7 días
+    // arbitrarios (+9 a +16 desde hoy). Eso causaba "Some dates aren't
+    // available" en propiedades que SÍ están disponibles en Supabase.
+    // 
+    // Ahora: si loadAvailability no está disponible, esperamos hasta que
+    // lo esté. Si Supabase falla, BLOCKED queda vacío (fail-open).
+    if (!unitId) {
+      console.warn('[VRM-property] No VRM_UNIT_ID disponible — BLOCKED queda vacío');
+      BLOCKED = new Set();
       _availabilityLoaded = true;
       return BLOCKED;
     }
+    
+    // Esperar a que window.loadAvailability esté disponible (timing fallback)
+    if (typeof window.loadAvailability !== 'function') {
+      console.log('[VRM-property] Esperando que window.loadAvailability cargue...');
+      let tries = 0;
+      while (typeof window.loadAvailability !== 'function' && tries < 30) {
+        await new Promise(r => setTimeout(r, 100));
+        tries++;
+      }
+      if (typeof window.loadAvailability !== 'function') {
+        console.warn('[VRM-property] window.loadAvailability nunca cargó — BLOCKED queda vacío');
+        BLOCKED = new Set();
+        _availabilityLoaded = true;
+        return BLOCKED;
+      }
+    }
+    
     try {
       BLOCKED = await window.loadAvailability(unitId);
       _availabilityLoaded = true;
+      console.log(`[VRM-property] Loaded availability for ${unitId}: ${BLOCKED.size} blocked days`,
+        BLOCKED.size > 0 ? Array.from(BLOCKED).slice(0, 5) : '(none)');
       return BLOCKED;
     } catch (e) {
-      console.warn('[VRM] Availability load failed:', e.message);
+      console.warn('[VRM-property] Availability load failed:', e.message);
       BLOCKED = new Set();
       _availabilityLoaded = true;
       return BLOCKED;
