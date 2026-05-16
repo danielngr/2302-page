@@ -2674,28 +2674,35 @@ hydratePropertyData();
     position: fixed;
     left: 0;
     right: 0;
-    /* Posicionada justo arriba del sticky (~70px de alto incluyendo safe-area).
-       Usamos calc para considerar el safe-area-inset-bottom de iPhone. */
     bottom: calc(70px + env(safe-area-inset-bottom));
     background: rgba(13, 36, 64, 0.95);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-top: 0.5px solid rgba(212, 165, 116, 0.30);
     border-bottom: 0.5px solid rgba(212, 165, 116, 0.18);
-    /* Padding generoso a ambos lados — antes el checkmark izquierdo
-       y EDIT derecho se pegaban al borde. Ahora 20px mínimo cada lado
-       (respeta safe-area en notch/dynamic island). */
-    padding: 12px max(20px, env(safe-area-inset-right)) 12px max(20px, env(safe-area-inset-left));
+    /* PADDING GRANDE: 24px de cada lado (era 20px) — el contenido nunca
+       toca el borde. Si el device tiene notch/dynamic island/curved
+       corners, safe-area-inset agrega más. */
+    padding: 12px max(24px, env(safe-area-inset-right)) 12px max(24px, env(safe-area-inset-left));
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
+    gap: 16px;
     z-index: 49;
     max-width: 720px;
     margin: 0 auto;
+    /* box-sizing explicit para evitar que padding agregue al ancho */
+    box-sizing: border-box;
   }
   @media (max-width: 720px) {
     .pp-dates-bar { max-width: 100%; }
+  }
+  @media (max-width: 380px) {
+    /* iPhone SE / mini — reducir padding pero mantener safe-area */
+    .pp-dates-bar {
+      padding: 10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
+      gap: 10px;
+    }
   }
   .pp-dates-bar[hidden] { display: none !important; }
   .pp-dates-bar-info {
@@ -3294,14 +3301,15 @@ hydratePropertyData();
       stickySub.textContent = guests ? `For ${guests} guests · ${nights} nights` : `${nights} nights selected`;
     }
     
-    // Click "Edit" → abre el modal en Step 1 (calendario) para cambiar fechas
+    // Click "Edit" → abre el modal en Step 1 (calendario) para cambiar fechas.
+    // Usa forceStep para evitar el fallback que normalmente saltaría a Step 2.
     const editBtn = document.getElementById('ppDatesBarEdit');
     if (editBtn) {
       editBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
         if (typeof openBooking === 'function') {
-          openBooking({ startStep: 1 });
+          openBooking({ startStep: 1, forceStep: true });
         }
       });
     }
@@ -4850,7 +4858,12 @@ hydratePropertyData();
     // FALLBACK ROBUSTO: si el URL tiene checkin+checkout pero por algún
     // motivo el caller no especificó startStep=2, lo forzamos aquí.
     // Esto cubre cualquier edge case donde el preload no se aplicó bien.
-    if (startStep === 1 && state.checkIn && state.checkOut) {
+    //
+    // EXCEPCIÓN: si opts.forceStep === true, respetamos el startStep tal
+    // cual viene. Esto es para el botón "Edit" de la dates bar que SIEMPRE
+    // quiere ir al calendario (Step 1) aunque ya haya fechas — porque el
+    // usuario justamente quiere cambiarlas.
+    if (startStep === 1 && state.checkIn && state.checkOut && !opts.forceStep) {
       console.log('[VRM] Fechas detectadas en state, forzando startStep=2');
       startStep = 2;
     }
