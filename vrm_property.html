@@ -8121,22 +8121,32 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
    ============================================================ */
 (function() {
   // ──────────────────────────────────────────────────────────────
-  // Event delegation sobre document — robusto en mobile.
+  // Handler de Reserve buttons — dispara con click Y con touchend.
   // 
-  // Antes usábamos querySelectorAll + forEach + addEventListener directo
-  // en cada botón, pero en mobile a veces los listeners no se attachan
-  // si el DOM cambia (filtro de fechas, etc) o si el script corre antes
-  // del DOM ready. Delegation sobre document siempre captura el click
-  // sin importar cuándo se agrega el botón al DOM.
+  // Por qué doble listener:
+  // - `click` es el evento estándar y funciona en desktop.
+  // - En mobile, especialmente dentro de carruseles horizontales con
+  //   scroll-snap, el browser a veces "consume" el click pensando que
+  //   era el inicio de un swipe. Si el dedo se mueve aunque sea 1px,
+  //   el click se cancela. `touchend` se dispara siempre que el dedo
+  //   se levanta, sin importar el scroll.
+  // - Usamos un flag para que no se ejecute 2 veces (touchend Y luego
+  //   click sintético del browser).
   //
-  // También usamos closest() para que el click funcione si el usuario
-  // toca el icono SVG o el span "Reserve" dentro del botón en vez del
-  // botón directamente (más permisivo en mobile donde los taps no son
-  // tan precisos).
+  // Event delegation sobre document para robustez — captura hasta
+  // botones que se agreguen dinámicamente al DOM.
   // ──────────────────────────────────────────────────────────────
-  document.addEventListener('click', (e) => {
+  let lastHandled = 0;
+  
+  function handleReserveClick(e) {
     const trigger = e.target.closest('.prop-reserve-trigger');
     if (!trigger) return;
+    
+    // Debounce: si ya manejamos un evento en los últimos 500ms,
+    // ignorar éste (evita doble disparo touchend + click)
+    const now = Date.now();
+    if (now - lastHandled < 500) return;
+    lastHandled = now;
     
     e.preventDefault();
     e.stopPropagation();
@@ -8148,7 +8158,7 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       return;
     }
     
-    console.log('[reserve] Click en propiedad:', propId, 'guests:', propGuests);
+    console.log('[reserve] Trigger:', e.type, 'propId:', propId, 'guests:', propGuests);
       
       // ──────────────────────────────────────────────────────────────
       // Leer el contexto del hero search (fechas + guests + zona)
@@ -8216,17 +8226,20 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       params.set('id', propId);
       if (propGuests > 0) params.set('guests', String(propGuests));
       
-      console.log('[reserve] Sin fechas, navegando directo a propiedad:', propId);
+      const targetUrl = 'vrm_property.html?' + params.toString();
+      console.log('[reserve] Sin fechas, navegando directo a propiedad:', propId, '→', targetUrl);
       
-      // Transition overlay para experiencia sin parpadeo
-      try { sessionStorage.setItem('vrm_transition_active', '1'); } catch(_) {}
-      const overlay = document.getElementById('vrm-transition');
-      if (overlay) overlay.classList.add('is-active');
-      
-      setTimeout(() => {
-        window.location.href = `vrm_property.html?${params.toString()}`;
-      }, 350);
-  });
+      // Navegación DIRECTA sin setTimeout ni transition overlay.
+      // El timeout podría ser el culprit en mobile si algo lo cancela.
+      // Si funciona sin timeout, agregamos polish después.
+      window.location.href = targetUrl;
+      return;
+  }
+  
+  // Registrar AMBOS listeners para máxima compatibilidad mobile.
+  // touchend usa passive:false para poder hacer preventDefault.
+  document.addEventListener('click', handleReserveClick);
+  document.addEventListener('touchend', handleReserveClick, { passive: false });
 })();
 
 /* ============================================================
