@@ -96,9 +96,9 @@ const QUIYA_UNITS = {
     sqm: 145,
     floor: 3,
     view: 'Vista al mar',
-    priceUSD: 330,  // legacy: base price for backwards compat
-    priceBase: 330,  // base USD/night (low season, +10% IVA included)
-    priceHigh: 495,  // high season USD/night (Christmas/NewYear)
+    priceUSD: 300,  // legacy: base price (net, pre-tax)
+    priceBase: 300,  // base USD/night NET (taxes added separately at checkout)
+    priceHigh: 450,  // high season USD/night NET (Christmas/NewYear)
     priceMXN: 3800,
     highlight: 'El más reservado del complejo',
     phone: '523222440051',
@@ -127,9 +127,9 @@ const QUIYA_UNITS = {
     sqm: 110,
     floor: 4,
     view: 'Vista al mar',
-    priceUSD: 330,  // legacy: base price for backwards compat
-    priceBase: 330,  // base USD/night (low season, +10% IVA included)
-    priceHigh: 495,  // high season USD/night (Christmas/NewYear)
+    priceUSD: 300,  // legacy: base price (net, pre-tax)
+    priceBase: 300,  // base USD/night NET (taxes added separately at checkout)
+    priceHigh: 450,  // high season USD/night NET (Christmas/NewYear)
     priceMXN: 3500,
     highlight: 'Vista frontal al mar',
     phone: '523222440051',
@@ -158,9 +158,9 @@ const QUIYA_UNITS = {
     sqm: 110,
     floor: 7,
     view: 'Vista al mar',
-    priceUSD: 385,  // legacy: base price for backwards compat
-    priceBase: 385,  // base USD/night (low season, +10% IVA included)
-    priceHigh: 550,  // high season USD/night (Christmas/NewYear)
+    priceUSD: 350,  // legacy: base price (net, pre-tax)
+    priceBase: 350,  // base USD/night NET (taxes added separately at checkout)
+    priceHigh: 500,  // high season USD/night NET (Christmas/NewYear)
     priceMXN: 3600,
     highlight: 'Piso alto con privacidad',
     phone: '523222440051',
@@ -219,9 +219,9 @@ const QUIYA_UNITS = {
     sqm: 110,
     floor: 8,
     view: 'Vista al mar',
-    priceUSD: 385,  // legacy: base price for backwards compat
-    priceBase: 385,  // base USD/night (low season, +10% IVA included)
-    priceHigh: 550,  // high season USD/night (Christmas/NewYear)
+    priceUSD: 350,  // legacy: base price (net, pre-tax)
+    priceBase: 350,  // base USD/night NET (taxes added separately at checkout)
+    priceHigh: 500,  // high season USD/night NET (Christmas/NewYear)
     priceMXN: 3700,
     highlight: 'Atardeceres desde la cama',
     phone: '523222440051',
@@ -276,9 +276,9 @@ const QUIYA_UNITS = {
     sqm: 150,
     floor: 10,
     view: 'Vista panorámica',
-    priceUSD: 275,  // legacy: base price for backwards compat
-    priceBase: 275,  // base USD/night (low season, +10% IVA included)
-    priceHigh: 440,  // high season USD/night (Christmas/NewYear)
+    priceUSD: 250,  // legacy: base price (net, pre-tax)
+    priceBase: 250,  // base USD/night NET (taxes added separately at checkout)
+    priceHigh: 400,  // high season USD/night NET (Christmas/NewYear)
     priceMXN: 4400,
     highlight: 'Penthouse · acceso a 3 piscinas',
     phone: '523222440051',
@@ -5066,11 +5066,10 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
             <span id="sumDiscountDesc" style="color: var(--pp-gold);">Discount</span>
             <span class="amount" id="sumDiscount" style="color: var(--pp-gold);">−$0 USD</span>
           </div>
-          <!-- Tax line: informativo. El 10% está incluido en el subtotal.
-               Se muestra en color tenue para indicar que no se suma. -->
-          <div class="sum-row sum-row--info">
-            <span style="opacity: 0.65;">Tax (10% included)</span>
-            <span class="amount" id="sumTax" style="opacity: 0.65;">$—</span>
+          <!-- Taxes: línea visible, se suma al total. Estilo Airbnb/Booking. -->
+          <div class="sum-row">
+            <span>Taxes (10%)</span>
+            <span class="amount" id="sumTax">$—</span>
           </div>
           <div class="sum-row total">
             <span>Total</span>
@@ -5229,17 +5228,13 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
   // futuro se quiere reactivar.
   const SERVICE_RATE = 0;
   
-  // TAX_INCLUDED_RATE: el 10% de impuestos YA está incluido en el precio
-  // base que se le muestra al cliente. Esto significa que NO se suma al
-  // total — solo se muestra como línea informativa para transparencia.
+  // TAX_RATE: 10% que se suma al subtotal (estilo Airbnb/Booking/VRBO).
   // 
-  // Cómo se calcula: si el cliente ve $330/noche, $30 son impuestos
-  // (10% del neto $300 que Rodrigo recibe) y $300 son ingreso de Rodrigo.
-  // 
-  // Fórmula para extraer el componente de impuesto del precio bruto:
-  //   tax_amount = bruto × (rate / (1 + rate))
-  //   En 10%:    tax = bruto × (0.10 / 1.10) ≈ bruto × 0.0909
-  const TAX_INCLUDED_RATE = 0.10;
+  // Los precios netos (priceBase, priceHigh) son lo que recibe Rodrigo
+  // SIN impuestos. En el checkout se agrega esta línea como "Taxes (10%)"
+  // visible y se suma al total. Estándar de las grandes plataformas:
+  // transparencia total, el cliente ve qué paga y por qué.
+  const TAX_RATE = 0.10;
   const MAX_GUESTS = UNIT.guests || 4;
 
   const TODAY = new Date();
@@ -5289,7 +5284,7 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
   
   // Expone globalmente para que otros componentes (promos, dashboard) puedan usarlo
   window.VRM_BOOKING = {
-    PRICE_BASE, PRICE_HIGH, SERVICE_RATE, TAX_INCLUDED_RATE,
+    PRICE_BASE, PRICE_HIGH, SERVICE_RATE, TAX_RATE,
     getNightlyRate, isHighSeason, calculateStayTotal
   };
 
@@ -5959,19 +5954,14 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
   
   function service() { return Math.round(subtotalAfterDiscount() * SERVICE_RATE); }
   
-  // tax() devuelve cuánto del subtotal corresponde a impuestos (informativo).
-  // El impuesto YA está incluido en el precio, NO se suma al total.
-  // Fórmula: subtotal × (rate / (1 + rate)) extrae el componente de impuesto
-  // del bruto. Ej: $330 bruto contiene $30 de tax ($300 neto + 10%).
+  // tax() = 10% sobre el subtotal después de descuentos.
+  // Se suma al total como línea visible (estilo Airbnb).
   function tax() {
-    const factor = TAX_INCLUDED_RATE / (1 + TAX_INCLUDED_RATE);
-    return Math.round(subtotalAfterDiscount() * factor);
+    return Math.round(subtotalAfterDiscount() * TAX_RATE);
   }
   
-  // total() = subtotal después de descuentos. Sin service fee (eliminado),
-  // sin sumar tax (ya incluido en subtotal). Lo que ve el cliente es
-  // exactamente lo que paga.
-  function total() { return subtotalAfterDiscount(); }
+  // total() = subtotal después de descuento + tax. Sin service fee.
+  function total() { return subtotalAfterDiscount() + service() + tax(); }
   function fmt(n) { return '$' + n.toLocaleString('en-US') + ' USD'; }
 
   // ──────────────────────────────────────────────────────────────
