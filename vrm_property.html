@@ -96,7 +96,9 @@ const QUIYA_UNITS = {
     sqm: 145,
     floor: 3,
     view: 'Vista al mar',
-    priceUSD: 200,
+    priceUSD: 325,  // legacy: base price for backwards compat
+    priceBase: 325,  // base USD/night (low season, +8% IVA included)
+    priceHigh: 485,  // high season USD/night (Christmas/NewYear)
     priceMXN: 3800,
     highlight: 'El más reservado del complejo',
     phone: '523222440051',
@@ -125,7 +127,9 @@ const QUIYA_UNITS = {
     sqm: 110,
     floor: 4,
     view: 'Vista al mar',
-    priceUSD: 185,
+    priceUSD: 325,  // legacy: base price for backwards compat
+    priceBase: 325,  // base USD/night (low season, +8% IVA included)
+    priceHigh: 485,  // high season USD/night (Christmas/NewYear)
     priceMXN: 3500,
     highlight: 'Vista frontal al mar',
     phone: '523222440051',
@@ -154,7 +158,9 @@ const QUIYA_UNITS = {
     sqm: 110,
     floor: 7,
     view: 'Vista al mar',
-    priceUSD: 190,
+    priceUSD: 380,  // legacy: base price for backwards compat
+    priceBase: 380,  // base USD/night (low season, +8% IVA included)
+    priceHigh: 540,  // high season USD/night (Christmas/NewYear)
     priceMXN: 3600,
     highlight: 'Piso alto con privacidad',
     phone: '523222440051',
@@ -213,7 +219,9 @@ const QUIYA_UNITS = {
     sqm: 110,
     floor: 8,
     view: 'Vista al mar',
-    priceUSD: 195,
+    priceUSD: 380,  // legacy: base price for backwards compat
+    priceBase: 380,  // base USD/night (low season, +8% IVA included)
+    priceHigh: 540,  // high season USD/night (Christmas/NewYear)
     priceMXN: 3700,
     highlight: 'Atardeceres desde la cama',
     phone: '523222440051',
@@ -268,7 +276,9 @@ const QUIYA_UNITS = {
     sqm: 150,
     floor: 10,
     view: 'Vista panorámica',
-    priceUSD: 230,
+    priceUSD: 270,  // legacy: base price for backwards compat
+    priceBase: 270,  // base USD/night (low season, +8% IVA included)
+    priceHigh: 435,  // high season USD/night (Christmas/NewYear)
     priceMXN: 4400,
     highlight: 'Penthouse · acceso a 3 piscinas',
     phone: '523222440051',
@@ -4695,6 +4705,73 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
   }
 
   .sum-breakdown { padding-top: 22px; display: flex; flex-direction: column; gap: 12px; }
+  
+  /* PROMO INPUT — Campo para aplicar cupones de descuento.
+     Diseño minimal estilo Airbnb: input transparente con borde sutil
+     + botón "Apply" dorado al lado. Feedback debajo en verde (aplicado)
+     o coral (inválido). */
+  .promo-input-wrap {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 0.5px solid rgba(232, 228, 218, 0.10);
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .promo-input {
+    flex: 1;
+    background: rgba(232, 228, 218, 0.04);
+    border: 0.5px solid rgba(232, 228, 218, 0.18);
+    color: var(--pp-paper, #E8E4DA);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: 'Satoshi', system-ui, sans-serif;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .promo-input::placeholder {
+    color: rgba(232, 228, 218, 0.4);
+    letter-spacing: 0.3px;
+    text-transform: none;
+  }
+  .promo-input:focus {
+    border-color: rgba(212, 165, 116, 0.5);
+    background: rgba(232, 228, 218, 0.06);
+  }
+  .promo-apply-btn {
+    background: transparent;
+    border: 0.5px solid rgba(212, 165, 116, 0.5);
+    color: var(--pp-gold, #D4A574);
+    padding: 0 18px;
+    border-radius: 6px;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    font-family: 'Satoshi', system-ui, sans-serif;
+  }
+  .promo-apply-btn:hover {
+    background: rgba(212, 165, 116, 0.10);
+    border-color: rgba(212, 165, 116, 0.8);
+  }
+  .promo-apply-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .promo-feedback {
+    margin-top: 8px;
+    font-size: 11.5px;
+    line-height: 1.4;
+    min-height: 14px;
+  }
+  .promo-feedback.is-success { color: #A0E0B4; }
+  .promo-feedback.is-error { color: #FF8888; }
+  .promo-feedback.is-info { color: rgba(232, 228, 218, 0.55); }
   .sum-row {
     display: flex; justify-content: space-between;
     font-size: 14px; color: var(--sand);
@@ -4983,6 +5060,12 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
             <span id="sumNightlyDesc">$200 × — noches</span>
             <span class="amount" id="sumSubtotal">$—</span>
           </div>
+          <!-- Línea de descuento: se muestra solo si hay promo automática
+               o cupón manual aplicado. Estilo verde sutil para destacar. -->
+          <div class="sum-row sum-row--discount" id="sumDiscountLine" style="display: none;">
+            <span id="sumDiscountDesc" style="color: var(--pp-gold);">Discount</span>
+            <span class="amount" id="sumDiscount" style="color: var(--pp-gold);">−$0 USD</span>
+          </div>
           <div class="sum-row">
             <span>Cleaning included</span>
             <span class="amount">$0</span>
@@ -5000,6 +5083,21 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
             <span class="amount" id="sumTotal">$—</span>
           </div>
         </div>
+        
+        <!-- Campo para cupón de descuento manual.
+             El cliente puede aplicar códigos como AMIGO15, NAVIDAD2026, etc.
+             La validación es contra la lista hardcoded (cambiar a Supabase
+             cuando se haga la migración nivel 3). -->
+        <div class="promo-input-wrap">
+          <input type="text"
+                 id="promoCodeInput"
+                 class="promo-input"
+                 placeholder="Promo code"
+                 autocomplete="off"
+                 maxlength="20">
+          <button type="button" id="promoApplyBtn" class="promo-apply-btn">Apply</button>
+        </div>
+        <div class="promo-feedback" id="promoFeedback"></div>
       </div>
 
       <p class="bm-helper" style="margin-top: 20px;">No hidden fees. Secure payment. Flexible cancellation up to 7 days before check-in.</p>
@@ -5110,19 +5208,80 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
 
 <script>
   /* ─────────────────────────────────────────────────────────────
-     BOOKING LOGIC
+     BOOKING LOGIC — Sistema de precios con temporada y promociones
+     
+     Estructura de precios por noche:
+     - priceBase: tarifa base (low season, +8% IVA included)
+     - priceHigh: tarifa alta (Christmas/NewYear)
+     - getNightlyRate(date): devuelve el rate aplicable según la fecha
+     - calculateStayTotal(checkIn, checkOut): calcula el subtotal noche por noche
+     
+     Temporada alta: 20 diciembre - 5 enero (16 noches).
+     Si una estancia cruza temporadas, se cobra por noche al rate correspondiente.
      ───────────────────────────────────────────────────────────── */
-  // ★ Lee precio y capacidad dinámicamente del UNIT (hidratado en <head>)
-  const NIGHTLY = (window.VRM_UNIT && window.VRM_UNIT.priceUSD) || 200;
+  
+  // Precios dinámicos según la unit hidratada
+  const UNIT = window.VRM_UNIT || {};
+  const PRICE_BASE = UNIT.priceBase || UNIT.priceUSD || 200;
+  const PRICE_HIGH = UNIT.priceHigh || Math.round((UNIT.priceBase || UNIT.priceUSD || 200) * 1.5);
+  // NIGHTLY se mantiene como referencia legacy (algunos componentes lo usan
+  // antes de saber las fechas; muestran el precio base como "from $X").
+  const NIGHTLY = PRICE_BASE;
+  
   const SERVICE_RATE = 0.05;
   const TAX_RATE = 0.16;
-  const MAX_GUESTS = (window.VRM_UNIT && window.VRM_UNIT.guests) || 4;
+  const MAX_GUESTS = UNIT.guests || 4;
 
   const TODAY = new Date();
   TODAY.setHours(0,0,0,0);
 
   function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
   function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  
+  // ──────────────────────────────────────────────────────────────
+  // TEMPORADA ALTA: Navidad y Año Nuevo
+  // Rango: 20 diciembre - 5 enero del año siguiente
+  // 
+  // Esta función se ejecuta por cada noche de la estancia para que
+  // estancias que crucen temporadas se cobren mixtas (ej: del 19 al
+  // 22 dic = 1 noche base + 2 noches alta).
+  // ──────────────────────────────────────────────────────────────
+  function isHighSeason(date) {
+    const m = date.getMonth(); // 0-indexed: 11 = diciembre, 0 = enero
+    const d = date.getDate();
+    // Diciembre desde día 20
+    if (m === 11 && d >= 20) return true;
+    // Enero hasta día 5 (inclusive)
+    if (m === 0 && d <= 5) return true;
+    return false;
+  }
+  
+  function getNightlyRate(date) {
+    return isHighSeason(date) ? PRICE_HIGH : PRICE_BASE;
+  }
+  
+  // Calcula el subtotal de toda la estancia sumando noche por noche
+  function calculateStayTotal(checkIn, checkOut) {
+    if (!checkIn || !checkOut) return { subtotal: 0, nights: 0, breakdown: [] };
+    let subtotal = 0;
+    let nights = 0;
+    const breakdown = [];
+    let cursor = new Date(checkIn);
+    while (cursor < checkOut) {
+      const rate = getNightlyRate(cursor);
+      subtotal += rate;
+      nights++;
+      breakdown.push({ date: ymd(cursor), rate, high: isHighSeason(cursor) });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return { subtotal, nights, breakdown };
+  }
+  
+  // Expone globalmente para que otros componentes (promos, dashboard) puedan usarlo
+  window.VRM_BOOKING = {
+    PRICE_BASE, PRICE_HIGH, SERVICE_RATE, TAX_RATE,
+    getNightlyRate, isHighSeason, calculateStayTotal
+  };
 
   // Mock blocked ranges (Daniel reemplaza con iCal de Supabase)
   function buildBlockedSet() {
@@ -5213,7 +5372,8 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
     checkIn: null,
     checkOut: null,
     guests: 2,
-    visibleMonth: new Date(TODAY.getFullYear(), TODAY.getMonth(), 1)
+    visibleMonth: new Date(TODAY.getFullYear(), TODAY.getMonth(), 1),
+    promoCode: null  // { code: 'AMIGO15', pct: 15, valid: true } cuando se aplica un cupón
   };
   
   // ═══════════════════════════════════════════════════════════════════
@@ -5643,8 +5803,13 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
     if (state.checkIn && state.checkOut) {
       sel.style.display = 'flex';
       const nights = Math.round((state.checkOut - state.checkIn) / 86400000);
+      // Usar calculateStayTotal para que el subtotal refleje noches de
+      // temporada alta vs base correctamente (ej: 19-22 dic = 1 base + 2 alta).
+      const stay = calculateStayTotal(state.checkIn, state.checkOut);
+      const hasHighSeasonNights = stay.breakdown.some(b => b.high);
+      const seasonNote = hasHighSeasonNights ? ' · incl. high season' : '';
       document.getElementById('calSelectionDates').textContent = formatDateLong(state.checkIn) + ' → ' + formatDateLong(state.checkOut);
-      document.getElementById('calSelectionNights').textContent = nights + ' night' + (nights > 1 ? 's' : '') + ' · $' + (nights * NIGHTLY) + ' USD subtotal';
+      document.getElementById('calSelectionNights').textContent = nights + ' night' + (nights > 1 ? 's' : '') + ' · $' + stay.subtotal + ' USD subtotal' + seasonNote;
     } else if (state.checkIn) {
       sel.style.display = 'flex';
       document.getElementById('calSelectionDates').textContent = 'Check-in: ' + formatDateLong(state.checkIn);
@@ -5687,11 +5852,172 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
   document.getElementById('guestsPlus').addEventListener('click', () => { if (state.guests < MAX_GUESTS) { state.guests++; renderAll(); } });
 
   function nights() { return state.checkIn && state.checkOut ? Math.round((state.checkOut - state.checkIn) / 86400000) : 0; }
-  function subtotal() { return nights() * NIGHTLY; }
-  function service() { return Math.round(subtotal() * SERVICE_RATE); }
-  function tax() { return Math.round(subtotal() * TAX_RATE); }
-  function total() { return subtotal() + service() + tax(); }
+  
+  // ──────────────────────────────────────────────────────────────
+  // SUBTOTAL: usa calculateStayTotal para mezclar noches base + alta.
+  // Si no hay fechas seleccionadas, devuelve 0.
+  // ──────────────────────────────────────────────────────────────
+  function subtotal() {
+    if (!state.checkIn || !state.checkOut) return 0;
+    return calculateStayTotal(state.checkIn, state.checkOut).subtotal;
+  }
+  
+  // ──────────────────────────────────────────────────────────────
+  // SISTEMA DE PROMOCIONES — descuentos automáticos según condiciones.
+  // 
+  // Reglas (se evalúa la mejor automática + cualquier cupón manual):
+  // 
+  // 1. Estancia 7+ noches:    -5%
+  // 2. Estancia 14+ noches:   -10%
+  // 3. Reserva anticipada 60+ días desde hoy: -5%
+  // 
+  // Las automáticas NO se acumulan entre sí; gana la mayor.
+  // El cupón manual SÍ se acumula sobre la mejor automática (ej:
+  // estancia larga -10% + cupón AMIGO -5% = -15% total).
+  // 
+  // state.promoCode contiene el cupón manual (null si no se aplicó).
+  // ──────────────────────────────────────────────────────────────
+  function getActivePromotions() {
+    const n = nights();
+    const promos = [];
+    
+    // Reserva anticipada: 60+ días de adelanto
+    if (state.checkIn) {
+      const daysAhead = Math.round((state.checkIn - TODAY) / 86400000);
+      if (daysAhead >= 60) {
+        promos.push({ id: 'early_bird', label: 'Early bird (60+ days ahead)', pct: 5 });
+      }
+    }
+    
+    // Estancia larga: gana el mayor descuento
+    if (n >= 14) {
+      promos.push({ id: 'long_stay_14', label: 'Long stay discount (14+ nights)', pct: 10 });
+    } else if (n >= 7) {
+      promos.push({ id: 'long_stay_7', label: 'Weekly stay discount (7+ nights)', pct: 5 });
+    }
+    
+    // Ordenar de mayor a menor descuento, tomar la primera (no acumular)
+    promos.sort((a, b) => b.pct - a.pct);
+    return promos.slice(0, 1); // Solo la mejor automática
+  }
+  
+  function calculateDiscount() {
+    const sub = subtotal();
+    if (sub === 0) return { amount: 0, label: null, pct: 0 };
+    
+    const activePromos = getActivePromotions();
+    const autoPromo = activePromos[0]; // La mejor automática
+    
+    let totalPct = autoPromo ? autoPromo.pct : 0;
+    let labels = autoPromo ? [autoPromo.label] : [];
+    
+    // Cupón manual (se acumula sobre la automática)
+    if (state.promoCode && state.promoCode.valid) {
+      totalPct += state.promoCode.pct;
+      labels.push(`Code ${state.promoCode.code.toUpperCase()}`);
+    }
+    
+    return {
+      amount: Math.round(sub * totalPct / 100),
+      label: labels.join(' + '),
+      pct: totalPct
+    };
+  }
+  
+  function subtotalAfterDiscount() {
+    return subtotal() - calculateDiscount().amount;
+  }
+  
+  function service() { return Math.round(subtotalAfterDiscount() * SERVICE_RATE); }
+  function tax() { return Math.round(subtotalAfterDiscount() * TAX_RATE); }
+  function total() { return subtotalAfterDiscount() + service() + tax(); }
   function fmt(n) { return '$' + n.toLocaleString('en-US') + ' USD'; }
+
+  // ──────────────────────────────────────────────────────────────
+  // CUPONES MANUALES — Validación contra lista hardcoded.
+  // 
+  // TODO: cuando migremos a Supabase (nivel 3), reemplazar este objeto
+  // por una llamada a la tabla `cupones` que verifica:
+  //   - código exacto
+  //   - fecha de expiración
+  //   - número de usos máximos vs usos actuales
+  //   - aplicabilidad a esta unidad
+  // 
+  // Por ahora, estos códigos están visibles en el código fuente. Si te
+  // preocupa, los códigos los puede ver cualquier developer pero NO un
+  // huésped normal — y aunque alguien encuentre AMIGO15, igual le sirve.
+  // ──────────────────────────────────────────────────────────────
+  const VALID_COUPONS = {
+    'AMIGO15':       { pct: 15, label: 'Friend code' },
+    'BIENVENIDO10':  { pct: 10, label: 'Welcome discount' },
+    'VRMSUMMER10':   { pct: 10, label: 'Summer promo' },
+    'NAVIDAD2026':   { pct: 20, label: 'Holiday special' },
+  };
+  
+  function applyPromoCode() {
+    const input = document.getElementById('promoCodeInput');
+    const feedback = document.getElementById('promoFeedback');
+    if (!input || !feedback) return;
+    
+    const code = input.value.trim().toUpperCase();
+    
+    // Vacío: remover cualquier cupón previo
+    if (!code) {
+      state.promoCode = null;
+      feedback.textContent = '';
+      feedback.className = 'promo-feedback';
+      renderAll();
+      return;
+    }
+    
+    const coupon = VALID_COUPONS[code];
+    if (coupon) {
+      state.promoCode = { code, pct: coupon.pct, label: coupon.label, valid: true };
+      feedback.textContent = `✓ ${coupon.label} applied — ${coupon.pct}% off`;
+      feedback.className = 'promo-feedback is-success';
+      input.disabled = true;
+      document.getElementById('promoApplyBtn').textContent = 'Remove';
+    } else {
+      state.promoCode = null;
+      feedback.textContent = '✕ Invalid or expired code';
+      feedback.className = 'promo-feedback is-error';
+    }
+    renderAll();
+  }
+  
+  function removePromoCode() {
+    state.promoCode = null;
+    const input = document.getElementById('promoCodeInput');
+    const feedback = document.getElementById('promoFeedback');
+    const btn = document.getElementById('promoApplyBtn');
+    if (input) { input.value = ''; input.disabled = false; }
+    if (feedback) { feedback.textContent = ''; feedback.className = 'promo-feedback'; }
+    if (btn) btn.textContent = 'Apply';
+    renderAll();
+  }
+  
+  // Wire up
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('promoApplyBtn');
+    const input = document.getElementById('promoCodeInput');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        if (state.promoCode && state.promoCode.valid) {
+          removePromoCode();
+        } else {
+          applyPromoCode();
+        }
+      });
+    }
+    if (input) {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          applyPromoCode();
+        }
+      });
+    }
+  });
 
   function renderAll() {
     renderCalendar();
@@ -5702,8 +6028,39 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
     document.getElementById('guestsPlus').disabled = state.guests >= MAX_GUESTS;
 
     const n = nights();
-    document.getElementById('sumNightlyDesc').textContent = '$' + NIGHTLY + ' × ' + n + ' night' + (n !== 1 ? 's' : '');
+    // Mostrar promedio por noche en el desglose. Si la estancia mezcla
+    // base + alta, mostramos el promedio para no abrumar al cliente.
+    const avgRate = n > 0 ? Math.round(subtotal() / n) : NIGHTLY;
+    document.getElementById('sumNightlyDesc').textContent = '$' + avgRate + ' × ' + n + ' night' + (n !== 1 ? 's' : '');
     document.getElementById('sumSubtotal').textContent = fmt(subtotal());
+    
+    // Mostrar descuento si hay
+    const disc = calculateDiscount();
+    const sumDiscountLine = document.getElementById('sumDiscountLine');
+    if (sumDiscountLine) {
+      if (disc.amount > 0) {
+        sumDiscountLine.style.display = 'flex';
+        document.getElementById('sumDiscountDesc').textContent = disc.label + ' (-' + disc.pct + '%)';
+        document.getElementById('sumDiscount').textContent = '−' + fmt(disc.amount);
+      } else {
+        sumDiscountLine.style.display = 'none';
+      }
+    }
+    
+    // Si hay una promo automática activa (no cupón manual), mostrar info
+    // en el campo de cupón para que el cliente sepa que ya tiene descuento.
+    const promoFeedback = document.getElementById('promoFeedback');
+    if (promoFeedback && !state.promoCode) {
+      const autoPromos = getActivePromotions();
+      if (autoPromos.length > 0) {
+        promoFeedback.textContent = `✓ ${autoPromos[0].label} (-${autoPromos[0].pct}%) applied automatically`;
+        promoFeedback.className = 'promo-feedback is-info';
+      } else {
+        promoFeedback.textContent = '';
+        promoFeedback.className = 'promo-feedback';
+      }
+    }
+    
     document.getElementById('sumService').textContent = fmt(service());
     document.getElementById('sumTax').textContent = fmt(tax());
     document.getElementById('sumTotal').textContent = fmt(total());
