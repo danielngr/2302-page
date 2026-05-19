@@ -5070,10 +5070,6 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
             <span>Cleaning included</span>
             <span class="amount">$0</span>
           </div>
-          <div class="sum-row">
-            <span>Service fee (5%)</span>
-            <span class="amount" id="sumService">$—</span>
-          </div>
           <!-- Tax line: informativo. El 10% está incluido en el subtotal.
                Se muestra en color tenue para indicar que no se suma. -->
           <div class="sum-row sum-row--info">
@@ -5230,7 +5226,12 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
   // antes de saber las fechas; muestran el precio base como "from $X").
   const NIGHTLY = PRICE_BASE;
   
-  const SERVICE_RATE = 0.05;
+  // Service fee eliminado — VRM es operación directa del owner, no
+  // plataforma intermediaria. El cliente ya ahorra al reservar directo
+  // (vs Airbnb que cobra ~14-16% al huésped); no tiene sentido cobrarle
+  // un service fee adicional. Se mantiene SERVICE_RATE = 0 por si en el
+  // futuro se quiere reactivar.
+  const SERVICE_RATE = 0;
   
   // TAX_INCLUDED_RATE: el 10% de impuestos YA está incluido en el precio
   // base que se le muestra al cliente. Esto significa que NO se suma al
@@ -5971,8 +5972,10 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
     return Math.round(subtotalAfterDiscount() * factor);
   }
   
-  // total() = subtotal + service. NO suma tax porque ya está incluido en subtotal.
-  function total() { return subtotalAfterDiscount() + service(); }
+  // total() = subtotal después de descuentos. Sin service fee (eliminado),
+  // sin sumar tax (ya incluido en subtotal). Lo que ve el cliente es
+  // exactamente lo que paga.
+  function total() { return subtotalAfterDiscount(); }
   function fmt(n) { return '$' + n.toLocaleString('en-US') + ' USD'; }
 
   // ──────────────────────────────────────────────────────────────
@@ -6110,7 +6113,8 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
       }
     }
     
-    document.getElementById('sumService').textContent = fmt(service());
+    // sumService eliminado del DOM (service fee fue removido).
+    // Mantenemos sumTax (informativo, muestra el 10% incluido).
     document.getElementById('sumTax').textContent = fmt(tax());
     document.getElementById('sumTotal').textContent = fmt(total());
 
