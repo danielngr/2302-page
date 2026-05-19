@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VRM Test Reserve</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0D2440;
+      color: #E8E4DA;
+      padding: 40px 20px;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #D4A574;
+      font-size: 22px;
+      margin-bottom: 20px;
+    }
+    p {
+      color: rgba(232, 228, 218, 0.7);
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .reserve-btn {
+      display: inline-block;
+      background: #D4A574;
+      color: #0D2440;
+      padding: 14px 28px;
+      border-radius: 100px;
+      text-decoration: none;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-size: 13px;
+      margin-top: 20px;
+      margin-bottom: 30px;
+    }
+    .reserve-btn:hover {
+      background: #E0B589;
+    }
+    .log {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 16px;
+      border-radius: 8px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 12px;
+      color: #A0E0B4;
+      margin-top: 20px;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .log-line { margin: 4px 0; }
+    .log-line.error { color: #FF8888; }
+    .log-line.warn { color: #FFC966; }
+    .log-line.ok { color: #A0E0B4; }
+  </style>
+</head>
+<body>
+
+<h1>VRM Test — Reserve Button</h1>
+
+<p>Si este botón <strong>navega a vrm_property.html</strong> y el otro de la landing no, el bug está en algún JS de la landing principal.</p>
+
+<p>Si tampoco navega: el bug está en GitHub Pages o en el navegador.</p>
+
+<a href="vrm_property.html?id=2302" class="reserve-btn">Reserve →</a>
+
+<p>Toca el botón. Si funciona, lo verás cargando vrm_property.html. Si no funciona, el log de abajo te dirá qué pasó.</p>
+
+<div class="log" id="log">Esperando interacción...</div>
+
+<script>
+  const log = document.getElementById('log');
+  
+  function addLog(msg, type) {
+    const line = document.createElement('div');
+    line.className = 'log-line ' + (type || '');
+    line.textContent = new Date().toLocaleTimeString() + ' — ' + msg;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  }
+  
+  addLog('✓ Página de test cargada', 'ok');
+  addLog('User-Agent: ' + navigator.userAgent.substring(0, 60), 'ok');
+  addLog('URL actual: ' + window.location.href, 'ok');
+  
+  // Detectar clicks en el botón Reserve
+  const btn = document.querySelector('.reserve-btn');
+  addLog('Botón encontrado: ' + (btn ? 'SÍ' : 'NO'), btn ? 'ok' : 'error');
+  if (btn) {
+    addLog('href del botón: ' + btn.getAttribute('href'), 'ok');
+    addLog('Tag del botón: ' + btn.tagName, 'ok');
+  }
+  
+  // Listener para detectar el click
+  btn.addEventListener('click', function(e) {
+    addLog('🟢 CLICK detectado en el botón', 'ok');
+    addLog('defaultPrevented antes del default: ' + e.defaultPrevented, 'ok');
+    
+    // Detectar si algo cancela
+    setTimeout(() => {
+      addLog('100ms después del click — sigues en esta página? Sí. URL: ' + window.location.href, 'warn');
+    }, 100);
+  });
+  
+  // Detectar reload/beforeunload
+  window.addEventListener('beforeunload', () => {
+    // No imprimimos porque el log se borra al unload
+    try { sessionStorage.setItem('vrm_test_unload', new Date().toISOString()); } catch(_){}
+  });
+  
+  // Si volvimos después de un unload, mostrar
+  try {
+    const lastUnload = sessionStorage.getItem('vrm_test_unload');
+    if (lastUnload) {
+      addLog('💡 Detectado: la página se descargó (unload) a las ' + lastUnload, 'warn');
+      sessionStorage.removeItem('vrm_test_unload');
+    }
+  } catch(_) {}
+</script>
+
+</body>
+</html>
