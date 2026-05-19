@@ -5543,7 +5543,26 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
     const trigger = e.target.closest('[data-open-booking]');
     if (trigger) {
       e.preventDefault();
+      // Verificar fechas en DOS lugares:
+      // 1. state.checkIn/checkOut (lo que el cliente ya seleccionó en sesión)
+      // 2. window.VRM_PRELOAD_BOOKING (lo que vino en URL de la landing)
+      //
+      // Si CUALQUIERA tiene fechas válidas, vamos directo a Step 2.
+      // Esto cubre el caso donde el preload todavía no se aplicó al state
+      // pero las fechas están disponibles en window.VRM_PRELOAD_BOOKING.
+      
+      // Re-aplicar preload al state por si se perdió (defensa contra bugs)
+      if (window.VRM_PRELOAD_BOOKING && window.VRM_PRELOAD_BOOKING.checkin && !state.checkIn) {
+        state.checkIn = _parseYMDLocal(window.VRM_PRELOAD_BOOKING.checkin);
+      }
+      if (window.VRM_PRELOAD_BOOKING && window.VRM_PRELOAD_BOOKING.checkout && !state.checkOut) {
+        state.checkOut = _parseYMDLocal(window.VRM_PRELOAD_BOOKING.checkout);
+      }
+      
       const hasFullDates = state.checkIn && state.checkOut;
+      console.log('[VRM] Reserve clicked. hasFullDates:', hasFullDates,
+                  '| state:', state.checkIn, state.checkOut,
+                  '| preload:', window.VRM_PRELOAD_BOOKING);
       openBooking({ startStep: hasFullDates ? 2 : 1 });
     }
   });
