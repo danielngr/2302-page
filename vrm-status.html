@@ -38,6 +38,11 @@ body.limpio .bg-stage{
     radial-gradient(ellipse 80% 60% at 50% 35%, rgba(40,140,80,.28) 0%, transparent 60%),
     radial-gradient(ellipse at 50% 35%, #041a0f 0%, #02090a 80%);
 }
+body.ocupado .bg-stage{
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 35%, rgba(50,110,200,.26) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 35%, #06122a 0%, #03070f 80%);
+}
 
 .vignette{
   position:fixed;inset:0;z-index:4;pointer-events:none;
@@ -113,6 +118,7 @@ body.limpio .bg-stage{
 }
 body.sucio .chapa-reflection{background:radial-gradient(ellipse,rgba(240,90,70,.65),transparent 70%);opacity:.75}
 body.limpio .chapa-reflection{background:radial-gradient(ellipse,rgba(100,200,140,.65),transparent 70%);opacity:.75}
+body.ocupado .chapa-reflection{background:radial-gradient(ellipse,rgba(90,150,235,.6),transparent 70%);opacity:.7}
 
 .chapa-glow{
   display:none;
@@ -210,6 +216,7 @@ body.limpio .chapa-reflection{background:radial-gradient(ellipse,rgba(100,200,14
 }
 body.sucio .dot{background:#dc4637;box-shadow:0 0 12px rgba(220,70,55,.7)}
 body.limpio .dot{background:#5ab47d;box-shadow:0 0 12px rgba(90,180,125,.7)}
+body.ocupado .dot{background:#5a92eb;box-shadow:0 0 12px rgba(90,146,235,.7)}
 
 .dot-label{
   font-family:'DM Mono',monospace;
@@ -231,6 +238,7 @@ body.limpio .dot{background:#5ab47d;box-shadow:0 0 12px rgba(90,180,125,.7)}
 }
 body.sucio .title{color:#f0c0ad}
 body.limpio .title{color:#bce6c7}
+body.ocupado .title{color:#bcd2f0}
 
 .sub{
   font-size:15px;
@@ -761,6 +769,89 @@ function getDepto(){
   return (new URLSearchParams(location.search).get('depto')||'').toUpperCase().trim();
 }
 
+// ───── Mapa corto (unit_id de iCal) ↔ largo (depto_codigo de limpiezas) ─────
+// El semáforo puede abrir con cualquiera de los dos; aquí los unificamos.
+var DEPTO_MAP = [
+  {corto:'6S',  largo:'MARITIMA 6S'},
+  {corto:'9S',  largo:'MARITIMA 9S'},
+  {corto:'PHN', largo:'MARITIMA PHN'},
+  {corto:'211', largo:'BOLONGO 211'},
+  {corto:'L05', largo:'BOLONGO L05'},
+  {corto:'G13', largo:'BOLONGO G13'},
+  {corto:'3N',  largo:'BOLONGO 3N'}
+];
+function resolverDepto(d){
+  d=(d||'').toUpperCase().trim();
+  for(var i=0;i<DEPTO_MAP.length;i++){
+    if(DEPTO_MAP[i].corto===d || DEPTO_MAP[i].largo===d) return DEPTO_MAP[i];
+  }
+  // No está en el mapa: usar el mismo valor para ambos (deptos sin iCal aún)
+  return {corto:d, largo:d};
+}
+
+// ───── Estado DERIVADO: cruza última limpieza vs último checkout ─────
+// Regla: si el último checkout es POSTERIOR a la última limpieza terminada,
+// el depto está sucio (salió un huésped y aún no se limpia). Si la limpieza
+// es posterior (o no hay checkout pendiente), está limpio.
+// Devuelve 'limpio' | 'sucio' | null (null = sin datos para derivar).
+function derivarEstado(map){
+  var hoyISO=new Date().toISOString().slice(0,10);
+  return Promise.all([
+    // Última limpieza TERMINADA de este depto (nombre largo)
+    sb('limpiezas','depto_codigo=eq.'+encodeURIComponent(map.largo)+
+       '&estatus=eq.terminada&select=fecha,hora_fin,created_at&order=created_at.desc&limit=1'),
+    // Checkouts de este depto (unit_id corto) de hoy en adelante
+    sb('public_availability','unit_id=eq.'+encodeURIComponent(map.corto)+
+       '&check_out=gte.'+hoyISO+'&select=check_in,check_out&order=check_out.asc&limit=20')
+  ]).then(function(r){
+    var limp=r[0]&&r[0][0];
+    var reservas=r[1]||[];
+    if(!limp && reservas.length===0) return null; // sin datos → no derivar
+
+    // Fecha de la última limpieza (preferir hora_fin; si no, created_at; si no, fecha)
+    var fLimp = limp ? (limp.hora_fin || limp.created_at || (limp.fecha+'T23:59:59')) : null;
+    var tLimp = fLimp ? new Date(fLimp).getTime() : 0;
+
+    var ahora=Date.now();
+    var hoy=new Date().toISOString().slice(0,10);
+
+    // ─── 1) SUCIO (máxima prioridad) ───
+    // Un huésped ya hizo checkout (a las 11am del día de salida) DESPUÉS de la
+    // última limpieza → falta preparar el depto.
+    var sucio=false;
+    for(var i=0;i<reservas.length;i++){
+      var co=reservas[i].check_out;
+      if(!co) continue;
+      var tCo=new Date(co+'T11:00:00').getTime(); // checkout estándar: 11:00 am
+      if(tCo<=ahora && tCo>tLimp){ sucio=true; break; }
+    }
+    if(sucio) return 'sucio';
+
+    // ─── 2) OCUPADO ───
+    // Hoy cae dentro de una estancia: check_in <= hoy <= check_out.
+    // El día de salida cuenta como ocupado HASTA las 11am. Pero si YA se limpió
+    // después del checkout de hoy, el depto está listo para el siguiente → no ocupado.
+    var ocupado=false;
+    for(var j=0;j<reservas.length;j++){
+      var ci=reservas[j].check_in, cout=reservas[j].check_out;
+      if(!ci || !cout) continue;
+      if(ci<=hoy && hoy<=cout){
+        // Si es el día de salida y ya se limpió tras el checkout, no está ocupado
+        if(cout===hoy){
+          var tCoHoy=new Date(cout+'T11:00:00').getTime();
+          if(tLimp>tCoHoy) continue; // limpieza posterior al checkout → listo
+        }
+        ocupado=true; break;
+      }
+    }
+    if(ocupado) return 'ocupado';
+
+    // ─── 3) LIMPIO ───
+    // Limpio y sin nadie adentro, esperando al siguiente huésped.
+    return 'limpio';
+  }).catch(function(e){ console.warn('derivarEstado:',e); return null; });
+}
+
 function sb(tabla, params){
   return fetch(SB_URL+'/rest/v1/'+tabla+'?'+params,{
     headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
@@ -769,7 +860,8 @@ function sb(tabla, params){
 
 var ST={
   limpio:{label:'Listo para recibirte',sub:'Puedes pasar cuando quieras'},
-  sucio:{label:'Preparándolo para ti',sub:'Listo aproximadamente entre las 2:00 y las 3:00 pm'}
+  sucio:{label:'Preparándolo para ti',sub:'Listo aproximadamente entre las 2:00 y las 3:00 pm'},
+  ocupado:{label:'Departamento ocupado',sub:'Disfruta tu estancia'}
 };
 
 var stageRendered=false;
@@ -782,13 +874,19 @@ function cargar(){
     return;
   }
   
+  var map = resolverDepto(depto);
   Promise.all([
     sb('depto_info','depto_codigo=eq.'+encodeURIComponent(depto)+'&select=*'),
-    sb('depto_status','depto_codigo=eq.'+encodeURIComponent(depto)+'&select=*')
+    sb('depto_status','depto_codigo=eq.'+encodeURIComponent(depto)+'&select=*'),
+    derivarEstado(map)
   ]).then(function(res){
     var info=res[0]&&res[0][0];
     var statusRow=res[1]&&res[1][0];
-    var key=(statusRow&&statusRow.status)||'sucio';
+    var derivado=res[2];   // 'limpio' | 'sucio' | null
+
+    // Estado: si se pudo derivar (hay limpiezas/checkouts), eso manda.
+    // Si no, caer al flag manual de depto_status (deptos sin iCal aún).
+    var key = derivado || (statusRow&&statusRow.status) || 'sucio';
     if(key==='en_proceso') key='sucio';
     if(!ST[key]) key='sucio';
     
