@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <!-- vrm-portal build:202604181501 -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="VRM">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#080808">
     <title>VRM — Portal</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
@@ -1873,7 +1878,7 @@
             .main-content {
                 width: 100vw !important;
                 max-width: 100vw !important;
-                padding: 64px 14px 32px 14px !important;
+                padding: calc(64px + env(safe-area-inset-top)) 14px calc(32px + env(safe-area-inset-bottom)) 14px !important;
                 gap: 16px;
                 overflow-x: hidden !important;
                 box-sizing: border-box !important;
@@ -1901,6 +1906,22 @@
             #vrm-map { height: 50vh !important; }
             #mapa-drawer { width: 100% !important; }
             .glass-panel { border-radius: 16px !important; }
+            /* ── Housekeeping: reapilar fila en móvil para que no se desborde ── */
+            .hk-row {
+                grid-template-columns: 1fr 1fr !important;
+                grid-template-areas:
+                    "depto depto"
+                    "tipo chica"
+                    "monto boton" !important;
+                gap: 10px !important;
+                padding: 14px 16px !important;
+            }
+            .hk-row > div:first-child { grid-area: depto; }
+            .hk-row > select:nth-of-type(1) { grid-area: tipo; width: 100% !important; }
+            .hk-row > select:nth-of-type(2) { grid-area: chica; width: 100% !important; }
+            .hk-row > [data-hk-monto] { grid-area: monto; align-self: center; }
+            .hk-row > button { grid-area: boton; justify-self: end; }
+            .hk-date-label { min-width: 0 !important; font-size: 13px !important; }
         }
     
   /* ── PIN Lock ─────────────────────────────────────── */
@@ -3453,7 +3474,8 @@
     }
     function getMXISO(offsetDias = 0) {
         const d = getMXDate(offsetDias);
-        return d.toISOString().split("T")[0];
+        const _yy = d.getFullYear(), _mm = String(d.getMonth()+1).padStart(2,'0'), _dd = String(d.getDate()).padStart(2,'0');
+        return `${_yy}-${_mm}-${_dd}`;
     }
 
     let todosRegistros = [], frakcioQR = [], formatoManual = [], correosEnviados = [], frakcioCheckins = [], gformsCheckins = [];
@@ -4852,6 +4874,7 @@
     }
 
     async function enviarPDFporCorreo(id) {
+      if(bloquearEnvioSiStandalone()) return;
       const r = todosRegistros.find(x=>x.id===id);
       if(!r) return;
 
@@ -4926,6 +4949,46 @@
       }
     }
 
+    // ── Detección PWA standalone (iOS) ────────────────────────────────────
+    // En modo "app de inicio" (standalone), el OAuth de Google por popup NO
+    // funciona: iOS aísla el contexto, el token nunca llega y el correo NO se
+    // envía aunque parezca que sí. Detectamos esto y redirigimos a Safari.
+    function esStandalonePWA() {
+      return window.navigator.standalone === true
+          || window.matchMedia('(display-mode: standalone)').matches;
+    }
+
+    // Si está en standalone, muestra aviso y ofrece abrir en Safari. Devuelve
+    // true si bloqueó el envío (el caller debe abortar).
+    function bloquearEnvioSiStandalone() {
+      if(!esStandalonePWA()) return false;
+      const url = window.location.href;
+      const m = document.getElementById('standaloneMailModal');
+      if(m) m.remove();
+      const modal = document.createElement('div');
+      modal.id = 'standaloneMailModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;';
+      modal.innerHTML = `
+        <div style="background:#161616;border:1px solid #2a2a2a;border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center;color:#fff;font-family:'Plus Jakarta Sans',sans-serif">
+          <div style="font-size:30px;margin-bottom:10px">📧</div>
+          <h3 style="margin:0 0 10px;font-size:17px">Abre en Safari para enviar</h3>
+          <p style="margin:0 0 18px;color:#A1A1AA;line-height:1.5;font-size:14px">
+            El envío por correo no funciona desde la app de inicio por una limitación de iOS.
+            Ábrelo en Safari y el envío funcionará normal.
+          </p>
+          <button onclick="(function(){window.open('${url}','_blank');document.getElementById('standaloneMailModal').remove();})()"
+            style="background:#E07A3E;color:#fff;border:none;border-radius:10px;padding:12px 18px;font-weight:600;font-size:14px;width:100%;margin-bottom:8px;cursor:pointer">
+            Abrir en Safari
+          </button>
+          <button onclick="document.getElementById('standaloneMailModal').remove()"
+            style="background:transparent;color:#A1A1AA;border:none;padding:8px;font-size:13px;width:100%;cursor:pointer">
+            Cancelar
+          </button>
+        </div>`;
+      document.body.appendChild(modal);
+      return true;
+    }
+
     // ── Gmail OAuth desde browser ─────────────────────────────────────────
     const GMAIL_CLIENT_ID = "50234524478-lgkqlhtv8gbcbo7ad3fp13gbt8eshqh5.apps.googleusercontent.com";
     const GMAIL_SCOPE     = "https://www.googleapis.com/auth/gmail.send";
@@ -4934,6 +4997,11 @@
 
     function getGmailToken() {
       return new Promise((resolve, reject) => {
+        // Última línea de defensa: en standalone el popup OAuth no entrega token.
+        if(esStandalonePWA()) {
+          reject(new Error("El envío por correo solo funciona desde Safari, no desde la app de inicio."));
+          return;
+        }
         if(_gmailToken && Date.now() < _gmailTokenExpiry) {
           resolve(_gmailToken); return;
         }
@@ -5004,6 +5072,7 @@
     }
 
     async function enviarMsgPorCorreo(id) {
+      if(bloquearEnvioSiStandalone()) return;
       const r = todosRegistros.find(x=>x.id===id);
       if(!r) return;
 
@@ -6111,7 +6180,8 @@
     let hkStaff = [];
 
     function hkFechaISO(d) {
-        return d.toISOString().split("T")[0];
+        const _yy = d.getFullYear(), _mm = String(d.getMonth()+1).padStart(2,'0'), _dd = String(d.getDate()).padStart(2,'0');
+        return `${_yy}-${_mm}-${_dd}`;
     }
     function hkFechaLabel(d) {
         const hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -6566,7 +6636,8 @@
     }
     function getMXISO(offsetDias = 0) {
         const d = getMXDate(offsetDias);
-        return d.toISOString().split("T")[0];
+        const _yy = d.getFullYear(), _mm = String(d.getMonth()+1).padStart(2,'0'), _dd = String(d.getDate()).padStart(2,'0');
+        return `${_yy}-${_mm}-${_dd}`;
     }
         const fmtD = d => `${d.getDate()} ${MESES[d.getMonth()]}`;
         const labelSem = `${fmtD(semPasada.viernes)} — ${fmtD(semPasada.jueves)}`;
@@ -9886,7 +9957,8 @@ function updateNotifBadge(){
     }
     function getMXISO(offsetDias = 0) {
         const d = getMXDate(offsetDias);
-        return d.toISOString().split("T")[0];
+        const _yy = d.getFullYear(), _mm = String(d.getMonth()+1).padStart(2,'0'), _dd = String(d.getDate()).padStart(2,'0');
+        return `${_yy}-${_mm}-${_dd}`;
     }
         const fmtD = d => `${d.getDate()} ${MESES[d.getMonth()]}`;
         const labelSem = `${fmtD(sem.viernes)} — ${fmtD(sem.jueves)} ${sem.jueves.getFullYear()}`;
@@ -10122,7 +10194,8 @@ function updateNotifBadge(){
     }
     function getMXISO(offsetDias = 0) {
         const d = getMXDate(offsetDias);
-        return d.toISOString().split("T")[0];
+        const _yy = d.getFullYear(), _mm = String(d.getMonth()+1).padStart(2,'0'), _dd = String(d.getDate()).padStart(2,'0');
+        return `${_yy}-${_mm}-${_dd}`;
     }
         const fmtFecha = f => { if(!f) return '—'; const [y,m,d] = f.split('-'); return `${parseInt(d)} ${MESES[parseInt(m)-1]}`; };
 
