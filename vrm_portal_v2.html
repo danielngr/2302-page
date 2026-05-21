@@ -6317,34 +6317,76 @@
             console.warn('[depto_status sync] error:', e);
         }
 
-        // Limpiezas ya asignadas para esta fecha (solo la fecha exacta)
-        const res2 = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=eq.${fiso}&select=id,depto_codigo,staff_id,estatus,tarifa_aplicada,tipo,hora_inicio,hora_fin`, {
+        // Limpiezas ya asignadas/registradas para esta fecha (incluye las que registró el bot de WhatsApp)
+        const res2 = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=eq.${fiso}&select=id,depto_codigo,staff_id,estatus,tarifa_aplicada,tipo,hora_inicio,hora_fin&order=hora_inicio.asc.nullsfirst`, {
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
         });
         const limpiezas = await res2.json();
 
+        // ── UNIÓN: filas reales (registros de limpiezas) + checkouts del Sheet sin registro ──
+        // Idea clave: el portal ya NO renderiza solo los checkouts del Sheet. Renderiza:
+        //   1) Una fila por CADA registro de `limpiezas` de esta fecha (esto trae lo que el bot
+        //      de WhatsApp ya guardó, aunque el depto no estuviera en los checkouts del Sheet,
+        //      y trae 2 filas cuando hay 2 chicas en el mismo depto).
+        //   2) Una fila "base" por cada checkout del Sheet que TODAVÍA no tiene ningún registro.
+        // Cada fila se identifica por un rowKey único (el id de Supabase si existe, o new-<depto>),
+        // nunca por el nombre del depto. Eso elimina los IDs de DOM duplicados.
+        const rows = [];
+        const deptosConRegistro = new Set();
+
+        // (1) Filas por registro existente
+        limpiezas.forEach(limp => {
+            deptosConRegistro.add(limp.depto_codigo);
+            const enSheet = checkouts.includes(limp.depto_codigo);
+            rows.push({
+                rowKey: String(limp.id),
+                limpId: limp.id,
+                depto: limp.depto_codigo,
+                limp,
+                // Etiqueta de origen: si el depto no estaba en los checkouts del Sheet, lo marcamos
+                origen: enSheet ? 'checkout' : 'extra'
+            });
+        });
+
+        // (2) Filas base por checkout sin ningún registro aún
+        checkouts.forEach(depto => {
+            if (!deptosConRegistro.has(depto)) {
+                rows.push({
+                    rowKey: `new-${depto.replace(/\s/g,'_')}`,
+                    limpId: null,
+                    depto,
+                    limp: null,
+                    origen: 'checkout'
+                });
+            }
+        });
+
         document.getElementById('hk-count').textContent = `${checkouts.length} checkout${checkouts.length!==1?'s':''}`;
 
-        if(!checkouts.length) {
+        if(!rows.length) {
             document.getElementById('hk-body').innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-tertiary)"><i class="ph ph-check-circle" style="font-size:36px;opacity:.3;display:block;margin-bottom:12px"></i>Sin checkouts este día</div>`;
             return;
         }
 
-        const staffOpts = hkStaff.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
-        const html = checkouts.map(depto => {
-            const limp = limpiezas.find(l => l.depto_codigo===depto);
-            const done = limp && limp.estatus !== 'pendiente';
+        const html = rows.map(row => {
+            const { rowKey, limpId, depto, limp, origen } = row;
+            const done = limp && limp.estatus && limp.estatus !== 'pendiente';
             const staffSelected = limp?.staff_id || '';
             const tipoSelected = limp?.tipo || 'completa';
             const monto = limp?.tarifa_aplicada ? `$${parseFloat(limp.tarifa_aplicada).toFixed(0)}` : '';
+            const deptoEsc = depto.replace(/'/g,"\\'");
+            const idArg = limpId ? `'${limpId}'` : 'null';
+            const subLbl = origen === 'extra'
+                ? `<span style="color:var(--status-yellow)">REGISTRADO POR BOT</span> · ${fiso}`
+                : `CHECKOUT · ${fiso}`;
 
-            return `<div class="hk-row${done?' done':''}" id="hk-row-${depto.replace(/\s/g,'_')}">
+            return `<div class="hk-row${done?' done':''}" id="hk-row-${rowKey}">
                 <div>
                     <div class="hk-depto">${depto}</div>
-                    <div class="hk-sub">CHECKOUT · ${fiso}</div>
+                    <div class="hk-sub">${subLbl}</div>
                 </div>
-                <select class="hk-select" id="hk-tipo-${depto.replace(/\s/g,'_')}"
-                    onchange="hkCambiarTipo('${depto}','${fiso}',this.value)"
+                <select class="hk-select" id="hk-tipo-${rowKey}"
+                    onchange="hkCambiarTipo('${rowKey}','${deptoEsc}','${fiso}',${idArg},this.value)"
                     style="font-size:12px;width:110px !important;padding:8px 10px !important"
                     ${done ? 'disabled' : ''}>
                     <option value="completa" ${tipoSelected==='completa'?'selected':''}>Completa</option>
@@ -6352,8 +6394,8 @@
                     <option value="midstay" ${tipoSelected==='midstay'?'selected':''}>Midstay</option>
                     <option value="profunda" ${tipoSelected==='profunda'?'selected':''}>Profunda</option>
                 </select>
-                <select class="hk-select" id="hk-sel-${depto.replace(/\s/g,'_')}"
-                    onchange="hkAsignarStaff('${depto}','${fiso}',this.value)"
+                <select class="hk-select" id="hk-sel-${rowKey}"
+                    onchange="hkAsignarStaff('${rowKey}','${deptoEsc}','${fiso}',${idArg},this.value)"
                     style="width:160px !important;padding:8px 10px !important"
                     ${done ? 'disabled' : ''}>
                     <option value="">— Asignar chica —</option>
@@ -6362,8 +6404,9 @@
                 <div data-hk-monto style="font-family:var(--font-mono);font-size:12px;color:var(--status-green)">${monto}</div>
                 ${done
                     ? `<button class="btn btn-outline-green solid" style="pointer-events:none"><i class="ph-bold ph-check"></i> Terminada</button>`
-                    : `<button class="btn btn-ghost" onclick="hkMarcarListo('${depto}','${fiso}')" title="Opcional" style="font-size:11px;opacity:.55"><i class="ph ph-check"></i></button>`
+                    : `<button class="btn btn-ghost" onclick="hkMarcarListo('${rowKey}','${deptoEsc}','${fiso}',${idArg})" title="Marcar terminada" style="font-size:11px;opacity:.55"><i class="ph ph-check"></i></button>`
                 }
+                <button class="btn btn-ghost" onclick="hkAgregarChica('${deptoEsc}','${fiso}')" title="Añadir otra chica a este depto" style="font-size:11px;opacity:.55"><i class="ph ph-plus"></i></button>
             </div>`
         }).join('');
 
@@ -6394,24 +6437,22 @@
         } catch(e) { return 500; }
     }
 
-    async function hkCambiarTipo(depto, fiso, tipo) {
+    async function hkCambiarTipo(rowKey, depto, fiso, limpId, tipo) {
         const tarifa = await getTarifa(depto, tipo);
 
-        // Buscar limpieza existente
-        const existing = await fetch(
-            `${SUPABASE_URL}/rest/v1/limpiezas?depto_codigo=eq.${encodeURIComponent(depto)}&fecha=eq.${fiso}&select=id`,
-            { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
-        ).then(r=>r.json());
-
-        if (existing.length) {
-            await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${existing[0].id}`, {
+        if (limpId) {
+            // Ya existe el registro: PATCH directo por id (nunca por depto)
+            await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${limpId}`, {
                 method:"PATCH", keepalive:true,
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
                 body:JSON.stringify({tipo:tipo, tarifa_aplicada:tarifa})
             });
         }
-        // Actualiza el monto inline SIN recargar (para no perder selecciones de chica)
-        const rowEl = document.getElementById(`hk-row-${depto.replace(/\s/g,'_')}`);
+        // Si aún no hay registro (fila base sin chica), solo refrescamos el monto visible;
+        // el registro se creará cuando se asigne chica con el tipo ya seleccionado.
+
+        // Actualiza el monto inline SIN recargar (para no perder selecciones)
+        const rowEl = document.getElementById(`hk-row-${rowKey}`);
         if (rowEl) {
             const montoEl = rowEl.querySelector('[data-hk-monto]');
             if (montoEl) montoEl.textContent = `$${tarifa}`;
@@ -6419,19 +6460,15 @@
         toast(`${depto} · ${tipo} · $${tarifa}`);
     }
 
-    async function hkAsignarStaff(depto, fiso, staffId) {
+    async function hkAsignarStaff(rowKey, depto, fiso, limpId, staffId) {
         if(!staffId) return;
-        const tipoSel = document.getElementById(`hk-tipo-${depto.replace(/\s/g,'_')}`)?.value || 'completa';
+        const tipoSel = document.getElementById(`hk-tipo-${rowKey}`)?.value || 'completa';
         const tarifa = await getTarifa(depto, tipoSel);
 
-        const existing = await fetch(
-            `${SUPABASE_URL}/rest/v1/limpiezas?depto_codigo=eq.${encodeURIComponent(depto)}&fecha=eq.${fiso}&select=id`,
-            { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
-        ).then(r=>r.json());
-
-        if(existing.length) {
-            // Espera completa del PATCH antes de recargar (sin keepalive para garantizar orden)
-            const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${existing[0].id}`, {
+        if(limpId) {
+            // Editar EXACTAMENTE este registro por su id. Dos filas del mismo depto tienen
+            // ids distintos, así que no se pisan entre sí.
+            const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${limpId}`, {
                 method:"PATCH",
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=representation"},
                 body:JSON.stringify({staff_id:staffId, tipo:tipoSel, tarifa_aplicada:tarifa})
@@ -6439,6 +6476,7 @@
             const updated = await patchRes.json();
             console.log('[hkAsignarStaff] PATCH result:', updated);
         } else {
+            // Fila base sin registro: crear uno nuevo (no upsert por depto, para permitir duplicados)
             const postRes = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas`, {
                 method:"POST",
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=representation"},
@@ -6452,21 +6490,28 @@
         setTimeout(() => cargarHousekeeping(), 300);
     }
 
-    async function hkMarcarListo(depto, fiso) {
-        const selId = `hk-sel-${depto.replace(/\s/g,'_')}`;
-        const staffId = document.getElementById(selId)?.value;
+    // Añade una segunda (o tercera) chica al mismo depto: crea un registro vacío extra.
+    // El render lo mostrará como una fila independiente con su propio id.
+    async function hkAgregarChica(depto, fiso) {
+        const tarifa = await getTarifa(depto, 'completa');
+        await fetch(`${SUPABASE_URL}/rest/v1/limpiezas`, {
+            method:"POST",
+            headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+            body:JSON.stringify({depto_codigo:depto, staff_id:null, fecha:fiso, estatus:"pendiente", tipo:"completa", tarifa_aplicada:tarifa})
+        });
+        toast(`➕ Fila extra para ${depto}`);
+        setTimeout(() => cargarHousekeeping(), 300);
+    }
+
+    async function hkMarcarListo(rowKey, depto, fiso, limpId) {
+        const staffId = document.getElementById(`hk-sel-${rowKey}`)?.value;
         if(!staffId) { toast("⚠️ Selecciona una chica primero"); return; }
 
-        const tipoSel = document.getElementById(`hk-tipo-${depto.replace(/\s/g,'_')}`)?.value || 'completa';
+        const tipoSel = document.getElementById(`hk-tipo-${rowKey}`)?.value || 'completa';
         const tarifa = await getTarifa(depto, tipoSel);
 
-        // Upsert en limpiezas
-        const existing = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?depto_codigo=eq.${encodeURIComponent(depto)}&fecha=eq.${fiso}`, {
-            headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
-        }).then(r=>r.json());
-
-        if(existing.length) {
-            await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${existing[0].id}`, {
+        if(limpId) {
+            await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${limpId}`, {
                 method:"PATCH", keepalive:true,
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
                 body:JSON.stringify({staff_id:staffId, estatus:"terminada", tipo:tipoSel, tarifa_aplicada:tarifa})
