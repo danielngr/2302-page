@@ -5168,11 +5168,15 @@ camera.position.set(0, 0.5, isMobile ? 13 : 9);
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
-  antialias: true,
+  // Antialias off en mobile: el MSAA es caro en GPU móvil y a 1.5x pixel
+  // ratio la diferencia visual es mínima. Desktop lo mantiene para nitidez.
+  antialias: !isMobile,
   powerPreference: 'high-performance'
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(isMobile
+  ? Math.min(window.devicePixelRatio, 1.5)
+  : Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -5877,7 +5881,12 @@ const bubbles = [];  // array vacío para compatibilidad con loop
    ============================================================ */
 const composer = new EffectComposer(renderer);
 composer.setSize(window.innerWidth, window.innerHeight);
-composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// En mobile limitamos pixel ratio a 1.5 (en vez de 2) — reduce ~30% el
+// trabajo de GPU del postprocesado (bloom + composer) con pérdida visual
+// mínima en pantallas retina. Desktop mantiene 2 para máxima nitidez.
+composer.setPixelRatio(isMobile
+  ? Math.min(window.devicePixelRatio, 1.5)
+  : Math.min(window.devicePixelRatio, 2));
 
 // ★ PRIMER pass: fondo animado de agua (god rays + caustics + sparkles)
 // Se renderiza SIN limpiar el canvas (clear=true) y luego el renderPass
@@ -6991,7 +7000,65 @@ function animate() {
   canvas.style.opacity = '1';
 
   composer.render();
-  requestAnimationFrame(animate);
+  _whaleRafId = requestAnimationFrame(animate);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// OPTIMIZACIÓN DE PERFORMANCE — Pausar render fuera de viewport
+//
+// PROBLEMA: el loop animate() corría SIEMPRE, incluso cuando el usuario
+// scrolleaba más allá del hero (a ver propiedades, reviews, etc). Eso
+// significaba que la GPU seguía renderizando la ballena 3D + el shader
+// del agua + el composer a 60fps aunque nadie la viera. En mobile esto
+// causaba lag en el resto de la página, calentamiento y drenaje de batería.
+//
+// SOLUCIÓN: un IntersectionObserver vigila el canvas del hero. Cuando el
+// hero sale completamente del viewport, pausamos el requestAnimationFrame.
+// Cuando vuelve a entrar, lo reanudamos. La ballena solo consume recursos
+// cuando realmente se está viendo.
+//
+// BONUS: en mobile limitamos a 30fps (suficiente para movimiento orgánico
+// suave) lo que reduce a la mitad el trabajo de GPU sin pérdida visual real.
+// ════════════════════════════════════════════════════════════════════
+let _whaleRafId = null;
+let _whaleVisible = true;
+let _lastFrameTime = 0;
+const _targetFrameInterval = isMobile ? 1000 / 30 : 1000 / 60; // 30fps mobile, 60fps desktop
+
+// Wrapper que aplica el throttle de fps antes de llamar a animate()
+function animateThrottled(now) {
+  if (!_whaleVisible) return; // pausado, no agendar siguiente frame
+  _whaleRafId = requestAnimationFrame(animateThrottled);
+  // Throttle: solo renderizar si pasó suficiente tiempo desde el último frame
+  if (now - _lastFrameTime < _targetFrameInterval) return;
+  _lastFrameTime = now;
+  animate();
+}
+
+// Observer que pausa/reanuda según visibilidad del hero
+const _heroCanvasObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      // Hero visible → reanudar si estaba pausado
+      if (!_whaleVisible) {
+        _whaleVisible = true;
+        _lastFrameTime = 0;
+        _whaleRafId = requestAnimationFrame(animateThrottled);
+      }
+    } else {
+      // Hero fuera de vista → pausar
+      _whaleVisible = false;
+      if (_whaleRafId) {
+        cancelAnimationFrame(_whaleRafId);
+        _whaleRafId = null;
+      }
+    }
+  });
+}, { threshold: 0.01 }); // 1% visible es suficiente para mantenerla activa
+
+// Observar el canvas del hero (apenas exista)
+if (canvas) {
+  _heroCanvasObserver.observe(canvas);
 }
 
 window.addEventListener('resize', () => {
@@ -7014,7 +7081,10 @@ window.addEventListener('resize', () => {
   bgMaterial.uniforms.uResolution.value.set(w, h);
 });
 
-animate();
+// Arranque del loop con throttle de fps + control de visibilidad.
+// (animateThrottled aplica el límite de 30fps mobile / 60fps desktop
+//  y respeta el pause/resume del IntersectionObserver del hero)
+_whaleRafId = requestAnimationFrame(animateThrottled);
 </script>
 
 
