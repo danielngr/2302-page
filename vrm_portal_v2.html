@@ -2280,7 +2280,7 @@
 
         <!-- ══ SIDEBAR ══ -->
         <div id="sidebar-overlay" onclick="toggleSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:90;backdrop-filter:blur(4px)"></div>
-        <button id="hamburger-btn" onclick="toggleSidebar()" style="display:none;position:fixed;top:16px;left:16px;z-index:110;background:rgba(18,18,18,0.9);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#fff;cursor:pointer;padding:10px 12px;font-size:18px;line-height:1;backdrop-filter:blur(20px)"><i class="ph ph-list"></i></button>
+        <button id="hamburger-btn" onclick="toggleSidebar()" style="display:none;position:fixed;top:calc(16px + env(safe-area-inset-top));left:16px;z-index:110;background:rgba(18,18,18,0.9);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#fff;cursor:pointer;padding:10px 12px;font-size:18px;line-height:1;backdrop-filter:blur(20px)"><i class="ph ph-list"></i></button>
         <aside class="sidebar glass-panel" id="sidebar">
             <div class="brand" style="padding:0 28px;margin-bottom:24px">
                 <div style="display:flex;flex-direction:column;gap:2px">
@@ -3908,23 +3908,30 @@
 
     function itemHTML(r) {
         let accion="";
+        // Tipo efectivo: si tipo_formato viene vacío o no es un tipo de acción conocido
+        // (ej. "general"/"manual" mal guardado al llenar el registro), derivar de la plantilla
+        // del depto para no perder el botón correcto (caso Bolongo con registro lleno → "Manual").
+        const _TIPOS_ACCION = ["pdf","whatsapp","gforms","correo","frakcio"];
+        const tipoEf = _TIPOS_ACCION.includes(r.tipo_formato)
+            ? r.tipo_formato
+            : (getTmpl(r.depto||'').tipo || r.tipo_formato);
         // Selector de idioma para templates peninsula/alamar (se inserta al inicio de las acciones)
         const idiomaBtn = necesitaSelectorIdioma(r)
           ? `<button class="btn btn-outline-white" data-idioma-btn="${r.id}" onclick="event.stopPropagation();toggleIdioma('${r.id}')" title="${getIdiomaRegistro(r.id)==='es'?'Idioma: Español (click para EN)':'Language: English (click for ES)'}" style="min-width:44px;font-weight:600;font-size:11px;padding:6px 10px"><i class="ph-bold ph-translate"></i> ${getIdiomaRegistro(r.id).toUpperCase()}</button>`
           : '';
         if(r.pdf_generado) {
             accion=`<div style="display:flex;gap:6px;flex-wrap:wrap">${idiomaBtn}<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Generado</button></div>`;
-        } else if(r.tipo_formato==="pdf") {
+        } else if(tipoEf==="pdf") {
             const _tieneCorreo = tieneCorreoConfigured(r.depto||'');
             if(r.pdf_generado) {
               accion=`<div style="display:flex;gap:6px;flex-wrap:wrap">${idiomaBtn}<button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button><button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Enviado</button></div>`;
             } else {
               accion=`<div style="display:flex;gap:6px;flex-wrap:wrap">${idiomaBtn}<button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button>${_tieneCorreo ? `<button class="btn btn-outline-yellow" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
             }
-        } else if(r.tipo_formato==="whatsapp") {
+        } else if(tipoEf==="whatsapp") {
             const _tieneMsg = tieneCorreoMsg(r.depto||'');
             accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-blue" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button>${_tieneMsg ? `<button class="btn btn-outline-yellow" onclick="enviarMsgPorCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
-        } else if(r.tipo_formato==="gforms") {
+        } else if(tipoEf==="gforms") {
             const gfRec = (gformsCheckins||[]).find(x =>
                 x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()&&x.fecha_entrada===(r.fecha_entrada||"")
             );
@@ -3937,7 +3944,7 @@
             } else {
                 accion = `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-red" onclick="copiarLink('${r.depto}')"><i class="ph-bold ph-prohibit"></i> Sin registro</button><button class="btn btn-link" onclick="copiarLink('${r.depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button></div>`;
             }
-        } else if(r.tipo_formato==="correo") {
+        } else if(tipoEf==="correo") {
             // Algunos deptos tipo whatsapp tienen registros guardados como correo
             const _tmpl = getTmpl(r.depto||'');
             if(_tmpl.tipo === 'whatsapp') {
@@ -3949,7 +3956,7 @@
               const _tieneCorreo2 = tieneCorreoConfigured(r.depto||'');
               accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-white" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-file-pdf"></i> Generar PDF</button>${_tieneCorreo2 ? `<button class="btn btn-outline-yellow" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
             }
-        } else if(r.tipo_formato==="frakcio") {
+        } else if(tipoEf==="frakcio") {
             const qrRecH = (frakcioQR||[]).find(x =>
                 x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()&&x.fecha===(r.fecha_entrada||"")
             );
@@ -3996,7 +4003,7 @@
                 </div>
                 <div class="reg-field">
                     <span class="reg-field-label">Tipo formato</span>
-                    <span class="reg-field-val highlight">${(r.tipo_formato||'—').toUpperCase()}</span>
+                    <span class="reg-field-val highlight">${(tipoEf||'—').toUpperCase()}${(tipoEf!==r.tipo_formato && r.tipo_formato)?` <span style="opacity:.5;font-weight:400">(reg: ${(r.tipo_formato||'—').toUpperCase()})</span>`:''}</span>
                 </div>
                 <div class="reg-field">
                     <span class="reg-field-label">Mascotas</span>
