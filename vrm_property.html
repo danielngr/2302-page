@@ -5134,14 +5134,14 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
 
     <!-- STEP 4: PAYMENT -->
     <section class="bm-step" data-step="4">
-      <p class="bm-helper">Review your details. When you tap <strong>Confirm booking</strong>, your request goes to Rodrigo on WhatsApp. He'll send you a secure Stripe payment link within minutes to lock the dates.</p>
+      <p class="bm-helper">Review your details. When you tap <strong>Pay now</strong>, you'll be taken to our secure Stripe checkout. Your dates are confirmed instantly upon payment.</p>
 
       <div class="pay-stripe-placeholder">
         <div class="icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </div>
-        <h3>Request via WhatsApp</h3>
-        <p>Your request is sent instantly to Rodrigo with all your details. He responds in minutes (avg 4min) with a secure Stripe payment link. Pay only when you're ready — your dates are held for 30 minutes.</p>
+        <h3>Secure payment</h3>
+        <p>You'll complete payment on Stripe's secure checkout. Once paid, your reservation is confirmed instantly and you'll receive a confirmation email. Rodrigo will contact you before arrival.</p>
       </div>
 
       <div class="pay-badge">
@@ -5633,7 +5633,7 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
     { label: 'Step 1 of 4', name: 'Select your dates',  cta: 'Continue to summary' },
     { label: 'Step 2 of 4', name: 'Confirm your stay',   cta: 'Continue to guest info' },
     { label: 'Step 3 of 4', name: 'Who\'s coming?',       cta: 'Continue to payment' },
-    { label: 'Step 4 of 4', name: 'Review & request',    cta: 'Send request via WhatsApp' },
+    { label: 'Step 4 of 4', name: 'Review & pay',    cta: 'Pay now' },
     { label: 'Done',        name: 'Request sent',        cta: 'Continue chat on WhatsApp' }
   ];
 
@@ -5678,11 +5678,12 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
       if (!validateForm()) return;
       goStep(4);
     } else if (state.step === 4) {
-      // ★ Stripe pendiente — por ahora redirigimos a WhatsApp con datos completos
-      // como "request to book". Rodrigo confirma manual.
-      sendBookingRequest();
+      // Iniciar pago real con Stripe Checkout.
+      // iniciarPagoStripe() crea la sesión en el backend y redirige
+      // al cliente a la página segura de pago de Stripe.
+      iniciarPagoStripe();
     } else if (state.step === 5) {
-      window.open('https://wa.me/15559472509?text=' + encodeURIComponent('Hi Rodrigo! I just sent a booking request for Vallarta Gardens 2302. Following up to confirm.'), '_blank');
+      window.open('https://wa.me/15559472509?text=' + encodeURIComponent('Hi Rodrigo! I just completed a booking. Following up.'), '_blank');
     }
   });
   
@@ -5702,7 +5703,112 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
     });
   }
 
-  // ★★★ BOOKING REQUEST via WhatsApp (placeholder mientras llega Stripe) ★★★
+  // ═══════════════════════════════════════════════════════════════════
+  // INTEGRACIÓN CON STRIPE
+  //
+  // Llaves públicas (seguras en el frontend):
+  //   - SUPABASE_ANON_KEY: protegida por RLS, no da acceso a datos sensibles
+  //   - pk_test_: publishable key de Stripe (pública por diseño)
+  //
+  // Flujo: el cliente llena sus datos → toca "Pay" → llamamos a la Edge
+  // Function crear-checkout que valida todo y crea la sesión de Stripe →
+  // redirigimos al cliente a la página de pago segura de Stripe.
+  // ═══════════════════════════════════════════════════════════════════
+  const VRM_SUPABASE_URL = 'https://grsykedeppdwenpfxlfh.supabase.co';
+  const VRM_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdyc3lrZWRlcHBkd2VucGZ4bGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3MDU0NzAsImV4cCI6MjA4NzI4MTQ3MH0.1fjVfOMl8bERU2FiL7izZcv0Jckns5l-sEmRwlER71o';
+  const VRM_CHECKOUT_URL = VRM_SUPABASE_URL + '/functions/v1/crear-checkout';
+
+  // Helper: Date → 'YYYY-MM-DD' local (sin problemas de timezone)
+  function _ymdLocal(d) {
+    if (!d) return null;
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  async function iniciarPagoStripe() {
+    const nombre = document.getElementById('gName').value.trim();
+    const email = document.getElementById('gEmail').value.trim();
+    const telefono = document.getElementById('gPhone').value.trim();
+    const mensaje = document.getElementById('gNotes').value.trim();
+
+    const unidad = (window.VRM_UNIT && window.VRM_UNIT.id) || '2302';
+    const checkin = _ymdLocal(state.checkIn);
+    const checkout = _ymdLocal(state.checkOut);
+    const huespedes = state.guests;
+    const codigoCupon = (state.promoCode && state.promoCode.valid) ? state.promoCode.code : null;
+
+    if (!nombre || !email || !checkin || !checkout) {
+      alert('Por favor completa todos los datos requeridos.');
+      return;
+    }
+
+    const btn = document.getElementById('bmCta');
+    const btnTextoOriginal = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Processing...'; }
+
+    try {
+      const resp = await fetch(VRM_CHECKOUT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + VRM_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          unidad, checkin, checkout, huespedes,
+          nombre, email, telefono, mensaje, codigoCupon,
+        }),
+      });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        alert(data.error || 'Hubo un problema al crear la reserva. Intenta de nuevo.');
+        if (btn) { btn.disabled = false; btn.textContent = btnTextoOriginal; }
+        return;
+      }
+
+      if (data.url) {
+        window.location.href = data.url; // Redirigir a Stripe Checkout
+      } else {
+        alert('No se pudo iniciar el pago. Intenta de nuevo.');
+        if (btn) { btn.disabled = false; btn.textContent = btnTextoOriginal; }
+      }
+    } catch (err) {
+      console.error('Error al iniciar pago:', err);
+      alert('Error de conexión. Verifica tu internet e intenta de nuevo.');
+      if (btn) { btn.disabled = false; btn.textContent = btnTextoOriginal; }
+    }
+  }
+
+  // Manejar el retorno desde Stripe (cuando el cliente paga y vuelve)
+  function _manejarRetornoStripe() {
+    const params = new URLSearchParams(window.location.search);
+    const reserva = params.get('reserva');
+    const codigo = params.get('codigo');
+    const idParam = params.get('id') || '';
+
+    if (reserva === 'ok' && codigo) {
+      setTimeout(() => {
+        if (typeof openBooking === 'function') openBooking({ startStep: 5, forceStep: true });
+        const confRef = document.getElementById('confRef');
+        if (confRef) confRef.textContent = 'RESERVA · ' + codigo + ' · confirmada';
+        const confTitle = document.querySelector('.conf-title');
+        if (confTitle) confTitle.textContent = 'Reserva confirmada';
+        const confSub = document.querySelector('.conf-sub');
+        if (confSub) confSub.textContent = 'Tu pago se procesó correctamente. Te enviamos un correo con los detalles. Rodrigo te contactará antes de tu llegada.';
+      }, 500);
+      window.history.replaceState({}, '', window.location.pathname + (idParam ? '?id=' + idParam : ''));
+    } else if (reserva === 'cancelada') {
+      window.history.replaceState({}, '', window.location.pathname + (idParam ? '?id=' + idParam : ''));
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _manejarRetornoStripe);
+  } else {
+    _manejarRetornoStripe();
+  }
+
+  // ★★★ BOOKING REQUEST via WhatsApp (legacy — ya no se usa, queda de respaldo) ★★★
   function sendBookingRequest() {
     const name = document.getElementById('gName').value.trim();
     const email = document.getElementById('gEmail').value.trim();
