@@ -3657,11 +3657,32 @@
     };
     const EXACT = {"PLAYA ESMERALDA":{t:"whatsapp",tipo:"whatsapp"},"ARCANO":{t:"whatsapp",tipo:"whatsapp"},"MARINA SOL":{t:"whatsapp",tipo:"whatsapp"},"BAY VIEW":{t:"frakcio",tipo:"frakcio"},"BVG":{t:"frakcio",tipo:"frakcio"}};
 
+    // Alias canónicos: la MISMA propiedad física a veces llega escrita de varias formas
+    // desde el Sheet de reservas. Mapea cada variante a su nombre canónico (el que tiene
+    // template/QR/correo). Sin esto, "ARIA 1001" queda huérfano y solo "ARIA PH 1001" funciona.
+    // Definido temprano (antes de getTmpl) para evitar problemas de orden de inicialización.
+    const REG_DEPTO_ALIAS = {
+      'ARIA 1001': 'ARIA PH 1001',
+      'ARIA PH': 'ARIA PH 1001',
+      'ALAMAR 101': 'DELTA 2 101',
+      'ALMAR 101': 'DELTA 2 101',
+    };
+
     function getTmpl(depto) {
-        const d = (depto||"").toUpperCase().trim();
+        let d = (depto||"").toUpperCase().trim();
+        // Aplicar alias canónico ANTES de buscar template (ARIA 1001 → ARIA PH 1001, etc.)
+        // Así una variante del Sheet encuentra el mismo template/QR que el nombre canónico.
+        if (REG_DEPTO_ALIAS.hasOwnProperty(d)) d = REG_DEPTO_ALIAS[d];
         if(EXACT[d]) return EXACT[d];
         const k = Object.keys(TMPL).find(k => d.startsWith(k));
         return k ? TMPL[k] : {t:"general",tipo:"general"};
+    }
+
+    // Nombre canónico SOLO para mostrar en pantalla (no altera el dato en Supabase).
+    // Unifica variantes: "ARIA 1001" se muestra como "ARIA PH 1001".
+    function displayDepto(depto) {
+        const d = (depto||"").toUpperCase().trim();
+        return REG_DEPTO_ALIAS.hasOwnProperty(d) ? REG_DEPTO_ALIAS[d] : (depto||"—");
     }
 
     // ── Cargar Supabase ─────────────────────────────────────────
@@ -4076,7 +4097,7 @@
         return `<div id="li-wrap-${r.id}">
             <div class="list-item${r.pdf_generado?' generado':''}" id="li-${r.id}" style="cursor:default">
                 <div class="depto-info">
-                    <span class="depto-name">${r.depto||"—"}</span>
+                    <span class="depto-name">${displayDepto(r.depto)}</span>
                     <span class="depto-type">${fmtFecha(r.fecha_entrada)} → ${fmtFecha(r.fecha_salida)} · ${r.num_adultos||0}A${(r.num_menores||0)>0?" "+(r.num_menores)+"N":""}</span>
                 </div>
                 ${nombre}
@@ -4150,6 +4171,7 @@
             let rowsH="", pend=0;
             ents.forEach(row=>{
                 const depto=(row[2]||'').trim().replace(/"/g,'');
+                const deptoDisp=displayDepto(depto); // nombre unificado solo para mostrar
                 const reg=matchReg(depto);
                 // EXACT override: si el depto está en EXACT (whatsapp, frakcio), prioriza ese tipo
                 // sobre reg.tipo_formato que puede estar mal guardado en DB
@@ -4175,7 +4197,7 @@
                         ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
                         : `<button class="btn btn-outline-yellow" onclick="marcarCorreo('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
                     rowsH+=`<div class="list-item${correoOk?' generado':''}">
-                        <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">CORREO</span></div>
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">CORREO</span></div>
                         <div class="guest-name guest-empty">—</div>
                         <div>${correoBtn}</div>
                         <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
@@ -4202,7 +4224,7 @@
                             : `<button class="btn btn-outline-red" onclick="copiarLink('${depto}')"><i class="ph-bold ph-prohibit"></i> Sin registro</button>`;
                     const gfLinkBtn = gfOk ? '' : `<button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>`;
                     rowsH+=`<div class="list-item${gfOk?' generado':''}">
-                        <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">GFORMS</span></div>
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">GFORMS</span></div>
                         <div class="${guestNameGF?'guest-name':'guest-name guest-empty'}">${guestNameGF||'—'}</div>
                         <div>${gfBtn}</div>
                         <div>${gfLinkBtn}</div>
@@ -4242,7 +4264,7 @@
                             : `<button class="btn btn-outline-yellow" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
                     }
                     rowsH+=`<div class="list-item${qrOk?' generado':''}">
-                        <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">FRAKCIO</span></div>
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">FRAKCIO</span></div>
                         <div class="${guestName?'guest-name':'guest-name guest-empty'}">${guestName||'—'}</div>
                         <div>${qrBtn}</div>
                         <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
@@ -4272,7 +4294,7 @@
                         waBtn = `<button class="btn btn-outline-red" onclick="copiarLink('${depto}')"><i class="ph-bold ph-prohibit"></i> Sin registro</button>`;
                     }
                     rowsH+=`<div class="list-item${msgOk?' generado':''}">
-                        <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">WHATSAPP</span></div>
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">WHATSAPP</span></div>
                         <div class="${guestName?'guest-name':'guest-name guest-empty'}">${guestName||'—'}</div>
                         <div>${waBtn}</div>
                         <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
@@ -4280,14 +4302,14 @@
                     if(!msgOk){ pend++; totalPend++; }
                 } else if(tipo==="manual"){
                     rowsH+=`<div class="list-item">
-                        <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">MANUAL</span></div>
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">MANUAL</span></div>
                         <div class="guest-name guest-empty">—</div>
                         <div><button class="btn btn-link">Manual</button></div>
                         <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
                     </div>`;
                 } else if(!reg){
                     rowsH+=`<div class="list-item">
-                        <div class="depto-info"><span class="depto-name">${depto}</span><span class="depto-type">ENTRADA</span></div>
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">ENTRADA</span></div>
                         <div class="guest-name guest-missing"><i class="ph ph-warning"></i> Sin registro previo</div>
                         <div><button class="btn btn-outline-red" onclick="copiarLink('${depto}')"><i class="ph-bold ph-prohibit"></i> Sin registro</button></div>
                         <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
@@ -4906,12 +4928,15 @@
       return !!key;
     }
 
-    // Normaliza variantes de Venetian: "VENETIAN 905 T3" / "VENETIAN T3 905" → "VENETIAN T3 905"
+    // Normaliza variantes: orden de Venetian + alias canónicos (ARIA 1001 → ARIA PH 1001, etc.)
+    // REG_DEPTO_ALIAS se define más arriba, junto a getTmpl.
     function normalizarDepto(d) {
       if (!d) return '';
       let s = d.toUpperCase().trim();
       // VENETIAN NNN T3 → VENETIAN T3 NNN
       s = s.replace(/^VENETIAN\s+(\d+)\s+T(\d+)$/, 'VENETIAN T$2 $1');
+      // Aplicar alias canónico si existe
+      if (REG_DEPTO_ALIAS.hasOwnProperty(s)) s = REG_DEPTO_ALIAS[s];
       return s;
     }
 
@@ -5280,13 +5305,15 @@
     function copiarQRUrl() {
         const url = window._qrUrlActual;
         if(!url) return;
-        navigator.clipboard.writeText(url).then(() => {
+        copiarTexto(url).then((ok) => {
             const btn = document.getElementById('modal-qr-copy-btn');
-            if(btn) {
+            if(btn && ok) {
                 btn.innerHTML = '<i class="ph-bold ph-check"></i> ¡Copiado!';
                 btn.style.background = 'rgba(34,211,125,0.2)';
                 btn.style.border = '1px solid rgba(34,211,125,0.4)';
                 btn.style.color = '#22D37D';
+            } else if(!ok) {
+                try { window.prompt("Copia el link manualmente:", url); } catch(e){}
             }
         });
     }
@@ -5306,14 +5333,14 @@
             return `
                 <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px;margin-bottom:12px;text-align:left;">
                     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
-                        <div style="font-family:var(--font-display);font-size:15px;font-weight:600;color:#fff;">${q.depto}</div>
+                        <div style="font-family:var(--font-display);font-size:15px;font-weight:600;color:#fff;">${displayDepto(q.depto)}</div>
                         <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono);">${q.count} hu\u00e9spedes</div>
                     </div>
                     <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:8px;">Responsable: <span style="color:var(--text-secondary)">${q.nombre}</span></div>
                     <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;color:var(--text-secondary);font-family:var(--font-mono);word-break:break-all;">\ud83d\udcce ${urlCorta}</div>
                     ${isUrl ? `<button id="split-copy-${i}" onclick="copiarSplitQR('${safeUrl}', ${i})"
                         style="width:100%;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent-terracota),#ff9858);color:#fff;font-size:13px;font-family:var(--font-display);font-weight:600;cursor:pointer;">
-                        <i class="ph-bold ph-copy"></i> Copiar link ${q.depto}
+                        <i class="ph-bold ph-copy"></i> Copiar link ${displayDepto(q.depto)}
                     </button>` : `<div style="font-size:11px;color:var(--text-tertiary);text-align:center;padding:8px;">QR registrado en Frakcio</div>`}
                 </div>
             `;
@@ -5323,7 +5350,7 @@
             <div style="background:#121212;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:28px;width:440px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.8);">
                 <div style="text-align:center;margin-bottom:18px;">
                     <div style="font-size:32px;margin-bottom:8px;">\ud83d\udcc4</div>
-                    <h3 style="font-family:var(--font-display);font-size:17px;font-weight:600;color:#fff;margin-bottom:4px;">QRs listos — ${depto}</h3>
+                    <h3 style="font-family:var(--font-display);font-size:17px;font-weight:600;color:#fff;margin-bottom:4px;">QRs listos — ${displayDepto(depto)}</h3>
                     <p style="font-size:12px;color:var(--text-tertiary);">Grupo dividido por l\u00edmite de Frakcio (6 por QR). M\u00e1ndale ambos al hu\u00e9sped.</p>
                 </div>
                 ${qrBlocks}
@@ -5338,28 +5365,61 @@
     }
 
     function copiarSplitQR(url, idx) {
-        navigator.clipboard.writeText(url).then(() => {
+        copiarTexto(url).then((ok) => {
             const btn = document.getElementById('split-copy-' + idx);
-            if(btn) {
+            if(btn && ok) {
                 btn.innerHTML = '<i class="ph-bold ph-check"></i> \u00a1Copiado!';
                 btn.style.background = 'rgba(34,211,125,0.2)';
                 btn.style.border = '1px solid rgba(34,211,125,0.4)';
                 btn.style.color = '#22D37D';
+            } else if(!ok) {
+                try { window.prompt("Copia el link manualmente:", url); } catch(e){}
             }
         });
     }
 
+    // ── Copiar al portapapeles (robusto) ────────────────────────
+    // Intenta navigator.clipboard y, si no está disponible o falla
+    // (contexto no seguro, permisos, etc.), cae a un textarea + execCommand.
+    async function copiarTexto(texto) {
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(texto);
+                return true;
+            }
+        } catch(e) { /* cae al fallback */ }
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = texto;
+            ta.style.position = 'fixed';
+            ta.style.top = '-9999px';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.focus(); ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            return ok;
+        } catch(e) { return false; }
+    }
+
     // ── Copiar link ─────────────────────────────────────────────
     function copiarLink(depto) {
-        const url = "https://danielngr.github.io/2302-page/registro.html?dept=" + encodeURIComponent(depto);
+        // Usar el nombre canónico para que el link apunte al formulario correcto
+        // (p. ej. ARIA 1001 → ARIA PH 1001).
+        const deptoCanon = (function(){
+            const d=(depto||'').toUpperCase().trim();
+            return REG_DEPTO_ALIAS.hasOwnProperty(d) ? REG_DEPTO_ALIAS[d] : depto;
+        })();
+        const url = "https://danielngr.github.io/2302-page/registro.html?dept=" + encodeURIComponent(deptoCanon);
         const msg = `Hola 👋 Para coordinar tu llegada, necesito que llenes este breve formulario de registro:\n\n${url}\n\nSi tienes alguna duda, con gusto te ayudo 🙌`;
-        navigator.clipboard.writeText(msg).then(() => {
-            toast("✓ Link copiado");
+        copiarTexto(msg).then((ok) => {
+            toast(ok ? "✓ Link copiado" : "⚠️ No se pudo copiar — cópialo manual");
+            if(!ok) { try { window.prompt("Copia el link manualmente:", msg); } catch(e){} }
             const reg = todosRegistros.find(x=>{
-                const d=(x.depto||'').toUpperCase().trim(), dep=depto.toUpperCase();
+                const d=(x.depto||'').toUpperCase().trim(), dep=(depto||'').toUpperCase();
                 return (d===dep||d.startsWith(dep+' ')||dep.startsWith(d+' '))&&x.tipo_formato==='whatsapp';
             });
-            if(reg&&!reg.pdf_generado) marcarGenerado(reg.id);
+            if(ok && reg && !reg.pdf_generado) marcarGenerado(reg.id);
         });
     }
 
