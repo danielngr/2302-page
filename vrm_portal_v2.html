@@ -485,6 +485,7 @@
             background: var(--accent-terracota);
             box-shadow: 0 0 8px var(--accent-glow);
         }
+        .lq-tabs-bar::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
         /* ── Sección de día colapsable (dentro del panel) ── */
         .dia-section-inner {
@@ -1920,8 +1921,21 @@
             .nom-staff-header { padding: 14px 16px !important; }
             .nom-name { font-size: 13px !important; }
             .nom-total { font-size: 15px !important; }
+            /* Header de nómina: en móvil apilar título arriba y controles abajo con wrap */
+            .nom-header-bar { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; padding: 16px !important; }
+            .nom-header-bar > div:last-child { flex-wrap: wrap !important; gap: 8px !important; justify-content: flex-start !important; }
+            .nom-header-bar #nom-search { width: 100% !important; }
+            .nom-header-bar > div:last-child > div:first-child { flex: 1 1 100% !important; }
             .ac-grid { grid-template-columns: 1fr !important; }
             .ac-stats-grid { grid-template-columns: 1fr 1fr !important; }
+            /* Reviews: grids de 4 columnas no caben en iPhone */
+            #shKpis { grid-template-columns: 1fr 1fr !important; }
+            .sh-panels-grid { grid-template-columns: 1fr !important; }
+            #rv-shKpis { grid-template-columns: 1fr 1fr !important; }
+            #kpis { flex-wrap: wrap !important; }
+            #kpis > * { flex: 1 1 calc(50% - 6px) !important; }
+            #mod-reviews > div:first-child { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; }
+            #mod-reviews > div:first-child > div:last-child { flex-wrap: wrap !important; }
             .modal-box { width: calc(100vw - 32px) !important; max-width: 100% !important; }
             #mapa-lista { width: 100% !important; max-height: 200px !important; }
             #vrm-map { height: 50vh !important; }
@@ -2885,7 +2899,7 @@
                         <div id="shBadge"></div>
                     </div>
                     <div id="shKpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
-                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+                    <div class="sh-panels-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
                         <div style="background:rgba(255,255,255,.03);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:14px">
                             <div style="font-size:11px;font-weight:700;margin-bottom:8px">⚠️ Capacidad de Absorción</div>
                             <div style="font-size:10px;color:var(--text-tertiary);margin-bottom:8px">Reviews negativas antes de perder Superhost</div>
@@ -3079,13 +3093,13 @@
                     </div>
 
                     <!-- Tabs -->
-                    <div style="display:flex;gap:4px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:0;flex-shrink:0">
-                        <button class="lq-tab lq-tab-active" data-tab="operacion" onclick="lqSwitchTab('operacion')" style="background:transparent;border:none;color:var(--text-primary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid var(--accent-terracota);font-weight:600">Operación</button>
-                        <button class="lq-tab" data-tab="deptos" onclick="lqSwitchTab('deptos')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent">Deptos problema</button>
-                        <button class="lq-tab" data-tab="chicas" onclick="lqSwitchTab('chicas')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent">Chicas</button>
-                        <button class="lq-tab" data-tab="matriz" onclick="lqSwitchTab('matriz')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent">Matriz chica × depto</button>
-                        <button class="lq-tab" data-tab="alertas" onclick="lqSwitchTab('alertas')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent">Alertas accionables</button>
-                        <button class="lq-tab" data-tab="videos" onclick="lqSwitchTab('videos')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent">Videos</button>
+                    <div class="lq-tabs-bar" style="display:flex;gap:4px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:0;flex-shrink:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+                        <button class="lq-tab lq-tab-active" data-tab="operacion" onclick="lqSwitchTab('operacion')" style="background:transparent;border:none;color:var(--text-primary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid var(--accent-terracota);font-weight:600;white-space:nowrap;flex-shrink:0">Operación</button>
+                        <button class="lq-tab" data-tab="deptos" onclick="lqSwitchTab('deptos')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0">Deptos problema</button>
+                        <button class="lq-tab" data-tab="chicas" onclick="lqSwitchTab('chicas')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0">Chicas</button>
+                        <button class="lq-tab" data-tab="matriz" onclick="lqSwitchTab('matriz')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0">Matriz chica × depto</button>
+                        <button class="lq-tab" data-tab="alertas" onclick="lqSwitchTab('alertas')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0">Alertas accionables</button>
+                        <button class="lq-tab" data-tab="videos" onclick="lqSwitchTab('videos')" style="background:transparent;border:none;color:var(--text-tertiary);padding:10px 16px;cursor:pointer;font-size:12px;font-family:var(--font-body);border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0">Videos</button>
                     </div>
 
                     <!-- TAB: Operación (lo que ya existía) -->
