@@ -10581,11 +10581,10 @@ function updateNotifBadge(){
         const monto = parseFloat(document.getElementById('extra-monto')?.value);
         if(!nombre || !cuenta || isNaN(monto) || monto <= 0) { toast('⚠️ Completa todos los campos'); return; }
 
-        // Calcular semana actual
-        const hoy = new Date();
-        const diasViernes = (hoy.getDay() - 5 + 7) % 7;
-        const viernes = new Date(hoy); viernes.setDate(hoy.getDate() - diasViernes);
-        const semanaInicio = viernes.toISOString().split('T')[0];
+        // Usar la SEMANA SELECCIONADA en pantalla (no la de hoy).
+        // Antes calculaba con hoy → si hoy es viernes, guardaba en la semana nueva
+        // aunque estuvieras viendo una semana pasada.
+        const semanaInicio = dispGetSemana(dispSemanaOffset).viernesISO;
 
         let savedId = null;
         try {
