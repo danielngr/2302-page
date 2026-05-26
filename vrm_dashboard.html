@@ -330,6 +330,47 @@
   }
   .field textarea { height: 80px; padding: 12px 14px; resize: vertical; }
   .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--gold); }
+
+  /* ─── DROPDOWN PERSONALIZADO (combina con el tema) ─── */
+  .vsel { position: relative; width: 100%; }
+  .vsel-trigger {
+    width: 100%; height: 48px; padding: 0 14px;
+    background: rgba(232,228,218,0.05); border: 1px solid var(--rule-strong);
+    border-radius: 10px; color: var(--mist); font-family: var(--font-body); font-size: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; transition: border-color 0.2s, background 0.2s;
+    user-select: none;
+  }
+  .vsel-trigger:hover { background: rgba(232,228,218,0.08); }
+  .vsel.open .vsel-trigger { border-color: var(--gold); background: rgba(232,228,218,0.08); }
+  .vsel-arrow { transition: transform 0.25s var(--ease); color: var(--sand); flex-shrink: 0; margin-left: 8px; }
+  .vsel.open .vsel-arrow { transform: rotate(180deg); }
+  .vsel-menu {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+    background: rgba(14,34,64,0.96);
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    border: 1px solid var(--rule-strong); border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(6,14,30,0.6);
+    max-height: 280px; overflow-y: auto;
+    z-index: 60;
+    padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+  }
+  .vsel.open .vsel-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .vsel-opt {
+    padding: 11px 14px; border-radius: 8px;
+    font-size: 14px; color: var(--mist); cursor: pointer;
+    transition: background 0.15s; display: flex; align-items: center; gap: 10px;
+  }
+  .vsel-opt:hover { background: rgba(201,163,104,0.18); }
+  .vsel-opt.selected { background: rgba(201,163,104,0.28); color: var(--gold-soft); font-weight: 500; }
+  .vsel-opt-group {
+    padding: 10px 14px 5px; font-size: 10px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--sand); opacity: 0.6;
+  }
+  .vsel-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
   .modal-actions .btn { flex: 1; height: 48px; justify-content: center; }
@@ -760,22 +801,16 @@ function abrirDetalle(r) {
 
 // ─── AGREGAR RESERVA MANUAL ───
 document.getElementById('addManualBtn').addEventListener('click', () => {
-  const propOptions = PROPS.map(p => `<option value="${p}">${PROP_NAMES[p]}</option>`).join('');
   modalContent.innerHTML = `
     <div class="modal-title">Reserva manual</div>
     <div class="modal-sub">Para efectivo, cortesías, propietarios o bloqueos</div>
     <div class="field">
       <label>Propiedad</label>
-      <select id="mProp">${propOptions}</select>
+      <div class="vsel" id="mPropSel"></div>
     </div>
     <div class="field">
       <label>Tipo de reserva</label>
-      <select id="mTipo">
-        <option value="efectivo">Efectivo</option>
-        <option value="transferencia">Transferencia</option>
-        <option value="cortesia">Cortesía / Propietario</option>
-        <option value="bloqueo">Bloqueo (mantenimiento)</option>
-      </select>
+      <div class="vsel" id="mTipoSel"></div>
     </div>
     <div class="field-row">
       <div class="field"><label>Check-in</label><input type="date" id="mCheckin"></div>
@@ -793,13 +828,98 @@ document.getElementById('addManualBtn').addEventListener('click', () => {
     </div>
     <div id="mError" style="color:var(--red);font-size:13px;margin-top:10px;min-height:16px;"></div>`;
   modalBackdrop.classList.add('open');
+
+  // Dropdown de propiedad (agrupado por edificio)
+  const propItems = PROPS.map(p => ({ value: p, label: PROP_NAMES[p], group: edificioDe(p) }));
+  crearDropdown('mPropSel', propItems, PROPS[0], true);
+
+  // Dropdown de tipo (con su color)
+  const tipoItems = [
+    { value: 'efectivo', label: 'Efectivo', color: '#5188bf' },
+    { value: 'transferencia', label: 'Transferencia', color: '#6979c4' },
+    { value: 'cortesia', label: 'Cortesía / Propietario', color: '#8b8578' },
+    { value: 'bloqueo', label: 'Bloqueo (mantenimiento)', color: '#9a4a4a' },
+  ];
+  crearDropdown('mTipoSel', tipoItems, 'efectivo', false);
+
   document.getElementById('mCancel').addEventListener('click', cerrarModal);
   document.getElementById('mSave').addEventListener('click', guardarManual);
 });
 
+// Devuelve el nombre del edificio según el ID de propiedad
+function edificioDe(p) {
+  if (['2302','2403','2701','2801','3004','2005','2705','2905'].includes(p)) return 'Vallarta Gardens';
+  if (['6S','9S','10I','PHN'].includes(p)) return 'Marítima';
+  if (['211','3N','G13','L05'].includes(p)) return 'Bolongo';
+  return '';
+}
+
+// Crea un dropdown custom dentro del contenedor con id dado.
+// items: [{value, label, group?, color?}], selected: valor inicial, grouped: agrupar por .group
+function crearDropdown(containerId, items, selectedValue, grouped) {
+  const cont = document.getElementById(containerId);
+  if (!cont) return;
+  cont.dataset.value = selectedValue;
+
+  const selItem = items.find(it => it.value === selectedValue) || items[0];
+
+  // Construir las opciones (con grupos si aplica)
+  let optsHtml = '';
+  if (grouped) {
+    let currentGroup = null;
+    items.forEach(it => {
+      if (it.group !== currentGroup) {
+        currentGroup = it.group;
+        optsHtml += `<div class="vsel-opt-group">${currentGroup}</div>`;
+      }
+      optsHtml += renderOpt(it, selectedValue);
+    });
+  } else {
+    optsHtml = items.map(it => renderOpt(it, selectedValue)).join('');
+  }
+
+  cont.innerHTML = `
+    <div class="vsel-trigger">
+      <span class="vsel-label">${dotHtml(selItem)}${selItem.label}</span>
+      <svg class="vsel-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="vsel-menu">${optsHtml}</div>`;
+
+  const trigger = cont.querySelector('.vsel-trigger');
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // cerrar otros dropdowns abiertos
+    document.querySelectorAll('.vsel.open').forEach(v => { if (v !== cont) v.classList.remove('open'); });
+    cont.classList.toggle('open');
+  });
+
+  cont.querySelectorAll('.vsel-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const val = opt.dataset.value;
+      cont.dataset.value = val;
+      const it = items.find(x => x.value === val);
+      cont.querySelector('.vsel-label').innerHTML = dotHtml(it) + it.label;
+      cont.querySelectorAll('.vsel-opt').forEach(o => o.classList.toggle('selected', o.dataset.value === val));
+      cont.classList.remove('open');
+    });
+  });
+}
+
+function renderOpt(it, selectedValue) {
+  return `<div class="vsel-opt ${it.value === selectedValue ? 'selected' : ''}" data-value="${it.value}">${dotHtml(it)}${it.label}</div>`;
+}
+function dotHtml(it) {
+  return it && it.color ? `<span class="vsel-dot" style="background:${it.color}"></span>` : '';
+}
+
+// Cerrar dropdowns al hacer click fuera
+document.addEventListener('click', () => {
+  document.querySelectorAll('.vsel.open').forEach(v => v.classList.remove('open'));
+});
+
 async function guardarManual() {
-  const prop = document.getElementById('mProp').value;
-  const tipo = document.getElementById('mTipo').value;
+  const prop = document.getElementById('mPropSel').dataset.value;
+  const tipo = document.getElementById('mTipoSel').dataset.value;
   const checkin = document.getElementById('mCheckin').value;
   const checkout = document.getElementById('mCheckout').value;
   const nombre = document.getElementById('mNombre').value.trim();
