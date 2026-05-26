@@ -229,15 +229,28 @@
 
   /* Barra de reserva sobre el grid */
   .tl-booking {
-    position: absolute; top: 8px; height: 36px;
-    border-radius: 8px;
-    display: flex; align-items: center; padding: 0 10px;
+    position: absolute; height: 36px;
+    border-radius: 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 6px;
     font-size: 11px; font-weight: 500; color: #fff;
     cursor: pointer; overflow: hidden; white-space: nowrap;
     z-index: 5; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     transition: transform 0.12s, box-shadow 0.2s;
   }
   .tl-booking:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.35); z-index: 6; }
+  .tl-booking .tl-bk-label {
+    flex: 1; overflow: hidden; text-overflow: ellipsis;
+    padding: 0 4px; text-align: center;
+  }
+  /* Puntos en los extremos: marcan check-in (izquierda) y check-out (derecha) */
+  .tl-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(255,255,255,0.95);
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.25);
+  }
+  .tl-dot-in  { margin-right: 2px; }
+  .tl-dot-out { margin-left: 2px; }
   .tl-booking.stripe       { background: linear-gradient(135deg, #4a9d72, #3d8560); }
   .tl-booking.efectivo     { background: linear-gradient(135deg, #5188bf, #3f6fa0); }
   .tl-booking.transferencia{ background: linear-gradient(135deg, #6979c4, #515fa0); }
@@ -524,42 +537,65 @@ function renderCalendar() {
 
   tl.innerHTML = html;
 
-  // Colocar las barras de reserva
-  const monthStart = new Date(year, month, 1);
-  const monthEnd = new Date(year, month, daysInMonth);
-  PROPS.forEach((prop, propIdx) => {
-    const reservasProp = RESERVAS.filter(r => r.unidad === prop && r.status !== 'cancelled');
-    reservasProp.forEach(r => {
-      const ci = new Date(r.checkin + 'T00:00:00');
-      const co = new Date(r.checkout + 'T00:00:00');
-      if (co < monthStart || ci > monthEnd) return; // fuera del mes
+  // Colocar las barras DESPUÉS de que el navegador pinte el grid, para que
+  // getBoundingClientRect devuelva medidas reales (no 0). requestAnimationFrame
+  // garantiza que el layout ya está calculado.
+  requestAnimationFrame(() => {
+    const tlRect = tl.getBoundingClientRect();
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month, daysInMonth);
 
-      const startDay = Math.max(1, ci.getMonth() === month && ci.getFullYear() === year ? ci.getDate() : 1);
-      const endDay = Math.min(daysInMonth, co.getMonth() === month && co.getFullYear() === year ? co.getDate() : daysInMonth);
-      const span = endDay - startDay + 1;
-      if (span < 1) return;
+    PROPS.forEach((prop) => {
+      const reservasProp = RESERVAS.filter(r => r.unidad === prop && r.status !== 'cancelled');
+      reservasProp.forEach(r => {
+        const ci = new Date(r.checkin + 'T00:00:00');
+        const co = new Date(r.checkout + 'T00:00:00');
+        if (co < monthStart || ci > monthEnd) return; // fuera del mes
 
-      // Posición: columna nombre (160px) + (startDay-1)*colWidth
-      const left = 160 + (startDay - 1) * colWidth + 3;
-      const width = span * colWidth - 6;
-      // Top: la fila de esta propiedad. Header = 1 fila. Cada fila prop = 52px.
-      const headerH = 41; // alto aproximado del header de días
-      const top = headerH + propIdx * 52;
+        const startDay = (ci.getMonth() === month && ci.getFullYear() === year) ? ci.getDate() : 1;
+        const endDay = (co.getMonth() === month && co.getFullYear() === year) ? co.getDate() : daysInMonth;
+        if (endDay < startDay) return;
 
-      const tipo = r.tipo_reserva || 'stripe';
-      const pendingClass = r.status === 'pending' ? 'pending' : '';
-      const nombre = r.huesped_nombre || (tipo === 'bloqueo' ? 'Bloqueo' : '—');
-      const montoTxt = (tipo === 'bloqueo' || !r.total) ? '' : ' · $' + Number(r.total).toLocaleString('en-US');
+        // Medir la celda de inicio y la de fin reales en el DOM
+        const startCell = tl.querySelector(`.tl-cell[data-prop="${prop}"][data-day="${startDay}"]`);
+        const endCell = tl.querySelector(`.tl-cell[data-prop="${prop}"][data-day="${endDay}"]`);
+        if (!startCell || !endCell) return;
 
-      const bar = document.createElement('div');
-      bar.className = `tl-booking ${tipo} ${pendingClass}`;
-      bar.style.left = left + 'px';
-      bar.style.width = width + 'px';
-      bar.style.top = top + 'px';
-      bar.textContent = nombre + montoTxt;
-      bar.title = `${nombre} · ${r.checkin} → ${r.checkout}`;
-      bar.addEventListener('click', () => abrirDetalle(r));
-      tl.appendChild(bar);
+        const sRect = startCell.getBoundingClientRect();
+        const eRect = endCell.getBoundingClientRect();
+
+        // Estilo Airbnb: la reserva ENTRA a la mitad del día de check-in
+        // y SALE a la mitad del día de check-out.
+        const checkinInMonth = (ci.getMonth() === month && ci.getFullYear() === year);
+        const checkoutInMonth = (co.getMonth() === month && co.getFullYear() === year);
+
+        let left = sRect.left - tlRect.left;
+        let right = eRect.left - tlRect.left + eRect.width;
+
+        if (checkinInMonth) left += sRect.width / 2;
+        if (checkoutInMonth) right -= eRect.width / 2;
+
+        const width = right - left;
+        if (width < 8) return;
+
+        // Top alineado al renglón real de la propiedad
+        const top = sRect.top - tlRect.top + 8;
+
+        const tipo = r.tipo_reserva || 'stripe';
+        const pendingClass = r.status === 'pending' ? 'pending' : '';
+        const nombre = r.huesped_nombre || (tipo === 'bloqueo' ? 'Bloqueo' : '—');
+        const montoTxt = (tipo === 'bloqueo' || !r.total) ? '' : ' · $' + Number(r.total).toLocaleString('en-US');
+
+        const bar = document.createElement('div');
+        bar.className = `tl-booking ${tipo} ${pendingClass}`;
+        bar.style.left = left + 'px';
+        bar.style.width = width + 'px';
+        bar.style.top = top + 'px';
+        bar.innerHTML = `<span class="tl-dot tl-dot-in"></span><span class="tl-bk-label">${nombre}${montoTxt}</span><span class="tl-dot tl-dot-out"></span>`;
+        bar.title = `${nombre} · check-in ${r.checkin} → check-out ${r.checkout}`;
+        bar.addEventListener('click', () => abrirDetalle(r));
+        tl.appendChild(bar);
+      });
     });
   });
 }
