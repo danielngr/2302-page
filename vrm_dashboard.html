@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VRM · Panel de Reservas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --abyss: #081428;
+    --deep: #0A1830;
+    --marine: #0E2240;
+    --gold: #C9A368;
+    --gold-soft: #D8BC8A;
+    --mist: #E8E4DA;
+    --sand: #A8A293;
+    --green: #5FB98E;
+    --blue: #5B9BD5;
+    --grey: #8B95A5;
+    --red: #D98787;
+    --rule: rgba(232,228,218,0.10);
+    --rule-strong: rgba(232,228,218,0.16);
+    --font-display: 'Fraunces', Georgia, serif;
+    --font-body: 'Outfit', system-ui, sans-serif;
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-body);
+    color: var(--mist);
+    background:
+      radial-gradient(130% 80% at 80% 0%, rgba(64,120,180,0.18) 0%, transparent 55%),
+      radial-gradient(100% 60% at 10% 100%, rgba(16,48,96,0.30) 0%, transparent 60%),
+      linear-gradient(165deg, #0E2240 0%, #0A1830 45%, #081428 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── LOGIN GATE ─── */
+  .gate {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(130% 80% at 80% 0%, rgba(64,120,180,0.18) 0%, transparent 55%),
+      linear-gradient(165deg, #0E2240 0%, #0A1830 45%, #081428 100%);
+    transition: opacity 0.5s var(--ease);
+  }
+  .gate.hidden { opacity: 0; pointer-events: none; }
+  .gate-card {
+    width: 90%; max-width: 380px;
+    background: rgba(232,228,218,0.05);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid var(--rule-strong);
+    border-radius: 20px;
+    padding: 44px 36px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(6,14,30,0.5);
+  }
+  .gate-logo {
+    font-family: var(--font-display);
+    font-size: 30px; font-weight: 500;
+    color: var(--gold); letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .gate-sub { font-size: 12px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--sand); margin-bottom: 32px; }
+  .gate-input {
+    width: 100%; height: 52px; padding: 0 18px;
+    background: rgba(232,228,218,0.06);
+    border: 1px solid var(--rule-strong);
+    border-radius: 12px;
+    color: var(--mist); font-size: 15px; font-family: var(--font-body);
+    text-align: center; letter-spacing: 0.1em;
+    outline: none; transition: border-color 0.2s;
+  }
+  .gate-input:focus { border-color: var(--gold); }
+  .gate-btn {
+    width: 100%; height: 52px; margin-top: 14px;
+    background: var(--gold); color: var(--abyss);
+    border: none; border-radius: 12px;
+    font-family: var(--font-body); font-weight: 600; font-size: 14px;
+    letter-spacing: 0.05em; cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .gate-btn:hover { background: var(--gold-soft); }
+  .gate-btn:active { transform: scale(0.98); }
+  .gate-error { color: var(--red); font-size: 13px; margin-top: 14px; min-height: 18px; }
+
+  /* ─── APP SHELL ─── */
+  .app { display: none; min-height: 100vh; }
+  .app.visible { display: block; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 30;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 28px;
+    background: rgba(8,18,36,0.6);
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    border-bottom: 1px solid var(--rule);
+  }
+  .topbar-brand { display: flex; align-items: baseline; gap: 12px; }
+  .topbar-logo { font-family: var(--font-display); font-size: 22px; font-weight: 500; color: var(--gold); }
+  .topbar-tag { font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--sand); }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+  .btn {
+    height: 42px; padding: 0 18px;
+    border-radius: 11px; border: 1px solid var(--rule-strong);
+    background: rgba(232,228,218,0.05);
+    color: var(--mist); font-family: var(--font-body);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: background 0.2s, border-color 0.2s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: rgba(232,228,218,0.10); }
+  .btn--gold { background: var(--gold); color: var(--abyss); border-color: var(--gold); font-weight: 600; }
+  .btn--gold:hover { background: var(--gold-soft); }
+
+  /* ─── TABS ─── */
+  .tabs { display: flex; gap: 4px; padding: 16px 28px 0; }
+  .tab {
+    padding: 10px 18px; border-radius: 10px 10px 0 0;
+    font-size: 13px; font-weight: 500; color: var(--sand);
+    cursor: pointer; transition: color 0.2s, background 0.2s;
+    border: 1px solid transparent; border-bottom: none;
+  }
+  .tab.active { color: var(--gold); background: rgba(232,228,218,0.05); border-color: var(--rule); }
+
+  .view { padding: 24px 28px 60px; }
+  .view.hidden { display: none; }
+
+  /* ─── STATS ROW ─── */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 26px; }
+  .stat {
+    background: rgba(232,228,218,0.04);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--rule); border-radius: 14px;
+    padding: 18px 20px;
+  }
+  .stat-label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sand); margin-bottom: 8px; }
+  .stat-value { font-family: var(--font-display); font-size: 28px; font-weight: 500; color: var(--mist); line-height: 1; }
+  .stat-value.gold { color: var(--gold); }
+
+  /* ─── CALENDAR TIMELINE ─── */
+  .cal-controls { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .cal-month { font-family: var(--font-display); font-size: 22px; font-weight: 500; min-width: 200px; }
+  .cal-nav-btn {
+    width: 38px; height: 38px; border-radius: 10px;
+    border: 1px solid var(--rule-strong); background: rgba(232,228,218,0.05);
+    color: var(--mist); cursor: pointer; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .cal-nav-btn:hover { background: rgba(232,228,218,0.10); }
+
+  .timeline-wrap {
+    background: rgba(232,228,218,0.03);
+    border: 1px solid var(--rule); border-radius: 16px;
+    overflow: auto; max-height: 70vh;
+  }
+  .timeline {
+    display: grid;
+    /* primera columna = nombre propiedad, resto = días */
+    position: relative;
+    min-width: max-content;
+  }
+  .tl-corner {
+    position: sticky; left: 0; top: 0; z-index: 4;
+    background: var(--deep);
+    padding: 12px 16px;
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sand);
+    border-right: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule-strong);
+    display: flex; align-items: center;
+    min-width: 160px;
+  }
+  .tl-dayhead {
+    position: sticky; top: 0; z-index: 3;
+    background: var(--deep);
+    padding: 10px 0; text-align: center;
+    border-bottom: 1px solid var(--rule-strong); border-right: 1px solid var(--rule);
+    font-size: 12px;
+    min-width: 44px;
+  }
+  .tl-dayhead .dow { font-size: 9px; color: var(--sand); text-transform: uppercase; letter-spacing: 0.1em; }
+  .tl-dayhead .dnum { font-weight: 500; color: var(--mist); margin-top: 2px; }
+  .tl-dayhead.weekend { background: #0c1d38; }
+  .tl-dayhead.today .dnum { color: var(--gold); }
+
+  .tl-propname {
+    position: sticky; left: 0; z-index: 2;
+    background: var(--deep);
+    padding: 0 16px; display: flex; align-items: center;
+    border-right: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule);
+    font-size: 13px; font-weight: 500; color: var(--mist);
+    min-width: 160px; height: 52px;
+  }
+  .tl-cell {
+    border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+    height: 52px; min-width: 44px;
+    position: relative;
+  }
+  .tl-cell.weekend { background: rgba(12,29,56,0.4); }
+
+  /* Barra de reserva sobre el grid */
+  .tl-booking {
+    position: absolute; top: 8px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; padding: 0 10px;
+    font-size: 11px; font-weight: 500; color: #fff;
+    cursor: pointer; overflow: hidden; white-space: nowrap;
+    z-index: 5; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    transition: transform 0.12s, box-shadow 0.2s;
+  }
+  .tl-booking:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.35); z-index: 6; }
+  .tl-booking.stripe       { background: linear-gradient(135deg, #4a9d72, #3d8560); }
+  .tl-booking.efectivo     { background: linear-gradient(135deg, #5188bf, #3f6fa0); }
+  .tl-booking.transferencia{ background: linear-gradient(135deg, #6979c4, #515fa0); }
+  .tl-booking.cortesia     { background: linear-gradient(135deg, #8b8578, #6e695e); }
+  .tl-booking.bloqueo      {
+    background: repeating-linear-gradient(45deg, #9a4a4a, #9a4a4a 6px, #843e3e 6px, #843e3e 12px);
+  }
+  .tl-booking.pending      { opacity: 0.55; border: 1px dashed rgba(255,255,255,0.5); }
+
+  /* ─── LIST VIEW ─── */
+  .filters { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+  .filter-chip {
+    padding: 8px 14px; border-radius: 100px;
+    border: 1px solid var(--rule-strong); background: rgba(232,228,218,0.04);
+    font-size: 12px; color: var(--sand); cursor: pointer; transition: all 0.2s;
+  }
+  .filter-chip.active { background: var(--gold); color: var(--abyss); border-color: var(--gold); font-weight: 600; }
+
+  .res-table { width: 100%; border-collapse: collapse; }
+  .res-table th {
+    text-align: left; padding: 12px 14px;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sand);
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .res-table td { padding: 14px; border-bottom: 1px solid var(--rule); font-size: 13px; }
+  .res-row { cursor: pointer; transition: background 0.15s; }
+  .res-row:hover { background: rgba(232,228,218,0.04); }
+  .res-code { font-family: ui-monospace, monospace; color: var(--gold); font-size: 12px; }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 100px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .badge.stripe { background: rgba(95,185,142,0.18); color: var(--green); }
+  .badge.efectivo { background: rgba(91,155,213,0.18); color: var(--blue); }
+  .badge.transferencia { background: rgba(105,121,196,0.18); color: #9aa6e0; }
+  .badge.cortesia { background: rgba(139,149,165,0.18); color: var(--grey); }
+  .badge.bloqueo { background: rgba(217,135,135,0.18); color: var(--red); }
+  .badge.confirmed { background: rgba(95,185,142,0.18); color: var(--green); }
+  .badge.pending { background: rgba(217,135,135,0.18); color: var(--red); }
+
+  /* ─── MODAL (detail + manual add) ─── */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(6,14,30,0.72);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    display: none; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto;
+    background:
+      radial-gradient(120% 60% at 80% 0%, rgba(64,120,180,0.16) 0%, transparent 55%),
+      linear-gradient(165deg, #0E2240 0%, #0A1830 100%);
+    border: 1px solid var(--rule-strong); border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 30px 80px rgba(6,14,30,0.6);
+  }
+  .modal-title { font-family: var(--font-display); font-size: 24px; font-weight: 500; margin-bottom: 4px; }
+  .modal-sub { font-size: 12px; color: var(--sand); margin-bottom: 24px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--sand); margin-bottom: 7px; }
+  .field input, .field select, .field textarea {
+    width: 100%; height: 48px; padding: 0 14px;
+    background: rgba(232,228,218,0.05); border: 1px solid var(--rule-strong);
+    border-radius: 10px; color: var(--mist); font-family: var(--font-body); font-size: 14px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .field textarea { height: 80px; padding: 12px 14px; resize: vertical; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--gold); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+  .modal-actions .btn { flex: 1; height: 48px; justify-content: center; }
+
+  .detail-row { display: flex; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--rule); font-size: 14px; }
+  .detail-row .l { color: var(--sand); }
+  .detail-row .r { color: var(--mist); font-weight: 500; text-align: right; }
+
+  .loading { text-align: center; padding: 60px; color: var(--sand); }
+  .empty { text-align: center; padding: 60px; color: var(--sand); }
+
+  @media (max-width: 640px) {
+    .view { padding: 18px 14px 50px; }
+    .topbar { padding: 14px 16px; }
+    .tabs { padding: 12px 16px 0; }
+    .res-table th:nth-child(4), .res-table td:nth-child(4),
+    .res-table th:nth-child(5), .res-table td:nth-child(5) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN GATE -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="gate-logo">VRM</div>
+    <div class="gate-sub">Panel de Reservas</div>
+    <input type="password" class="gate-input" id="gatePass" placeholder="Contraseña" autocomplete="current-password">
+    <button class="gate-btn" id="gateBtn">Entrar</button>
+    <div class="gate-error" id="gateError"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="topbar-logo">VRM</span>
+      <span class="topbar-tag">Reservas</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn" id="refreshBtn">↻ Actualizar</button>
+      <button class="btn btn--gold" id="addManualBtn">+ Reserva manual</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-view="calendar">Calendario</div>
+    <div class="tab" data-view="list">Lista</div>
+  </div>
+
+  <!-- CALENDAR VIEW -->
+  <div class="view" id="calendarView">
+    <div class="stats" id="statsRow"></div>
+    <div class="cal-controls">
+      <button class="cal-nav-btn" id="calPrev">‹</button>
+      <div class="cal-month" id="calMonth">—</div>
+      <button class="cal-nav-btn" id="calNext">›</button>
+      <button class="btn" id="calToday" style="margin-left:8px;">Hoy</button>
+    </div>
+    <div class="timeline-wrap">
+      <div class="timeline" id="timeline"></div>
+    </div>
+  </div>
+
+  <!-- LIST VIEW -->
+  <div class="view hidden" id="listView">
+    <div class="filters" id="filters">
+      <div class="filter-chip active" data-filter="all">Todas</div>
+      <div class="filter-chip" data-filter="stripe">Stripe</div>
+      <div class="filter-chip" data-filter="efectivo">Efectivo</div>
+      <div class="filter-chip" data-filter="transferencia">Transferencia</div>
+      <div class="filter-chip" data-filter="cortesia">Cortesía</div>
+      <div class="filter-chip" data-filter="bloqueo">Bloqueos</div>
+    </div>
+    <table class="res-table">
+      <thead>
+        <tr>
+          <th>Código</th><th>Propiedad</th><th>Huésped</th>
+          <th>Fechas</th><th>Tipo</th><th>Total</th><th>Estado</th>
+        </tr>
+      </thead>
+      <tbody id="resTableBody"></tbody>
+    </table>
+    <div class="empty hidden" id="listEmpty">No hay reservas que coincidan.</div>
+  </div>
+</div>
+
+<!-- MODAL: detail / manual add -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+
+// ─── CONFIG ───
+const SUPABASE_URL = 'https://grsykedeppdwenpfxlfh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdyc3lrZWRlcHBkd2VucGZ4bGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3MDU0NzAsImV4cCI6MjA4NzI4MTQ3MH0.1fjVfOMl8bERU2FiL7izZcv0Jckns5l-sEmRwlER71o';
+const DASHBOARD_PASSWORD = '299854'; // contraseña del panel
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Catálogo de propiedades (orden de filas en el calendario)
+const PROPS = ['2302','2403','2701','2801','3004','6S','9S','10I','PHN'];
+const PROP_NAMES = {
+  '2302':'V. Gardens 2302','2403':'V. Gardens 2403','2701':'V. Gardens 2701',
+  '2801':'V. Gardens 2801','3004':'V. Gardens 3004','6S':'Marítima 6S',
+  '9S':'Marítima 9S','10I':'Depto 10I','PHN':'Penthouse Norte'
+};
+const TIPO_LABEL = { stripe:'Stripe', efectivo:'Efectivo', transferencia:'Transferencia', cortesia:'Cortesía', bloqueo:'Bloqueo' };
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DOW = ['D','L','M','M','J','V','S'];
+
+let RESERVAS = [];
+let calMonthDate = new Date();
+calMonthDate.setDate(1);
+let listFilter = 'all';
+
+// ─── LOGIN ───
+const gate = document.getElementById('gate');
+const app = document.getElementById('app');
+function tryLogin() {
+  const pass = document.getElementById('gatePass').value;
+  if (pass === DASHBOARD_PASSWORD) {
+    sessionStorage.setItem('vrm_dash_auth', '1');
+    gate.classList.add('hidden');
+    app.classList.add('visible');
+    cargarReservas();
+  } else {
+    document.getElementById('gateError').textContent = 'Contraseña incorrecta';
+  }
+}
+document.getElementById('gateBtn').addEventListener('click', tryLogin);
+document.getElementById('gatePass').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+if (sessionStorage.getItem('vrm_dash_auth') === '1') {
+  gate.classList.add('hidden'); app.classList.add('visible');
+}
+
+// ─── CARGAR DATOS ───
+async function cargarReservas() {
+  try {
+    const { data, error } = await supabase
+      .from('reservas')
+      .select('*')
+      .order('checkin', { ascending: true });
+    if (error) { console.error(error); return; }
+    RESERVAS = data || [];
+    render();
+  } catch (e) { console.error(e); }
+}
+
+function render() {
+  renderStats();
+  renderCalendar();
+  renderList();
+}
+
+// ─── STATS ───
+function renderStats() {
+  const confirmadas = RESERVAS.filter(r => r.status === 'confirmed' && r.tipo_reserva !== 'bloqueo');
+  const ingresos = confirmadas.reduce((s, r) => s + (Number(r.total) || 0), 0);
+  const ahora = new Date();
+  const futuras = confirmadas.filter(r => new Date(r.checkin) >= ahora);
+  const stats = [
+    { label: 'Reservas confirmadas', value: confirmadas.length },
+    { label: 'Próximas llegadas', value: futuras.length },
+    { label: 'Ingresos totales', value: '$' + ingresos.toLocaleString('en-US'), gold: true },
+    { label: 'Pendientes', value: RESERVAS.filter(r => r.status === 'pending').length },
+  ];
+  document.getElementById('statsRow').innerHTML = stats.map(s =>
+    `<div class="stat"><div class="stat-label">${s.label}</div><div class="stat-value ${s.gold?'gold':''}">${s.value}</div></div>`
+  ).join('');
+}
+
+// ─── CALENDAR TIMELINE ───
+function renderCalendar() {
+  const year = calMonthDate.getFullYear();
+  const month = calMonthDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  document.getElementById('calMonth').textContent = MESES[month] + ' ' + year;
+
+  const tl = document.getElementById('timeline');
+  const colWidth = 44;
+  // grid: col propiedad + N días
+  tl.style.gridTemplateColumns = `160px repeat(${daysInMonth}, ${colWidth}px)`;
+
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  let html = '';
+
+  // Esquina + cabeceras de día
+  html += `<div class="tl-corner">Propiedad</div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const fecha = new Date(year, month, d);
+    const dow = fecha.getDay();
+    const weekend = dow === 0 || dow === 6;
+    const isToday = fecha.getTime() === hoy.getTime();
+    html += `<div class="tl-dayhead ${weekend?'weekend':''} ${isToday?'today':''}">
+      <div class="dow">${DOW[dow]}</div><div class="dnum">${d}</div></div>`;
+  }
+
+  // Filas por propiedad
+  PROPS.forEach(prop => {
+    html += `<div class="tl-propname">${PROP_NAMES[prop] || prop}</div>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const fecha = new Date(year, month, d);
+      const dow = fecha.getDay();
+      const weekend = dow === 0 || dow === 6;
+      html += `<div class="tl-cell ${weekend?'weekend':''}" data-prop="${prop}" data-day="${d}"></div>`;
+    }
+  });
+
+  tl.innerHTML = html;
+
+  // Colocar las barras de reserva
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month, daysInMonth);
+  PROPS.forEach((prop, propIdx) => {
+    const reservasProp = RESERVAS.filter(r => r.unidad === prop && r.status !== 'cancelled');
+    reservasProp.forEach(r => {
+      const ci = new Date(r.checkin + 'T00:00:00');
+      const co = new Date(r.checkout + 'T00:00:00');
+      if (co < monthStart || ci > monthEnd) return; // fuera del mes
+
+      const startDay = Math.max(1, ci.getMonth() === month && ci.getFullYear() === year ? ci.getDate() : 1);
+      const endDay = Math.min(daysInMonth, co.getMonth() === month && co.getFullYear() === year ? co.getDate() : daysInMonth);
+      const span = endDay - startDay + 1;
+      if (span < 1) return;
+
+      // Posición: columna nombre (160px) + (startDay-1)*colWidth
+      const left = 160 + (startDay - 1) * colWidth + 3;
+      const width = span * colWidth - 6;
+      // Top: la fila de esta propiedad. Header = 1 fila. Cada fila prop = 52px.
+      const headerH = 41; // alto aproximado del header de días
+      const top = headerH + propIdx * 52;
+
+      const tipo = r.tipo_reserva || 'stripe';
+      const pendingClass = r.status === 'pending' ? 'pending' : '';
+      const nombre = r.huesped_nombre || (tipo === 'bloqueo' ? 'Bloqueo' : '—');
+      const montoTxt = (tipo === 'bloqueo' || !r.total) ? '' : ' · $' + Number(r.total).toLocaleString('en-US');
+
+      const bar = document.createElement('div');
+      bar.className = `tl-booking ${tipo} ${pendingClass}`;
+      bar.style.left = left + 'px';
+      bar.style.width = width + 'px';
+      bar.style.top = top + 'px';
+      bar.textContent = nombre + montoTxt;
+      bar.title = `${nombre} · ${r.checkin} → ${r.checkout}`;
+      bar.addEventListener('click', () => abrirDetalle(r));
+      tl.appendChild(bar);
+    });
+  });
+}
+
+document.getElementById('calPrev').addEventListener('click', () => { calMonthDate.setMonth(calMonthDate.getMonth()-1); renderCalendar(); });
+document.getElementById('calNext').addEventListener('click', () => { calMonthDate.setMonth(calMonthDate.getMonth()+1); renderCalendar(); });
+document.getElementById('calToday').addEventListener('click', () => { calMonthDate = new Date(); calMonthDate.setDate(1); renderCalendar(); });
+
+// ─── LIST VIEW ───
+function renderList() {
+  const tbody = document.getElementById('resTableBody');
+  let filtered = RESERVAS.filter(r => r.status !== 'cancelled');
+  if (listFilter !== 'all') filtered = filtered.filter(r => (r.tipo_reserva||'stripe') === listFilter);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    document.getElementById('listEmpty').classList.remove('hidden');
+    return;
+  }
+  document.getElementById('listEmpty').classList.add('hidden');
+
+  tbody.innerHTML = filtered.map(r => {
+    const tipo = r.tipo_reserva || 'stripe';
+    const total = (tipo === 'bloqueo' || !r.total) ? '—' : '$' + Number(r.total).toLocaleString('en-US');
+    return `<tr class="res-row" data-id="${r.id}">
+      <td><span class="res-code">${r.codigo_reserva || '—'}</span></td>
+      <td>${PROP_NAMES[r.unidad] || r.unidad}</td>
+      <td>${r.huesped_nombre || '—'}</td>
+      <td>${r.checkin} → ${r.checkout}</td>
+      <td><span class="badge ${tipo}">${TIPO_LABEL[tipo]||tipo}</span></td>
+      <td>${total}</td>
+      <td><span class="badge ${r.status}">${r.status === 'confirmed' ? 'Confirmada' : 'Pendiente'}</span></td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('.res-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const r = RESERVAS.find(x => x.id === row.dataset.id);
+      if (r) abrirDetalle(r);
+    });
+  });
+}
+
+document.getElementById('filters').addEventListener('click', e => {
+  const chip = e.target.closest('.filter-chip');
+  if (!chip) return;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  listFilter = chip.dataset.filter;
+  renderList();
+});
+
+// ─── TABS ───
+document.querySelector('.tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  const v = tab.dataset.view;
+  document.getElementById('calendarView').classList.toggle('hidden', v !== 'calendar');
+  document.getElementById('listView').classList.toggle('hidden', v !== 'list');
+});
+
+// ─── MODAL ───
+const modalBackdrop = document.getElementById('modalBackdrop');
+const modalContent = document.getElementById('modalContent');
+function cerrarModal() { modalBackdrop.classList.remove('open'); }
+modalBackdrop.addEventListener('click', e => { if (e.target === modalBackdrop) cerrarModal(); });
+
+function abrirDetalle(r) {
+  const tipo = r.tipo_reserva || 'stripe';
+  const total = (tipo === 'bloqueo' || !r.total) ? '—' : '$' + Number(r.total).toLocaleString('en-US') + ' USD';
+  modalContent.innerHTML = `
+    <div class="modal-title">${r.huesped_nombre || 'Bloqueo'}</div>
+    <div class="modal-sub">${r.codigo_reserva || ''} · ${PROP_NAMES[r.unidad]||r.unidad}</div>
+    <div class="detail-row"><span class="l">Tipo</span><span class="r"><span class="badge ${tipo}">${TIPO_LABEL[tipo]||tipo}</span></span></div>
+    <div class="detail-row"><span class="l">Estado</span><span class="r"><span class="badge ${r.status}">${r.status==='confirmed'?'Confirmada':'Pendiente'}</span></span></div>
+    <div class="detail-row"><span class="l">Check-in</span><span class="r">${r.checkin}</span></div>
+    <div class="detail-row"><span class="l">Check-out</span><span class="r">${r.checkout}</span></div>
+    <div class="detail-row"><span class="l">Noches</span><span class="r">${r.noches||'—'}</span></div>
+    <div class="detail-row"><span class="l">Huéspedes</span><span class="r">${r.huespedes||'—'}</span></div>
+    ${r.huesped_email ? `<div class="detail-row"><span class="l">Email</span><span class="r">${r.huesped_email}</span></div>` : ''}
+    ${r.huesped_telefono ? `<div class="detail-row"><span class="l">Teléfono</span><span class="r">${r.huesped_telefono}</span></div>` : ''}
+    <div class="detail-row"><span class="l">Total</span><span class="r">${total}</span></div>
+    ${r.huesped_mensaje ? `<div class="detail-row"><span class="l">Notas</span><span class="r">${r.huesped_mensaje}</span></div>` : ''}
+    <div class="modal-actions">
+      <button class="btn" id="modalClose">Cerrar</button>
+    </div>`;
+  modalBackdrop.classList.add('open');
+  document.getElementById('modalClose').addEventListener('click', cerrarModal);
+}
+
+// ─── AGREGAR RESERVA MANUAL ───
+document.getElementById('addManualBtn').addEventListener('click', () => {
+  const propOptions = PROPS.map(p => `<option value="${p}">${PROP_NAMES[p]}</option>`).join('');
+  modalContent.innerHTML = `
+    <div class="modal-title">Reserva manual</div>
+    <div class="modal-sub">Para efectivo, cortesías, propietarios o bloqueos</div>
+    <div class="field">
+      <label>Propiedad</label>
+      <select id="mProp">${propOptions}</select>
+    </div>
+    <div class="field">
+      <label>Tipo de reserva</label>
+      <select id="mTipo">
+        <option value="efectivo">Efectivo</option>
+        <option value="transferencia">Transferencia</option>
+        <option value="cortesia">Cortesía / Propietario</option>
+        <option value="bloqueo">Bloqueo (mantenimiento)</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Check-in</label><input type="date" id="mCheckin"></div>
+      <div class="field"><label>Check-out</label><input type="date" id="mCheckout"></div>
+    </div>
+    <div class="field"><label>Nombre del huésped</label><input type="text" id="mNombre" placeholder="Nombre (o motivo del bloqueo)"></div>
+    <div class="field-row">
+      <div class="field"><label>Huéspedes</label><input type="number" id="mHuespedes" value="2" min="1"></div>
+      <div class="field"><label>Total USD (opcional)</label><input type="number" id="mTotal" placeholder="0"></div>
+    </div>
+    <div class="field"><label>Notas</label><textarea id="mNotas" placeholder="Notas internas..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" id="mCancel">Cancelar</button>
+      <button class="btn btn--gold" id="mSave">Guardar reserva</button>
+    </div>
+    <div id="mError" style="color:var(--red);font-size:13px;margin-top:10px;min-height:16px;"></div>`;
+  modalBackdrop.classList.add('open');
+  document.getElementById('mCancel').addEventListener('click', cerrarModal);
+  document.getElementById('mSave').addEventListener('click', guardarManual);
+});
+
+async function guardarManual() {
+  const prop = document.getElementById('mProp').value;
+  const tipo = document.getElementById('mTipo').value;
+  const checkin = document.getElementById('mCheckin').value;
+  const checkout = document.getElementById('mCheckout').value;
+  const nombre = document.getElementById('mNombre').value.trim();
+  const huespedes = parseInt(document.getElementById('mHuespedes').value) || 1;
+  const total = parseFloat(document.getElementById('mTotal').value) || 0;
+  const notas = document.getElementById('mNotas').value.trim();
+  const errEl = document.getElementById('mError');
+
+  if (!checkin || !checkout) { errEl.textContent = 'Faltan las fechas'; return; }
+  if (new Date(checkout) <= new Date(checkin)) { errEl.textContent = 'El check-out debe ser después del check-in'; return; }
+  if (!nombre) { errEl.textContent = 'Falta el nombre o motivo'; return; }
+
+  const noches = Math.round((new Date(checkout) - new Date(checkin)) / 86400000);
+  const codigo = 'VRM-M' + Math.random().toString(36).substring(2,6).toUpperCase();
+
+  const btn = document.getElementById('mSave');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  const { error } = await supabase.from('reservas').insert({
+    codigo_reserva: codigo,
+    unidad: prop,
+    unidad_nombre: PROP_NAMES[prop] || prop,
+    checkin, checkout, noches, huespedes,
+    huesped_nombre: nombre,
+    huesped_email: null,
+    moneda: 'usd',
+    subtotal: total, total,
+    tipo_reserva: tipo,
+    origen: 'manual',
+    status: 'confirmed',
+    confirmada_en: new Date().toISOString(),
+    huesped_mensaje: notas || null,
+  });
+
+  if (error) {
+    console.error(error);
+    errEl.textContent = 'Error al guardar: ' + error.message;
+    btn.disabled = false; btn.textContent = 'Guardar reserva';
+    return;
+  }
+  cerrarModal();
+  cargarReservas();
+}
+
+document.getElementById('refreshBtn').addEventListener('click', cargarReservas);
+</script>
+</body>
+</html>
