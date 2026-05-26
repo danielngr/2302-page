@@ -191,7 +191,7 @@
     min-width: max-content;
   }
   .tl-corner {
-    position: sticky; left: 0; top: 0; z-index: 4;
+    position: sticky; left: 0; top: 0; z-index: 12;
     background: var(--deep);
     padding: 12px 16px;
     font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sand);
@@ -200,7 +200,7 @@
     min-width: 160px;
   }
   .tl-dayhead {
-    position: sticky; top: 0; z-index: 3;
+    position: sticky; top: 0; z-index: 10;
     background: var(--deep);
     padding: 10px 0; text-align: center;
     border-bottom: 1px solid var(--rule-strong); border-right: 1px solid var(--rule);
@@ -209,11 +209,18 @@
   }
   .tl-dayhead .dow { font-size: 9px; color: var(--sand); text-transform: uppercase; letter-spacing: 0.1em; }
   .tl-dayhead .dnum { font-weight: 500; color: var(--mist); margin-top: 2px; }
+  .tl-dayhead .dmon {
+    position: absolute; top: 2px; left: 4px; white-space: nowrap;
+    font-size: 9px; font-weight: 600; color: var(--gold);
+    letter-spacing: 0.04em; pointer-events: none;
+  }
   .tl-dayhead.weekend { background: #0c1d38; }
   .tl-dayhead.today .dnum { color: var(--gold); }
+  .tl-dayhead.today { background: rgba(201,163,104,0.10); }
+  .tl-dayhead.monthstart { border-left: 2px solid var(--gold); }
 
   .tl-propname {
-    position: sticky; left: 0; z-index: 2;
+    position: sticky; left: 0; z-index: 8;
     background: var(--deep);
     padding: 0 16px; display: flex; align-items: center;
     border-right: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule);
@@ -226,6 +233,7 @@
     position: relative;
   }
   .tl-cell.weekend { background: rgba(12,29,56,0.4); }
+  .tl-cell.monthstart { border-left: 2px solid rgba(201,163,104,0.5); }
 
   /* Barra de reserva sobre el grid */
   .tl-booking {
@@ -460,6 +468,7 @@ document.getElementById('gateBtn').addEventListener('click', tryLogin);
 document.getElementById('gatePass').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
 if (sessionStorage.getItem('vrm_dash_auth') === '1') {
   gate.classList.add('hidden'); app.classList.add('visible');
+  cargarReservas(); // ← faltaba: al recargar ya autenticado, cargar datos
 }
 
 // ─── CARGAR DATOS ───
@@ -498,111 +507,155 @@ function renderStats() {
   ).join('');
 }
 
-// ─── CALENDAR TIMELINE ───
+// ─── CALENDAR TIMELINE (tira continua multi-mes, scroll horizontal tipo Airbnb) ───
+const CAL_COL_W = 44;          // ancho de cada día en px
+const CAL_DAYS_BACK = 15;      // días hacia atrás desde hoy
+const CAL_DAYS_FWD = 365;      // días hacia adelante (1 año)
+let CAL_START = null;          // fecha del primer día de la tira
+let CAL_SCROLLED = false;      // si ya posicionamos el scroll en hoy
+
 function renderCalendar() {
-  const year = calMonthDate.getFullYear();
-  const month = calMonthDate.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  document.getElementById('calMonth').textContent = MESES[month] + ' ' + year;
-
   const tl = document.getElementById('timeline');
-  const colWidth = 44;
-  // grid: col propiedad + N días
-  tl.style.gridTemplateColumns = `160px repeat(${daysInMonth}, ${colWidth}px)`;
-
   const hoy = new Date(); hoy.setHours(0,0,0,0);
+
+  // La tira empieza CAL_DAYS_BACK días antes de hoy
+  CAL_START = new Date(hoy);
+  CAL_START.setDate(CAL_START.getDate() - CAL_DAYS_BACK);
+  const totalDays = CAL_DAYS_BACK + CAL_DAYS_FWD;
+
+  // grid: columna de nombres + totalDays columnas de día
+  tl.style.gridTemplateColumns = `160px repeat(${totalDays}, ${CAL_COL_W}px)`;
+
   let html = '';
 
-  // Esquina + cabeceras de día
+  // ── Fila 0: cabeceras de día (con etiqueta de mes cuando cambia) ──
   html += `<div class="tl-corner">Propiedad</div>`;
-  for (let d = 1; d <= daysInMonth; d++) {
-    const fecha = new Date(year, month, d);
+  for (let i = 0; i < totalDays; i++) {
+    const fecha = new Date(CAL_START);
+    fecha.setDate(fecha.getDate() + i);
     const dow = fecha.getDay();
     const weekend = dow === 0 || dow === 6;
     const isToday = fecha.getTime() === hoy.getTime();
-    html += `<div class="tl-dayhead ${weekend?'weekend':''} ${isToday?'today':''}">
-      <div class="dow">${DOW[dow]}</div><div class="dnum">${d}</div></div>`;
+    const dia = fecha.getDate();
+    // Cuando es día 1, mostramos el nombre del mes encima
+    const esPrimero = dia === 1;
+    const mesLabel = esPrimero ? `<div class="dmon">${MESES[fecha.getMonth()].slice(0,3)} ${fecha.getFullYear()}</div>` : '';
+    html += `<div class="tl-dayhead ${weekend?'weekend':''} ${isToday?'today':''} ${esPrimero?'monthstart':''}">
+      ${mesLabel}<div class="dow">${DOW[dow]}</div><div class="dnum">${dia}</div></div>`;
   }
 
-  // Filas por propiedad
+  // ── Filas por propiedad ──
   PROPS.forEach(prop => {
     html += `<div class="tl-propname">${PROP_NAMES[prop] || prop}</div>`;
-    for (let d = 1; d <= daysInMonth; d++) {
-      const fecha = new Date(year, month, d);
+    for (let i = 0; i < totalDays; i++) {
+      const fecha = new Date(CAL_START);
+      fecha.setDate(fecha.getDate() + i);
       const dow = fecha.getDay();
       const weekend = dow === 0 || dow === 6;
-      html += `<div class="tl-cell ${weekend?'weekend':''}" data-prop="${prop}" data-day="${d}"></div>`;
+      const esPrimero = fecha.getDate() === 1;
+      html += `<div class="tl-cell ${weekend?'weekend':''} ${esPrimero?'monthstart':''}" data-prop="${prop}" data-idx="${i}"></div>`;
     }
   });
 
   tl.innerHTML = html;
 
-  // Colocar las barras DESPUÉS de que el navegador pinte el grid, para que
-  // getBoundingClientRect devuelva medidas reales (no 0). requestAnimationFrame
-  // garantiza que el layout ya está calculado.
-  requestAnimationFrame(() => {
-    const tlRect = tl.getBoundingClientRect();
-    const monthStart = new Date(year, month, 1);
-    const monthEnd = new Date(year, month, daysInMonth);
+  // Etiqueta de mes visible arriba según la posición de scroll
+  actualizarEtiquetaMes();
 
-    PROPS.forEach((prop) => {
-      const reservasProp = RESERVAS.filter(r => r.unidad === prop && r.status !== 'cancelled');
-      reservasProp.forEach(r => {
-        const ci = new Date(r.checkin + 'T00:00:00');
-        const co = new Date(r.checkout + 'T00:00:00');
-        if (co < monthStart || ci > monthEnd) return; // fuera del mes
+  // Colocar barras tras el pintado (medición real del DOM).
+  // Doble rAF para asegurar que el layout del grid esté 100% calculado.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    colocarBarras(tl, totalDays);
+    // La primera vez, posicionar el scroll en "hoy"
+    if (!CAL_SCROLLED) {
+      const wrap = document.querySelector('.timeline-wrap');
+      if (wrap) { wrap.scrollLeft = CAL_DAYS_BACK * CAL_COL_W - 60; CAL_SCROLLED = true; }
+    }
+  }));
+}
 
-        const startDay = (ci.getMonth() === month && ci.getFullYear() === year) ? ci.getDate() : 1;
-        const endDay = (co.getMonth() === month && co.getFullYear() === year) ? co.getDate() : daysInMonth;
-        if (endDay < startDay) return;
+function colocarBarras(tl, totalDays) {
+  const tlRect = tl.getBoundingClientRect();
+  const stripEnd = new Date(CAL_START);
+  stripEnd.setDate(stripEnd.getDate() + totalDays - 1);
 
-        // Medir la celda de inicio y la de fin reales en el DOM
-        const startCell = tl.querySelector(`.tl-cell[data-prop="${prop}"][data-day="${startDay}"]`);
-        const endCell = tl.querySelector(`.tl-cell[data-prop="${prop}"][data-day="${endDay}"]`);
-        if (!startCell || !endCell) return;
+  PROPS.forEach((prop) => {
+    const reservasProp = RESERVAS.filter(r => r.unidad === prop && r.status !== 'cancelled');
+    reservasProp.forEach(r => {
+      const ci = new Date(r.checkin + 'T00:00:00');
+      const co = new Date(r.checkout + 'T00:00:00');
+      if (co < CAL_START || ci > stripEnd) return; // fuera de la tira
 
-        const sRect = startCell.getBoundingClientRect();
-        const eRect = endCell.getBoundingClientRect();
+      // Índice (columna) de cada fecha relativo al inicio de la tira
+      const startIdx = Math.max(0, Math.round((ci - CAL_START) / 86400000));
+      const endIdx = Math.min(totalDays - 1, Math.round((co - CAL_START) / 86400000));
+      if (endIdx < startIdx) return;
 
-        // Estilo Airbnb: la reserva ENTRA a la mitad del día de check-in
-        // y SALE a la mitad del día de check-out.
-        const checkinInMonth = (ci.getMonth() === month && ci.getFullYear() === year);
-        const checkoutInMonth = (co.getMonth() === month && co.getFullYear() === year);
+      const startCell = tl.querySelector(`.tl-cell[data-prop="${prop}"][data-idx="${startIdx}"]`);
+      const endCell = tl.querySelector(`.tl-cell[data-prop="${prop}"][data-idx="${endIdx}"]`);
+      if (!startCell || !endCell) return;
 
-        let left = sRect.left - tlRect.left;
-        let right = eRect.left - tlRect.left + eRect.width;
+      const sRect = startCell.getBoundingClientRect();
+      const eRect = endCell.getBoundingClientRect();
 
-        if (checkinInMonth) left += sRect.width / 2;
-        if (checkoutInMonth) right -= eRect.width / 2;
+      // Entra a media casilla (check-in) y sale a media casilla (check-out)
+      const ciVisible = ci >= CAL_START;
+      const coVisible = co <= stripEnd;
+      let left = sRect.left - tlRect.left;
+      let right = eRect.left - tlRect.left + eRect.width;
+      if (ciVisible) left += sRect.width / 2;
+      if (coVisible) right -= eRect.width / 2;
 
-        const width = right - left;
-        if (width < 8) return;
+      const width = right - left;
+      if (width < 8) return;
 
-        // Top alineado al renglón real de la propiedad
-        const top = sRect.top - tlRect.top + 8;
+      const top = sRect.top - tlRect.top + 8;
 
-        const tipo = r.tipo_reserva || 'stripe';
-        const pendingClass = r.status === 'pending' ? 'pending' : '';
-        const nombre = r.huesped_nombre || (tipo === 'bloqueo' ? 'Bloqueo' : '—');
-        const montoTxt = (tipo === 'bloqueo' || !r.total) ? '' : ' · $' + Number(r.total).toLocaleString('en-US');
+      const tipo = r.tipo_reserva || 'stripe';
+      const pendingClass = r.status === 'pending' ? 'pending' : '';
+      const nombre = r.huesped_nombre || (tipo === 'bloqueo' ? 'Bloqueo' : '—');
+      const montoTxt = (tipo === 'bloqueo' || !r.total) ? '' : ' · $' + Number(r.total).toLocaleString('en-US');
 
-        const bar = document.createElement('div');
-        bar.className = `tl-booking ${tipo} ${pendingClass}`;
-        bar.style.left = left + 'px';
-        bar.style.width = width + 'px';
-        bar.style.top = top + 'px';
-        bar.innerHTML = `<span class="tl-dot tl-dot-in"></span><span class="tl-bk-label">${nombre}${montoTxt}</span><span class="tl-dot tl-dot-out"></span>`;
-        bar.title = `${nombre} · check-in ${r.checkin} → check-out ${r.checkout}`;
-        bar.addEventListener('click', () => abrirDetalle(r));
-        tl.appendChild(bar);
-      });
+      const bar = document.createElement('div');
+      bar.className = `tl-booking ${tipo} ${pendingClass}`;
+      bar.style.left = left + 'px';
+      bar.style.width = width + 'px';
+      bar.style.top = top + 'px';
+      bar.innerHTML = `<span class="tl-dot tl-dot-in"></span><span class="tl-bk-label">${nombre}${montoTxt}</span><span class="tl-dot tl-dot-out"></span>`;
+      bar.title = `${nombre} · check-in ${r.checkin} → check-out ${r.checkout}`;
+      bar.addEventListener('click', () => abrirDetalle(r));
+      tl.appendChild(bar);
     });
   });
 }
 
-document.getElementById('calPrev').addEventListener('click', () => { calMonthDate.setMonth(calMonthDate.getMonth()-1); renderCalendar(); });
-document.getElementById('calNext').addEventListener('click', () => { calMonthDate.setMonth(calMonthDate.getMonth()+1); renderCalendar(); });
-document.getElementById('calToday').addEventListener('click', () => { calMonthDate = new Date(); calMonthDate.setDate(1); renderCalendar(); });
+// Muestra el mes/año del primer día visible según el scroll
+function actualizarEtiquetaMes() {
+  if (!CAL_START) return;
+  const wrap = document.querySelector('.timeline-wrap');
+  const scrollLeft = wrap ? wrap.scrollLeft : 0;
+  // cuántos días se han scrolleado (descontando la columna de 160px de nombres)
+  const diasScroll = Math.floor(Math.max(0, scrollLeft) / CAL_COL_W);
+  const fechaVisible = new Date(CAL_START);
+  fechaVisible.setDate(fechaVisible.getDate() + diasScroll);
+  document.getElementById('calMonth').textContent = MESES[fechaVisible.getMonth()] + ' ' + fechaVisible.getFullYear();
+}
+
+// Scroll horizontal actualiza la etiqueta de mes
+document.querySelector('.timeline-wrap').addEventListener('scroll', actualizarEtiquetaMes);
+
+// Botones: desplazan el scroll horizontalmente ~1 mes
+function scrollCalendario(dias) {
+  const wrap = document.querySelector('.timeline-wrap');
+  wrap.scrollBy({ left: dias * CAL_COL_W, behavior: 'smooth' });
+}
+document.getElementById('calPrev').addEventListener('click', () => scrollCalendario(-30));
+document.getElementById('calNext').addEventListener('click', () => scrollCalendario(30));
+document.getElementById('calToday').addEventListener('click', () => {
+  const wrap = document.querySelector('.timeline-wrap');
+  // Hoy está a CAL_DAYS_BACK días del inicio; posicionar ahí
+  wrap.scrollTo({ left: CAL_DAYS_BACK * CAL_COL_W - 60, behavior: 'smooth' });
+});
 
 // ─── LIST VIEW ───
 function renderList() {
@@ -657,6 +710,11 @@ document.querySelector('.tabs').addEventListener('click', e => {
   const v = tab.dataset.view;
   document.getElementById('calendarView').classList.toggle('hidden', v !== 'calendar');
   document.getElementById('listView').classList.toggle('hidden', v !== 'list');
+  // Al volver al calendario hay que re-renderizar: cuando estaba oculto las
+  // celdas medían 0 y las barras no se podían posicionar.
+  if (v === 'calendar') {
+    requestAnimationFrame(() => renderCalendar());
+  }
 });
 
 // ─── MODAL ───
