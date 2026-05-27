@@ -264,6 +264,8 @@
   .tl-booking.efectivo     { background: linear-gradient(135deg, #5188bf, #3f6fa0); }
   .tl-booking.transferencia{ background: linear-gradient(135deg, #6979c4, #515fa0); }
   .tl-booking.cortesia     { background: linear-gradient(135deg, #8b8578, #6e695e); }
+  .tl-booking.airbnb       { background: linear-gradient(135deg, #FF5A5F, #E0484D); }
+  .tl-booking.vrbo         { background: linear-gradient(135deg, #245ABC, #1A4694); }
   .tl-booking.bloqueo      {
     background: repeating-linear-gradient(45deg, #9a4a4a, #9a4a4a 6px, #843e3e 6px, #843e3e 12px);
   }
@@ -296,6 +298,8 @@
   .badge.efectivo { background: rgba(91,155,213,0.18); color: var(--blue); }
   .badge.transferencia { background: rgba(105,121,196,0.18); color: #9aa6e0; }
   .badge.cortesia { background: rgba(139,149,165,0.18); color: var(--grey); }
+  .badge.airbnb { background: rgba(255,90,95,0.18); color: #FF7A7F; }
+  .badge.vrbo { background: rgba(36,90,188,0.20); color: #5588DD; }
   .badge.bloqueo { background: rgba(217,135,135,0.18); color: var(--red); }
   .badge.confirmed { background: rgba(95,185,142,0.18); color: var(--green); }
   .badge.pending { background: rgba(217,135,135,0.18); color: var(--red); }
@@ -441,6 +445,8 @@
     <div class="filters" id="filters">
       <div class="filter-chip active" data-filter="all">Todas</div>
       <div class="filter-chip" data-filter="stripe">Stripe</div>
+      <div class="filter-chip" data-filter="airbnb">Airbnb</div>
+      <div class="filter-chip" data-filter="vrbo">VRBO</div>
       <div class="filter-chip" data-filter="efectivo">Efectivo</div>
       <div class="filter-chip" data-filter="transferencia">Transferencia</div>
       <div class="filter-chip" data-filter="cortesia">Cortesía</div>
@@ -483,7 +489,15 @@ const PROP_NAMES = {
   '6S':'Marítima 6S','9S':'Marítima 9S','10I':'Marítima 10I','PHN':'Marítima Penthouse',
   '211':'Bolongo 211','3N':'Bolongo 3N','G13':'Bolongo G13','L05':'Bolongo L05'
 };
-const TIPO_LABEL = { stripe:'Stripe', efectivo:'Efectivo', transferencia:'Transferencia', cortesia:'Cortesía', bloqueo:'Bloqueo' };
+const TIPO_LABEL = {
+  stripe: 'Stripe',
+  efectivo: 'Efectivo',
+  transferencia: 'Transferencia',
+  cortesia: 'Cortesía',
+  bloqueo: 'Bloqueo',
+  airbnb: 'Airbnb',
+  vrbo: 'VRBO',
+};
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DOW = ['D','L','M','M','J','V','S'];
 
@@ -516,12 +530,41 @@ if (sessionStorage.getItem('vrm_dash_auth') === '1') {
 // ─── CARGAR DATOS ───
 async function cargarReservas() {
   try {
-    const { data, error } = await supabase
-      .from('reservas')
-      .select('*')
-      .order('checkin', { ascending: true });
-    if (error) { console.error(error); return; }
-    RESERVAS = data || [];
+    // Cargar en paralelo: reservas directas (web + manuales) y bookings externos (Airbnb/VRBO)
+    const [resReservas, resBookings] = await Promise.all([
+      supabase.from('reservas').select('*').order('checkin', { ascending: true }),
+      supabase.from('bookings').select('*').neq('status', 'cancelled').order('check_in', { ascending: true }),
+    ]);
+
+    if (resReservas.error) { console.error('Error reservas:', resReservas.error); }
+    if (resBookings.error) { console.error('Error bookings:', resBookings.error); }
+
+    const reservasDirectas = resReservas.data || [];
+
+    // Normalizar bookings externos al mismo formato que reservas
+    // (para que el calendario y la lista los traten igual)
+    const reservasExternas = (resBookings.data || []).map(b => ({
+      id: 'ext-' + b.id,
+      codigo_reserva: 'AIR-' + (b.external_id || b.id).toString().slice(-6).toUpperCase(),
+      unidad: b.unit_id,
+      unidad_nombre: PROP_NAMES[b.unit_id] || b.unit_id,
+      checkin: b.check_in,
+      checkout: b.check_out,
+      noches: b.check_in && b.check_out
+        ? Math.round((new Date(b.check_out) - new Date(b.check_in)) / 86400000) : null,
+      huespedes: null,
+      huesped_nombre: b.notes || (b.source === 'airbnb' ? 'Reservación Airbnb' : 'Reservación externa'),
+      huesped_email: null,
+      huesped_telefono: null,
+      huesped_mensaje: null,
+      total: null,
+      status: b.status || 'confirmed',
+      tipo_reserva: b.source || 'airbnb',  // 'airbnb' o 'vrbo'
+      origen: 'ical',
+      es_externa: true,                     // flag para distinguir en UI
+    }));
+
+    RESERVAS = [...reservasDirectas, ...reservasExternas];
     render();
   } catch (e) { console.error(e); }
 }
@@ -534,15 +577,20 @@ function render() {
 
 // ─── STATS ───
 function renderStats() {
+  // Confirmadas (todas, directas + externas, sin bloqueos)
   const confirmadas = RESERVAS.filter(r => r.status === 'confirmed' && r.tipo_reserva !== 'bloqueo');
-  const ingresos = confirmadas.reduce((s, r) => s + (Number(r.total) || 0), 0);
+  // Solo las directas cuentan ingresos (las de Airbnb las cobra Airbnb)
+  const directas = confirmadas.filter(r => !r.es_externa);
+  const ingresos = directas.reduce((s, r) => s + (Number(r.total) || 0), 0);
   const ahora = new Date();
   const futuras = confirmadas.filter(r => new Date(r.checkin) >= ahora);
+  const externasCount = confirmadas.filter(r => r.es_externa).length;
+
   const stats = [
-    { label: 'Reservas confirmadas', value: confirmadas.length },
     { label: 'Próximas llegadas', value: futuras.length },
-    { label: 'Ingresos totales', value: '$' + ingresos.toLocaleString('en-US'), gold: true },
-    { label: 'Pendientes', value: RESERVAS.filter(r => r.status === 'pending').length },
+    { label: 'Reservas directas', value: directas.length },
+    { label: 'Vía Airbnb / VRBO', value: externasCount },
+    { label: 'Ingresos directos', value: '$' + ingresos.toLocaleString('en-US'), gold: true },
   ];
   document.getElementById('statsRow').innerHTML = stats.map(s =>
     `<div class="stat"><div class="stat-label">${s.label}</div><div class="stat-value ${s.gold?'gold':''}">${s.value}</div></div>`
@@ -655,8 +703,14 @@ function colocarBarras(tl, totalDays) {
 
       const tipo = r.tipo_reserva || 'stripe';
       const pendingClass = r.status === 'pending' ? 'pending' : '';
-      const nombre = r.huesped_nombre || (tipo === 'bloqueo' ? 'Bloqueo' : '—');
-      const montoTxt = (tipo === 'bloqueo' || !r.total) ? '' : ' · $' + Number(r.total).toLocaleString('en-US');
+      const esExterna = r.es_externa === true;
+      // Para reservas externas (Airbnb/VRBO), el label es el nombre del canal.
+      // Para reservas directas, el nombre del huésped.
+      let nombre;
+      if (esExterna) nombre = (TIPO_LABEL[tipo] || 'Externa');
+      else if (tipo === 'bloqueo') nombre = r.huesped_nombre || 'Bloqueo';
+      else nombre = r.huesped_nombre || '—';
+      const montoTxt = (tipo === 'bloqueo' || esExterna || !r.total) ? '' : ' · $' + Number(r.total).toLocaleString('en-US');
 
       const bar = document.createElement('div');
       bar.className = `tl-booking ${tipo} ${pendingClass}`;
@@ -725,7 +779,10 @@ function renderList() {
 
   tbody.innerHTML = filtered.map(r => {
     const tipo = r.tipo_reserva || 'stripe';
-    const total = (tipo === 'bloqueo' || !r.total) ? '—' : '$' + Number(r.total).toLocaleString('en-US');
+    let total;
+    if (r.es_externa) total = '—';
+    else if (tipo === 'bloqueo' || !r.total) total = '—';
+    else total = '$' + Number(r.total).toLocaleString('en-US');
     return `<tr class="res-row" data-id="${r.id}">
       <td><span class="res-code">${r.codigo_reserva || '—'}</span></td>
       <td>${PROP_NAMES[r.unidad] || r.unidad}</td>
@@ -778,20 +835,35 @@ modalBackdrop.addEventListener('click', e => { if (e.target === modalBackdrop) c
 
 function abrirDetalle(r) {
   const tipo = r.tipo_reserva || 'stripe';
+  const esExterna = r.es_externa === true;
   const total = (tipo === 'bloqueo' || !r.total) ? '—' : '$' + Number(r.total).toLocaleString('en-US') + ' USD';
-  modalContent.innerHTML = `
-    <div class="modal-title">${r.huesped_nombre || 'Bloqueo'}</div>
-    <div class="modal-sub">${r.codigo_reserva || ''} · ${PROP_NAMES[r.unidad]||r.unidad}</div>
+
+  // Para reservas externas (Airbnb/VRBO) no mostramos email/teléfono/total
+  // porque el iCal no los provee. Sí mostramos la nota original como "Resumen"
+  // (Airbnb suele poner ahí "Reserved" o el nombre parcial del guest).
+  const rowsBase = `
     <div class="detail-row"><span class="l">Tipo</span><span class="r"><span class="badge ${tipo}">${TIPO_LABEL[tipo]||tipo}</span></span></div>
     <div class="detail-row"><span class="l">Estado</span><span class="r"><span class="badge ${r.status}">${r.status==='confirmed'?'Confirmada':'Pendiente'}</span></span></div>
     <div class="detail-row"><span class="l">Check-in</span><span class="r">${r.checkin}</span></div>
     <div class="detail-row"><span class="l">Check-out</span><span class="r">${r.checkout}</span></div>
-    <div class="detail-row"><span class="l">Noches</span><span class="r">${r.noches||'—'}</span></div>
+    <div class="detail-row"><span class="l">Noches</span><span class="r">${r.noches||'—'}</span></div>`;
+
+  const rowsInternas = !esExterna ? `
     <div class="detail-row"><span class="l">Huéspedes</span><span class="r">${r.huespedes||'—'}</span></div>
     ${r.huesped_email ? `<div class="detail-row"><span class="l">Email</span><span class="r">${r.huesped_email}</span></div>` : ''}
     ${r.huesped_telefono ? `<div class="detail-row"><span class="l">Teléfono</span><span class="r">${r.huesped_telefono}</span></div>` : ''}
     <div class="detail-row"><span class="l">Total</span><span class="r">${total}</span></div>
     ${r.huesped_mensaje ? `<div class="detail-row"><span class="l">Notas</span><span class="r">${r.huesped_mensaje}</span></div>` : ''}
+  ` : `
+    <div class="detail-row"><span class="l">Fuente</span><span class="r">${tipo === 'airbnb' ? 'Sincronizado desde Airbnb' : 'Sincronizado desde ' + tipo.toUpperCase()}</span></div>
+    <div class="detail-row" style="font-size:12px;color:var(--sand);"><span class="l" style="width:100%;">Esta reserva viene de un calendario externo. Los datos del huésped los gestiona ${tipo === 'airbnb' ? 'Airbnb' : tipo.toUpperCase()}.</span></div>
+  `;
+
+  modalContent.innerHTML = `
+    <div class="modal-title">${esExterna ? (tipo === 'airbnb' ? 'Reserva Airbnb' : 'Reserva ' + tipo.toUpperCase()) : (r.huesped_nombre || 'Bloqueo')}</div>
+    <div class="modal-sub">${r.codigo_reserva || ''} · ${PROP_NAMES[r.unidad]||r.unidad}</div>
+    ${rowsBase}
+    ${rowsInternas}
     <div class="modal-actions">
       <button class="btn" id="modalClose">Cerrar</button>
     </div>`;
