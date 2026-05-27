@@ -543,26 +543,42 @@ async function cargarReservas() {
 
     // Normalizar bookings externos al mismo formato que reservas
     // (para que el calendario y la lista los traten igual)
-    const reservasExternas = (resBookings.data || []).map(b => ({
-      id: 'ext-' + b.id,
-      codigo_reserva: 'AIR-' + (b.external_id || b.id).toString().slice(-6).toUpperCase(),
-      unidad: b.unit_id,
-      unidad_nombre: PROP_NAMES[b.unit_id] || b.unit_id,
-      checkin: b.check_in,
-      checkout: b.check_out,
-      noches: b.check_in && b.check_out
-        ? Math.round((new Date(b.check_out) - new Date(b.check_in)) / 86400000) : null,
-      huespedes: null,
-      huesped_nombre: b.notes || (b.source === 'airbnb' ? 'Reservación Airbnb' : 'Reservación externa'),
-      huesped_email: null,
-      huesped_telefono: null,
-      huesped_mensaje: null,
-      total: null,
-      status: b.status || 'confirmed',
-      tipo_reserva: b.source || 'airbnb',  // 'airbnb' o 'vrbo'
-      origen: 'ical',
-      es_externa: true,                     // flag para distinguir en UI
-    }));
+    const reservasExternas = (resBookings.data || []).map(b => {
+      // El iCal de Airbnb tiene dos tipos de eventos:
+      //   - "Reserved" → reserva real con huésped (huésped pagó vía Airbnb)
+      //   - "Airbnb (Not available)" / "Closed" → bloqueo manual en Airbnb
+      //     (mantenimiento, uso personal del dueño, etc.)
+      // Los distinguimos para que el calendario sea más informativo.
+      const notes = (b.notes || '').toLowerCase();
+      const esBloqueo = notes.includes('not available') || notes.includes('closed') || notes.includes('blocked');
+      const tipo = esBloqueo ? 'bloqueo' : (b.source || 'airbnb');
+      const labelNombre = esBloqueo
+        ? 'Bloqueo Airbnb'
+        : (b.source === 'airbnb' ? 'Reserva Airbnb' : 'Reserva ' + (b.source || 'externa').toUpperCase());
+
+      return {
+        id: 'ext-' + b.id,
+        codigo_reserva: 'AIR-' + (b.external_id || b.id).toString().slice(-6).toUpperCase(),
+        unidad: b.unit_id,
+        unidad_nombre: PROP_NAMES[b.unit_id] || b.unit_id,
+        checkin: b.check_in,
+        checkout: b.check_out,
+        noches: b.check_in && b.check_out
+          ? Math.round((new Date(b.check_out) - new Date(b.check_in)) / 86400000) : null,
+        huespedes: null,
+        huesped_nombre: labelNombre,
+        huesped_email: null,
+        huesped_telefono: null,
+        huesped_mensaje: b.notes || null,
+        total: null,
+        status: b.status || 'confirmed',
+        tipo_reserva: tipo,           // 'airbnb' o 'bloqueo'
+        origen: 'ical',
+        es_externa: true,             // flag para distinguir en UI
+        es_bloqueo_airbnb: esBloqueo, // sub-flag para el detalle
+        source_original: b.source,    // 'airbnb', 'vrbo', etc.
+      };
+    });
 
     RESERVAS = [...reservasDirectas, ...reservasExternas];
     render();
@@ -577,19 +593,21 @@ function render() {
 
 // ─── STATS ───
 function renderStats() {
-  // Confirmadas (todas, directas + externas, sin bloqueos)
+  // Confirmadas: todas excepto bloqueos (incluye bloqueos Airbnb)
   const confirmadas = RESERVAS.filter(r => r.status === 'confirmed' && r.tipo_reserva !== 'bloqueo');
-  // Solo las directas cuentan ingresos (las de Airbnb las cobra Airbnb)
+  // Reservas directas (web + manuales, no externas)
   const directas = confirmadas.filter(r => !r.es_externa);
+  // Solo las directas generan ingresos para VRM (las de Airbnb las cobra Airbnb)
   const ingresos = directas.reduce((s, r) => s + (Number(r.total) || 0), 0);
   const ahora = new Date();
   const futuras = confirmadas.filter(r => new Date(r.checkin) >= ahora);
-  const externasCount = confirmadas.filter(r => r.es_externa).length;
+  // Reservas externas reales (no bloqueos manuales puestos en Airbnb)
+  const externasReales = confirmadas.filter(r => r.es_externa && !r.es_bloqueo_airbnb);
 
   const stats = [
     { label: 'Próximas llegadas', value: futuras.length },
     { label: 'Reservas directas', value: directas.length },
-    { label: 'Vía Airbnb / VRBO', value: externasCount },
+    { label: 'Vía Airbnb / VRBO', value: externasReales.length },
     { label: 'Ingresos directos', value: '$' + ingresos.toLocaleString('en-US'), gold: true },
   ];
   document.getElementById('statsRow').innerHTML = stats.map(s =>
@@ -704,10 +722,11 @@ function colocarBarras(tl, totalDays) {
       const tipo = r.tipo_reserva || 'stripe';
       const pendingClass = r.status === 'pending' ? 'pending' : '';
       const esExterna = r.es_externa === true;
-      // Para reservas externas (Airbnb/VRBO), el label es el nombre del canal.
-      // Para reservas directas, el nombre del huésped.
+      const esBloqueoAirbnb = r.es_bloqueo_airbnb === true;
+      // Label corto en la barra (porque la barra es estrecha)
       let nombre;
-      if (esExterna) nombre = (TIPO_LABEL[tipo] || 'Externa');
+      if (esBloqueoAirbnb) nombre = 'Bloqueo Airbnb';
+      else if (esExterna) nombre = (TIPO_LABEL[r.source_original] || 'Airbnb');
       else if (tipo === 'bloqueo') nombre = r.huesped_nombre || 'Bloqueo';
       else nombre = r.huesped_nombre || '—';
       const montoTxt = (tipo === 'bloqueo' || esExterna || !r.total) ? '' : ' · $' + Number(r.total).toLocaleString('en-US');
@@ -836,6 +855,7 @@ modalBackdrop.addEventListener('click', e => { if (e.target === modalBackdrop) c
 function abrirDetalle(r) {
   const tipo = r.tipo_reserva || 'stripe';
   const esExterna = r.es_externa === true;
+  const esBloqueoAirbnb = r.es_bloqueo_airbnb === true;
   const total = (tipo === 'bloqueo' || !r.total) ? '—' : '$' + Number(r.total).toLocaleString('en-US') + ' USD';
 
   // Para reservas externas (Airbnb/VRBO) no mostramos email/teléfono/total
@@ -848,22 +868,37 @@ function abrirDetalle(r) {
     <div class="detail-row"><span class="l">Check-out</span><span class="r">${r.checkout}</span></div>
     <div class="detail-row"><span class="l">Noches</span><span class="r">${r.noches||'—'}</span></div>`;
 
-  const rowsInternas = !esExterna ? `
-    <div class="detail-row"><span class="l">Huéspedes</span><span class="r">${r.huespedes||'—'}</span></div>
-    ${r.huesped_email ? `<div class="detail-row"><span class="l">Email</span><span class="r">${r.huesped_email}</span></div>` : ''}
-    ${r.huesped_telefono ? `<div class="detail-row"><span class="l">Teléfono</span><span class="r">${r.huesped_telefono}</span></div>` : ''}
-    <div class="detail-row"><span class="l">Total</span><span class="r">${total}</span></div>
-    ${r.huesped_mensaje ? `<div class="detail-row"><span class="l">Notas</span><span class="r">${r.huesped_mensaje}</span></div>` : ''}
-  ` : `
-    <div class="detail-row"><span class="l">Fuente</span><span class="r">${tipo === 'airbnb' ? 'Sincronizado desde Airbnb' : 'Sincronizado desde ' + tipo.toUpperCase()}</span></div>
-    <div class="detail-row" style="font-size:12px;color:var(--sand);"><span class="l" style="width:100%;">Esta reserva viene de un calendario externo. Los datos del huésped los gestiona ${tipo === 'airbnb' ? 'Airbnb' : tipo.toUpperCase()}.</span></div>
-  `;
+  let rowsExtras;
+  if (esExterna) {
+    const canalNombre = (r.source_original || 'airbnb').toUpperCase();
+    if (esBloqueoAirbnb) {
+      rowsExtras = `
+        <div class="detail-row"><span class="l">Fuente</span><span class="r">Bloqueo manual en ${canalNombre}</span></div>
+        <div class="detail-row" style="font-size:12px;color:var(--sand);"><span class="l" style="width:100%;">Tú o Rodrigo bloquearon estas fechas directamente en ${canalNombre} (mantenimiento, uso personal, etc.). No hay huésped real.</span></div>
+      `;
+    } else {
+      rowsExtras = `
+        <div class="detail-row"><span class="l">Fuente</span><span class="r">Sincronizado desde ${canalNombre}</span></div>
+        <div class="detail-row" style="font-size:12px;color:var(--sand);"><span class="l" style="width:100%;">Esta reserva viene de ${canalNombre}. Los datos del huésped y el pago los gestiona ${canalNombre} directamente.</span></div>
+      `;
+    }
+  } else {
+    rowsExtras = `
+      <div class="detail-row"><span class="l">Huéspedes</span><span class="r">${r.huespedes||'—'}</span></div>
+      ${r.huesped_email ? `<div class="detail-row"><span class="l">Email</span><span class="r">${r.huesped_email}</span></div>` : ''}
+      ${r.huesped_telefono ? `<div class="detail-row"><span class="l">Teléfono</span><span class="r">${r.huesped_telefono}</span></div>` : ''}
+      <div class="detail-row"><span class="l">Total</span><span class="r">${total}</span></div>
+      ${r.huesped_mensaje ? `<div class="detail-row"><span class="l">Notas</span><span class="r">${r.huesped_mensaje}</span></div>` : ''}
+    `;
+  }
+
+  const titulo = esExterna ? r.huesped_nombre : (r.huesped_nombre || 'Bloqueo');
 
   modalContent.innerHTML = `
-    <div class="modal-title">${esExterna ? (tipo === 'airbnb' ? 'Reserva Airbnb' : 'Reserva ' + tipo.toUpperCase()) : (r.huesped_nombre || 'Bloqueo')}</div>
+    <div class="modal-title">${titulo}</div>
     <div class="modal-sub">${r.codigo_reserva || ''} · ${PROP_NAMES[r.unidad]||r.unidad}</div>
     ${rowsBase}
-    ${rowsInternas}
+    ${rowsExtras}
     <div class="modal-actions">
       <button class="btn" id="modalClose">Cerrar</button>
     </div>`;
