@@ -3650,7 +3650,29 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
       e.stopPropagation();
       const unit = window.VRM_UNIT || {};
       const propName = unit.name || 'this property';
-      const propUrl = window.location.href;
+      const propId = unit.id;
+
+      // URL "corta" con preview personalizada: /p/<ID>.html
+      // Si existe el archivo de share para esta unidad, lo usamos (WhatsApp,
+      // iMessage, Twitter, etc. mostrarán foto + nombre de esta propiedad).
+      // Si no hay ID o el archivo no existe, caemos a la URL actual.
+      const PROPS_CON_SHARE = ['2302','2403','2701','2801','3004','2005','2705','2905','6S','9S','10I','PHN','G13'];
+      let propUrl;
+      if (propId && PROPS_CON_SHARE.includes(propId)) {
+        // Origen + carpeta base + /p/<ID>.html
+        // Ej: https://danielngr.github.io/2302-page/p/2302.html
+        const base = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
+        propUrl = base + '/p/' + propId + '.html';
+        // Conservar fechas y huéspedes si están en la URL actual (la página
+        // de redirección los pasa al property page real)
+        const params = new URLSearchParams(window.location.search);
+        const keep = ['checkin','checkout','guests'];
+        const kept = keep.filter(k => params.get(k)).map(k => `${k}=${encodeURIComponent(params.get(k))}`).join('&');
+        if (kept) propUrl += '?' + kept;
+      } else {
+        propUrl = window.location.href;
+      }
+
       const shareText = `Check out ${propName} on VRM — Vacation Rental Mexico`;
       openShareMenu(shareText, propUrl, propName);
     });
