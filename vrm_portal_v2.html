@@ -4089,7 +4089,7 @@
                 ${r.tipo_formato==='pdf' ? `<button class="btn btn-outline-white" style="font-size:12px;padding:7px 14px;" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-arrows-clockwise"></i> Regenerar PDF</button>` : ''}
                 ${r.tipo_formato==='pdf' && tieneCorreoConfigured(r.depto||'') ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar por correo</button>` : ''}
                 ${r.tipo_formato==='whatsapp' ? `<button class="btn btn-outline-blue" style="font-size:12px;padding:7px 14px;" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-arrows-clockwise"></i> Reenviar mensaje</button>` : ''}
-                ${r.tipo_formato==='whatsapp' && tieneCorreoMsg(r.depto||'') ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="enviarMsgPorCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar por correo</button>` : ''}
+                ${tieneCorreoMsg(r.depto||'') ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="enviarMsgPorCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar por correo</button>` : ''}
                 ${r.tipo_formato==='frakcio' ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> Reenviar QR a Frakcio</button>` : ''}
                 ${r.tipo_formato==='correo' ? `<button class="btn btn-outline-green" style="font-size:12px;padding:7px 14px;" onclick="marcarCorreo('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-arrows-clockwise"></i> Reenviar correo</button>` : ''}
                 <button class="btn btn-outline-white" style="font-size:12px;padding:7px 14px;opacity:.7" onclick="editarFechasRegistro('${r.id}')"><i class="ph-bold ph-pencil-simple"></i> Editar fechas</button>
@@ -4919,6 +4919,10 @@
     const CORREO_MSG_MAP = {
       "ARCANO": { to: ["urban2admon@gmail.com"], subject: "Check-in Arcano 203" },
       "MARINA SOL": { to: ["condominos@prodigy.net.mx"], subject: "Check-in Marina Sol" },
+      // LOS TULES — los 3 correos de recepción
+      "TULES 20-105":  { to: ["lostulesrecepcion@gmail.com","guillermoholguin@condominiolostules.com","recepcion@condominiolostules.com"], subject: "Check-in Los Tules 20-105" },
+      "TULES 19-1301": { to: ["lostulesrecepcion@gmail.com","guillermoholguin@condominiolostules.com","recepcion@condominiolostules.com"], subject: "Check-in Los Tules 19-1301" },
+      "TULES 15-143":  { to: ["lostulesrecepcion@gmail.com","guillermoholguin@condominiolostules.com","recepcion@condominiolostules.com"], subject: "Check-in Los Tules 15-143" },
     };
 
     function tieneCorreoMsg(depto) {
@@ -5142,6 +5146,37 @@
         const err = await resp.json();
         throw new Error(err.error?.message || "Error enviando correo");
       }
+    }
+
+    // Genera el texto corto del mensaje por correo: Nombre / unidad / fechas
+    // Ej:  Cynthia Anahí García García
+    //      20-105
+    //      22-26 mayo 2026
+    function generarTextoMsg(r, datos, ocupantes) {
+      const MESES_LARGO = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+      const nombre = (datos && datos.nombre) || r.nombre || "";
+      // Unidad: para TULES mostramos solo el número (ej "TULES 20-105" → "20-105")
+      let unidad = displayDepto(r.depto) || r.depto || "";
+      unidad = unidad.replace(/^TULES\s+/i, "").trim();
+      // Rango de fechas tipo "22-26 mayo 2026"
+      let fechas = "";
+      const ent = (datos && datos.entrada) || r.fecha_entrada || "";
+      const sal = (datos && datos.salida) || r.fecha_salida || "";
+      if(ent && sal){
+        const [ey,em,ed] = ent.split("-").map(Number);
+        const [sy,sm,sd] = sal.split("-").map(Number);
+        if(em===sm && ey===sy){
+          fechas = `${ed}-${sd} ${MESES_LARGO[em-1]} ${ey}`;
+        } else if(ey===sy){
+          fechas = `${ed} ${MESES_LARGO[em-1]} - ${sd} ${MESES_LARGO[sm-1]} ${ey}`;
+        } else {
+          fechas = `${ed} ${MESES_LARGO[em-1]} ${ey} - ${sd} ${MESES_LARGO[sm-1]} ${sy}`;
+        }
+      } else if(ent){
+        const [ey,em,ed] = ent.split("-").map(Number);
+        fechas = `${ed} ${MESES_LARGO[em-1]} ${ey}`;
+      }
+      return [nombre, unidad, fechas].filter(Boolean).join("\n");
     }
 
     async function enviarMsgPorCorreo(id) {
