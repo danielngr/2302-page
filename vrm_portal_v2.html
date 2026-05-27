@@ -4191,6 +4191,28 @@
                         rowsH += itemHTML(reg);
                         return;
                     }
+                    // Deptos correo con mensaje de texto configurado (TULES) → flujo tipo Arcano
+                    if(tieneCorreoMsg(depto)) {
+                        const tieneReg = reg && reg.nombre;
+                        const guestName = tieneReg ? reg.nombre : null;
+                        const msgOk = reg && reg.pdf_generado;
+                        let cBtn;
+                        if(msgOk) {
+                            cBtn = `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Enviado</button>`;
+                        } else if(tieneReg) {
+                            cBtn = `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-blue" onclick="generarFormato('${reg.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button><button class="btn btn-outline-yellow" onclick="enviarMsgPorCorreo('${reg.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button></div>`;
+                        } else {
+                            cBtn = `<button class="btn btn-outline-red" onclick="copiarLink('${depto}')"><i class="ph-bold ph-prohibit"></i> Sin registro</button>`;
+                        }
+                        rowsH+=`<div class="list-item${msgOk?' generado':''}">
+                            <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">CORREO</span></div>
+                            <div class="${guestName?'guest-name':'guest-name guest-empty'}">${guestName||'—'}</div>
+                            <div>${cBtn}</div>
+                            <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
+                        </div>`;
+                        if(!msgOk){ pend++; totalPend++; }
+                        return;
+                    }
                     const correoRec = (correosEnviados||[]).find(x =>
                         x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fiso
                     );
