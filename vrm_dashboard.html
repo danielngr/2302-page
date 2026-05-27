@@ -589,7 +589,6 @@ async function cargarReservas() {
       //   - "Reserved" → reserva real con huésped (huésped pagó vía Airbnb)
       //   - "Airbnb (Not available)" / "Closed" → bloqueo manual en Airbnb
       //     (mantenimiento, uso personal del dueño, etc.)
-      // Los distinguimos para que el calendario sea más informativo.
       const notes = (b.notes || '').toLowerCase();
       const esBloqueo = notes.includes('not available') || notes.includes('closed') || notes.includes('blocked');
       const tipo = esBloqueo ? 'bloqueo' : (b.source || 'airbnb');
@@ -613,15 +612,36 @@ async function cargarReservas() {
         huesped_mensaje: b.notes || null,
         total: null,
         status: b.status || 'confirmed',
-        tipo_reserva: tipo,           // 'airbnb' o 'bloqueo'
+        tipo_reserva: tipo,
         origen: 'ical',
-        es_externa: true,             // flag para distinguir en UI
-        es_bloqueo_airbnb: esBloqueo, // sub-flag para el detalle
-        source_original: b.source,    // 'airbnb', 'vrbo', etc.
+        es_externa: true,
+        es_bloqueo_airbnb: esBloqueo,
+        source_original: b.source,
       };
     });
 
-    RESERVAS = [...reservasDirectas, ...reservasExternas];
+    // ─── DEDUPLICAR: esconder bloqueos Airbnb que son "el reflejo" de una
+    // reserva directa que ya tenemos. Ocurre porque ical-export bloquea las
+    // fechas en Airbnb y sync-icals las trae de vuelta como "Bloqueo Airbnb".
+    //
+    // Match: misma unidad + fechas que se traslapan totalmente (el bloqueo
+    // Airbnb está dentro del rango de una reserva directa nuestra).
+    const externasSinDuplicados = reservasExternas.filter(ext => {
+      if (!ext.es_bloqueo_airbnb) return true; // solo filtramos bloqueos Airbnb
+      const extStart = ext.checkin;
+      const extEnd = ext.checkout;
+      // ¿Existe una reserva directa de la misma unidad cuyas fechas contengan
+      // (o coincidan con) este bloqueo Airbnb?
+      const reflejadoEnDirecta = reservasDirectas.some(dir =>
+        dir.unidad === ext.unidad &&
+        dir.status === 'confirmed' &&
+        dir.checkin <= extStart &&
+        dir.checkout >= extEnd
+      );
+      return !reflejadoEnDirecta; // si está reflejado, lo escondemos
+    });
+
+    RESERVAS = [...reservasDirectas, ...externasSinDuplicados];
     render();
   } catch (e) { console.error(e); }
 }
@@ -809,48 +829,132 @@ function colocarBarras(tl, totalDays) {
   const stripEnd = new Date(CAL_START);
   stripEnd.setDate(stripEnd.getDate() + totalDays - 1);
 
+  const BAR_H = 36;
+  const BAR_GAP = 4;
+  const ROW_PAD = 8;
+  const DEFAULT_ROW_HEIGHT = 52;
+
+  // 1) Calcular carriles para CADA propiedad (sin tocar el DOM aún)
+  const layoutPorProp = {};
+
   PROPS.forEach((prop) => {
-    const reservasProp = RESERVAS.filter(r => r.unidad === prop && r.status !== 'cancelled');
-    reservasProp.forEach(r => {
+    const reservasProp = RESERVAS.filter(r =>
+      r.unidad === prop && r.status !== 'cancelled'
+    );
+
+    // Para cada reserva, índice de día start/end relativo a CAL_START
+    const items = [];
+    for (const r of reservasProp) {
       const ci = new Date(r.checkin + 'T00:00:00');
       const co = new Date(r.checkout + 'T00:00:00');
-      if (co < CAL_START || ci > stripEnd) return; // fuera de la tira
+      if (co < CAL_START || ci > stripEnd) continue;
 
-      // Índice (columna) de cada fecha relativo al inicio de la tira
       const startIdx = Math.max(0, Math.round((ci - CAL_START) / 86400000));
       const endIdx = Math.min(totalDays - 1, Math.round((co - CAL_START) / 86400000));
-      if (endIdx < startIdx) return;
+      if (endIdx < startIdx) continue;
 
-      const startCell = tl.querySelector(`.tl-cell[data-prop="${prop}"][data-idx="${startIdx}"]`);
-      const endCell = tl.querySelector(`.tl-cell[data-prop="${prop}"][data-idx="${endIdx}"]`);
-      if (!startCell || !endCell) return;
+      items.push({ r, ci, co, startIdx, endIdx });
+    }
+
+    // Asignar carriles basándose en SOLAPAMIENTO DE FECHAS (no de píxeles)
+    // Dos reservas se solapan si [startA, endA-1] cruza con [startB, endB-1]
+    // (resto 1 porque el endIdx es el día de check-out, día no ocupado por la noche)
+    items.sort((a, b) => a.startIdx - b.startIdx);
+    const lanesEnd = [];  // máximo endIdx ocupado por cada carril
+    for (const it of items) {
+      let placed = false;
+      for (let i = 0; i < lanesEnd.length; i++) {
+        // Puede entrar al carril i si la reserva anterior ya terminó
+        // (startIdx >= lanesEnd[i], permite back-to-back check-out → check-in)
+        if (it.startIdx >= lanesEnd[i]) {
+          lanesEnd[i] = it.endIdx;
+          it.lane = i;
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        lanesEnd.push(it.endIdx);
+        it.lane = lanesEnd.length - 1;
+      }
+    }
+
+    layoutPorProp[prop] = {
+      items,
+      carriles: Math.max(1, lanesEnd.length),
+    };
+  });
+
+  // 2) Ajustar la altura de las filas que necesiten más de 1 carril
+  //    (cambia las celdas de timeline Y la etiqueta de la columna izquierda)
+  for (const prop of PROPS) {
+    const carriles = layoutPorProp[prop].carriles;
+    const nuevaAltura = carriles > 1
+      ? (ROW_PAD * 2 + carriles * BAR_H + (carriles - 1) * BAR_GAP)
+      : DEFAULT_ROW_HEIGHT;
+
+    // Celdas del timeline para esta propiedad
+    tl.querySelectorAll(`.tl-cell[data-prop="${prop}"]`).forEach(c => {
+      c.style.height = nuevaAltura + 'px';
+    });
+    // Label de propiedad en la columna fija de la izquierda
+    const propLabel = document.querySelector(`.tl-prop-label[data-prop="${prop}"]`);
+    if (propLabel) propLabel.style.height = nuevaAltura + 'px';
+  }
+
+  // 3) Forzar reflow para que getBoundingClientRect lea las nuevas alturas
+  void tl.offsetHeight;
+
+  // 4) Pintar las barras en sus carriles correspondientes (después del reflow)
+  const tlRectFresh = tl.getBoundingClientRect();
+  for (const prop of PROPS) {
+    const { items } = layoutPorProp[prop];
+    for (const it of items) {
+      const startCell = tl.querySelector(`.tl-cell[data-prop="${prop}"][data-idx="${it.startIdx}"]`);
+      const endCell   = tl.querySelector(`.tl-cell[data-prop="${prop}"][data-idx="${it.endIdx}"]`);
+      if (!startCell || !endCell) continue;
 
       const sRect = startCell.getBoundingClientRect();
       const eRect = endCell.getBoundingClientRect();
 
-      // Entra a media casilla (check-in) y sale a media casilla (check-out)
-      const ciVisible = ci >= CAL_START;
-      const coVisible = co <= stripEnd;
-      let left = sRect.left - tlRect.left;
-      let right = eRect.left - tlRect.left + eRect.width;
+      const ciVisible = it.ci >= CAL_START;
+      const coVisible = it.co <= stripEnd;
+      let left = sRect.left - tlRectFresh.left;
+      let right = eRect.left - tlRectFresh.left + eRect.width;
       if (ciVisible) left += sRect.width / 2;
       if (coVisible) right -= eRect.width / 2;
-
       const width = right - left;
-      if (width < 8) return;
+      if (width < 8) continue;
 
-      const top = sRect.top - tlRect.top + 8;
+      const rowTop = sRect.top - tlRectFresh.top;
+      const top = rowTop + ROW_PAD + it.lane * (BAR_H + BAR_GAP);
 
+      const r = it.r;
       const tipo = r.tipo_reserva || 'stripe';
       const pendingClass = r.status === 'pending' ? 'pending' : '';
       const esExterna = r.es_externa === true;
       const esBloqueoAirbnb = r.es_bloqueo_airbnb === true;
-      // Label corto en la barra (porque la barra es estrecha)
+
+      // Nombre corto para la barra (las barras son estrechas)
       let nombre;
       if (esBloqueoAirbnb) nombre = 'Bloqueo Airbnb';
       else if (esExterna) nombre = (TIPO_LABEL[r.source_original] || 'Airbnb');
       else if (tipo === 'bloqueo') nombre = r.huesped_nombre || 'Bloqueo';
-      else nombre = r.huesped_nombre || '—';
+      else {
+        // Si el huésped escribió varios nombres juntos, mostrar solo el
+        // primero + "+N" (el detalle completo lo ve al hacer click)
+        const raw = (r.huesped_nombre || '—').trim();
+        // Heurística: 4+ palabras y 2+ apellidos repetidos → es lista de invitados
+        const palabras = raw.split(/\s+/);
+        if (palabras.length >= 4) {
+          // Tomar los primeros 2 (nombre + apellido) y contar el resto
+          const primero = palabras.slice(0, 2).join(' ');
+          const extras = Math.max(0, Math.floor((palabras.length - 2) / 2));
+          nombre = extras > 0 ? `${primero} +${extras}` : primero;
+        } else {
+          nombre = raw;
+        }
+      }
       const montoTxt = (tipo === 'bloqueo' || esExterna || !r.total) ? '' : ' · $' + Number(r.total).toLocaleString('en-US');
 
       const bar = document.createElement('div');
@@ -859,11 +963,11 @@ function colocarBarras(tl, totalDays) {
       bar.style.width = width + 'px';
       bar.style.top = top + 'px';
       bar.innerHTML = `<span class="tl-dot tl-dot-in"></span><span class="tl-bk-label">${nombre}${montoTxt}</span><span class="tl-dot tl-dot-out"></span>`;
-      bar.title = `${nombre} · check-in ${r.checkin} → check-out ${r.checkout}`;
+      bar.title = `${r.huesped_nombre || nombre} · check-in ${r.checkin} → check-out ${r.checkout}`;
       bar.addEventListener('click', () => abrirDetalle(r));
       tl.appendChild(bar);
-    });
-  });
+    }
+  }
 }
 
 // Muestra el mes/año dominante en la vista según el scroll (estilo Airbnb:
