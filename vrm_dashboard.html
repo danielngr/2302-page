@@ -167,6 +167,46 @@
   .stat-value { font-family: var(--font-display); font-size: 28px; font-weight: 500; color: var(--mist); line-height: 1; }
   .stat-value.gold { color: var(--gold); }
 
+  /* ─── TODAY ROW (check-ins / check-outs del día) ─── */
+  .today-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px; margin-bottom: 26px;
+  }
+  .today-card {
+    background: rgba(232,228,218,0.04);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--rule); border-radius: 14px;
+    padding: 18px 20px;
+  }
+  .today-card.in   { border-top: 2px solid var(--green); }
+  .today-card.out  { border-top: 2px solid var(--gold); }
+  .today-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .today-label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sand); }
+  .today-count { font-family: var(--font-display); font-size: 28px; font-weight: 500; line-height: 1; }
+  .today-count.green { color: var(--green); }
+  .today-count.gold { color: var(--gold); }
+  .today-items { display: flex; flex-direction: column; gap: 6px; }
+  .today-empty { font-size: 13px; color: var(--sand); opacity: 0.6; padding: 8px 0; }
+  .today-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px;
+    background: rgba(255,255,255,0.025); cursor: pointer;
+    transition: background 0.15s;
+  }
+  .today-item:hover { background: rgba(201,163,104,0.12); }
+  .today-item-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .today-item-name {
+    flex: 1; font-size: 13px; color: var(--mist);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .today-item-unit {
+    font-size: 11px; color: var(--sand); font-family: monospace;
+    background: rgba(232,228,218,0.06); padding: 2px 8px; border-radius: 6px;
+  }
+
   /* ─── CALENDAR TIMELINE ─── */
   .cal-controls { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
   .cal-month { font-family: var(--font-display); font-size: 30px; font-weight: 500; min-width: 240px; color: var(--mist); letter-spacing: -0.01em; }
@@ -429,6 +469,7 @@
   <!-- CALENDAR VIEW -->
   <div class="view" id="calendarView">
     <div class="stats" id="statsRow"></div>
+    <div class="today-row" id="todayRow"></div>
     <div class="cal-controls">
       <button class="cal-nav-btn" id="calPrev">‹</button>
       <div class="cal-month" id="calMonth">—</div>
@@ -587,8 +628,89 @@ async function cargarReservas() {
 
 function render() {
   renderStats();
+  renderToday();
   renderCalendar();
   renderList();
+}
+
+// ─── TODAY (check-ins y check-outs del día) ───
+function renderToday() {
+  // Fecha local en formato YYYY-MM-DD para comparar con checkin/checkout
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hoy = `${yyyy}-${mm}-${dd}`;
+
+  // Solo reservas confirmadas (incluye Airbnb), excluye bloqueos puros
+  const activas = RESERVAS.filter(r =>
+    r.status === 'confirmed' &&
+    r.tipo_reserva !== 'bloqueo'  // bloqueos manuales no son "llegadas/salidas"
+  );
+
+  const checkIns  = activas.filter(r => r.checkin  === hoy);
+  const checkOuts = activas.filter(r => r.checkout === hoy);
+
+  // Color del punto según tipo de reserva (mismo código que el calendario)
+  const TIPO_COLOR = {
+    stripe: '#4a9d72',
+    efectivo: '#5188bf',
+    transferencia: '#6979c4',
+    cortesia: '#8b8578',
+    airbnb: '#FF5A5F',
+    vrbo: '#245ABC',
+  };
+
+  function itemHtml(r) {
+    const tipo = r.tipo_reserva || 'stripe';
+    const color = TIPO_COLOR[tipo] || '#888';
+    // Nombre: para externas mostramos el canal, para directas el huésped
+    const nombre = r.es_externa
+      ? (TIPO_LABEL[r.source_original] || 'Airbnb')
+      : (r.huesped_nombre || '—');
+    return `<div class="today-item" data-id="${r.id}">
+      <span class="today-item-dot" style="background:${color}"></span>
+      <span class="today-item-name">${nombre}</span>
+      <span class="today-item-unit">${r.unidad}</span>
+    </div>`;
+  }
+
+  const cardIn = `
+    <div class="today-card in">
+      <div class="today-head">
+        <div class="today-label">Check-ins hoy</div>
+        <div class="today-count green">${checkIns.length}</div>
+      </div>
+      <div class="today-items">
+        ${checkIns.length === 0
+          ? '<div class="today-empty">Ningún check-in hoy</div>'
+          : checkIns.map(itemHtml).join('')}
+      </div>
+    </div>`;
+
+  const cardOut = `
+    <div class="today-card out">
+      <div class="today-head">
+        <div class="today-label">Check-outs hoy</div>
+        <div class="today-count gold">${checkOuts.length}</div>
+      </div>
+      <div class="today-items">
+        ${checkOuts.length === 0
+          ? '<div class="today-empty">Ningún check-out hoy</div>'
+          : checkOuts.map(itemHtml).join('')}
+      </div>
+    </div>`;
+
+  document.getElementById('todayRow').innerHTML = cardIn + cardOut;
+
+  // Clicks: abrir detalle al tocar un item
+  document.querySelectorAll('#todayRow .today-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.dataset.id;
+      const r = RESERVAS.find(x => String(x.id) === String(id));
+      if (r) abrirDetalle(r);
+    });
+  });
 }
 
 // ─── STATS ───
