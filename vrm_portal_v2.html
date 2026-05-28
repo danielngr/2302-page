@@ -4170,9 +4170,12 @@
             totalEntradas += ents.length;
 
             function matchReg(depto){
-                const d=depto.toUpperCase();
+                // Normaliza guiones y espacios como equivalentes para que
+                // "TULES 20-105" empareje con "TULES 20 105" (y viceversa).
+                const norm = s => (s||'').toUpperCase().replace(/[-\s]+/g,' ').trim();
+                const d = norm(depto);
                 return todosRegistros.find(x=>{
-                    const xd=(x.depto||'').toUpperCase().trim();
+                    const xd = norm(x.depto);
                     return (xd===d||xd.startsWith(d+' ')||d.startsWith(xd+' '))&&x.fecha_entrada===fiso;
                 });
             }
@@ -4954,8 +4957,18 @@
       "TULES 15-143":  { to: ["lostulesrecepcion@gmail.com","guillermoholguin@condominiolostules.com","recepcion@condominiolostules.com"], subject: "Check-in Los Tules 15-143" },
     };
 
+    // Normaliza guiones/espacios para emparejar "TULES 20-105" con "TULES 20 105"
+    function _normMsgKey(s){ return (s||'').toUpperCase().replace(/[-\s]+/g,' ').trim(); }
+    function getCorreoMsg(depto) {
+      if(!depto) return null;
+      if(CORREO_MSG_MAP[depto]) return CORREO_MSG_MAP[depto];
+      if(CORREO_MSG_MAP[(depto||'').toUpperCase()]) return CORREO_MSG_MAP[(depto||'').toUpperCase()];
+      const dn = _normMsgKey(depto);
+      const k = Object.keys(CORREO_MSG_MAP).find(k => _normMsgKey(k) === dn);
+      return k ? CORREO_MSG_MAP[k] : null;
+    }
     function tieneCorreoMsg(depto) {
-      return !!(CORREO_MSG_MAP[(depto||'').toUpperCase()] || CORREO_MSG_MAP[depto]);
+      return !!getCorreoMsg(depto);
     }
 
     function tieneCorreoConfigured(depto) {
@@ -5213,8 +5226,7 @@
       const r = todosRegistros.find(x=>x.id===id);
       if(!r) return;
 
-      const deptoKey = (r.depto||'').toUpperCase().trim();
-      const config = CORREO_MSG_MAP[deptoKey] || CORREO_MSG_MAP[r.depto];
+      const config = getCorreoMsg(r.depto);
       if(!config) { toast("❌ No hay correo configurado para " + r.depto); return; }
 
       // Generar el texto igual que generarFormato
