@@ -6465,6 +6465,44 @@
         });
         const limpiezas = await res2.json();
 
+        // ── Limpiezas del DÍA SIGUIENTE (para checkouts atrasados) ──────────────────
+        // A veces un depto tiene checkout el día X pero la chica lo limpia hasta X+1.
+        // El bot lo registra en X+1. Para que el checkout del día X no quede como un
+        // orphan "pendiente" eterno, traemos las limpiezas de X+1 y, más abajo, las
+        // usamos para resolver checkouts del día X que no tengan registro propio.
+        // NO movemos la fecha del registro en la DB (la limpieza sigue contando en X+1
+        // para nómina/earnings); esto es solo presentación.
+        const fechaSig = new Date(hkFecha);
+        fechaSig.setDate(fechaSig.getDate() + 1);
+        const fisoSig = hkFechaISO(fechaSig);
+        const fsSig = `${fechaSig.getDate()}/${fechaSig.getMonth()+1}/${fechaSig.getFullYear()}`;
+        let limpiezasSig = [];
+        try {
+            const res2b = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=eq.${fisoSig}&select=id,depto_codigo,staff_id,estatus,tarifa_aplicada,tipo,hora_inicio,hora_fin&order=hora_inicio.asc.nullsfirst`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
+            });
+            limpiezasSig = await res2b.json();
+        } catch(e) { console.warn('[hk] no se pudieron leer limpiezas del día siguiente:', e); }
+
+        // Checkouts propios del día siguiente: si un depto tiene SU PROPIO checkout en X+1,
+        // el registro de X+1 le pertenece a ese checkout, no al del día X. No lo jalamos.
+        const checkoutsSig = new Set(
+            sheetRows.filter((r,i)=>{
+                if(i===0) return false;
+                const fecha = (r[0]||'').trim().replace(/"/g,'');
+                const salida = (r[3]||'').trim().replace(/"/g,'');
+                return fecha===fsSig && salida;
+            }).map(r => (r[3]||'').trim().replace(/"/g,''))
+        );
+
+        // Mapa depto → primer registro del día siguiente disponible para "jalar".
+        // Solo deptos cuyo registro de X+1 NO corresponde a un checkout propio de X+1.
+        const limpSigPorDepto = {};
+        limpiezasSig.forEach(limp => {
+            if (checkoutsSig.has(limp.depto_codigo)) return;   // ese registro es del checkout de X+1
+            if (!limpSigPorDepto[limp.depto_codigo]) limpSigPorDepto[limp.depto_codigo] = limp;
+        });
+
         // ── UNIÓN: filas reales (registros de limpiezas) + checkouts del Sheet sin registro ──
         // Idea clave: el portal ya NO renderiza solo los checkouts del Sheet. Renderiza:
         //   1) Una fila por CADA registro de `limpiezas` de esta fecha (esto trae lo que el bot
@@ -6490,17 +6528,34 @@
             });
         });
 
-        // (2) Filas base por checkout sin ningún registro aún
+        // (2) Filas base por checkout sin ningún registro aún.
+        //     Antes de crear la fila "pendiente", revisamos si el depto tiene un registro
+        //     el día siguiente (checkout atrasado). Si lo tiene, lo mostramos resuelto.
         checkouts.forEach(depto => {
-            if (!deptosConRegistro.has(depto)) {
+            if (deptosConRegistro.has(depto)) return;
+
+            const limpTarde = limpSigPorDepto[depto];
+            if (limpTarde) {
+                // Checkout del día X limpiado hasta X+1: enlazamos el registro real (por su id),
+                // de modo que editar/marcar sigue funcionando por id, pero la limpieza sigue
+                // contando en su fecha original (X+1) para nómina.
                 rows.push({
-                    rowKey: `new-${depto.replace(/\s/g,'_')}`,
-                    limpId: null,
+                    rowKey: String(limpTarde.id),
+                    limpId: limpTarde.id,
                     depto,
-                    limp: null,
-                    origen: 'checkout'
+                    limp: limpTarde,
+                    origen: 'checkout_tarde'
                 });
+                return;
             }
+
+            rows.push({
+                rowKey: `new-${depto.replace(/\s/g,'_')}`,
+                limpId: null,
+                depto,
+                limp: null,
+                origen: 'checkout'
+            });
         });
 
         document.getElementById('hk-count').textContent = `${checkouts.length} checkout${checkouts.length!==1?'s':''}`;
@@ -6520,6 +6575,8 @@
             const idArg = limpId ? `'${limpId}'` : 'null';
             const subLbl = origen === 'extra'
                 ? `<span style="color:var(--status-yellow)">REGISTRADO POR BOT</span> · ${fiso}`
+                : origen === 'checkout_tarde'
+                ? `CHECKOUT · <span style="color:var(--status-green)">limpiado al día siguiente (${fisoSig})</span>`
                 : `CHECKOUT · ${fiso}`;
 
             return `<div class="hk-row${done?' done':''}" id="hk-row-${rowKey}">
