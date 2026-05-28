@@ -3970,9 +3970,12 @@
         // (ej. "general"/"manual" mal guardado al llenar el registro), derivar de la plantilla
         // del depto para no perder el botón correcto (caso Bolongo con registro lleno → "Manual").
         const _TIPOS_ACCION = ["pdf","whatsapp","gforms","correo","frakcio"];
-        const tipoEf = _TIPOS_ACCION.includes(r.tipo_formato)
+        let tipoEf = _TIPOS_ACCION.includes(r.tipo_formato)
             ? r.tipo_formato
             : (getTmpl(r.depto||'').tipo || r.tipo_formato);
+        // Override: deptos con mensaje de texto por correo (TULES) → flujo "correo" aunque
+        // el registro se haya guardado como "pdf" en la BD.
+        if(tieneCorreoMsg(r.depto||'')) tipoEf = "correo";
         // Selector de idioma para templates peninsula/alamar (se inserta al inicio de las acciones)
         const idiomaBtn = necesitaSelectorIdioma(r)
           ? `<button class="btn btn-outline-white" data-idioma-btn="${r.id}" onclick="event.stopPropagation();toggleIdioma('${r.id}')" title="${getIdiomaRegistro(r.id)==='es'?'Idioma: Español (click para EN)':'Language: English (click for ES)'}" style="min-width:44px;font-weight:600;font-size:11px;padding:6px 10px"><i class="ph-bold ph-translate"></i> ${getIdiomaRegistro(r.id).toUpperCase()}</button>`
@@ -4005,9 +4008,13 @@
         } else if(tipoEf==="correo") {
             // Algunos deptos tipo whatsapp tienen registros guardados como correo
             const _tmpl = getTmpl(r.depto||'');
-            if(_tmpl.tipo === 'whatsapp') {
+            if(_tmpl.tipo === 'whatsapp' || tieneCorreoMsg(r.depto||'')) {
               const _tieneMsg = tieneCorreoMsg(r.depto||'');
-              accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-blue" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button>${_tieneMsg ? `<button class="btn btn-outline-yellow" onclick="enviarMsgPorCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
+              if(r.pdf_generado) {
+                accion=`<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Enviado</button>`;
+              } else {
+                accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-blue" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button>${_tieneMsg ? `<button class="btn btn-outline-yellow" onclick="enviarMsgPorCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
+              }
             } else if(r.pdf_generado) {
               accion=`<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Correo enviado</button>`;
             } else {
@@ -4086,8 +4093,8 @@
             </div>
             ${ocupantes.length ? `<div class="reg-field"><span class="reg-field-label">Ocupantes</span><div class="ocupantes-list">${ocupantesHTML}</div></div>` : ''}
             <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle);">
-                ${r.tipo_formato==='pdf' ? `<button class="btn btn-outline-white" style="font-size:12px;padding:7px 14px;" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-arrows-clockwise"></i> Regenerar PDF</button>` : ''}
-                ${r.tipo_formato==='pdf' && tieneCorreoConfigured(r.depto||'') ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar por correo</button>` : ''}
+                ${r.tipo_formato==='pdf' && !tieneCorreoMsg(r.depto||'') ? `<button class="btn btn-outline-white" style="font-size:12px;padding:7px 14px;" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-arrows-clockwise"></i> Regenerar PDF</button>` : ''}
+                ${r.tipo_formato==='pdf' && !tieneCorreoMsg(r.depto||'') && tieneCorreoConfigured(r.depto||'') ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="enviarPDFporCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar por correo</button>` : ''}
                 ${r.tipo_formato==='whatsapp' ? `<button class="btn btn-outline-blue" style="font-size:12px;padding:7px 14px;" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-arrows-clockwise"></i> Reenviar mensaje</button>` : ''}
                 ${tieneCorreoMsg(r.depto||'') ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="enviarMsgPorCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar por correo</button>` : ''}
                 ${r.tipo_formato==='frakcio' ? `<button class="btn btn-outline-yellow" style="font-size:12px;padding:7px 14px;" onclick="marcarQR('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> Reenviar QR a Frakcio</button>` : ''}
