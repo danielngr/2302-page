@@ -3479,11 +3479,57 @@
             </div>
 
             <!-- MÓDULO: BOT -->
-            <div class="module" id="mod-bot">
-                <div class="coming-soon">
-                    <i class="ph ph-robot"></i>
-                    <h2>Bot Airbnb</h2>
-                    <p>Logs, toggle de modo observación y configuración de respuestas automáticas.</p>
+            <div class="module" id="mod-bot" style="gap:20px">
+                <!-- Header reconciliación -->
+                <div class="glass-panel" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:18px 20px;border-radius:var(--radius-lg);margin-top:16px">
+                    <div>
+                        <div style="font-family:var(--font-display);font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px"><i class="ph-fill ph-shield-check" style="color:var(--accent-terracota)"></i> Control de registros</div>
+                        <div style="font-size:12px;color:var(--text-tertiary);margin-top:2px" id="rec-rango">Últimos 7 días</div>
+                    </div>
+                    <button class="btn btn-ghost" onclick="cargarReconciliacion()" style="font-size:12px;padding:9px 14px"><i class="ph ph-arrows-clockwise"></i> Actualizar</button>
+                </div>
+
+                <!-- Stat cards -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+                    <div class="glass-panel" style="padding:16px 18px;border-radius:var(--radius-lg)">
+                        <div style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px">Sin video</div>
+                        <div style="font-family:var(--font-mono);font-size:26px;font-weight:700;color:var(--status-yellow)" id="rec-n-sinvideo">—</div>
+                        <div style="font-size:11px;color:var(--text-tertiary)">terminadas sin pago confirmado</div>
+                    </div>
+                    <div class="glass-panel" style="padding:16px 18px;border-radius:var(--radius-lg)">
+                        <div style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px">Duplicados</div>
+                        <div style="font-family:var(--font-mono);font-size:26px;font-weight:700;color:var(--status-red)" id="rec-n-dup">—</div>
+                        <div style="font-size:11px;color:var(--text-tertiary)">posible doble cobro</div>
+                    </div>
+                    <div class="glass-panel" style="padding:16px 18px;border-radius:var(--radius-lg)">
+                        <div style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px">No entendidos</div>
+                        <div style="font-family:var(--font-mono);font-size:26px;font-weight:700;color:var(--status-yellow)" id="rec-n-noparse">—</div>
+                        <div style="font-size:11px;color:var(--text-tertiary)">sin registrar, pendientes</div>
+                    </div>
+                    <div class="glass-panel" style="padding:16px 18px;border-radius:var(--radius-lg)">
+                        <div style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1px">Total revisadas</div>
+                        <div style="font-family:var(--font-mono);font-size:26px;font-weight:700;color:var(--text-secondary)" id="rec-n-total">—</div>
+                        <div style="font-size:11px;color:var(--text-tertiary)">limpiezas en el rango</div>
+                    </div>
+                </div>
+
+                <!-- Sin video -->
+                <div class="glass-panel" style="padding:18px 20px;border-radius:var(--radius-lg)">
+                    <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:12px"><i class="ph-fill ph-video-camera-slash" style="color:var(--status-yellow)"></i> Terminadas sin video</div>
+                    <div id="rec-sinvideo-list"><div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando…</div></div>
+                </div>
+
+                <!-- Duplicados -->
+                <div class="glass-panel" style="padding:18px 20px;border-radius:var(--radius-lg)">
+                    <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:12px"><i class="ph-fill ph-copy" style="color:var(--status-red)"></i> Posibles duplicados</div>
+                    <div id="rec-dup-list"><div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando…</div></div>
+                </div>
+
+                <!-- Bot no entendió -->
+                <div class="glass-panel" style="padding:18px 20px;border-radius:var(--radius-lg)">
+                    <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:4px"><i class="ph-fill ph-question" style="color:var(--status-yellow)"></i> Mensajes que el bot no entendió</div>
+                    <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:12px">No quedaron registrados. Revísalos, anótalos a mano si hace falta, y márcalos como resueltos.</div>
+                    <div id="rec-noparse-list"><div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando…</div></div>
                 </div>
             </div>
 
@@ -3578,6 +3624,7 @@
         if(sb) { sb.classList.remove('open'); }
         if(ov) { ov.style.display = 'none'; }
         if(mod === 'housekeeping') cargarHousekeeping();
+        if(mod === 'bot') setTimeout(cargarReconciliacion, 50);
         if(mod === 'nomina') cargarNomina();
         if(mod === 'reportes') {
             // Reportes necesita display:block, no flex
@@ -6375,6 +6422,115 @@
         if(diff===-1) return `AYER — ${base}`;
         if(diff===1) return `MAÑANA — ${base}`;
         return base;
+    }
+
+    // ══════════════════════════════════════════════════════
+    // CONTROL DE REGISTROS (reconciliación últimos 7 días)
+    // ══════════════════════════════════════════════════════
+    async function cargarReconciliacion() {
+        const desde = getMXISO(-6);   // hoy y 6 días atrás = 7 días
+        const hasta = getMXISO(0);
+        const lblRango = document.getElementById('rec-rango');
+        if (lblRango) lblRango.textContent = `${desde} → ${hasta} (últimos 7 días)`;
+
+        const setLoading = (id) => { const e=document.getElementById(id); if(e) e.innerHTML='<div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando…</div>'; };
+        setLoading('rec-sinvideo-list'); setLoading('rec-dup-list'); setLoading('rec-noparse-list');
+
+        let staff = [], limp = [], fallidos = [];
+        try {
+            const [rs, rl, rf] = await Promise.all([
+                fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?select=id,nombre`, {
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+                }),
+                fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=gte.${desde}&fecha=lte.${hasta}&select=id,depto_codigo,staff_id,estatus,tipo,fecha,video_url,hora_fin&order=fecha.desc`, {
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
+                }),
+                fetch(`${SUPABASE_URL}/rest/v1/registros_fallidos?resuelto=eq.false&fecha=gte.${desde}&fecha=lte.${hasta}&select=*&order=creado_en.desc`, {
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
+                }).catch(()=>({json:async()=>[]}))
+            ]);
+            staff = await rs.json();
+            limp = await rl.json();
+            fallidos = await rf.json();
+            if (!Array.isArray(fallidos)) fallidos = [];
+        } catch(e) {
+            console.error('[reconciliacion] error:', e);
+            document.getElementById('rec-sinvideo-list').innerHTML = '<div style="color:var(--status-red);font-size:12px">Error cargando datos.</div>';
+            return;
+        }
+
+        const nombreStaff = {};
+        staff.forEach(s => { nombreStaff[s.id] = s.nombre; });
+        const nom = (id) => nombreStaff[id] || '— sin chica —';
+        const fmtF = (f) => f ? f.split('-').reverse().join('/') : '—';
+
+        // ── Total revisadas ──
+        document.getElementById('rec-n-total').textContent = limp.length;
+
+        // ── (1) Terminadas sin video ──
+        const sinVideo = limp.filter(l => l.estatus === 'terminada' && !l.video_url);
+        document.getElementById('rec-n-sinvideo').textContent = sinVideo.length;
+        document.getElementById('rec-sinvideo-list').innerHTML = sinVideo.length
+            ? sinVideo.map(l => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+                    <div>
+                        <div style="font-family:var(--font-mono);font-size:13px;font-weight:600">${l.depto_codigo}</div>
+                        <div style="font-size:11px;color:var(--text-tertiary)">${nom(l.staff_id)} · ${fmtF(l.fecha)} · ${l.tipo||'completa'}</div>
+                    </div>
+                    <span style="font-size:10px;font-family:var(--font-mono);color:var(--status-yellow);border:1px solid var(--status-yellow-border);border-radius:100px;padding:3px 10px;white-space:nowrap">FALTA VIDEO</span>
+                </div>`).join('')
+            : '<div style="color:var(--status-green);font-family:var(--font-mono);font-size:12px"><i class="ph ph-check"></i> Todo en orden ✓</div>';
+
+        // ── (2) Posibles duplicados: misma fecha+depto+chica con 2+ terminadas ──
+        const grupos = {};
+        limp.filter(l => l.estatus === 'terminada').forEach(l => {
+            const k = `${l.fecha}|${l.depto_codigo}|${l.staff_id}`;
+            (grupos[k] = grupos[k] || []).push(l);
+        });
+        const dups = Object.entries(grupos).filter(([,arr]) => arr.length > 1);
+        const totalExtra = dups.reduce((a,[,arr]) => a + (arr.length - 1), 0);
+        document.getElementById('rec-n-dup').textContent = totalExtra;
+        document.getElementById('rec-dup-list').innerHTML = dups.length
+            ? dups.map(([k,arr]) => {
+                const [fecha, depto, sid] = k.split('|');
+                return `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+                    <div>
+                        <div style="font-family:var(--font-mono);font-size:13px;font-weight:600">${depto}</div>
+                        <div style="font-size:11px;color:var(--text-tertiary)">${nom(sid)} · ${fmtF(fecha)}</div>
+                    </div>
+                    <span style="font-size:10px;font-family:var(--font-mono);color:var(--status-red);border:1px solid var(--status-red-border);border-radius:100px;padding:3px 10px;white-space:nowrap">${arr.length}× REGISTRADA</span>
+                </div>`;
+            }).join('')
+            : '<div style="color:var(--status-green);font-family:var(--font-mono);font-size:12px"><i class="ph ph-check"></i> Sin duplicados ✓</div>';
+
+        // ── (3) Mensajes que el bot no entendió (de registros_fallidos) ──
+        document.getElementById('rec-n-noparse').textContent = fallidos.length;
+        document.getElementById('rec-noparse-list').innerHTML = fallidos.length
+            ? fallidos.map(f => `
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+                    <div style="min-width:0">
+                        <div style="font-size:13px;color:var(--text-secondary);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${(f.texto_original||'').replace(/</g,'&lt;')}"</div>
+                        <div style="font-size:11px;color:var(--text-tertiary)">${f.nombre_staff||'?'} · ${fmtF(f.fecha)}</div>
+                    </div>
+                    <button class="btn btn-ghost" onclick="recResolverFallido('${f.id}')" title="Marcar como resuelto" style="flex:0 0 auto;font-size:11px;padding:7px 12px;white-space:nowrap"><i class="ph ph-check"></i> Resuelto</button>
+                </div>`).join('')
+            : '<div style="color:var(--status-green);font-family:var(--font-mono);font-size:12px"><i class="ph ph-check"></i> Nada pendiente ✓</div>';
+    }
+
+    // Marca un mensaje no entendido como resuelto (no lo borra, solo lo oculta del panel)
+    async function recResolverFallido(id) {
+        try {
+            await fetch(`${SUPABASE_URL}/rest/v1/registros_fallidos?id=eq.${id}`, {
+                method:"PATCH",
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                body:JSON.stringify({resuelto:true})
+            });
+            toast("✓ Marcado como resuelto");
+            cargarReconciliacion();
+        } catch(e) {
+            toast("⚠️ No se pudo actualizar");
+        }
     }
 
     async function cargarHousekeeping() {
