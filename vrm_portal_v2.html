@@ -11373,10 +11373,11 @@ function updateNotifBadge(){
             else if(s.status === 'pago_solicitado'){statusKey='confirmed';statusLabel='Esperando pago';}
             
             // Botones según el estado actual
+            // Regla: Completada SOLO se permite después de Pagada (servicio cobrado).
+            // Si está en "esperando pago" → solo se puede marcar Pagada.
             let acciones = '';
             if(s.status === 'pago_solicitado'){
-                acciones = `<button class="srv-h-action paid" onclick="srvMarkAsPaid(${s.id})" title="Marcar como pagada">$</button>
-                            <button class="srv-h-action done" onclick="srvMarkAsCompleted(${s.id})" title="Marcar como completada">✓</button>`;
+                acciones = `<button class="srv-h-action paid" onclick="srvMarkAsPaid(${s.id})" title="Marcar como pagada">$</button>`;
             } else if(s.status === 'pagada'){
                 acciones = `<button class="srv-h-action done" onclick="srvMarkAsCompleted(${s.id})" title="Marcar como completada">✓</button>`;
             }
@@ -11617,27 +11618,28 @@ function updateNotifBadge(){
                     pagado_at: new Date().toISOString()
                 })
             });
-            if(!res.ok) throw new Error('Error en update');
+            if(!res.ok){
+                const errText = await res.text();
+                console.error('Supabase responded:', res.status, errText);
+                throw new Error(`${res.status}: ${errText}`);
+            }
             sol.status = 'pagada';
             srvRenderHistorico();
             srvUpdateStats();
             srvUpdateBadge();
             srvShowToast('Marcada como pagada');
         } catch(err){
-            console.error(err);
-            srvShowToast('Error al actualizar');
+            console.error('srvMarkAsPaid error:', err);
+            srvShowToast('Error: ' + (err.message || 'desconocido').slice(0,80));
         }
     };
     
     // Marcar solicitud como completada (servicio ya realizado)
+    // Solo se llama cuando la solicitud ya está en estado 'pagada'.
     window.srvMarkAsCompleted = async function(id){
         const sol = solicitudesData.find(s => s.id === id);
         if(!sol) return;
-        const wasUnpaid = sol.status === 'pago_solicitado';
-        const msg = wasUnpaid 
-            ? `Esta solicitud aún está en "esperando pago". ¿Marcarla como completada de todos modos?`
-            : `¿Marcar el servicio como completado?`;
-        if(!confirm(msg)) return;
+        if(!confirm(`¿Marcar el servicio como completado?`)) return;
         try {
             const res = await fetch(`${SRV_URL}/rest/v1/solicitudes?id=eq.${id}`, {
                 method: 'PATCH',
@@ -11652,7 +11654,7 @@ function updateNotifBadge(){
             srvRenderHistorico();
             srvUpdateStats();
             srvUpdateBadge();
-            srvShowToast(wasUnpaid ? 'Completada (sin pago confirmado)' : 'Marcada como completada');
+            srvShowToast('Marcada como completada');
         } catch(err){
             console.error(err);
             srvShowToast('Error al actualizar');
