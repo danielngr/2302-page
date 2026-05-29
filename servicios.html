@@ -1368,21 +1368,36 @@ function normalizeDept(row){
 }
 
 async function loadDeptDirect(dept){
-  const { data, error } = await sb
+  // Intento 1: buscar por nombre_airbnb (lo que Airbnb expande en el link)
+  let { data, error } = await sb
     .from('departamentos')
-    .select('codigo, codigo_corto, tarifa_limpieza_fija')
-    .eq('codigo_corto', dept)
-    .single();
-  
-  if(error){
-    console.error('Error cargando depto:', error);
+    .select('codigo, codigo_corto, nombre_airbnb, tarifa_limpieza_fija')
+    .eq('nombre_airbnb', dept)
+    .maybeSingle();
+
+  // Intento 2 (fallback): buscar por codigo_corto (links viejos o dev panel)
+  if(!data){
+    const r2 = await sb
+      .from('departamentos')
+      .select('codigo, codigo_corto, nombre_airbnb, tarifa_limpieza_fija')
+      .eq('codigo_corto', dept)
+      .maybeSingle();
+    data = r2.data;
+    error = r2.error;
+  }
+
+  if(!data){
+    console.error('Depto no encontrado:', dept, error);
     showToast('Error: depto no encontrado', 'error');
     return;
   }
   
   currentDept = normalizeDept(data);
-  cargarCheckouts(dept);
-  cargarCheckins(dept);
+  // Para las consultas de calendario, siempre usamos el código corto
+  // (que es el unit_id en public_availability)
+  const codigoParaIcal = data.codigo_corto;
+  cargarCheckouts(codigoParaIcal);
+  cargarCheckins(codigoParaIcal);
   updateUI();
 }
 
