@@ -518,6 +518,29 @@ body{
 .cajita-aviso.show{display:block}
 .cajita-aviso strong{display:block;color:var(--gold);font-weight:600;margin-bottom:5px;font-size:13px}
 
+/* ── No disponible (conflicto de calendario) ── */
+.unavailable-banner{
+  display:none;
+  background:color-mix(in srgb,var(--warm) 8%,transparent);
+  border:1px solid color-mix(in srgb,var(--warm) 28%,transparent);
+  border-radius:var(--r-md);padding:22px 20px;margin:18px 0 22px;
+  text-align:center;
+}
+.unavailable-banner.show{display:block}
+.unavailable-banner .ub-icon{
+  width:42px;height:42px;border-radius:50%;
+  background:color-mix(in srgb,var(--warm) 14%,transparent);
+  display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;
+  color:var(--warm);font-size:22px;
+}
+.unavailable-banner .ub-title{
+  font-family:var(--font-display);font-size:18px;font-weight:500;
+  color:var(--ink-deep);margin-bottom:6px;letter-spacing:-0.01em;
+}
+.unavailable-banner .ub-sub{
+  font-size:13px;color:var(--bone-soft);line-height:1.55;max-width:280px;margin:0 auto;
+}
+
 /* ── Consent ── */
 .consent-row{
   display:flex;gap:13px;align-items:flex-start;cursor:pointer;
@@ -819,6 +842,21 @@ body{
   <div class="sheet-eyebrow" id="sh-eyebrow">Solicitud</div>
   <h2 class="sheet-title" id="sh-title"><em>Limpieza</em> extra</h2>
   <p class="sheet-sub" id="sh-sub">Selecciona la fecha y hora preferida.</p>
+
+  <!-- Banner de "no disponible" — se muestra cuando hay conflicto de calendario -->
+  <div class="unavailable-banner" id="unavailable-banner">
+    <div class="ub-icon">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <line x1="9" y1="15" x2="15" y2="15"/>
+      </svg>
+    </div>
+    <div class="ub-title">No disponible</div>
+    <div class="ub-sub" id="ub-sub">Este servicio no está disponible para tu fecha por el calendario del departamento.</div>
+  </div>
 
   <!-- Toggle cuna/silla alta (solo visible para tipo 'crib') -->
   <div class="field" id="field-crib-type" style="display:none">
@@ -1957,6 +1995,32 @@ function open_sheet(type){
   consentRow.classList.remove('checked', 'required-error');
   const requiereConsent = (type === 'cleaning' || type === 'crib');
   consentRow.style.display = requiereConsent ? 'flex' : 'none';
+
+  // ─── Verificar conflicto de calendario y mostrar banner si aplica ───
+  // Late checkout: bloqueado si hay check-in de otro huésped ese día.
+  // Early check-in: bloqueado si hay check-out de otro huésped ese día.
+  const ubanner = document.getElementById('unavailable-banner');
+  let conflictoCalendario = false;
+  if(type === 'checkin' && urlCheckOut && hayCheckinEseDia(urlCheckOut)){
+    conflictoCalendario = true;
+  } else if(type === 'earlycheckin' && urlCheckIn && hayCheckoutEseDia(urlCheckIn)){
+    conflictoCalendario = true;
+  }
+  if(conflictoCalendario){
+    // Mostrar banner y ocultar TODO el form
+    ubanner.classList.add('show');
+    document.querySelectorAll('#sheet .field').forEach(f => f.style.display = 'none');
+    document.getElementById('cost-summary').style.display = 'none';
+    consentRow.style.display = 'none';
+    // Botón "Enviar solicitud" deshabilitado (queda solo Cancelar visible)
+    const submitBtn = document.getElementById('submit-btn');
+    if(submitBtn) submitBtn.style.display = 'none';
+  } else {
+    ubanner.classList.remove('show');
+    document.getElementById('cost-summary').style.display = '';
+    const submitBtn = document.getElementById('submit-btn');
+    if(submitBtn){ submitBtn.style.display = ''; submitBtn.disabled = false; submitBtn.classList.remove('disabled'); }
+  }
 
   document.getElementById('sheet-bg').classList.add('open');
   document.getElementById('sheet').classList.add('open');
