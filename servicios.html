@@ -1508,10 +1508,16 @@ function initRangeCalendar(){
   const tom = new Date();
   tom.setDate(tom.getDate() + 1);
   tom.setHours(0,0,0,0);
+  // Mínimo efectivo: si hay reserva, arrancar en el mes del check-in
+  let startView = tom;
+  if(tieneRangoReserva){
+    const inD = isoToLocalDate(urlCheckIn);
+    if(inD > startView) startView = inD;
+  }
   rangeFromDate = null;
   rangeToDate = null;
-  rangeFromCalDate = new Date(tom);
-  rangeToCalDate = new Date(tom);
+  rangeFromCalDate = new Date(startView);
+  rangeToCalDate = new Date(startView);
   document.getElementById('range-from-text').textContent = '—';
   document.getElementById('range-to-text').textContent = '—';
   document.getElementById('sh-date-from').value = '';
@@ -1549,10 +1555,16 @@ function renderRangeCalendar(which){
   const tom = new Date();
   tom.setDate(tom.getDate() + 1);
   tom.setHours(0,0,0,0);
-  // Para "to": mínimo es from + 1 día
+  // Mínimo base: el mayor entre "mañana" y el check-in de la reserva (si vino)
+  let base = tom;
+  if(tieneRangoReserva){
+    const inD = isoToLocalDate(urlCheckIn);
+    if(inD > base) base = inD;
+  }
+  // Para "to": mínimo es from + 1 día (debe ser una noche después al menos)
   const minDate = (which === 'to' && rangeFromDate)
     ? new Date(new Date(rangeFromDate).getTime() + 86400000)
-    : tom;
+    : base;
   // Tope por reserva (incluye día de checkout) si vino en el link
   const maxDate = tieneRangoReserva ? isoToLocalDate(urlCheckOut) : null;
 
