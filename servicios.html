@@ -826,11 +826,11 @@ body{
     <div class="toggle-pills" id="crib-toggle">
       <button type="button" data-crib="cuna" class="on" onclick="pickCribType(this)">
         Cuna
-        <span class="pill-price">$300/noche</span>
+        <span class="pill-price" id="pill-cuna-price">—</span>
       </button>
       <button type="button" data-crib="silla" onclick="pickCribType(this)">
         Silla alta
-        <span class="pill-price">$150/noche</span>
+        <span class="pill-price" id="pill-silla-price">—</span>
       </button>
     </div>
   </div>
@@ -1433,9 +1433,8 @@ function updateUI(){
   const checkinCard = document.querySelector('.svc.checkin');
   
   if(cleaningCard){
-    const fee = Math.round(currentDept.precio_limpieza * 0.05);
-    const total = currentDept.precio_limpieza + fee;
-    cleaningCard.querySelector('.svc-meta-val').textContent = '$' + total;
+    // Precio limpio sin fee adicional
+    cleaningCard.querySelector('.svc-meta-val').textContent = '$' + currentDept.precio_limpieza;
     cleaningCard.onclick = () => open_sheet('cleaning');
   }
   if(checkinCard){
@@ -1469,14 +1468,14 @@ function updateUI(){
 function getSheetConfig(type){
   if(!currentDept) return null;
 
-  // Fees configurables por tipo (con fallback razonable)
-  const feePctLimpieza = currentDept.fee_pct_limpieza ?? 0.05;  // 5%
-  const feePctCuna     = currentDept.fee_pct_cuna     ?? 0.15;  // 15%
-  const feePctLate     = currentDept.fee_pct_late     ?? 0.05;  // 5%
+  // Sin fees extra: el huésped ve el precio limpio sin recargos
+  const feePctLimpieza = 0;
+  const feePctCuna     = 0;
+  const feePctLate     = 0;
 
-  // Precios cuna/silla configurables, fallback razonable
-  const precioCuna  = currentDept.precio_cuna        ?? 300;
-  const precioSilla = currentDept.precio_silla_alta  ?? 150;
+  // Precios cuna/silla configurables desde Supabase (default actualizado)
+  const precioCuna  = currentDept.precio_cuna        ?? 200;
+  const precioSilla = currentDept.precio_silla_alta  ?? 100;
 
   const feeLimpieza = Math.round(currentDept.precio_limpieza * feePctLimpieza);
   const totalLimpieza = currentDept.precio_limpieza + feeLimpieza;
@@ -1802,6 +1801,9 @@ function open_sheet(type){
     document.querySelectorAll('#crib-toggle button').forEach(b => b.classList.remove('on'));
     document.querySelector('#crib-toggle button[data-crib="cuna"]').classList.add('on');
     cribType = 'cuna';
+    // Actualizar precios visibles en los toggles según el depto
+    document.getElementById('pill-cuna-price').textContent  = '$' + cfg.precio + '/noche';
+    document.getElementById('pill-silla-price').textContent = '$' + cfg.precioSilla + '/noche';
   } else if(type === 'checkin'){
     // Late checkout: la fecha es el día de checkout de la reserva → auto-asignar
     fieldCribType.style.display   = 'none';
