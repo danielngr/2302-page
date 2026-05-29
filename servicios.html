@@ -1905,9 +1905,13 @@ function open_sheet(type){
     cajitaAviso.classList.remove('show');
   }
 
-  // Reset consent
+  // Reset consent — solo se muestra cuando el equipo entra al depto sin el huésped
+  // (limpieza, cuna). Para late checkout / early check-in no aplica.
   consentChecked = false;
-  document.getElementById('consent-row').classList.remove('checked', 'required-error');
+  const consentRow = document.getElementById('consent-row');
+  consentRow.classList.remove('checked', 'required-error');
+  const requiereConsent = (type === 'cleaning' || type === 'crib');
+  consentRow.style.display = requiereConsent ? 'flex' : 'none';
 
   document.getElementById('sheet-bg').classList.add('open');
   document.getElementById('sheet').classList.add('open');
@@ -1944,9 +1948,11 @@ async function submit_request(){
   // ─── Validaciones ───
   let errores = false;
 
-  // Consent
-  if(!consentChecked){
-    document.getElementById('consent-row').classList.add('required-error');
+  // Consent — solo se valida si el row está visible (limpieza, cuna)
+  const consentRow = document.getElementById('consent-row');
+  const consentVisible = consentRow.style.display !== 'none';
+  if(consentVisible && !consentChecked){
+    consentRow.classList.add('required-error');
     errores = true;
   }
 
