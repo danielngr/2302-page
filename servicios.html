@@ -451,7 +451,7 @@ body{
 .range-summary strong{font-family:var(--font-display);font-size:20px;color:var(--gold);font-weight:500}
 
 /* ── Time grid ── */
-.time-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.time-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:9px}
 .time-grid button{
   background:var(--glass-bg-2);border:1px solid var(--glass-stroke);
   border-radius:var(--r-sm);padding:13px 0;
@@ -464,6 +464,14 @@ body{
   border-color:color-mix(in srgb,var(--warm) 55%,transparent);
   color:var(--bone);
   box-shadow:0 0 0 3px color-mix(in srgb,var(--warm) 10%,transparent);
+}
+/* Botones de hora con precio fijo especial: marcados sutil con un dot superior */
+.time-grid button.special{position:relative}
+.time-grid button.special::after{
+  content:'';position:absolute;top:6px;right:8px;
+  width:5px;height:5px;border-radius:50%;
+  background:var(--gold);
+  box-shadow:0 0 6px color-mix(in srgb,var(--gold) 60%,transparent);
 }
 
 /* ── Cost summary (glass panel) ── */
@@ -1052,6 +1060,23 @@ const tieneRangoReserva = !!(urlCheckIn && urlCheckOut && urlCheckIn <= urlCheck
 // Modo desarrollo: el panel DEPTO/CANAL SOLO aparece con ?dev=1 (nunca para un huésped)
 const devMode = params.get('dev') === '1';
 
+// ─── Late checkout: reglas de precio ───
+// Check-out base 11:00. De 12:00 a 14:00 cobra $200/hr extra.
+// A partir de las 15:00 entra precio especial fijo de $1500 (hasta 20:00).
+const LATE_BASE_HOUR    = 11;
+const LATE_RATE         = 200;    // por hora extra
+const LATE_FLAT_HOUR    = 15;     // desde aquí entra el fijo
+const LATE_FLAT_PRICE   = 1500;
+const LATE_MAX_HOUR     = 20;     // tope de horas ofrecidas
+function calcLatePrice(hora24){
+  // hora24 = entero 12..20. Devuelve {horas, precio, esEspecial}
+  const horas = Math.max(0, hora24 - LATE_BASE_HOUR);
+  if(hora24 >= LATE_FLAT_HOUR){
+    return { horas, precio: LATE_FLAT_PRICE, esEspecial: true };
+  }
+  return { horas, precio: horas * LATE_RATE, esEspecial: false };
+}
+
 // El dev panel SOLO aparece con ?dev=1. En cualquier otro caso queda oculto
 // (huésped real con ?dept=..., o archivo abierto sin parámetros).
 if(devMode){
@@ -1363,7 +1388,7 @@ function updateUI(){
     cleaningCard.onclick = () => open_sheet('cleaning');
   }
   if(checkinCard){
-    checkinCard.querySelector('.svc-meta-val').textContent = '$' + currentDept.tarifa_hora + '/h';
+    checkinCard.querySelector('.svc-meta-val').textContent = '$' + LATE_RATE + '/h';
     checkinCard.onclick = () => open_sheet('checkin');
   }
 
@@ -1430,11 +1455,11 @@ function getSheetConfig(type){
     checkin:{
       eyebrow:'Sujeto a disponibilidad',
       title:'<em>Late</em> checkout',
-      sub:`$${currentDept.tarifa_hora}/hr extra. Te confirmamos disponibilidad.`,
+      sub:`$${LATE_RATE}/hr extra. A partir de las ${LATE_FLAT_HOUR}:00, precio especial $${LATE_FLAT_PRICE}.`,
       tipo:'late_checkout',
-      precio: currentDept.tarifa_hora,
-      fee: Math.round(currentDept.tarifa_hora * feePctLate),
-      total: currentDept.tarifa_hora + Math.round(currentDept.tarifa_hora * feePctLate),
+      precio: LATE_RATE,
+      fee: Math.round(LATE_RATE * feePctLate),
+      total: LATE_RATE + Math.round(LATE_RATE * feePctLate),
       feePct: feePctLate
     },
     earlycheckin:{
@@ -1466,6 +1491,11 @@ function renderTimeSlots(slots, defaultSlot){
     btn.textContent = s;
     btn.onclick = () => pick_time(btn);
     if(s === defaultSlot) btn.classList.add('on');
+    // Marcar visualmente los slots de precio especial (solo para late checkout)
+    if(currentSheet === 'checkin'){
+      const h = parseInt(s.split(':')[0], 10);
+      if(h >= LATE_FLAT_HOUR) btn.classList.add('special');
+    }
     grid.appendChild(btn);
   });
   selectedTime = defaultSlot;
@@ -1513,9 +1543,18 @@ function updateCostSummary(){
     base.textContent  = '$' + cfg.precio;
     total.textContent = '$' + cfg.total + ' MXN';
   } else if(currentSheet === 'checkin'){
-    label.textContent = 'Late checkout · 1 hr';
-    base.textContent  = '$' + cfg.precio;
-    total.textContent = '$' + cfg.total + ' MXN · por hora';
+    // Late checkout: precio depende de la hora elegida
+    const horaSel = parseInt((selectedTime || '13:00').split(':')[0], 10);
+    const calc = calcLatePrice(horaSel);
+    const fee = Math.round(calc.precio * cfg.feePct);
+    const sumTotal = calc.precio + fee;
+    if(calc.esEspecial){
+      label.textContent = `Late checkout · hasta las ${selectedTime} · precio especial`;
+    } else {
+      label.textContent = `Late checkout · ${calc.horas} ${calc.horas===1?'hora extra':'horas extra'}`;
+    }
+    base.textContent  = '$' + calc.precio;
+    total.textContent = '$' + sumTotal + ' MXN';
   } else if(currentSheet === 'earlycheckin'){
     var fEarly = document.getElementById('sh-date').value;
     var btnEarly = document.getElementById('submit-btn');
@@ -1715,7 +1754,7 @@ function open_sheet(type){
     lblDateSingle.textContent     = 'Día del checkout';
     lblTime.textContent           = 'Nueva hora de salida';
     initCalendar();
-    renderTimeSlots(['12:00','13:00','14:00','15:00'], '13:00');
+    renderTimeSlots(['12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'], '13:00');
   } else if(type === 'earlycheckin'){
     // Early check-in: fecha única (día de llegada) + hora deseada de entrada (antes de 3pm)
     fieldCribType.style.display   = 'none';
@@ -1803,6 +1842,7 @@ function pick_time(b){
   b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('on'));
   b.classList.add('on');
   selectedTime = b.textContent.trim();
+  updateCostSummary();   // recalcular precio según la hora elegida
 }
 
 function toggle_consent(){
@@ -1935,6 +1975,16 @@ async function submit_request(){
     precioServicio = subtotal;
     totalCobrar    = subtotal + feeServicio;
     detalleSubtipo = cribType;  // 'cuna' o 'silla'
+  } else if(currentSheet === 'checkin'){
+    // Late checkout: precio depende de la hora elegida
+    const horaSel = parseInt((selectedTime || '13:00').split(':')[0], 10);
+    const calc = calcLatePrice(horaSel);
+    precioServicio = calc.precio;
+    feeServicio    = Math.round(calc.precio * cfg.feePct);
+    totalCobrar    = calc.precio + feeServicio;
+    detalleSubtipo = calc.esEspecial
+      ? `precio_especial_hasta_${selectedTime}`
+      : `${calc.horas}h_extra`;
   }
 
   // ─── Construir payload ───
