@@ -1086,7 +1086,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ═══════════════════════════════════════════════════════════════
 // ESTADO GLOBAL
 // ═══════════════════════════════════════════════════════════════
-let currentDept = null;          // objeto de propiedades_config
+let currentDept = null;          // objeto del depto normalizado (de tabla `departamentos`)
 let currentCanal = 'airbnb';
 let currentSheet = null;          // 'cleaning' / 'crib' / 'checkin'
 let consentChecked = false;
@@ -1350,11 +1350,28 @@ document.addEventListener('click', (e) => {
 });
 
 
+// Convierte una fila de la tabla `departamentos` al shape que el resto del
+// código espera (mantiene compatibilidad con las referencias existentes).
+// Los servicios fijos (cuna, silla, late, early) ya no se leen por depto.
+function normalizeDept(row){
+  if(!row) return null;
+  return {
+    dept:               row.codigo_corto,
+    nombre:             row.codigo,
+    precio_limpieza:    Number(row.tarifa_limpieza_fija) || 0,
+    precio_cuna:        200,
+    precio_silla_alta:  100,
+    tarifa_hora:        200,
+    requiere_cajita:    false,
+    nota_cajita:        null,
+  };
+}
+
 async function loadDeptDirect(dept){
   const { data, error } = await sb
-    .from('propiedades_config')
-    .select('*')
-    .eq('dept', dept)
+    .from('departamentos')
+    .select('codigo, codigo_corto, tarifa_limpieza_fija')
+    .eq('codigo_corto', dept)
     .single();
   
   if(error){
@@ -1363,7 +1380,7 @@ async function loadDeptDirect(dept){
     return;
   }
   
-  currentDept = data;
+  currentDept = normalizeDept(data);
   cargarCheckouts(dept);
   cargarCheckins(dept);
   updateUI();
@@ -1372,7 +1389,7 @@ async function loadDeptDirect(dept){
 // ═══════════════════════════════════════════════════════════════
 // CHECKOUTS DEL DEPTO (para regla de early check-in)
 // ═══════════════════════════════════════════════════════════════
-// El campo `dept` de propiedades_config coincide con `unit_id` de
+// El campo `codigo_corto` de departamentos coincide con `unit_id` de
 // public_availability (códigos cortos: "6S", "2302", "PHN"...).
 // Si un depto NO tiene iCal (no aparece en public_availability), el Set
 // queda vacío → no se bloquea nada y la solicitud pasa a revisión manual.
@@ -1435,16 +1452,16 @@ function hayCheckinEseDia(fechaISO){
 
 async function initDevPanel(){
   const { data, error } = await sb
-    .from('propiedades_config')
-    .select('dept, nombre')
-    .eq('activo', true)
-    .order('dept');
+    .from('departamentos')
+    .select('codigo, codigo_corto')
+    .not('codigo_corto', 'is', null)
+    .order('codigo_corto');
   
   if(error){ console.error(error); return; }
   
   const sel = document.getElementById('dev-dept');
   sel.innerHTML = '<option value="">— elegir —</option>' +
-    data.map(d => `<option value="${d.dept}">${d.dept} · ${d.nombre}</option>`).join('');
+    data.map(d => `<option value="${d.codigo_corto}">${d.codigo_corto} · ${d.codigo}</option>`).join('');
   
   // Si vino por URL, lo selecciona
   if(urlDept){ sel.value = urlDept; }
@@ -1464,14 +1481,14 @@ async function loadDept(){
   if(!dept){ currentDept = null; updateUI(); return; }
   
   const { data, error } = await sb
-    .from('propiedades_config')
-    .select('*')
-    .eq('dept', dept)
+    .from('departamentos')
+    .select('codigo, codigo_corto, tarifa_limpieza_fija')
+    .eq('codigo_corto', dept)
     .single();
   
   if(error){ console.error(error); return; }
   
-  currentDept = data;
+  currentDept = normalizeDept(data);
   cargarCheckouts(dept);
   cargarCheckins(dept);
   updateUI();
