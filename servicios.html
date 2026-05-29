@@ -399,6 +399,26 @@ body{
 .date-display .icon{color:var(--bone-faint);font-size:12px;transition:transform .3s}
 .date-display.open .icon{transform:rotate(180deg)}
 .date-display:hover{border-color:color-mix(in srgb,var(--warm) 40%,var(--glass-stroke))}
+
+/* Banner informativo de fecha auto-determinada (late checkout / early check-in) */
+.auto-date-banner{
+  display:flex;align-items:center;gap:12px;
+  background:rgba(255,255,255,0.55);
+  border:1px solid rgba(29,78,95,0.12);
+  border-radius:var(--r-sm);
+  padding:14px 16px;
+  color:var(--bone);font-family:var(--font-body);font-size:15px;
+}
+.auto-date-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--warm);
+  box-shadow:0 0 10px color-mix(in srgb,var(--warm) 60%,transparent);
+  flex-shrink:0;
+}
+#field-date-auto[data-kind="early"] .auto-date-dot{
+  background:var(--teal);
+  box-shadow:0 0 10px color-mix(in srgb,var(--teal) 60%,transparent);
+}
 .calendar{
   display:none;margin-top:10px;
   background:rgba(255,255,255,0.82);
@@ -836,6 +856,15 @@ body{
     <input type="hidden" id="sh-date">
   </div>
 
+  <!-- Fecha automática (late checkout / early check-in) -->
+  <div class="field" id="field-date-auto" style="display:none">
+    <label id="lbl-date-auto">Fecha</label>
+    <div class="auto-date-banner" id="auto-date-banner">
+      <span class="auto-date-dot"></span>
+      <span id="auto-date-text">—</span>
+    </div>
+  </div>
+
   <!-- Rango de fechas (cuna/silla) -->
   <div class="field" id="field-date-range" style="display:none">
     <label>Rango de uso</label>
@@ -1177,9 +1206,15 @@ function updateDateDisplay(){
     document.getElementById('date-display-text').textContent = 'Selecciona una fecha';
     return;
   }
+  document.getElementById('date-display-text').textContent = formatFechaLarga(calSelectedDate);
+}
+
+// Formatea Date | 'YYYY-MM-DD' → "Lunes 1 de Junio"
+function formatFechaLarga(input){
+  const d = (typeof input === 'string') ? isoToLocalDate(input) : input;
+  if(!d) return '—';
   const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  const txt = `${dias[calSelectedDate.getDay()]} ${calSelectedDate.getDate()} de ${MESES[calSelectedDate.getMonth()]}`;
-  document.getElementById('date-display-text').textContent = txt;
+  return `${dias[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
 }
 
 function renderCalendar(){
@@ -1740,30 +1775,55 @@ function open_sheet(type){
     fieldDateSingle.style.display = 'none';
     fieldDateRange.style.display  = 'block';
     fieldTime.style.display       = 'none';
+    document.getElementById('field-date-auto').style.display = 'none';
     initRangeCalendar();
     // Reset toggle a cuna por defecto
     document.querySelectorAll('#crib-toggle button').forEach(b => b.classList.remove('on'));
     document.querySelector('#crib-toggle button[data-crib="cuna"]').classList.add('on');
     cribType = 'cuna';
   } else if(type === 'checkin'){
-    // Late checkout: fecha única + horario específico
+    // Late checkout: la fecha es el día de checkout de la reserva → auto-asignar
     fieldCribType.style.display   = 'none';
-    fieldDateSingle.style.display = 'block';
     fieldDateRange.style.display  = 'none';
     fieldTime.style.display       = 'block';
-    lblDateSingle.textContent     = 'Día del checkout';
     lblTime.textContent           = 'Nueva hora de salida';
-    initCalendar();
+    const fieldDateAuto = document.getElementById('field-date-auto');
+    if(urlCheckOut){
+      // Tenemos la fecha de checkout → mostrar banner, ocultar calendario
+      fieldDateSingle.style.display = 'none';
+      fieldDateAuto.style.display   = 'block';
+      fieldDateAuto.removeAttribute('data-kind');
+      document.getElementById('lbl-date-auto').textContent = 'Tu día de checkout';
+      document.getElementById('auto-date-text').textContent = formatFechaLarga(urlCheckOut);
+      document.getElementById('sh-date').value = urlCheckOut;
+    } else {
+      // Sin reserva (modo prueba) → calendario normal
+      fieldDateSingle.style.display = 'block';
+      fieldDateAuto.style.display   = 'none';
+      lblDateSingle.textContent     = 'Día del checkout';
+      initCalendar();
+    }
     renderTimeSlots(['12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'], '13:00');
   } else if(type === 'earlycheckin'){
-    // Early check-in: fecha única (día de llegada) + hora deseada de entrada (antes de 3pm)
+    // Early check-in: la fecha es el día de llegada → auto-asignar
     fieldCribType.style.display   = 'none';
-    fieldDateSingle.style.display = 'block';
     fieldDateRange.style.display  = 'none';
     fieldTime.style.display       = 'block';
-    lblDateSingle.textContent     = 'Día de tu llegada';
     lblTime.textContent           = 'Hora de entrada deseada';
-    initCalendar();
+    const fieldDateAuto = document.getElementById('field-date-auto');
+    if(urlCheckIn){
+      fieldDateSingle.style.display = 'none';
+      fieldDateAuto.style.display   = 'block';
+      fieldDateAuto.setAttribute('data-kind', 'early');
+      document.getElementById('lbl-date-auto').textContent = 'Tu día de llegada';
+      document.getElementById('auto-date-text').textContent = formatFechaLarga(urlCheckIn);
+      document.getElementById('sh-date').value = urlCheckIn;
+    } else {
+      fieldDateSingle.style.display = 'block';
+      fieldDateAuto.style.display   = 'none';
+      lblDateSingle.textContent     = 'Día de tu llegada';
+      initCalendar();
+    }
     renderTimeSlots(['10:00','11:00','12:00','13:00'], '12:00');
   } else {
     // Limpieza: fecha única + horario mañana/tarde
@@ -1771,6 +1831,7 @@ function open_sheet(type){
     fieldDateSingle.style.display = 'block';
     fieldDateRange.style.display  = 'none';
     fieldTime.style.display       = 'block';
+    document.getElementById('field-date-auto').style.display = 'none';
     lblDateSingle.textContent     = 'Fecha del servicio';
     lblTime.textContent           = 'Horario preferido';
     initCalendar();
