@@ -2245,7 +2245,13 @@
 
 /* ─── Tabla histórico ─── */
 .srv-history-table{background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--glass-highlight)}
-.srv-h-row{display:grid;grid-template-columns:auto 1fr 90px 100px 100px 110px;gap:16px;align-items:center;padding:14px 22px;border-bottom:1px solid var(--glass-border);font-size:13px;transition:var(--transition-smooth)}
+.srv-h-row{display:grid;grid-template-columns:auto 1fr 90px 100px 100px 110px 90px;gap:16px;align-items:center;padding:14px 22px;border-bottom:1px solid var(--glass-border);font-size:13px;transition:var(--transition-smooth)}
+.srv-h-actions{display:flex;gap:6px;justify-content:flex-end}
+.srv-h-action{width:28px;height:28px;border-radius:50%;border:1px solid var(--glass-border);background:transparent;color:var(--text-secondary);cursor:pointer;font-size:12px;font-family:var(--font-mono);display:inline-flex;align-items:center;justify-content:center;transition:var(--transition-smooth);padding:0;line-height:1}
+.srv-h-action.paid:hover{background:var(--status-green-bg);border-color:var(--status-green);color:var(--status-green)}
+.srv-h-action.done:hover{background:var(--status-blue-bg);border-color:var(--status-blue);color:var(--status-blue)}
+.srv-h-status.paid{background:var(--status-green)}
+.srv-h-tag.paid{background:var(--status-green-bg);color:var(--status-green)}
 .srv-h-row:hover:not(.head){background:rgba(255,255,255,0.02)}
 .srv-h-row:last-child{border-bottom:none}
 .srv-h-row.head{background:rgba(255,255,255,0.02);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-tertiary);padding:10px 22px}
@@ -11353,7 +11359,7 @@ function updateNotifBadge(){
             return;
         }
         
-        let html = `<div class="srv-h-row head"><span></span><span>Solicitud</span><span>Depto</span><span style="text-align:right">Monto</span><span>Fecha</span><span style="text-align:center">Estado</span></div>`;
+        let html = `<div class="srv-h-row head"><span></span><span>Solicitud</span><span>Depto</span><span style="text-align:right">Monto</span><span>Fecha</span><span style="text-align:center">Estado</span><span style="text-align:right">Acciones</span></div>`;
         
         html += historico.map(s => {
             const tipoLabel = TIPO_LABELS[s.tipo] || s.tipo;
@@ -11361,9 +11367,19 @@ function updateNotifBadge(){
             const created = srvFmtDate(s.created_at);
             let statusKey = s.status, statusLabel = s.status;
             if(s.status === 'completada'){statusKey='completed';statusLabel='Completada';}
+            else if(s.status === 'pagada'){statusKey='paid';statusLabel='Pagada';}
             else if(s.status === 'confirmada'){statusKey='confirmed';statusLabel='Confirmada';}
             else if(s.status === 'rechazada'){statusKey='rejected';statusLabel='Rechazada';}
             else if(s.status === 'pago_solicitado'){statusKey='confirmed';statusLabel='Esperando pago';}
+            
+            // Botones según el estado actual
+            let acciones = '';
+            if(s.status === 'pago_solicitado'){
+                acciones = `<button class="srv-h-action paid" onclick="srvMarkAsPaid(${s.id})" title="Marcar como pagada">$</button>
+                            <button class="srv-h-action done" onclick="srvMarkAsCompleted(${s.id})" title="Marcar como completada">✓</button>`;
+            } else if(s.status === 'pagada'){
+                acciones = `<button class="srv-h-action done" onclick="srvMarkAsCompleted(${s.id})" title="Marcar como completada">✓</button>`;
+            }
             
             return `<div class="srv-h-row">
                 <span class="srv-h-status ${statusKey}"></span>
@@ -11375,6 +11391,7 @@ function updateNotifBadge(){
                 <span class="srv-h-amount">$${(s.total_cobrar||0).toLocaleString('es-MX')}</span>
                 <span class="srv-h-date">${created}</span>
                 <span class="srv-h-tag ${statusKey}">${statusLabel}</span>
+                <span class="srv-h-actions">${acciones}</span>
             </div>`;
         }).join('');
         
@@ -11468,7 +11485,7 @@ function updateNotifBadge(){
     
     function srvUpdateStats(){
         const pendientes = solicitudesData.filter(s => s.status === 'pendiente_revision').length;
-        const confirmadas = solicitudesData.filter(s => s.status === 'confirmada' || s.status === 'pago_solicitado').length;
+        const confirmadas = solicitudesData.filter(s => s.status === 'confirmada' || s.status === 'pago_solicitado' || s.status === 'pagada').length;
         const hoy = new Date().toISOString().split('T')[0];
         const today = solicitudesData.filter(s => s.fecha_servicio === hoy && s.status !== 'rechazada').length;
         
@@ -11583,6 +11600,62 @@ function updateNotifBadge(){
         } catch(err){
             console.error(err);
             srvShowToast('Error al rechazar');
+        }
+    };
+    
+    // Marcar solicitud como pagada (huésped completó el cobro en Resolution Center)
+    window.srvMarkAsPaid = async function(id){
+        const sol = solicitudesData.find(s => s.id === id);
+        if(!sol) return;
+        if(!confirm(`¿Confirmar que ${sol.huesped_nombre || 'el huésped'} ya pagó $${(sol.total_cobrar||0).toLocaleString('es-MX')} MXN?`)) return;
+        try {
+            const res = await fetch(`${SRV_URL}/rest/v1/solicitudes?id=eq.${id}`, {
+                method: 'PATCH',
+                headers: {...SRV_HEADERS, 'Prefer':'return=minimal'},
+                body: JSON.stringify({
+                    status: 'pagada',
+                    pagado_at: new Date().toISOString()
+                })
+            });
+            if(!res.ok) throw new Error('Error en update');
+            sol.status = 'pagada';
+            srvRenderHistorico();
+            srvUpdateStats();
+            srvUpdateBadge();
+            srvShowToast('Marcada como pagada');
+        } catch(err){
+            console.error(err);
+            srvShowToast('Error al actualizar');
+        }
+    };
+    
+    // Marcar solicitud como completada (servicio ya realizado)
+    window.srvMarkAsCompleted = async function(id){
+        const sol = solicitudesData.find(s => s.id === id);
+        if(!sol) return;
+        const wasUnpaid = sol.status === 'pago_solicitado';
+        const msg = wasUnpaid 
+            ? `Esta solicitud aún está en "esperando pago". ¿Marcarla como completada de todos modos?`
+            : `¿Marcar el servicio como completado?`;
+        if(!confirm(msg)) return;
+        try {
+            const res = await fetch(`${SRV_URL}/rest/v1/solicitudes?id=eq.${id}`, {
+                method: 'PATCH',
+                headers: {...SRV_HEADERS, 'Prefer':'return=minimal'},
+                body: JSON.stringify({
+                    status: 'completada',
+                    completada_at: new Date().toISOString()
+                })
+            });
+            if(!res.ok) throw new Error('Error en update');
+            sol.status = 'completada';
+            srvRenderHistorico();
+            srvUpdateStats();
+            srvUpdateBadge();
+            srvShowToast(wasUnpaid ? 'Completada (sin pago confirmado)' : 'Marcada como completada');
+        } catch(err){
+            console.error(err);
+            srvShowToast('Error al actualizar');
         }
     };
     
