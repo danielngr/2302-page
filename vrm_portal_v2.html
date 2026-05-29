@@ -11343,24 +11343,7 @@ function updateNotifBadge(){
                 </div>
                 <div class="srv-req-actions">
                     <button class="srv-btn-action reject" title="Rechazar" onclick="srvReject(${s.id})">✕</button>
-                    <button class="srv-btn-action confirm" title="Confirmar" onclick="srvStartConfirm(${s.id})">✓</button>
-                </div>
-            </div>
-            <div class="srv-confirm-flow">
-                <div class="srv-flow-title">Confirmar ${tipoLabel.toLowerCase()} · $${total} MXN</div>
-                <div class="srv-flow-desc">Vas a confirmar la solicitud de <strong>${srvEscape(s.huesped_nombre||'el huésped')}</strong> para el <strong>${fecha}${fechaExtra ? ' · ' + fechaExtra : ''}</strong>. Al continuar:</div>
-                <ul class="srv-flow-list">
-                    <li>Se marcará como confirmada en el sistema</li>
-                    <li>Se abrirá el inbox de Airbnb en otra pestaña</li>
-                    <li>Se copiará el mensaje al portapapeles (Ctrl+V para pegarlo)</li>
-                    <li>Tendrás que crear el cobro de $${total} en el Resolution Center</li>
-                </ul>
-                <div class="srv-flow-actions">
-                    <button class="srv-btn-cancel" onclick="srvCancelConfirm(${s.id})">Cancelar</button>
-                    <button class="srv-btn-confirm" onclick="srvFinalConfirm(${s.id})">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 3h7v7M10 14L21 3M21 14v6a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1h6"/></svg>
-                        Confirmar y abrir Airbnb
-                    </button>
+                    <button class="srv-btn-action confirm" title="Confirmar" onclick="srvFinalConfirm(${s.id})">✓</button>
                 </div>
             </div>
         </div>`;
@@ -11541,10 +11524,14 @@ function updateNotifBadge(){
         if(sol.horario) detalle += ' · ' + (sol.horario === 'manana' ? 'mañana' : 'tarde');
         if(sol.hora_exacta) detalle += ' · ' + sol.hora_exacta.substring(0,5);
         
-        const msg = `Hola ${sol.huesped_nombre||''}, gracias por solicitar ${tipoLabel.toLowerCase()} para el ${detalle}. Te acabo de enviar la solicitud de pago de $${sol.total_cobrar} MXN por el Centro de Resoluciones. Una vez que la aceptes, queda confirmada. ¡Gracias!`;
+        const msg = `Hola ${sol.huesped_nombre||''},\nte confirmamos tu ${tipoLabel.toLowerCase()} para el ${detalle}.\nEn un momento te llegará una solicitud de cobro de $${sol.total_cobrar} MXN por el Centro de Resoluciones de Airbnb. Una vez que la apruebes queda todo listo.\nCualquier duda con gusto te ayudamos`;
         
         try { await navigator.clipboard.writeText(msg); } catch(e){}
-        window.open('https://www.airbnb.com/hosting/messages', '_blank');
+        // Abrir directo el detalle de la reserva por código (si existe)
+        const url = sol.codigo_airbnb
+          ? `https://www.airbnb.com/hosting/reservations/details/${sol.codigo_airbnb}`
+          : 'https://www.airbnb.com/hosting/messages';
+        window.open(url, '_blank');
         
         try {
             const res = await fetch(`${SRV_URL}/rest/v1/solicitudes?id=eq.${id}`, {
@@ -11566,7 +11553,7 @@ function updateNotifBadge(){
             }
             srvUpdateStats();
             srvUpdateBadge();
-            srvShowToast('Confirmada · Mensaje copiado · Busca al huésped en Airbnb');
+            srvShowToast('Confirmada · Mensaje copiado · Pégalo en el chat de Airbnb');
             
             setTimeout(() => {
                 srvRenderPendientes();
