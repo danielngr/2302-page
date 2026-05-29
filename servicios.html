@@ -556,14 +556,41 @@ body{
 .confirm-screen.show{display:flex;animation:fadeUp .6s var(--ease)}
 @keyframes fadeUp{from{opacity:0}to{opacity:1}}
 .confirm-icon-wrap{
-  width:78px;height:78px;border-radius:50%;
-  background:linear-gradient(135deg,var(--jade),#5fb88a);
+  width:84px;height:84px;border-radius:50%;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255,255,255,0.55), rgba(255,255,255,0) 60%),
+    linear-gradient(140deg, color-mix(in srgb,var(--jade) 18%, transparent), color-mix(in srgb,var(--jade) 6%, transparent));
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border:1px solid color-mix(in srgb,var(--jade) 22%, var(--glass-stroke));
   display:flex;align-items:center;justify-content:center;
-  font-size:38px;color:#0a1f14;font-weight:700;margin-bottom:26px;
-  box-shadow:0 12px 40px -8px color-mix(in srgb,var(--jade) 70%,transparent);
-  animation:pop .6s var(--ease) .15s both;
+  margin-bottom:26px;
+  box-shadow:
+    0 16px 44px -10px color-mix(in srgb,var(--jade) 30%, transparent),
+    inset 0 1px 0 rgba(255,255,255,0.7),
+    inset 0 -1px 0 color-mix(in srgb,var(--jade) 8%, transparent);
+  animation:icon-rise .7s var(--ease) .1s both;
 }
-@keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+.confirm-icon-wrap svg{width:36px;height:36px;display:block;overflow:visible}
+.confirm-icon-wrap svg path{
+  fill:none;
+  stroke:var(--jade);
+  stroke-width:2.4;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  stroke-dasharray:32;
+  stroke-dashoffset:32;
+  animation:check-draw .65s var(--ease) .45s forwards;
+  filter:drop-shadow(0 1px 2px color-mix(in srgb,var(--jade) 35%, transparent));
+}
+@keyframes icon-rise{
+  0%  {opacity:0;transform:scale(.6) translateY(8px)}
+  60% {transform:scale(1.04) translateY(0)}
+  100%{opacity:1;transform:scale(1)}
+}
+@keyframes check-draw{
+  to{stroke-dashoffset:0}
+}
 .confirm-title{font-family:var(--font-display);font-weight:300;font-size:30px;color:var(--bone);margin-bottom:12px}
 .confirm-title em{font-style:italic;color:var(--jade)}
 .confirm-sub{font-size:15px;line-height:1.55;color:var(--bone-soft);max-width:34ch;margin-bottom:30px;font-weight:300}
@@ -921,7 +948,11 @@ body{
 
 <!-- Pantalla de confirmación -->
 <div class="confirm-screen" id="confirm-screen">
-  <div class="confirm-icon-wrap">✓</div>
+  <div class="confirm-icon-wrap">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 12.5 L10 17.5 L19 7.5"/>
+    </svg>
+  </div>
   <h2 class="confirm-title">Solicitud <em>recibida</em></h2>
   <p class="confirm-sub">Estamos revisando tu solicitud. En breve te confirmamos por el chat de Airbnb.</p>
 
@@ -1722,8 +1753,18 @@ function open_sheet(type){
     codeInputEl.readOnly = false;
     codeInputEl.classList.remove('locked');
   }
-  // Nombre: si vino en el link, prellenar (el huésped puede corregir)
-  document.getElementById('sh-guest-name').value = urlNombre || '';
+  // Nombre: ocultar siempre el campo. Si vino en el link, va al payload;
+  // si no vino (modo prueba), generamos un placeholder con el código.
+  var nameInputEl = document.getElementById('sh-guest-name');
+  var nameFieldWrap = nameInputEl.closest('.field');
+  if(nameFieldWrap) nameFieldWrap.style.display = 'none';
+  if(urlNombre){
+    nameInputEl.value = urlNombre;
+  } else if(urlCode){
+    nameInputEl.value = 'Huésped ' + urlCode;
+  } else {
+    nameInputEl.value = 'Huésped (sin código)';
+  }
   document.getElementById('sh-guest-phone').value = '';
   document.getElementById('sh-notes').value = '';
   document.querySelectorAll('#sheet input').forEach(i => i.classList.remove('input-error'));
@@ -1805,12 +1846,16 @@ async function submit_request(){
     codeInput.classList.remove('input-error');
   }
 
-  // Nombre (obligatorio, mínimo 2 chars)
+  // Nombre (obligatorio, mínimo 2 chars) — el campo está oculto, igual validamos
   const nameInput = document.getElementById('sh-guest-name');
   const guestName = (nameInput.value || '').trim();
+  const nameFieldOculto = nameInput.closest('.field') &&
+                          nameInput.closest('.field').style.display === 'none';
   if(guestName.length < 2){
-    nameInput.classList.add('input-error');
-    errores = true;
+    if(!nameFieldOculto){
+      nameInput.classList.add('input-error');
+      errores = true;
+    }
   } else {
     nameInput.classList.remove('input-error');
   }
