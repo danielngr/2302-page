@@ -1327,6 +1327,7 @@ async function loadDeptDirect(dept){
   
   currentDept = data;
   cargarCheckouts(dept);
+  cargarCheckins(dept);
   updateUI();
 }
 
@@ -1361,6 +1362,37 @@ async function cargarCheckouts(dept){
 // ¿Hay un checkout (salida de otro huésped) en esta fecha de llegada?
 function hayCheckoutEseDia(fechaISO){
   return checkoutsDelDepto.has(String(fechaISO).slice(0,10));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHECK-INS DEL DEPTO (para regla de late checkout)
+// ═══════════════════════════════════════════════════════════════
+// Espejo de la lógica de checkouts: si el huésped quiere salir tarde y
+// ese mismo día llega otro huésped, no se puede.
+var checkinsDelDepto = new Set();
+var checkinsDeptoCargado = null;
+
+async function cargarCheckins(dept){
+  checkinsDelDepto = new Set();
+  checkinsDeptoCargado = dept;
+  if(!dept) return;
+  try {
+    var hoyISO = new Date().toISOString().slice(0,10);
+    var res = await sb
+      .from('public_availability')
+      .select('check_in')
+      .eq('unit_id', dept)
+      .gte('check_in', hoyISO);
+    if(res.error){ console.warn('checkins:', res.error.message); return; }
+    (res.data||[]).forEach(function(r){
+      if(r.check_in) checkinsDelDepto.add(String(r.check_in).slice(0,10));
+    });
+  } catch(e){ console.warn('checkins exception:', e.message); }
+}
+
+// ¿Hay un check-in (llegada de otro huésped) en esta fecha de salida?
+function hayCheckinEseDia(fechaISO){
+  return checkinsDelDepto.has(String(fechaISO).slice(0,10));
 }
 
 async function initDevPanel(){
@@ -1403,6 +1435,7 @@ async function loadDept(){
   
   currentDept = data;
   cargarCheckouts(dept);
+  cargarCheckins(dept);
   updateUI();
 }
 
@@ -1594,6 +1627,15 @@ function updateCostSummary(){
     total.textContent = '$' + cfg.total + ' MXN';
   } else if(currentSheet === 'checkin'){
     // Late checkout: precio depende de la hora elegida
+    var btnLate = document.getElementById('submit-btn');
+    // Validar contra iCal: si hay llegada de otro huésped el mismo día → imposible quedarse tarde
+    if(urlCheckOut && hayCheckinEseDia(urlCheckOut)){
+      label.textContent = 'No disponible ese día';
+      base.textContent  = 'Llega otro huésped';
+      total.textContent = 'No es posible extender';
+      if(btnLate){ btnLate.disabled = true; btnLate.classList.add('disabled'); }
+      return;
+    }
     const horaSel = parseInt((selectedTime || '13:00').split(':')[0], 10);
     const calc = calcLatePrice(horaSel);
     const fee = Math.round(calc.precio * cfg.feePct);
@@ -1605,6 +1647,7 @@ function updateCostSummary(){
     }
     base.textContent  = '$' + calc.precio;
     total.textContent = '$' + sumTotal + ' MXN';
+    if(btnLate){ btnLate.disabled = false; btnLate.classList.remove('disabled'); }
   } else if(currentSheet === 'earlycheckin'){
     var fEarly = document.getElementById('sh-date').value;
     var btnEarly = document.getElementById('submit-btn');
@@ -2043,6 +2086,12 @@ async function submit_request(){
   // (red de seguridad además del bloqueo visual del botón)
   if(cfg.tipo === 'early_checkin' && hayCheckoutEseDia(fechaInicio)){
     showToast('No disponible: hay una salida ese día', 'error');
+    return;
+  }
+
+  // ─── Late checkout: bloquear si hay llegada de otro huésped ese día ───
+  if(cfg.tipo === 'late_checkout' && hayCheckinEseDia(fechaInicio)){
+    showToast('No disponible: llega otro huésped ese día', 'error');
     return;
   }
 
