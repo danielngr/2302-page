@@ -1150,6 +1150,7 @@ const I18N = {
     svc_label_highchair: 'Silla alta',
     svc_label_late: 'Late checkout',
     svc_label_early: 'Early check-in',
+    per_night: 'noche',
   },
   en: {
     greet: 'Welcome to <em>Vallarta</em>.',
@@ -1187,6 +1188,7 @@ const I18N = {
     svc_label_highchair: 'High chair',
     svc_label_late: 'Late checkout',
     svc_label_early: 'Early check-in',
+    per_night: 'night',
   }
 };
 
@@ -1226,8 +1228,72 @@ function setLang(lang){
   currentLang = lang;
   try { localStorage.setItem('vrm_lang', lang); } catch(e){}
   applyLanguage();
-  // Refrescar UI dinámica (precios, fechas, etc.)
-  if(typeof updateUI === 'function' && currentDept) updateUI();
+  // Si cambia a inglés y no tenemos rate aún, la traemos antes de re-renderizar precios
+  if(lang === 'en' && !mxnToUsdRate){
+    fetchExchangeRate().then(() => {
+      if(typeof updateUI === 'function' && currentDept) updateUI();
+    });
+  } else {
+    if(typeof updateUI === 'function' && currentDept) updateUI();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CURRENCY — Conversión MXN → USD para huéspedes en inglés
+// ═══════════════════════════════════════════════════════════════
+// Internamente todos los precios están en MXN (que es como se cobra).
+// Solo al mostrar al huésped en inglés convertimos a USD usando la
+// tasa del día desde open.er-api.com (sin necesidad de API key).
+let mxnToUsdRate = null;  // ej. 0.058 (un MXN = 0.058 USD)
+
+async function fetchExchangeRate(){
+  // Cache en sessionStorage para no llamar la API en cada acción
+  try {
+    const cached = sessionStorage.getItem('vrm_mxn_usd_rate');
+    const cachedAt = parseInt(sessionStorage.getItem('vrm_mxn_usd_at') || '0', 10);
+    const ageMs = Date.now() - cachedAt;
+    // Cache válido 6 horas
+    if(cached && ageMs < 6 * 60 * 60 * 1000){
+      mxnToUsdRate = parseFloat(cached);
+      return mxnToUsdRate;
+    }
+  } catch(e){}
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/MXN');
+    if(!res.ok) throw new Error('rate fetch failed');
+    const data = await res.json();
+    const rate = data?.rates?.USD;
+    if(typeof rate === 'number' && rate > 0){
+      mxnToUsdRate = rate;
+      try {
+        sessionStorage.setItem('vrm_mxn_usd_rate', String(rate));
+        sessionStorage.setItem('vrm_mxn_usd_at', String(Date.now()));
+      } catch(e){}
+      return rate;
+    }
+  } catch(e){
+    console.warn('Exchange rate fetch failed, using fallback:', e.message);
+  }
+  // Fallback razonable (mayo 2026: ~1 MXN = 0.058 USD)
+  mxnToUsdRate = 0.058;
+  return mxnToUsdRate;
+}
+
+// Formatea un precio en MXN, devolviendo USD si el idioma es inglés.
+// `mxn` es número entero/decimal. Devuelve string listo para mostrar.
+function formatPrice(mxn){
+  if(currentLang === 'en' && mxnToUsdRate){
+    const usd = mxn * mxnToUsdRate;
+    // Redondear a entero arriba de $10 USD, a 0.01 si menor
+    const rounded = usd >= 10 ? Math.round(usd) : Math.round(usd * 100) / 100;
+    return '$' + rounded.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+  }
+  return '$' + Math.round(mxn).toLocaleString('es-MX');
+}
+
+// Versión con sufijo de moneda explícito ("$1,200 MXN" o "$60 USD")
+function formatPriceWithCurrency(mxn){
+  return formatPrice(mxn) + ' ' + (currentLang === 'en' ? 'USD' : 'MXN');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1731,18 +1797,18 @@ function updateUI(){
   
   if(cleaningCard){
     // Precio limpio sin fee adicional
-    cleaningCard.querySelector('.svc-meta-val').textContent = '$' + currentDept.precio_limpieza;
+    cleaningCard.querySelector('.svc-meta-val').textContent = formatPrice(currentDept.precio_limpieza);
     cleaningCard.onclick = () => open_sheet('cleaning');
   }
   if(checkinCard){
-    checkinCard.querySelector('.svc-meta-val').innerHTML = '$' + LATE_RATE + '<span class="quote-unit">/h</span>';
+    checkinCard.querySelector('.svc-meta-val').innerHTML = formatPrice(LATE_RATE) + '<span class="quote-unit">/h</span>';
     checkinCard.onclick = () => open_sheet('checkin');
   }
 
   // Early check-in: reutiliza tarifa_hora (misma tarifa que late checkout)
   const earlyCard = document.querySelector('.svc.earlycheckin');
   if(earlyCard){
-    earlyCard.querySelector('.svc-meta-val').innerHTML = '$' + EARLY_RATE + '<span class="quote-unit">/h</span>';
+    earlyCard.querySelector('.svc-meta-val').innerHTML = formatPrice(EARLY_RATE) + '<span class="quote-unit">/h</span>';
     earlyCard.onclick = () => open_sheet('earlycheckin');
   }
   
@@ -1750,7 +1816,7 @@ function updateUI(){
   const cribCard = document.querySelector('.svc.crib');
   if(cribCard){
     const precioSilla = currentDept.precio_silla_alta || 150;
-    cribCard.querySelector('.svc-meta-val').textContent = '$' + precioSilla;
+    cribCard.querySelector('.svc-meta-val').textContent = formatPrice(precioSilla);
     cribCard.onclick = () => open_sheet('crib');
   }
   
@@ -1875,7 +1941,7 @@ function updateCostSummary(){
     const noches = nightsBetween(rangeFromDate, rangeToDate);
     if(noches === 0){
       label.textContent = (cribType === 'silla' ? 'Silla alta' : 'Cuna') + ' por noche';
-      base.textContent  = '$' + precioNoche;
+      base.textContent  = formatPrice(precioNoche);
       total.textContent = 'Selecciona fechas';
       return;
     }
@@ -1883,12 +1949,12 @@ function updateCostSummary(){
     const fee = Math.round(subtotal * cfg.feePct);
     const sumTotal = subtotal + fee;
     label.textContent = `${(cribType === 'silla' ? 'Silla alta' : 'Cuna')} · ${noches} ${noches===1?'noche':'noches'} × $${precioNoche}`;
-    base.textContent  = '$' + subtotal;
-    total.textContent = '$' + sumTotal + ' MXN';
+    base.textContent  = formatPrice(subtotal);
+    total.textContent = formatPriceWithCurrency(sumTotal);
   } else if(currentSheet === 'cleaning'){
     label.textContent = 'Limpieza extra';
-    base.textContent  = '$' + cfg.precio;
-    total.textContent = '$' + cfg.total + ' MXN';
+    base.textContent  = formatPrice(cfg.precio);
+    total.textContent = formatPriceWithCurrency(cfg.total);
   } else if(currentSheet === 'checkin'){
     // Late checkout: precio depende de la hora elegida
     var btnLate = document.getElementById('submit-btn');
@@ -1909,8 +1975,8 @@ function updateCostSummary(){
     } else {
       label.textContent = `Late checkout · ${calc.horas} ${calc.horas===1?'hora extra':'horas extra'}`;
     }
-    base.textContent  = '$' + calc.precio;
-    total.textContent = '$' + sumTotal + ' MXN';
+    base.textContent  = formatPrice(calc.precio);
+    total.textContent = formatPriceWithCurrency(sumTotal);
     if(btnLate){ btnLate.disabled = false; btnLate.classList.remove('disabled'); }
   } else if(currentSheet === 'earlycheckin'){
     var fEarly = document.getElementById('sh-date').value;
@@ -1928,8 +1994,8 @@ function updateCostSummary(){
       const fee = Math.round(calc.precio * cfg.feePct);
       const sumTotal = calc.precio + fee;
       label.textContent = `Early check-in · ${calc.horas} ${calc.horas===1?'hora antes':'horas antes'}`;
-      base.textContent  = '$' + calc.precio;
-      total.textContent = '$' + sumTotal + ' MXN';
+      base.textContent  = formatPrice(calc.precio);
+      total.textContent = formatPriceWithCurrency(sumTotal);
       if(btnEarly){ btnEarly.disabled = false; btnEarly.classList.remove('disabled'); }
     }
   }
@@ -2109,8 +2175,8 @@ function open_sheet(type){
     document.querySelector('#crib-toggle button[data-crib="cuna"]').classList.add('on');
     cribType = 'cuna';
     // Actualizar precios visibles en los toggles según el depto
-    document.getElementById('pill-cuna-price').textContent  = '$' + cfg.precio + '/noche';
-    document.getElementById('pill-silla-price').textContent = '$' + cfg.precioSilla + '/noche';
+    document.getElementById('pill-cuna-price').textContent  = formatPrice(cfg.precio) + '/' + t('per_night');
+    document.getElementById('pill-silla-price').textContent = formatPrice(cfg.precioSilla) + '/' + t('per_night');
   } else if(type === 'checkin'){
     // Late checkout: la fecha es el día de checkout de la reserva → auto-asignar
     fieldCribType.style.display   = 'none';
@@ -2501,7 +2567,7 @@ async function submit_request(){
     fechaTxt = formatShort(fechaInicio) + ' → ' + formatShort(fechaFin);
   }
   document.getElementById('confirm-fecha').textContent = fechaTxt;
-  document.getElementById('confirm-total').textContent = '$' + totalCobrar + ' MXN';
+  document.getElementById('confirm-total').textContent = formatPriceWithCurrency(totalCobrar);
 
   close_sheet();
   setTimeout(() => {
@@ -2539,6 +2605,13 @@ function showToast(msg, type){
 // 1) Huésped real: vino ?dept=... → cargar ese depto directo.
 // Aplicar idioma al cargar (detecta del navegador o usa el guardado)
 applyLanguage();
+
+// Si arrancamos en inglés, traemos la tasa USD antes para no mostrar precios MXN un instante
+if(currentLang === 'en'){
+  fetchExchangeRate().then(() => {
+    if(typeof updateUI === 'function' && currentDept) updateUI();
+  });
+}
 
 // 2) Modo dev (?dev=1): mostrar el selector DEPTO/CANAL para probar.
 // 3) Sin nada: dejar la UI en estado vacío (servicios atenuados).
