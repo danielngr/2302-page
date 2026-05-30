@@ -2245,6 +2245,35 @@
 
 /* ─── Tabla histórico ─── */
 .srv-history-table{background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--glass-highlight)}
+
+/* ─── Inventario ─── */
+.srv-section-toggle{cursor:pointer;user-select:none}
+.srv-section-toggle:hover h2{color:var(--text-secondary)}
+.inv-summary-pill{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;font-weight:400;color:var(--text-tertiary);text-transform:none;margin-left:8px}
+.inv-body{background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:var(--radius-md);box-shadow:var(--glass-highlight);padding:18px 20px}
+.inv-loading{color:var(--text-tertiary);font-size:12px;text-align:center;padding:8px 0}
+.inv-cats{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.inv-cat{display:flex;flex-direction:column;gap:10px}
+.inv-cat-h{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:6px;border-bottom:1px solid var(--glass-border)}
+.inv-cat-name{font-family:var(--font-display);font-size:14px;font-weight:600;color:var(--text-primary)}
+.inv-cat-stats{font-family:var(--font-mono);font-size:11px;color:var(--text-tertiary);letter-spacing:.04em}
+.inv-cat-stats .inv-used{color:var(--status-orange)}
+.inv-cat-stats .inv-free{color:var(--status-green)}
+.inv-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 4px;border-bottom:1px dashed var(--glass-border);font-size:12px}
+.inv-row:last-child{border-bottom:none}
+.inv-row.free{opacity:.75}
+.inv-row .inv-num{font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;color:var(--text-secondary);background:rgba(255,255,255,.03);padding:3px 7px;border-radius:4px;border:1px solid var(--glass-border)}
+.inv-row .inv-info strong{display:block;font-weight:500;color:var(--text-primary);font-size:12px}
+.inv-row .inv-info span{font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono)}
+.inv-row .inv-action{display:flex;gap:4px}
+.inv-row.free .inv-info{color:var(--text-tertiary)}
+.inv-row.free .inv-info strong{color:var(--text-secondary);font-style:italic;font-weight:400}
+.inv-btn-return{width:26px;height:26px;border-radius:50%;border:1px solid var(--glass-border);background:transparent;color:var(--text-secondary);cursor:pointer;font-size:11px;display:inline-flex;align-items:center;justify-content:center;transition:var(--transition-smooth);padding:0;line-height:1}
+.inv-btn-return:hover{background:var(--status-blue-bg);border-color:var(--status-blue);color:var(--status-blue)}
+.inv-empty{font-size:11px;color:var(--text-tertiary);font-style:italic;text-align:center;padding:14px 0;font-family:var(--font-mono)}
+@media (max-width: 800px){
+  .inv-cats{grid-template-columns:1fr}
+}
 .srv-h-row{display:grid;grid-template-columns:auto 1fr 90px 100px 100px 110px 90px;gap:16px;align-items:center;padding:14px 22px;border-bottom:1px solid var(--glass-border);font-size:13px;transition:var(--transition-smooth)}
 .srv-h-actions{display:flex;gap:6px;justify-content:flex-end}
 .srv-h-action{width:28px;height:28px;border-radius:50%;border:1px solid var(--glass-border);background:transparent;color:var(--text-secondary);cursor:pointer;font-size:12px;font-family:var(--font-mono);display:inline-flex;align-items:center;justify-content:center;transition:var(--transition-smooth);padding:0;line-height:1}
@@ -2589,6 +2618,23 @@
                     </div>
                     <div class="srv-history-table" id="srv-history-list">
                         <div class="srv-loading">Cargando histórico…</div>
+                    </div>
+                </div>
+
+                <!-- INVENTARIO (cunas + sillas) -->
+                <div class="srv-section">
+                    <div class="srv-section-h srv-section-toggle" onclick="invToggle()">
+                        <h2>
+                            <span class="srv-dot" style="background:var(--status-blue);box-shadow:none"></span>
+                            Inventario
+                            <span class="inv-summary-pill" id="inv-summary-pill">—</span>
+                        </h2>
+                        <span class="srv-count">
+                            <span id="inv-chevron">▾</span>
+                        </span>
+                    </div>
+                    <div class="inv-body" id="inv-body" style="display:none">
+                        <div class="inv-loading">Cargando inventario…</div>
                     </div>
                 </div>
 
@@ -11281,6 +11327,7 @@ function updateNotifBadge(){
             srvRenderHistorico();
             srvUpdateStats();
             srvUpdateBadge();
+            invLoadSummary();  // refresca pill resumen aunque esté colapsado
         } catch(err){
             console.error('Error cargando servicios:', err);
             const el = document.getElementById('srv-pendientes-list');
@@ -11530,6 +11577,27 @@ function updateNotifBadge(){
         const sol = solicitudesData.find(s => s.id === id);
         if(!sol) return;
         
+        // Si es cuna o silla, intentar asignar item del inventario ANTES de confirmar
+        let assignedItemId = null;
+        let assignedLabel = '';
+        if(sol.tipo === 'cuna' || sol.tipo === 'silla_alta'){
+            try {
+                const fechaIni = sol.fecha_servicio;
+                const fechaFin = sol.fecha_fin || sol.fecha_servicio;
+                const assigned = await invAutoAssign(sol.tipo, fechaIni, fechaFin);
+                if(!assigned){
+                    srvShowToast(`Sin ${sol.tipo === 'cuna' ? 'cunas' : 'sillas'} disponibles para esas fechas`);
+                    return;
+                }
+                assignedItemId = assigned.item_id;
+                assignedLabel = assigned.item_label;
+            } catch(err){
+                console.error('Error en auto-asignación:', err);
+                srvShowToast('Error al asignar item del inventario');
+                return;
+            }
+        }
+        
         const tipoLabel = TIPO_LABELS[sol.tipo] || sol.tipo;
         const fecha = srvFmtDate(sol.fecha_servicio);
         let detalle = fecha;
@@ -11557,6 +11625,13 @@ function updateNotifBadge(){
             });
             if(!res.ok) throw new Error('Error en update');
             
+            // Crear el registro de asignación de inventario (si aplica)
+            if(assignedItemId){
+                await invCreateAssignment(assignedItemId, sol);
+                invLoadSummary();  // refrescar pill
+                if(invExpanded) invLoadFull();
+            }
+            
             sol.status = 'pago_solicitado';
             const el = document.getElementById(`srv-req-${id}`);
             if(el){
@@ -11565,7 +11640,10 @@ function updateNotifBadge(){
             }
             srvUpdateStats();
             srvUpdateBadge();
-            srvShowToast('Confirmada · Mensaje copiado · Pégalo en el chat de Airbnb');
+            const toastMsg = assignedLabel 
+                ? `Confirmada · ${assignedLabel} asignada · Mensaje copiado` 
+                : 'Confirmada · Mensaje copiado · Pégalo en el chat de Airbnb';
+            srvShowToast(toastMsg);
             
             setTimeout(() => {
                 srvRenderPendientes();
@@ -11686,7 +11764,211 @@ function updateNotifBadge(){
         setTimeout(() => t.classList.remove('show'), 3500);
     }
     
-    // Hook al goTo existente sin modificarlo
+    // ════════════════════════════════════════════════════════════════
+    // INVENTARIO — Cunas + Sillas altas
+    // ════════════════════════════════════════════════════════════════
+    let invItems = [];          // catálogo: [{id, tipo, numero, activo, notas}]
+    let invAssignments = [];    // asignaciones activas: [{...assignment, item}]
+    let invExpanded = false;
+
+    function invToggle(){
+        invExpanded = !invExpanded;
+        const body = document.getElementById('inv-body');
+        const chevron = document.getElementById('inv-chevron');
+        if(!body) return;
+        body.style.display = invExpanded ? 'block' : 'none';
+        if(chevron) chevron.textContent = invExpanded ? '▴' : '▾';
+        if(invExpanded){
+            invLoadFull();
+        }
+    }
+    window.invToggle = invToggle;
+
+    // Solo carga el resumen (cunas X/Y, sillas X/Y) — para la pill colapsada
+    async function invLoadSummary(){
+        try {
+            const [itemsRes, assignsRes] = await Promise.all([
+                fetch(`${SRV_URL}/rest/v1/inventory_items?select=*&activo=eq.true&order=tipo,numero`, {headers: SRV_HEADERS}),
+                fetch(`${SRV_URL}/rest/v1/inventory_assignments?select=item_id&status=eq.active`, {headers: SRV_HEADERS})
+            ]);
+            const items = await itemsRes.json();
+            const assigns = await assignsRes.json();
+            if(!Array.isArray(items) || !Array.isArray(assigns)) return;
+            invItems = items;
+            const usedIds = new Set(assigns.map(a => a.item_id));
+            const cunaTotal = items.filter(i => i.tipo === 'cuna').length;
+            const cunaUsed = items.filter(i => i.tipo === 'cuna' && usedIds.has(i.id)).length;
+            const sillaTotal = items.filter(i => i.tipo === 'silla_alta').length;
+            const sillaUsed = items.filter(i => i.tipo === 'silla_alta' && usedIds.has(i.id)).length;
+            const pill = document.getElementById('inv-summary-pill');
+            if(pill){
+                pill.textContent = `Cunas ${cunaUsed}/${cunaTotal} · Sillas ${sillaUsed}/${sillaTotal}`;
+            }
+        } catch(err){
+            console.warn('invLoadSummary error:', err);
+        }
+    }
+
+    // Carga completa con detalle de cada item — al expandir el módulo
+    async function invLoadFull(){
+        const body = document.getElementById('inv-body');
+        if(!body) return;
+        body.innerHTML = `<div class="inv-loading">Cargando inventario…</div>`;
+        try {
+            const [itemsRes, assignsRes] = await Promise.all([
+                fetch(`${SRV_URL}/rest/v1/inventory_items?select=*&activo=eq.true&order=tipo,numero`, {headers: SRV_HEADERS}),
+                fetch(`${SRV_URL}/rest/v1/inventory_assignments?select=*&status=eq.active&order=fecha_recogida`, {headers: SRV_HEADERS})
+            ]);
+            const items = await itemsRes.json();
+            const assigns = await assignsRes.json();
+            if(!Array.isArray(items) || !Array.isArray(assigns)) throw new Error('Respuesta inválida');
+            invItems = items;
+            invAssignments = assigns;
+            invRender();
+        } catch(err){
+            console.error('invLoadFull error:', err);
+            body.innerHTML = `<div class="inv-empty">Error al cargar. Recarga la página.</div>`;
+        }
+    }
+
+    function invRender(){
+        const body = document.getElementById('inv-body');
+        if(!body) return;
+        const assignByItem = new Map();
+        invAssignments.forEach(a => assignByItem.set(a.item_id, a));
+        
+        function renderCat(tipo, label){
+            const itemsCat = invItems.filter(i => i.tipo === tipo);
+            const used = itemsCat.filter(i => assignByItem.has(i.id)).length;
+            const total = itemsCat.length;
+            const free = total - used;
+            
+            let html = `<div class="inv-cat">
+                <div class="inv-cat-h">
+                    <span class="inv-cat-name">${label}</span>
+                    <span class="inv-cat-stats">
+                        <span class="inv-used">${used}</span>/<span>${total}</span> en uso · 
+                        <span class="inv-free">${free}</span> libre${free !== 1 ? 's' : ''}
+                    </span>
+                </div>`;
+            
+            if(itemsCat.length === 0){
+                html += `<div class="inv-empty">Sin items registrados</div>`;
+            } else {
+                // Primero ocupados, luego libres
+                const ocupados = itemsCat.filter(i => assignByItem.has(i.id));
+                const libres = itemsCat.filter(i => !assignByItem.has(i.id));
+                
+                ocupados.forEach(item => {
+                    const a = assignByItem.get(item.id);
+                    const huesped = srvEscape(a.huesped_nombre || '—');
+                    const dept = srvEscape(a.dept || '—');
+                    const recogida = srvFmtDate(a.fecha_recogida);
+                    html += `<div class="inv-row">
+                        <span class="inv-num">#${item.numero}</span>
+                        <div class="inv-info">
+                            <strong>${huesped}</strong>
+                            <span>${dept} · vuelve ${recogida}</span>
+                        </div>
+                        <div class="inv-action">
+                            <button class="inv-btn-return" onclick="invMarkReturned(${a.id})" title="Marcar como recogida">↩</button>
+                        </div>
+                    </div>`;
+                });
+                
+                libres.forEach(item => {
+                    html += `<div class="inv-row free">
+                        <span class="inv-num">#${item.numero}</span>
+                        <div class="inv-info">
+                            <strong>Disponible</strong>
+                            <span>en bodega</span>
+                        </div>
+                        <div class="inv-action"></div>
+                    </div>`;
+                });
+            }
+            
+            html += `</div>`;
+            return html;
+        }
+        
+        body.innerHTML = `<div class="inv-cats">
+            ${renderCat('cuna', 'Cunas')}
+            ${renderCat('silla_alta', 'Sillas altas')}
+        </div>`;
+    }
+
+    // Marcar un item como recogido (devuelto a bodega)
+    window.invMarkReturned = async function(assignmentId){
+        const a = invAssignments.find(x => x.id === assignmentId);
+        if(!a) return;
+        const item = invItems.find(i => i.id === a.item_id);
+        const label = item ? `${item.tipo === 'cuna' ? 'Cuna' : 'Silla'} #${item.numero}` : 'item';
+        if(!confirm(`¿Confirmar que ya recogiste ${label} de ${a.huesped_nombre || 'el huésped'} en ${a.dept}?`)) return;
+        try {
+            const res = await fetch(`${SRV_URL}/rest/v1/inventory_assignments?id=eq.${assignmentId}`, {
+                method: 'PATCH',
+                headers: {...SRV_HEADERS, 'Prefer':'return=minimal'},
+                body: JSON.stringify({
+                    status: 'returned',
+                    returned_at: new Date().toISOString()
+                })
+            });
+            if(!res.ok){
+                const errText = await res.text();
+                throw new Error(`${res.status}: ${errText}`);
+            }
+            srvShowToast(`${label} recogida`);
+            invLoadFull();
+            invLoadSummary();
+        } catch(err){
+            console.error('invMarkReturned error:', err);
+            srvShowToast('Error: ' + (err.message || 'desconocido').slice(0,80));
+        }
+    };
+
+    // Asignación automática: dado un tipo (cuna/silla_alta) y rango de fechas,
+    // busca el primer item disponible y devuelve {item_id, item_label} o null si no hay.
+    async function invAutoAssign(tipo, fechaInicio, fechaFin){
+        // Trae todos los items activos del tipo
+        const itemsRes = await fetch(`${SRV_URL}/rest/v1/inventory_items?select=*&activo=eq.true&tipo=eq.${tipo}&order=numero`, {headers: SRV_HEADERS});
+        const items = await itemsRes.json();
+        if(!Array.isArray(items) || items.length === 0) return null;
+        // Trae asignaciones activas que se solapen con el rango: 
+        // se solapan si fecha_entrega <= fechaFin Y fecha_recogida >= fechaInicio
+        const url = `${SRV_URL}/rest/v1/inventory_assignments?select=item_id,fecha_entrega,fecha_recogida&status=eq.active&fecha_entrega=lte.${fechaFin}&fecha_recogida=gte.${fechaInicio}`;
+        const conflictRes = await fetch(url, {headers: SRV_HEADERS});
+        const conflicts = await conflictRes.json();
+        const busyIds = new Set((conflicts || []).map(c => c.item_id));
+        // Primer item libre
+        const free = items.find(i => !busyIds.has(i.id));
+        if(!free) return null;
+        return {
+            item_id: free.id,
+            item_label: `${tipo === 'cuna' ? 'Cuna' : 'Silla'} #${free.numero}`
+        };
+    }
+    window.invAutoAssign = invAutoAssign;
+
+    // Crear el registro de asignación (lo llama srvConfirm cuando aprueban una solicitud de cuna/silla)
+    async function invCreateAssignment(itemId, solicitud){
+        const res = await fetch(`${SRV_URL}/rest/v1/inventory_assignments`, {
+            method: 'POST',
+            headers: {...SRV_HEADERS, 'Prefer':'return=minimal'},
+            body: JSON.stringify({
+                item_id: itemId,
+                solicitud_id: solicitud.id,
+                dept: solicitud.dept,
+                huesped_nombre: solicitud.huesped_nombre,
+                fecha_entrega: solicitud.fecha_servicio,
+                fecha_recogida: solicitud.fecha_fin || solicitud.fecha_servicio
+            })
+        });
+        return res.ok;
+    }
+    window.invCreateAssignment = invCreateAssignment;
+
+
     const originalGoTo = window.goTo;
     if(typeof originalGoTo === 'function'){
         window.goTo = function(modName, el){
