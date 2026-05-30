@@ -482,6 +482,30 @@ body{
   display:block;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--bone-faint);margin-bottom:8px;
 }
+.range-label-row{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:12px;
+}
+.range-label-row label{
+  margin:0;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--bone-faint);
+}
+.range-shortcut{
+  background:color-mix(in srgb,var(--gold) 12%, transparent);
+  border:1px solid color-mix(in srgb,var(--gold) 28%, transparent);
+  color:var(--gold);
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;
+  padding:6px 12px;border-radius:999px;cursor:pointer;
+  transition:var(--transition-smooth);
+  white-space:nowrap;
+}
+.range-shortcut:hover{
+  background:color-mix(in srgb,var(--gold) 20%, transparent);
+  border-color:color-mix(in srgb,var(--gold) 40%, transparent);
+}
+.range-shortcut:disabled{
+  opacity:.35;cursor:not-allowed;background:transparent;
+}
 .range-summary{
   margin-top:14px;text-align:center;font-size:14px;color:var(--bone-soft);
 }
@@ -936,7 +960,10 @@ body{
 
   <!-- Rango de fechas (cuna/silla) -->
   <div class="field" id="field-date-range" style="display:none">
-    <label>Rango de uso</label>
+    <div class="range-label-row">
+      <label data-i18n="lbl_range">Rango de uso</label>
+      <button type="button" class="range-shortcut" id="btn-whole-stay" onclick="setWholeStay()" data-i18n="btn_whole_stay">Toda mi estancia</button>
+    </div>
     <div class="date-range-wrap">
       <div>
         <span class="range-label">Desde</span>
@@ -1151,6 +1178,8 @@ const I18N = {
     svc_label_late: 'Late checkout',
     svc_label_early: 'Early check-in',
     per_night: 'noche',
+    lbl_range: 'Rango de uso',
+    btn_whole_stay: 'Toda mi estancia',
   },
   en: {
     greet: 'Welcome to <em>Vallarta</em>.',
@@ -1189,6 +1218,8 @@ const I18N = {
     svc_label_late: 'Late checkout',
     svc_label_early: 'Early check-in',
     per_night: 'night',
+    lbl_range: 'Date range',
+    btn_whole_stay: 'My whole stay',
   }
 };
 
@@ -2021,8 +2052,45 @@ function initRangeCalendar(){
   document.getElementById('sh-date-from').value = '';
   document.getElementById('sh-date-to').value = '';
   document.getElementById('range-summary').style.display = 'none';
+  // Mostrar/ocultar atajo "Toda mi estancia" según haya rango de reserva
+  const btnWhole = document.getElementById('btn-whole-stay');
+  if(btnWhole){
+    btnWhole.style.display = tieneRangoReserva ? '' : 'none';
+    btnWhole.disabled = false;
+  }
   renderRangeCalendar('from');
   renderRangeCalendar('to');
+}
+
+// Atajo "Toda mi estancia": selecciona desde el check-in hasta el día anterior
+// al check-out (que ya es la última noche válida de uso de cuna).
+function setWholeStay(){
+  if(!tieneRangoReserva) return;
+  const fromIso = urlCheckIn;
+  const toIso = urlCheckOut;  // límite del rango (no es una noche, es checkout)
+  // Setear "from"
+  rangeFromDate = fromIso;
+  document.getElementById('range-from-text').textContent = formatShort(fromIso);
+  document.getElementById('sh-date-from').value = fromIso;
+  // Setear "to"
+  rangeToDate = toIso;
+  document.getElementById('range-to-text').textContent = formatShort(toIso);
+  document.getElementById('sh-date-to').value = toIso;
+  // Cerrar calendarios si están abiertos
+  document.getElementById('range-from-cal').classList.remove('open');
+  document.getElementById('range-from-display').classList.remove('open');
+  document.getElementById('range-to-cal').classList.remove('open');
+  document.getElementById('range-to-display').classList.remove('open');
+  // Actualizar resumen y costo
+  const noches = nightsBetween(fromIso, toIso);
+  const sum = document.getElementById('range-summary');
+  sum.style.display = '';
+  document.getElementById('range-nights').textContent = noches;
+  document.getElementById('range-noun').textContent = noches === 1 ? t('per_night') : (currentLang === 'en' ? 'nights' : 'noches');
+  // Re-renderizar para que se vean los días seleccionados con highlight
+  renderRangeCalendar('from');
+  renderRangeCalendar('to');
+  updateCostSummary();
 }
 
 function toggleRangeCal(which){
@@ -2063,8 +2131,19 @@ function renderRangeCalendar(which){
   const minDate = (which === 'to' && rangeFromDate)
     ? new Date(new Date(rangeFromDate).getTime() + 86400000)
     : base;
-  // Tope por reserva (incluye día de checkout) si vino en el link
-  const maxDate = tieneRangoReserva ? isoToLocalDate(urlCheckOut) : null;
+  // Tope por reserva si vino en el link.
+  // - Para "from": NO puede ser el día de checkout (no es una noche que duermen ahí).
+  //   Por eso restamos un día (checkout - 1 = última noche válida de inicio).
+  // - Para "to": SÍ puede ser el día de checkout (como límite del rango = última noche + 1).
+  let maxDate = null;
+  if(tieneRangoReserva){
+    const checkoutDate = isoToLocalDate(urlCheckOut);
+    if(which === 'from'){
+      maxDate = new Date(checkoutDate.getTime() - 86400000);
+    } else {
+      maxDate = checkoutDate;
+    }
+  }
 
   const year = calDate.getFullYear();
   const month = calDate.getMonth();
