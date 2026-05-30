@@ -1353,10 +1353,10 @@ let tieneRangoReserva = !!(urlCheckIn && urlCheckOut && urlCheckIn <= urlCheckOu
 const devMode = params.get('dev') === '1';
 
 // ─── Late checkout: reglas de precio ───
-// Check-out base 11:00. De 12:00 a 14:00 cobra $200/hr extra.
+// Check-out base 11:00. De 12:00 a 14:00 cobra $250/hr extra.
 // A partir de las 15:00 entra precio especial fijo de $1500 (hasta 20:00).
 const LATE_BASE_HOUR    = 11;
-const LATE_RATE         = 200;    // por hora extra
+const LATE_RATE         = 250;    // por hora extra
 const LATE_FLAT_HOUR    = 15;     // desde aquí entra el fijo
 const LATE_FLAT_PRICE   = 1500;
 const LATE_MAX_HOUR     = 20;     // tope de horas ofrecidas
@@ -1370,10 +1370,10 @@ function calcLatePrice(hora24){
 }
 
 // ─── Early check-in: reglas de precio ───
-// Check-in base 15:00. Cuanto más temprano, más caro: $200 × cada hora adelantada.
+// Check-in base 15:00. Cuanto más temprano, más caro: $250 × cada hora adelantada.
 // Mínimo 08:00 (7 h adelantado). Sin precio fijo, escala lineal.
 const EARLY_BASE_HOUR   = 15;
-const EARLY_RATE        = 200;
+const EARLY_RATE        = 250;
 const EARLY_MIN_HOUR    = 8;      // hora más temprana ofrecida
 function calcEarlyPrice(hora24){
   // hora24 = entero 8..14. Devuelve {horas, precio}
@@ -1580,9 +1580,9 @@ function normalizeDept(row){
     dept:               row.codigo_corto,
     nombre:             row.codigo,
     precio_limpieza:    Number(row.tarifa_limpieza_fija) || 0,
-    precio_cuna:        200,
-    precio_silla_alta:  100,
-    tarifa_hora:        200,
+    precio_cuna:        250,
+    precio_silla_alta:  150,
+    tarifa_hora:        250,
     requiere_cajita:    false,
     nota_cajita:        null,
   };
@@ -1837,8 +1837,8 @@ function getSheetConfig(type){
   const feePctLate     = 0;
 
   // Precios cuna/silla configurables desde Supabase (default actualizado)
-  const precioCuna  = currentDept.precio_cuna        ?? 200;
-  const precioSilla = currentDept.precio_silla_alta  ?? 100;
+  const precioCuna  = currentDept.precio_cuna        ?? 250;
+  const precioSilla = currentDept.precio_silla_alta  ?? 150;
 
   const feeLimpieza = Math.round(currentDept.precio_limpieza * feePctLimpieza);
   const totalLimpieza = currentDept.precio_limpieza + feeLimpieza;
