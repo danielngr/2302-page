@@ -2317,6 +2317,15 @@
 .srv-cal-event.cleaning small{color:#f0c4a8}
 .srv-cal-event.crib{border-color:var(--status-green);background:rgba(34,211,125,0.1)}
 .srv-cal-event.crib small{color:#9ee2b9}
+/* Cuna/silla: 3 estados en el calendario */
+.srv-cal-event.crib-deliver{border-color:var(--status-green);background:rgba(34,211,125,0.14)}
+.srv-cal-event.crib-deliver strong{color:#22d37d;display:flex;align-items:center;gap:6px}
+.srv-cal-event.crib-pickup{border-color:var(--status-blue);background:rgba(74,164,255,0.14)}
+.srv-cal-event.crib-pickup strong{color:var(--status-blue);display:flex;align-items:center;gap:6px}
+.srv-cal-event.crib-pickup small{color:#a8cdf0}
+.srv-cal-event.crib-mid{border-color:rgba(34,211,125,0.3);background:transparent;opacity:0.5;padding:5px 11px;margin-bottom:6px}
+.srv-cal-event.crib-mid strong{display:none}
+.srv-cal-event.crib-mid small{color:var(--text-tertiary);font-style:italic}
 .srv-cal-event.late_checkout,.srv-cal-event.early_checkin{border-color:var(--status-yellow);background:rgba(232,184,75,0.1)}
 .srv-cal-event.late_checkout small,.srv-cal-event.early_checkin small{color:#f0d99c}
 .srv-cal-event.pending{border-style:dashed}
@@ -11495,17 +11504,46 @@ function updateNotifBadge(){
                 eventsHTML = `<div class="srv-cal-empty">—</div>`;
             } else {
                 eventsHTML = events.map(s => {
-                    const tipoCls = (s.tipo === 'cuna' || s.tipo === 'silla_alta') ? 'crib' : 
-                                    (s.tipo === 'limpieza') ? 'cleaning' : s.tipo;
+                    const isCrib = (s.tipo === 'cuna' || s.tipo === 'silla_alta');
                     const isPending = s.status === 'pendiente_revision';
-                    let title = TIPO_LABELS[s.tipo] || s.tipo;
+                    const baseLabel = TIPO_LABELS[s.tipo] || s.tipo;  // "Cuna" / "Silla alta"
+
+                    // ── Cuna / silla: 3 estados claros (Llevar · En uso · Recoger) ──
+                    if(isCrib){
+                        const singleDay = !s.fecha_fin || s.fecha_servicio === s.fecha_fin;
+                        const isDeliver = singleDay || dayStr === s.fecha_servicio;
+                        const isPickup  = !singleDay && dayStr === s.fecha_fin;
+
+                        // Días intermedios: la cuna ya está allá, no hay acción → barra tenue
+                        if(!isDeliver && !isPickup){
+                            return `<div class="srv-cal-event crib crib-mid">
+                                <small>${baseLabel} en uso · ${s.dept}</small>
+                            </div>`;
+                        }
+
+                        let phase, phaseCls, icon;
+                        if(singleDay){
+                            phase = 'Llevar y recoger'; phaseCls = 'crib-deliver';
+                            icon = '<i class="ph ph-package"></i>';
+                        } else if(isDeliver){
+                            phase = 'Llevar'; phaseCls = 'crib-deliver';
+                            icon = '<i class="ph ph-package"></i>';
+                        } else {
+                            phase = 'Recoger'; phaseCls = 'crib-pickup';
+                            icon = '<i class="ph ph-arrow-counter-clockwise"></i>';
+                        }
+                        return `<div class="srv-cal-event crib ${phaseCls}${isPending?' pending':''}">
+                            <strong>${icon} ${phase}${isPending?' (pend.)':''}</strong>
+                            <small>${baseLabel} · ${s.dept}</small>
+                        </div>`;
+                    }
+
+                    // ── Resto (limpieza, late checkout, early check-in) ──
+                    const tipoCls = (s.tipo === 'limpieza') ? 'cleaning' : s.tipo;
+                    let title = baseLabel;
                     let detail = `${s.dept}`;
                     if(s.horario) detail += ' · ' + (s.horario === 'manana' ? 'AM' : 'PM');
                     if(s.hora_exacta) detail += ' · ' + s.hora_exacta.substring(0,5);
-                    if(s.tipo === 'cuna' || s.tipo === 'silla_alta'){
-                        if(dayStr === s.fecha_servicio) title += ' · entrega';
-                        else if(dayStr === s.fecha_fin) title += ' · recoge';
-                    }
                     if(isPending) title += ' (pend.)';
                     return `<div class="srv-cal-event ${tipoCls}${isPending?' pending':''}">
                         <strong>${title}</strong>
