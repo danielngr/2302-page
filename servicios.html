@@ -269,7 +269,8 @@ body{
   font-family:var(--font-display);font-weight:500;font-size:22px;color:var(--bone);
   letter-spacing:-.01em;white-space:nowrap;
 }
-.svc-meta-val.quote{font-size:16px;font-style:italic;font-weight:400;color:var(--warm-soft)}
+.svc-meta-val.quote{font-size:22px;font-style:normal;font-weight:500;color:var(--bone)}
+.svc-meta-val.quote .quote-unit{font-size:14px;font-style:italic;font-weight:400;color:var(--warm-soft);margin-left:1px}
 
 .svc-arrow{
   display:flex;align-items:center;gap:7px;margin-top:9px;
@@ -624,7 +625,7 @@ body{
     0 16px 44px -10px color-mix(in srgb,var(--jade) 30%, transparent),
     inset 0 1px 0 rgba(255,255,255,0.7),
     inset 0 -1px 0 color-mix(in srgb,var(--jade) 8%, transparent);
-  animation:icon-rise .7s var(--ease) .1s both;
+  animation:icon-rise .8s var(--ease) .1s both;
 }
 .confirm-icon-wrap svg{width:38px;height:38px;display:block;overflow:visible}
 .confirm-icon-wrap svg path{
@@ -635,16 +636,21 @@ body{
   stroke-linejoin:round;
   stroke-dasharray:32;
   stroke-dashoffset:32;
-  animation:check-draw .65s var(--ease) .45s forwards;
+  animation:check-draw .55s var(--ease) .45s forwards, check-glow 1.4s ease-in-out 1s 1;
   filter:drop-shadow(0 1px 2px color-mix(in srgb,var(--jade) 35%, transparent));
 }
 @keyframes icon-rise{
-  0%  {opacity:0;transform:scale(.6) translateY(8px)}
-  60% {transform:scale(1.04) translateY(0)}
+  0%  {opacity:0;transform:scale(.4) translateY(10px)}
+  50% {opacity:1;transform:scale(1.08) translateY(0)}
+  75% {transform:scale(.97)}
   100%{opacity:1;transform:scale(1)}
 }
 @keyframes check-draw{
   to{stroke-dashoffset:0}
+}
+@keyframes check-glow{
+  0%, 100%{filter:drop-shadow(0 1px 2px color-mix(in srgb,var(--jade) 35%, transparent))}
+  50%{filter:drop-shadow(0 1px 8px color-mix(in srgb,var(--jade) 70%, transparent))}
 }
 .confirm-title{font-family:var(--font-display);font-weight:300;font-size:30px;color:var(--bone);margin-bottom:12px}
 .confirm-title em{font-style:italic;color:var(--jade)}
@@ -1581,14 +1587,14 @@ function updateUI(){
     cleaningCard.onclick = () => open_sheet('cleaning');
   }
   if(checkinCard){
-    checkinCard.querySelector('.svc-meta-val').textContent = '$' + LATE_RATE + '/h';
+    checkinCard.querySelector('.svc-meta-val').innerHTML = '$' + LATE_RATE + '<span class="quote-unit">/h</span>';
     checkinCard.onclick = () => open_sheet('checkin');
   }
 
   // Early check-in: reutiliza tarifa_hora (misma tarifa que late checkout)
   const earlyCard = document.querySelector('.svc.earlycheckin');
   if(earlyCard){
-    earlyCard.querySelector('.svc-meta-val').textContent = '$' + EARLY_RATE + '/h';
+    earlyCard.querySelector('.svc-meta-val').innerHTML = '$' + EARLY_RATE + '<span class="quote-unit">/h</span>';
     earlyCard.onclick = () => open_sheet('earlycheckin');
   }
   
@@ -2351,7 +2357,15 @@ async function submit_request(){
 
   close_sheet();
   setTimeout(() => {
-    document.getElementById('confirm-screen').classList.add('show');
+    const screen = document.getElementById('confirm-screen');
+    // Forzar restart de animaciones: quitar show, reflow, agregar de nuevo
+    screen.classList.remove('show');
+    // Resetear animaciones del icono y la palomita explícitamente
+    const iconWrap = screen.querySelector('.confirm-icon-wrap');
+    const iconPath = screen.querySelector('.confirm-icon-wrap svg path');
+    if(iconWrap){ iconWrap.style.animation = 'none'; iconWrap.offsetHeight; iconWrap.style.animation = ''; }
+    if(iconPath){ iconPath.style.animation = 'none'; iconPath.offsetHeight; iconPath.style.animation = ''; }
+    screen.classList.add('show');
   }, 200);
 }
 
