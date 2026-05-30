@@ -1125,10 +1125,10 @@ function parseFechaES(raw){
   return `${m[3]}-${mes}-${dia}`;
 }
 const urlNombre   = (params.get('nombre') || '').trim();
-const urlCheckIn  = parseFechaES(params.get('in'));   // YYYY-MM-DD o null
-const urlCheckOut = parseFechaES(params.get('out'));  // YYYY-MM-DD o null
+let urlCheckIn    = parseFechaES(params.get('in'));   // YYYY-MM-DD o null
+let urlCheckOut   = parseFechaES(params.get('out'));  // YYYY-MM-DD o null
 // ¿Tenemos rango de reserva válido para limitar el calendario?
-const tieneRangoReserva = !!(urlCheckIn && urlCheckOut && urlCheckIn <= urlCheckOut);
+let tieneRangoReserva = !!(urlCheckIn && urlCheckOut && urlCheckIn <= urlCheckOut);
 // Modo desarrollo: el panel DEPTO/CANAL SOLO aparece con ?dev=1 (nunca para un huésped)
 const devMode = params.get('dev') === '1';
 
@@ -1399,6 +1399,21 @@ async function loadDeptDirect(dept){
   const codigoParaIcal = data.codigo_corto;
   cargarCheckouts(codigoParaIcal);
   cargarCheckins(codigoParaIcal);
+
+  // Si el link NO trae fechas pero sí trae código de reserva,
+  // intentamos resolverlas desde public_availability automáticamente.
+  if((!urlCheckIn || !urlCheckOut) && urlCode){
+    const fechas = await resolverFechasPorCodigo(codigoParaIcal, urlCode);
+    if(fechas){
+      urlCheckIn  = fechas.check_in;
+      urlCheckOut = fechas.check_out;
+      tieneRangoReserva = !!(urlCheckIn && urlCheckOut && urlCheckIn <= urlCheckOut);
+      console.log(`Fechas resueltas desde código ${urlCode}:`, urlCheckIn, '→', urlCheckOut);
+    } else {
+      console.warn(`No se encontraron fechas para código ${urlCode} en ${codigoParaIcal}`);
+    }
+  }
+
   updateUI();
 }
 
@@ -1464,6 +1479,30 @@ async function cargarCheckins(dept){
 // ¿Hay un check-in (llegada de otro huésped) en esta fecha de salida?
 function hayCheckinEseDia(fechaISO){
   return checkinsDelDepto.has(String(fechaISO).slice(0,10));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESOLVER FECHAS DESDE CÓDIGO DE RESERVA
+// ═══════════════════════════════════════════════════════════════
+// Si el huésped llega por link de Airbnb sin fechas (porque los
+// espacios en las variables rompen el link clickeable), busca su
+// reserva en public_availability usando code + unit_id.
+// Devuelve {check_in, check_out} o null si no la encuentra.
+async function resolverFechasPorCodigo(unitId, codigo){
+  if(!unitId || !codigo) return null;
+  try {
+    const { data, error } = await sb
+      .from('public_availability')
+      .select('check_in, check_out')
+      .eq('unit_id', unitId)
+      .eq('codigo_reserva', codigo)
+      .maybeSingle();
+    if(error){ console.warn('resolverFechasPorCodigo:', error.message); return null; }
+    return data || null;
+  } catch(e){
+    console.warn('resolverFechasPorCodigo exception:', e.message);
+    return null;
+  }
 }
 
 async function initDevPanel(){
