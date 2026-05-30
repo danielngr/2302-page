@@ -4140,10 +4140,11 @@
             );
             const qrOkH = qrRecH && qrRecH.qr_enviado;
             if(esFrakcioReal(r.depto)) {
-                const checkinRec = (frakcioCheckins||[]).find(x =>
-                    x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()&&x.fecha_entrada===(r.fecha_entrada||"")
-                );
-                const tieneRegistro = checkinRec && checkinRec.nombre;
+                // Si llegamos a itemHTML(reg) ya sabemos que existe el registro en
+                // todosRegistros. Antes hacíamos otro lookup en frakcioCheckins que
+                // a veces fallaba por diferencias sutiles en el depto, dejando el
+                // botón en "Sin registro" aunque el huésped sí había llenado el form.
+                const tieneRegistro = !!(r.nombre && r.nombre.trim());
                 if(qrOkH) {
                     accion = `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`;
                 } else if(tieneRegistro) {
