@@ -442,6 +442,7 @@
   <div class="gate-card">
     <div class="gate-logo">VRM</div>
     <div class="gate-sub">Panel de Reservas</div>
+    <input type="email" class="gate-input" id="gateEmail" placeholder="Email" autocomplete="username" style="margin-bottom:12px;">
     <input type="password" class="gate-input" id="gatePass" placeholder="Contraseña" autocomplete="current-password">
     <button class="gate-btn" id="gateBtn">Entrar</button>
     <div class="gate-error" id="gateError"></div>
@@ -458,6 +459,7 @@
     <div class="topbar-actions">
       <button class="btn" id="refreshBtn">↻ Actualizar</button>
       <button class="btn btn--gold" id="addManualBtn">+ Reserva manual</button>
+      <button class="btn" id="logoutBtn">Salir</button>
     </div>
   </div>
 
@@ -517,8 +519,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // ─── CONFIG ───
 const SUPABASE_URL = 'https://grsykedeppdwenpfxlfh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdyc3lrZWRlcHBkd2VucGZ4bGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3MDU0NzAsImV4cCI6MjA4NzI4MTQ3MH0.1fjVfOMl8bERU2FiL7izZcv0Jckns5l-sEmRwlER71o';
-const DASHBOARD_PASSWORD = '299854'; // contraseña del panel
-
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Catálogo de propiedades (orden de filas en el calendario)
@@ -547,26 +547,49 @@ let calMonthDate = new Date();
 calMonthDate.setDate(1);
 let listFilter = 'all';
 
-// ─── LOGIN ───
+// ─── LOGIN (Supabase Auth — sesión real, no PIN en el frontend) ───
 const gate = document.getElementById('gate');
 const app = document.getElementById('app');
-function tryLogin() {
+
+function mostrarApp() {
+  gate.classList.add('hidden');
+  app.classList.add('visible');
+  cargarReservas();
+}
+function mostrarGate() {
+  app.classList.remove('visible');
+  gate.classList.remove('hidden');
+}
+
+async function tryLogin() {
+  const email = document.getElementById('gateEmail').value.trim();
   const pass = document.getElementById('gatePass').value;
-  if (pass === DASHBOARD_PASSWORD) {
-    sessionStorage.setItem('vrm_dash_auth', '1');
-    gate.classList.add('hidden');
-    app.classList.add('visible');
-    cargarReservas();
-  } else {
-    document.getElementById('gateError').textContent = 'Contraseña incorrecta';
+  document.getElementById('gateError').textContent = '';
+  const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    document.getElementById('gateError').textContent = 'Credenciales incorrectas';
+    return;
   }
+  mostrarApp();
 }
 document.getElementById('gateBtn').addEventListener('click', tryLogin);
 document.getElementById('gatePass').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
-if (sessionStorage.getItem('vrm_dash_auth') === '1') {
-  gate.classList.add('hidden'); app.classList.add('visible');
-  cargarReservas(); // ← faltaba: al recargar ya autenticado, cargar datos
-}
+
+document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+  await supabase.auth.signOut();
+  mostrarGate();
+});
+
+// Al cargar: si ya hay sesión válida, entrar directo. La sesión la maneja
+// Supabase (token con expiración), no un flag manual en sessionStorage.
+(async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) mostrarApp();
+})();
+// Si la sesión expira o se cierra en otra pestaña, volver al gate.
+supabase.auth.onAuthStateChange((_event, session) => {
+  if (!session) mostrarGate();
+});
 
 // ─── CARGAR DATOS ───
 async function cargarReservas() {
