@@ -3939,10 +3939,22 @@
                     );
                     if(!qrRec || !qrRec.qr_enviado) pendientes++;
                 } else if(tipo === 'correo') {
-                    const correoRec = (correosEnviados||[]).find(x =>
-                        x.depto && x.depto.toUpperCase()===entrada.toUpperCase() && x.fecha===fiso
-                    );
-                    if(!correoRec || !correoRec.enviado) pendientes++;
+                    // Deptos correo con mensaje de texto configurado (TULES) → completado = reg.pdf_generado
+                    if(tieneCorreoMsg(entrada)) {
+                        const d = entrada.toUpperCase();
+                        const reg = todosRegistros.find(x => {
+                            const xd = (x.depto||'').toUpperCase().trim();
+                            return (xd === d || xd.startsWith(d+' ') || d.startsWith(xd+' ')
+                                || xd.replace(/[-\s]+/g,' ') === d.replace(/[-\s]+/g,' '))
+                                && x.fecha_entrada === fiso;
+                        });
+                        if(!reg || !reg.pdf_generado) pendientes++;
+                    } else {
+                        const correoRec = (correosEnviados||[]).find(x =>
+                            x.depto && x.depto.toUpperCase()===entrada.toUpperCase() && x.fecha===fiso
+                        );
+                        if(!correoRec || !correoRec.enviado) pendientes++;
+                    }
                 } else if(tipo === 'gforms') {
                     const gfRec = (gformsCheckins||[]).find(x =>
                         x.depto && x.depto.toUpperCase()===entrada.toUpperCase() && x.fecha_entrada===fiso
@@ -5058,7 +5070,7 @@
       // MARALMA
       "MARALMA 501": { to: ["joseluis@vinosamerica.com.mx","pablog.pv@vinosamerica.com.mx","maralmabucerias@gmail.com"], subject: "Registro Huesped Maralma 501" },
       // PENINSULA
-      "PENINSULA 19E": { to: ["recepciontorre1@gmail.com","torre1.peninsula@gmail.com","jp.pena.ortiz@gmail.com"], subject: "19E TORRE 1" },
+      "PENINSULA 19E": { to: ["recepcion@peninsulat1.com","torre1.peninsula@gmail.com","jp.pena.ortiz@gmail.com"], subject: "19E TORRE 1" },
     };
 
     // ── Correo para mensajes de texto (whatsapp templates) ──────────────
