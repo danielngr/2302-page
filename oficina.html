@@ -85,6 +85,46 @@
     box-shadow:0 10px 30px rgba(120,80,40,.18);max-width:440px;text-align:center;opacity:0;transition:opacity .4s;pointer-events:none}
   .toast.show{opacity:1}
   .hint{position:absolute;left:50%;bottom:112px;translate:-50% 0;z-index:5;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;color:var(--dim);text-transform:uppercase;pointer-events:none}
+
+  /* avisos */
+  .bell{position:absolute;top:88px;left:28px;z-index:7;display:flex;align-items:center;gap:9px;cursor:pointer;
+    background:var(--glass);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:999px;padding:9px 15px;
+    box-shadow:0 8px 22px rgba(120,80,40,.15);font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#5a5248;font-weight:600;transition:transform .12s}
+  .bell:active{transform:scale(.97)}
+  .bell .ico{font-size:14px;filter:grayscale(.1)}
+  .bell .cnt{background:var(--terra);color:#fff;border-radius:999px;min-width:19px;height:19px;display:grid;place-items:center;font-size:10px;font-weight:700;padding:0 5px}
+  .bell .cnt.zero{display:none}
+  .notifs{position:absolute;top:134px;left:28px;z-index:7;width:286px;display:none;flex-direction:column;gap:8px;
+    background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:16px;padding:12px;box-shadow:0 18px 44px rgba(120,80,40,.22)}
+  .notifs.open{display:flex}
+  .notifs .empty{font-family:var(--font-mono);font-size:11px;color:var(--dim);text-align:center;padding:12px}
+  .nrow{display:flex;flex-direction:column;gap:5px;background:rgba(255,255,255,.55);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+  .nrow .top{display:flex;align-items:center;gap:9px}
+  .nrow .ndot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 8px currentColor}
+  .nrow .ntit{font-family:var(--font-display);font-size:12.5px;font-weight:700;color:#2a2018}
+  .nrow .ndet{font-family:var(--font-body);font-size:11px;color:var(--muted);margin-left:17px}
+  .nrow .nact{align-self:flex-start;margin:3px 0 0 17px;border:0;cursor:pointer;font-family:var(--font-display);font-weight:700;font-size:11.5px;padding:6px 13px;border-radius:9px;background:linear-gradient(160deg,var(--terra-soft),var(--terra));color:#fff;transition:transform .12s}
+  .nrow .nact:active{transform:scale(.95)}
+  .pend{width:14px;height:14px;border-radius:50%;background:var(--gold);transform:translate(-50%,-50%);box-shadow:0 0 0 0 rgba(224,162,62,.6);animation:ping2 1.7s ease-out infinite}
+  @keyframes ping2{0%{box-shadow:0 0 0 0 rgba(224,162,62,.55)}100%{box-shadow:0 0 0 13px rgba(224,162,62,0)}}
+
+  /* panel de módulo */
+  .modal-bg{position:absolute;inset:0;z-index:10;background:rgba(40,25,10,.22);backdrop-filter:blur(2px);display:none}
+  .modal-bg.open{display:block}
+  .modpanel{position:absolute;top:0;right:0;height:100%;width:344px;z-index:11;background:#fffaf1;border-left:1px solid var(--border);
+    box-shadow:-18px 0 50px rgba(120,80,40,.28);transform:translateX(100%);transition:transform .32s cubic-bezier(.34,1.2,.5,1);display:flex;flex-direction:column;padding:24px}
+  .modpanel.open{transform:translateX(0)}
+  .modpanel .mhd{display:flex;align-items:center;gap:11px}
+  .modpanel .mdot{width:11px;height:11px;border-radius:50%;box-shadow:0 0 10px currentColor;flex:0 0 auto}
+  .modpanel h2{font-family:var(--font-display);font-size:23px;color:#2a2018}
+  .modpanel .mkey{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:6px 0 16px}
+  .modpanel .mdesc{font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:18px}
+  .modpanel .mstat{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,.6)}
+  .modpanel .ml{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .modpanel .mv{font-family:var(--font-display);font-weight:800;font-size:22px;color:#2a2018}
+  .modpanel .open-portal{margin-top:14px;border:0;cursor:pointer;font-family:var(--font-display);font-weight:700;font-size:13px;padding:11px;border-radius:11px;background:linear-gradient(160deg,var(--terra-soft),var(--terra));color:#fff}
+  .modpanel .mnote{margin-top:auto;font-family:var(--font-mono);font-size:10.5px;color:var(--dim);line-height:1.5;border-top:1px solid var(--border);padding-top:14px}
+  .modpanel .mclose{position:absolute;top:18px;right:18px;border:0;background:rgba(0,0,0,.05);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -92,10 +132,14 @@
   <div id="scene"></div><div id="labels"></div>
   <div class="brand"><div class="mark"><div class="crest">V</div>
     <div><h1>Oficina Virtual</h1><div class="sub">Vacation Rental México</div></div></div></div>
+  <button class="bell" id="bell"><span class="ico">🔔</span> Avisos <span class="cnt zero" id="bellCnt">0</span></button>
+  <div class="notifs" id="notifs"></div>
   <div class="legend" id="legend"></div>
   <div class="hint">arrastra para girar · rueda para acercar</div>
   <div id="boot"><div style="text-align:center"><div class="ring"></div><p>Encendiendo la oficina…</p></div></div>
   <div class="toast" id="toast"></div>
+  <div class="modal-bg" id="modalBg"></div>
+  <div class="modpanel" id="modpanel"></div>
 </div>
 
 <script type="importmap">
@@ -116,6 +160,7 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 const CONFIG = {
   baseUrl: "https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/oficina/",
   escala: 1.2, asientoY: 0.0,
+  mirada: Math.PI/4,   // hacia dónde miran (Math.PI/4 = hacia la cámara). Ajusta si salen de lado.
 
   estados: {
     trabajando:{color:0x1FA968,label:"Trabajando"},
@@ -174,7 +219,9 @@ function sizeCamera(){const a=innerWidth/innerHeight;camera.left=-FRUST*a;camera
 sizeCamera();
 const controls=new OrbitControls(camera,renderer.domElement);
 controls.target.set(0,1.2,0); controls.enableDamping=true; controls.dampingFactor=.08;
-controls.minPolarAngle=.55; controls.maxPolarAngle=1.12; controls.minZoom=.7; controls.maxZoom=2.4; controls.enablePan=false; controls.update();
+controls.minPolarAngle=.55; controls.maxPolarAngle=1.12; controls.minZoom=.7; controls.maxZoom=2.4; controls.enablePan=false;
+controls.minAzimuthAngle=-Math.PI/4-0.05; controls.maxAzimuthAngle=3*Math.PI/4+0.05;   // de frente a perfil, sin pasar a la espalda
+controls.update();
 
 /* luz de día cálida */
 scene.add(new THREE.HemisphereLight(0xfff1dc,0xb59c80,1.05));
@@ -239,9 +286,29 @@ function makeSign(txt,col='#E07A3E'){
 
 /* ── ventanal con cielo/mar ── */
 function makeWindow(){
-  const cv=document.createElement('canvas');cv.width=256;cv.height=256;const x=cv.getContext('2d');
-  const g=x.createLinearGradient(0,0,0,256);g.addColorStop(0,'#8ecbff');g.addColorStop(.55,'#cfeaff');g.addColorStop(.62,'#bfe6e0');g.addColorStop(1,'#2f8f9e');
-  x.fillStyle=g;x.fillRect(0,0,256,256);x.fillStyle='rgba(255,247,224,.95)';x.beginPath();x.arc(190,60,30,0,7);x.fill();
+  const W=560,Hc=320,cv=document.createElement('canvas');cv.width=W;cv.height=Hc;const x=cv.getContext('2d');
+  const hz=Hc*0.6;
+  // cielo
+  let g=x.createLinearGradient(0,0,0,hz);g.addColorStop(0,'#3f93d8');g.addColorStop(.6,'#9fd0f2');g.addColorStop(1,'#e3f2fb');
+  x.fillStyle=g;x.fillRect(0,0,W,hz);
+  // sol con halo
+  const sx=W*0.76,sy=hz*0.32;let sg=x.createRadialGradient(sx,sy,4,sx,sy,130);sg.addColorStop(0,'rgba(255,250,235,1)');sg.addColorStop(.25,'rgba(255,238,195,.85)');sg.addColorStop(1,'rgba(255,238,195,0)');
+  x.fillStyle=sg;x.fillRect(0,0,W,hz);x.fillStyle='#fffbe8';x.beginPath();x.arc(sx,sy,24,0,7);x.fill();
+  // nubes
+  x.fillStyle='rgba(255,255,255,.9)';[[120,60,38],[420,48,30]].forEach(([cx,cy,r])=>{x.beginPath();x.arc(cx,cy,r,0,7);x.arc(cx+r,cy+5,r*0.8,0,7);x.arc(cx-r*0.8,cy+7,r*0.65,0,7);x.fill();});
+  // sierra/promontorio (Vallarta)
+  x.fillStyle='rgba(118,150,168,.5)';x.beginPath();x.moveTo(0,hz);x.lineTo(60,hz-44);x.lineTo(140,hz-18);x.lineTo(225,hz-58);x.lineTo(320,hz-14);x.lineTo(W,hz);x.closePath();x.fill();
+  x.fillStyle='rgba(70,110,96,.6)';x.beginPath();x.moveTo(W,hz);x.lineTo(W-55,hz-42);x.lineTo(W-125,hz-12);x.lineTo(W-195,hz-32);x.lineTo(W-255,hz);x.closePath();x.fill();
+  // mar
+  g=x.createLinearGradient(0,hz,0,Hc);g.addColorStop(0,'#2f9fae');g.addColorStop(.5,'#1d869b');g.addColorStop(1,'#3bb4c2');x.fillStyle=g;x.fillRect(0,hz,W,Hc-hz);
+  // reflejo del sol + olas
+  x.strokeStyle='rgba(255,250,225,.4)';x.lineWidth=2;for(let i=0;i<5;i++){const w=34-i*4;x.beginPath();x.moveTo(sx-w,hz+16+i*15);x.lineTo(sx+w,hz+16+i*15);x.stroke();}
+  x.strokeStyle='rgba(255,255,255,.22)';for(let i=0;i<6;i++){const yy=hz+12+i*((Hc-hz)/6);x.beginPath();x.moveTo(0,yy);x.bezierCurveTo(W*0.3,yy-3,W*0.6,yy+3,W,yy);x.stroke();}
+  // playa
+  x.fillStyle='#ecd9ab';x.beginPath();x.moveTo(0,Hc);x.lineTo(0,Hc-22);x.quadraticCurveTo(W*0.5,Hc-38,W,Hc-16);x.lineTo(W,Hc);x.fill();
+  // palmera
+  x.strokeStyle='#5a3f24';x.lineWidth=7;x.lineCap='round';x.beginPath();x.moveTo(46,Hc-18);x.quadraticCurveTo(34,Hc-110,58,Hc-176);x.stroke();
+  x.strokeStyle='#2f7d3a';x.lineWidth=6;const fx=58,fy=Hc-178;[[-1,-.2],[-.6,-1],[.2,-1.1],[1,-.5],[1.1,.25],[-1.05,.5]].forEach(([dx,dy])=>{x.beginPath();x.moveTo(fx,fy);x.quadraticCurveTo(fx+dx*42,fy+dy*30,fx+dx*80,fy+dy*56);x.stroke();});
   const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;
   const g3=new THREE.Group();
   const glass=new THREE.Mesh(new THREE.PlaneGeometry(7,4),new THREE.MeshBasicMaterial({map:tex}));g3.add(glass);
@@ -249,6 +316,36 @@ function makeWindow(){
   fr(7.4,.22,2.05,0);fr(7.4,.22,-2.05,0);const v1=box(.22,4,.15,M.trim);v1.position.set(-3.6,0,.02);const v2=v1.clone();v2.position.x=3.6;const v3=v1.clone();v3.position.x=0;g3.add(v1,v2,v3);
   return g3;
 }
+
+/* ── archiveros = módulos del portal ── */
+const clickableCabinets=[];
+const MODULES=[
+  {key:'registros',  nombre:'Registros',  color:0x3E8FE0, desc:'Check-in digital y generación de PDFs por unidad.',               rows:()=>[['Pendientes hoy',STATE.checkins],['PDFs','—']]},
+  {key:'housekeeping',nombre:'Housekeeping',color:0x1FA968, desc:'Estado y asignación de limpiezas del día.',                      rows:()=>[['Limpiezas hoy',STATE.limpiezas],['Pendientes','—']]},
+  {key:'servicios',  nombre:'Servicios',  color:0xE0A23E, desc:'Servicios extra y solicitudes de huéspedes.',                     rows:()=>[['Activos','—'],['Por agendar','—']]},
+  {key:'nomina',     nombre:'Nómina',     color:0x7C5CCB, desc:'Pagos al equipo y desglose semanal.',                             rows:()=>[['Semana','—'],['A pagar','—']]},
+  {key:'dispersion', nombre:'Dispersión', color:0xE07A3E, desc:'Dispersión de pagos del equipo (payroll).',                       rows:()=>[['Pendiente','—'],['Dispersado','—']]},
+  {key:'portfolio',  nombre:'Portfolio',  color:0x2f8f7e, desc:'Ingresos netos por mes y performance del portafolio.',            rows:()=>[['Ocupación',STATE.ocupacion+'%'],['Ingreso neto','—']]},
+  {key:'reviews',    nombre:'Reviews',    color:0xE0C03E, desc:'Reseñas de Airbnb del portafolio (745+).',                        rows:()=>[['Total','745+'],['Nuevas','—']]},
+  {key:'reportes',   nombre:'Reportes',   color:0xE0563E, desc:'Reportes de operación: pendientes, en proceso, resueltos.',       rows:()=>[['Pendientes',STATE.reportes],['Alertas',STATE.alertas]]},
+];
+function cabinetLabel(name,color){
+  const cv=document.createElement('canvas');cv.width=256;cv.height=72;const x=cv.getContext('2d');
+  const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;
+  function d(){x.clearRect(0,0,256,72);rr(x,3,3,250,66,12);x.fillStyle='#fffaf1';x.fill();x.lineWidth=3;x.strokeStyle=hex(color);x.stroke();
+    x.fillStyle='#2a2018';x.font='600 28px "JetBrains Mono",monospace';x.textAlign='center';x.textBaseline='middle';x.fillText(name.toUpperCase(),128,39);tex.needsUpdate=true;}
+  d();if(document.fonts)document.fonts.ready.then(d);
+  return new THREE.Mesh(new THREE.PlaneGeometry(0.95,0.27),new THREE.MeshBasicMaterial({map:tex,transparent:true}));
+}
+function cabinet(mod,px){
+  const g=new THREE.Group();
+  const body=box(1.1,1.5,0.6,accentMat(mod.color));body.position.y=0.75;
+  const top=box(1.16,0.08,0.66,M.wood);top.position.y=1.53;g.add(body,top);
+  for(let d=0;d<3;d++){const dr=box(0.96,0.42,0.05,M.panel);dr.position.set(0,0.42+d*0.46,0.31);const h=box(0.32,0.05,0.07,M.gold);h.position.set(0,0.42+d*0.46+0.12,0.34);g.add(dr,h);}
+  const lbl=cabinetLabel(mod.nombre,mod.color);lbl.position.set(0,1.2,0.33);g.add(lbl);
+  g.position.set(px,0,-HALF+0.55);g.userData.module=mod.key;office.add(g);clickableCabinets.push(g);
+}
+function buildCabinets(){const n=MODULES.length,s=1.62,start=-(n-1)*s/2;MODULES.forEach((m,i)=>cabinet(m,start+i*s));}
 
 /* ── sala ── */
 const N=15,TILE=1.6,HALF=N*TILE/2;
@@ -276,6 +373,7 @@ function buildRoom(){
 
   [[HALF-1.4,HALF-1.4],[HALF-1.4,-HALF+1.6]].forEach(([px,pz])=>office.add(plant(px,pz)));
   coffeeStation(-9.5,7); lounge(3.5,8); office.add(plant(-2,9));
+  buildCabinets();
 }
 function clock(){
   const cv=document.createElement('canvas');cv.width=128;cv.height=128;const x=cv.getContext('2d');
@@ -334,12 +432,27 @@ function buildCart(p){const g=new THREE.Group();const body=box(.7,.8,.5,accentMa
 function makeTag(p){const el=document.createElement('div');el.className='tag';
   el.innerHTML=`<div class="pill"><span class="sdot" id="sdot-${p.id}"></span><span class="name">${p.nombre}</span><span class="role">${p.rol}</span></div>`;
   el.querySelector('.sdot').style.color=hex(EST[p.estado].color);const o=new CSS2DObject(el);o.position.set(p.x,p.mascota?1.9:2.7,p.z);office.add(o);}
-function makeApproval(p){const el=document.createElement('div');el.className='approval';
-  el.innerHTML=`<div class="hd"><span class="ping"></span><b>Reserva por confirmar</b></div><div class="body">Unidad <span class="unit">2302</span> · 3 noches<br>Pago recibido — falta tu OK</div><div class="act"><button class="ok">Confirmar</button><button class="no">Luego</button></div>`;
-  const o=new CSS2DObject(el);o.position.set(p.x,3.3,p.z);office.add(o);
-  el.querySelector('.ok').addEventListener('click',()=>{el.classList.add('gone');setTimeout(()=>office.remove(o),450);
-    setEstado(p.id,'trabajando');STATE.checkins+=1;renderDock(true);updateBoards();toast('Reserva 2302 confirmada · Zayda en verde');});
-  el.querySelector('.no').addEventListener('click',()=>{el.classList.add('gone');setTimeout(()=>office.remove(o),450);});}
+/* ── avisos (campana + bandeja + puntito) ── */
+let NOTIFS=[
+  {id:'r2302', persona:'zayda', color:0xE0A23E, titulo:'Reserva 2302 por confirmar', detalle:'3 noches · pago recibido', accion:'Confirmar'},
+  {id:'al1',   persona:null,    color:0xE0563E, titulo:'1 alerta accionable',         detalle:'Operación · revisar reporte', accion:null},
+];
+const pendDots={};
+function makePending(p){const el=document.createElement('div');el.className='pend';const o=new CSS2DObject(el);o.position.set(p.x,p.mascota?2.2:3.05,p.z);office.add(o);pendDots[p.id]=o;}
+function renderNotifs(){
+  const cnt=document.getElementById('bellCnt');cnt.textContent=NOTIFS.length;cnt.classList.toggle('zero',NOTIFS.length===0);
+  const box=document.getElementById('notifs');
+  box.innerHTML = NOTIFS.length ? NOTIFS.map(n=>`<div class="nrow"><div class="top"><span class="ndot" style="color:${hex(n.color)}"></span><span class="ntit">${n.titulo}</span></div><div class="ndet">${n.detalle}</div>${n.accion?`<button class="nact" data-id="${n.id}">${n.accion}</button>`:''}</div>`).join('') : `<div class="empty">Sin avisos · todo al día ✦</div>`;
+  box.querySelectorAll('.nact').forEach(b=>b.addEventListener('click',()=>actNotif(b.dataset.id)));
+}
+function actNotif(id){
+  const n=NOTIFS.find(x=>x.id===id);if(!n)return;
+  if(id==='r2302'){ // ←SUPABASE: await supabase.from('reservas').update({estado:'confirmada'}).eq('unidad','2302');
+    setEstado('zayda','trabajando');STATE.checkins+=1;renderDock(true);updateBoards();toast('Reserva 2302 confirmada · Zayda en verde');
+  }
+  if(n.persona&&pendDots[n.persona]){office.remove(pendDots[n.persona]);delete pendDots[n.persona];}
+  NOTIFS=NOTIFS.filter(x=>x.id!==id);renderNotifs();
+}
 function setEstado(id,e){const p=CONFIG.equipo.find(x=>x.id===id);if(!p)return;p.estado=e;const d=document.getElementById('sdot-'+id);if(d)d.style.color=hex(EST[e].color);if(monitors[id])monitors[id].emissive.setHex(EST[e].color);}
 
 /* ── UI 2D ── */
@@ -359,8 +472,8 @@ function placeCharacter(p,source,clips){let model;
   }else{model=new THREE.Group();const b=new THREE.Mesh(new THREE.CapsuleGeometry(.28,.6,4,12),accentMat(p.acento));b.position.y=.7;b.castShadow=true;
     const h=new THREE.Mesh(new THREE.SphereGeometry(.26,16,12),M.white);h.position.y=1.3;h.castShadow=true;model.add(b,h);}
   model.scale.setScalar(p.escala||CONFIG.escala);const sit=p.pose==='sit';
-  model.position.set(p.x,sit?CONFIG.asientoY:0,p.z+(sit?0.7:1.0));model.rotation.y=Math.PI;
-  if(p.recepcion)model.rotation.y=Math.PI-0.5;office.add(model);}
+  model.position.set(p.x,sit?CONFIG.asientoY:0,p.z+(sit?0.7:1.0));model.rotation.y=CONFIG.mirada;
+  if(p.recepcion)model.rotation.y=CONFIG.mirada-0.25;office.add(model);}
 
 /* ── montaje ── */
 buildRoom();renderLegend();renderDock();
@@ -369,7 +482,43 @@ CONFIG.equipo.forEach(p=>{
   else if(p.recepcion)buildReception(p);
   else if(p.pose==='stand'){const g=deskCore(p);g.position.set(p.x,0,p.z);office.add(g);buildCart(p);}
   else buildCubicle(p);
-  makeTag(p);if(p.recepcion)makeApproval(p);
+  makeTag(p);
+});
+// puntos pulsantes + campana
+NOTIFS.forEach(n=>{if(n.persona){const p=CONFIG.equipo.find(e=>e.id===n.persona);if(p)makePending(p);}});
+renderNotifs();
+document.getElementById('bell').addEventListener('click',()=>document.getElementById('notifs').classList.toggle('open'));
+
+/* ── clic en archiveros → panel de módulo ── */
+function openModule(key){const m=MODULES.find(x=>x.key===key);if(!m)return;
+  const p=document.getElementById('modpanel');
+  p.innerHTML=`<button class="mclose" onclick="VRM.closeModule()">✕</button>
+    <div class="mhd"><span class="mdot" style="color:${hex(m.color)}"></span><h2>${m.nombre}</h2></div>
+    <div class="mkey">Módulo del portal · mod-${m.key}</div>
+    <div class="mdesc">${m.desc}</div>
+    ${m.rows().map(r=>`<div class="mstat"><span class="ml">${r[0]}</span><span class="mv">${r[1]}</span></div>`).join('')}
+    <button class="open-portal" onclick="VRM.toast('Aquí se abrirá el módulo «${m.nombre}» del portal')">Abrir en el portal →</button>
+    <div class="mnote">Vista previa · se conectará al módulo real (mod-${m.key}) de tu portal.</div>`;
+  document.getElementById('modalBg').classList.add('open');p.classList.add('open');
+}
+function closeModule(){document.getElementById('modpanel').classList.remove('open');document.getElementById('modalBg').classList.remove('open');}
+document.getElementById('modalBg').addEventListener('click',closeModule);
+
+const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();let downXY=null;
+renderer.domElement.addEventListener('pointerdown',e=>{downXY=[e.clientX,e.clientY];});
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(!downXY)return;const moved=Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1]);downXY=null;if(moved>6)return;
+  const r=renderer.domElement.getBoundingClientRect();
+  pointer.x=((e.clientX-r.left)/r.width)*2-1;pointer.y=-((e.clientY-r.top)/r.height)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObjects(clickableCabinets,true);
+  if(hits.length){let o=hits[0].object;while(o&&o.userData.module===undefined)o=o.parent;if(o)openModule(o.userData.module);}
+});
+renderer.domElement.addEventListener('pointermove',e=>{
+  const r=renderer.domElement.getBoundingClientRect();
+  pointer.x=((e.clientX-r.left)/r.width)*2-1;pointer.y=-((e.clientY-r.top)/r.height)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  renderer.domElement.style.cursor=raycaster.intersectObjects(clickableCabinets,true).length?'pointer':'';
 });
 
 let pending=CONFIG.equipo.length;const loader=new GLTFLoader();
@@ -377,7 +526,7 @@ CONFIG.equipo.forEach(p=>{loader.load(CONFIG.baseUrl+p.modelo,
   g=>{placeCharacter(p,g.scene,g.animations||[]);done();},
   undefined,
   e=>{console.warn('no cargó',p.modelo,e);placeCharacter(p,null,[]);done();});});
-function done(){if(--pending<=0){hideBoot();toast('Equipo cargado · clic en la burbuja para confirmar');}}
+function done(){if(--pending<=0){hideBoot();toast('Equipo cargado · abre Avisos para confirmar reservas');}}
 function hideBoot(){const b=document.getElementById('boot');b.classList.add('hide');setTimeout(()=>b.remove(),650);}
 
 /* ── loop / resize ── */
@@ -388,7 +537,7 @@ const clk=new THREE.Clock();
   controls.update();renderer.render(scene,camera);labelRenderer.render(scene,camera);})();
 addEventListener('resize',()=>{sizeCamera();renderer.setSize(innerWidth,innerHeight);labelRenderer.setSize(innerWidth,innerHeight);});
 renderer.setSize(innerWidth,innerHeight);labelRenderer.setSize(innerWidth,innerHeight);
-window.VRM={setEstado,STATE,renderDock,updateBoards,CONFIG};
+window.VRM={setEstado,STATE,renderDock,updateBoards,CONFIG,closeModule,openModule,toast};
 </script>
 </body>
 </html>
