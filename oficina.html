@@ -160,7 +160,7 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 const CONFIG = {
   baseUrl: "https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/oficina/",
   escala: 1.2, asientoY: 0.0,
-  mirada: Math.PI/4,   // hacia dónde miran (Math.PI/4 = hacia la cámara). Ajusta si salen de lado.
+  mirada: Math.PI,   // miran a su monitor (sentados derechos). Ajusta si hace falta.
 
   estados: {
     trabajando:{color:0x1FA968,label:"Trabajando"},
@@ -214,13 +214,13 @@ document.getElementById('labels').appendChild(labelRenderer.domElement);
 
 /* cámara iso */
 const FRUST=10; let camera=new THREE.OrthographicCamera(-FRUST,FRUST,FRUST,-FRUST,0.1,200);
-camera.position.set(22,18,22);
+camera.position.set(-20,17,-20);
 function sizeCamera(){const a=innerWidth/innerHeight;camera.left=-FRUST*a;camera.right=FRUST*a;camera.top=FRUST;camera.bottom=-FRUST;camera.updateProjectionMatrix();}
 sizeCamera();
 const controls=new OrbitControls(camera,renderer.domElement);
 controls.target.set(0,1.2,0); controls.enableDamping=true; controls.dampingFactor=.08;
 controls.minPolarAngle=.55; controls.maxPolarAngle=1.12; controls.minZoom=.7; controls.maxZoom=2.4; controls.enablePan=false;
-controls.minAzimuthAngle=-Math.PI/4-0.05; controls.maxAzimuthAngle=3*Math.PI/4+0.05;   // de frente a perfil, sin pasar a la espalda
+// giro libre 360°
 controls.update();
 
 /* luz de día cálida */
@@ -330,42 +330,42 @@ const MODULES=[
   {key:'reportes',   nombre:'Reportes',   color:0xE0563E, desc:'Reportes de operación: pendientes, en proceso, resueltos.',       rows:()=>[['Pendientes',STATE.reportes],['Alertas',STATE.alertas]]},
 ];
 function cabinetLabel(name,color){
-  const cv=document.createElement('canvas');cv.width=256;cv.height=72;const x=cv.getContext('2d');
-  const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;
-  function d(){x.clearRect(0,0,256,72);rr(x,3,3,250,66,12);x.fillStyle='#fffaf1';x.fill();x.lineWidth=3;x.strokeStyle=hex(color);x.stroke();
-    x.fillStyle='#2a2018';x.font='600 28px "JetBrains Mono",monospace';x.textAlign='center';x.textBaseline='middle';x.fillText(name.toUpperCase(),128,39);tex.needsUpdate=true;}
+  const cv=document.createElement('canvas');cv.width=300;cv.height=84;const x=cv.getContext('2d');
+  const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;
+  function d(){x.clearRect(0,0,300,84);rr(x,3,3,294,78,14);x.fillStyle='#fffaf1';x.fill();x.lineWidth=4;x.strokeStyle=hex(color);x.stroke();
+    x.fillStyle='#2a2018';x.font='700 34px "JetBrains Mono",monospace';x.textAlign='center';x.textBaseline='middle';x.fillText(name.toUpperCase(),150,46);tex.needsUpdate=true;}
   d();if(document.fonts)document.fonts.ready.then(d);
-  return new THREE.Mesh(new THREE.PlaneGeometry(0.95,0.27),new THREE.MeshBasicMaterial({map:tex,transparent:true}));
+  return new THREE.Mesh(new THREE.PlaneGeometry(1.04,0.29),new THREE.MeshBasicMaterial({map:tex,transparent:true}));
 }
-function cabinet(mod,px){
+function cabinet(mod,pz){
   const g=new THREE.Group();
   const body=box(1.1,1.5,0.6,accentMat(mod.color));body.position.y=0.75;
   const top=box(1.16,0.08,0.66,M.wood);top.position.y=1.53;g.add(body,top);
   for(let d=0;d<3;d++){const dr=box(0.96,0.42,0.05,M.panel);dr.position.set(0,0.42+d*0.46,0.31);const h=box(0.32,0.05,0.07,M.gold);h.position.set(0,0.42+d*0.46+0.12,0.34);g.add(dr,h);}
   const lbl=cabinetLabel(mod.nombre,mod.color);lbl.position.set(0,1.2,0.33);g.add(lbl);
-  g.position.set(px,0,-HALF+0.55);g.userData.module=mod.key;office.add(g);clickableCabinets.push(g);
+  g.position.set(HALF-0.55,0,pz);g.rotation.y=-Math.PI/2;g.userData.module=mod.key;office.add(g);clickableCabinets.push(g);
 }
-function buildCabinets(){const n=MODULES.length,s=1.62,start=-(n-1)*s/2;MODULES.forEach((m,i)=>cabinet(m,start+i*s));}
+function buildCabinets(){const n=MODULES.length,s=1.7,start=-(n-1)*s/2;MODULES.forEach((m,i)=>cabinet(m,start+i*s));}
 
 /* ── sala ── */
 const N=15,TILE=1.6,HALF=N*TILE/2;
 function buildRoom(){
   for(let i=0;i<N;i++)for(let j=0;j<N;j++){const t=box(TILE,0.2,TILE,(j%2)?M.floor:M.floorB);t.position.set(i*TILE-HALF+TILE/2,-0.1,j*TILE-HALF+TILE/2);t.castShadow=false;office.add(t);}
-  const wL=box(0.3,7,N*TILE,M.wall);wL.position.set(-HALF,3.5,0);office.add(wL);
-  const wR=box(N*TILE,7,0.3,M.wall);wR.position.set(0,3.5,-HALF);office.add(wR);
-  const rL=box(0.4,0.16,N*TILE,M.trim);rL.position.set(-HALF,7,0);office.add(rL);
-  const rR=box(N*TILE,0.16,0.4,M.trim);rR.position.set(0,7,-HALF);office.add(rR);
+  const wR=box(0.3,7,N*TILE,M.wall);wR.position.set(HALF,3.5,0);office.add(wR);     // pared derecha (+x)
+  const wB=box(N*TILE,7,0.3,M.wall);wB.position.set(0,3.5,HALF);office.add(wB);     // pared fondo (+z)
+  const rR2=box(0.4,0.16,N*TILE,M.trim);rR2.position.set(HALF,7,0);office.add(rR2);
+  const rB=box(N*TILE,0.16,0.4,M.trim);rB.position.set(0,7,HALF);office.add(rB);
 
   // ventanal (pared izquierda)
-  const win=makeWindow();win.position.set(-HALF+0.18,3.4,-1);win.rotation.y=Math.PI/2;office.add(win);
+  const win=makeWindow();win.position.set(-1,3.4,HALF-0.18);win.rotation.y=Math.PI;office.add(win);
 
   // pizarrones (pared del fondo)
   const b1=makeBoard("Operación · Hoy",[{label:"Check-in",get:()=>STATE.checkins,color:'#1FA968'},{label:"Check-out",get:()=>STATE.checkouts,color:'#3E8FE0'}],5,3.1);
-  b1.position.set(-4,4.4,-HALF+0.22);office.add(b1);
+  b1.position.set(HALF-0.22,4.4,-4.5);b1.rotation.y=-Math.PI/2;office.add(b1);
   const b2=makeBoard("Pendientes",[{label:"Limpiezas",get:()=>STATE.limpiezas},{label:"Reportes",get:()=>STATE.reportes,color:'#E0A23E'},{label:"Alertas",get:()=>STATE.alertas,color:'#E0563E'}],5,4.1);
-  b2.position.set(4,4.6,-HALF+0.22);office.add(b2);
-  const sign=makeSign("VRM");sign.scale.set(.62,.62,.62);sign.position.set(0,6.1,-HALF+0.24);office.add(sign);
-  clock().position.set(8.6,5.4,-HALF+0.26);
+  b2.position.set(HALF-0.22,4.6,4.5);b2.rotation.y=-Math.PI/2;office.add(b2);
+  const sign=makeSign("VRM");sign.scale.set(.62,.62,.62);sign.position.set(-8,5.7,HALF-0.24);sign.rotation.y=Math.PI;office.add(sign);
+  const clk2=clock();clk2.position.set(6.5,5.5,HALF-0.26);clk2.rotation.y=Math.PI;
 
   // alfombras
   const r1=box(13,0.04,9,M.wallAccent);r1.position.set(-4,0.02,-1.5);r1.castShadow=false;office.add(r1);
@@ -419,8 +419,8 @@ function deskCore(p){const g=new THREE.Group();
   const post=box(.1,.55,.1,M.deskLeg);post.position.set(0,.3,.8);g.add(seat,back,post);
   monitors[p.id]=sm;g.add(deskLamp());return g;}
 function buildCubicle(p){const g=deskCore(p),pH=1.55,am=accentMat(p.acento);
-  const back=box(2.5,pH,0.12,M.panel);back.position.set(0,pH/2,-1.0);const br=box(2.5,0.1,0.16,am);br.position.set(0,pH,-1.0);
-  const side=box(0.12,pH,2.5,M.panel);side.position.set(-1.25,pH/2,0.1);const sr=box(0.16,0.1,2.5,am);sr.position.set(-1.25,pH,0.1);
+  const back=box(2.5,pH,0.12,M.panel);back.position.set(0,pH/2,1.3);const br=box(2.5,0.1,0.16,am);br.position.set(0,pH,1.3);
+  const side=box(0.12,pH,2.5,M.panel);side.position.set(1.25,pH/2,0.1);const sr=box(0.16,0.1,2.5,am);sr.position.set(1.25,pH,0.1);
   g.add(back,br,side,sr);g.position.set(p.x,0,p.z);office.add(g);}
 function buildReception(p){const g=deskCore(p);
   const front=box(3.2,1.15,0.5,M.counter);front.position.set(0,0.58,-1.05);const ledge=box(3.4,0.12,0.7,M.wood);ledge.position.set(0,1.18,-1.05);
