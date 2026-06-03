@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>VRM · Oficina Virtual</title>
+
+<!-- ╔══════════════════════════════════════════════════════════════════╗
+     ║  VRM · OFICINA VIRTUAL — MOTOR (placeholder con muestra)            ║
+     ║                                                                    ║
+     ║  • Sirve este archivo (no lo abras con doble clic: file:// bloquea ║
+     ║    la carga del GLB). En la carpeta del repo:                      ║
+     ║        python -m http.server   →  http://localhost:8000/oficina.html
+     ║    o súbelo a GitHub Pages como cualquier otra página tuya.        ║
+     ║  • Deja Zombie_Male.glb junto a este archivo, o cambia             ║
+     ║    CONFIG.characterUrl por tu URL pública de R2.                   ║
+     ║  • Cuando consigas el skin de oficina, solo cambias la URL.        ║
+     ║  • Los datos del tablero y los estados viven en STATE → ahí va     ║
+     ║    el fetch a Supabase (busca el comentario  // ←SUPABASE ).       ║
+     ╚══════════════════════════════════════════════════════════════════╝ -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --navy:#0E2A47;            /* azul marino marca */
+    --navy-deep:#081B30;
+    --navy-soft:#16365A;
+    --gold:#C9A24B;            /* dorado marca */
+    --gold-soft:#E2C176;
+    --ink:#0a1626;
+    --paper:#F4EEE2;
+    /* estados */
+    --st-trabajando:#3FB950;
+    --st-aprobacion:#C9A24B;
+    --st-esperando:#8B98A9;
+    --st-observando:#4A90D9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Manrope",system-ui,sans-serif;
+    color:var(--paper);
+    background:
+      radial-gradient(120% 90% at 50% 0%, #14365c 0%, var(--navy) 45%, var(--navy-deep) 100%);
+    overflow:hidden;
+  }
+  #app{position:fixed;inset:0}
+  #scene{position:absolute;inset:0}
+  canvas{display:block}
+
+  /* capa de etiquetas CSS2D — no debe robar el mouse al orbitar */
+  #labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+
+  /* ── Header marca ─────────────────────────────────────────── */
+  .brand{
+    position:absolute;top:22px;left:26px;z-index:6;pointer-events:none;
+  }
+  .brand .mark{
+    display:flex;align-items:center;gap:12px;
+  }
+  .brand .crest{
+    width:42px;height:42px;border-radius:11px;
+    background:linear-gradient(150deg,var(--gold-soft),var(--gold) 60%,#9c7a2f);
+    display:grid;place-items:center;
+    font-family:"Fraunces",serif;font-weight:700;font-size:20px;color:var(--navy-deep);
+    box-shadow:0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.4);
+  }
+  .brand h1{
+    font-family:"Fraunces",serif;font-weight:600;font-size:22px;letter-spacing:.3px;
+    line-height:1;color:var(--paper);
+  }
+  .brand .sub{
+    font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--gold-soft);margin-top:5px;font-weight:600;
+  }
+
+  /* ── Leyenda de estados ───────────────────────────────────── */
+  .legend{
+    position:absolute;top:26px;right:26px;z-index:6;
+    display:flex;flex-direction:column;gap:7px;
+    background:rgba(8,27,48,.55);backdrop-filter:blur(8px);
+    border:1px solid rgba(201,162,75,.22);border-radius:13px;
+    padding:13px 15px;pointer-events:none;
+  }
+  .legend .row{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:600;color:#cdd6e2}
+  .legend .dot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 9px currentColor}
+
+  /* ── Etiquetas de personaje (CSS2D) ───────────────────────── */
+  .tag{
+    transform:translate(-50%,-100%);
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    font-family:"Manrope",sans-serif;white-space:nowrap;user-select:none;
+  }
+  .tag .pill{
+    display:flex;align-items:center;gap:7px;
+    background:rgba(8,27,48,.82);backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:999px;padding:5px 11px;
+    box-shadow:0 6px 16px rgba(0,0,0,.35);
+  }
+  .tag .name{font-size:12.5px;font-weight:700;color:#fff;letter-spacing:.2px}
+  .tag .role{font-size:10.5px;font-weight:600;color:#9fb0c4}
+  .tag .sdot{width:8px;height:8px;border-radius:50%;box-shadow:0 0 8px currentColor;flex:0 0 auto}
+
+  /* ── Burbuja de aprobación (Recepción) ────────────────────── */
+  .approval{
+    transform:translate(-50%,-100%);
+    pointer-events:auto;
+    width:208px;
+    background:linear-gradient(170deg,#fff,#f3ead6);
+    color:var(--navy-deep);
+    border-radius:16px;
+    border:1px solid rgba(201,162,75,.5);
+    box-shadow:0 18px 40px rgba(0,0,0,.5), 0 0 0 4px rgba(201,162,75,.12);
+    overflow:hidden;
+    animation:floaty 3.4s ease-in-out infinite;
+  }
+  @keyframes floaty{0%,100%{translate:0 0}50%{translate:0 -6px}}
+  .approval::after{
+    content:"";position:absolute;left:50%;bottom:-9px;translate:-50% 0;
+    width:18px;height:18px;background:#f3ead6;rotate:45deg;
+    border-right:1px solid rgba(201,162,75,.5);border-bottom:1px solid rgba(201,162,75,.5);
+  }
+  .approval .hd{
+    display:flex;align-items:center;gap:8px;
+    padding:10px 13px 6px;
+  }
+  .approval .ping{
+    width:9px;height:9px;border-radius:50%;background:var(--gold);
+    box-shadow:0 0 0 0 rgba(201,162,75,.6);animation:ping 1.6s ease-out infinite;
+  }
+  @keyframes ping{0%{box-shadow:0 0 0 0 rgba(201,162,75,.55)}100%{box-shadow:0 0 0 13px rgba(201,162,75,0)}}
+  .approval .hd b{font-family:"Fraunces",serif;font-size:13.5px;letter-spacing:.2px}
+  .approval .body{padding:0 13px 11px;font-size:12px;color:#5b4a2c;line-height:1.4}
+  .approval .body .unit{font-weight:800;color:var(--navy)}
+  .approval .act{display:flex;gap:7px;padding:0 11px 12px}
+  .approval button{
+    flex:1;border:0;cursor:pointer;font-family:"Manrope";font-weight:700;font-size:12.5px;
+    padding:9px 10px;border-radius:10px;transition:transform .12s, filter .2s;
+  }
+  .approval button:active{transform:scale(.96)}
+  .approval .ok{background:linear-gradient(160deg,#46c45c,#2f9d45);color:#fff;box-shadow:0 5px 14px rgba(47,157,69,.4)}
+  .approval .no{background:#e7dcc6;color:#6b5a3a}
+  .approval .ok:hover{filter:brightness(1.06)}
+
+  .approval.gone{animation:poof .45s ease forwards}
+  @keyframes poof{to{opacity:0;scale:.7;translate:0 -14px}}
+
+  /* ── Tablero de control (abajo) ───────────────────────────── */
+  .dock{
+    position:absolute;left:50%;bottom:22px;translate:-50% 0;z-index:6;
+    display:flex;gap:12px;align-items:stretch;
+    padding:13px;border-radius:20px;
+    background:rgba(8,27,48,.6);backdrop-filter:blur(14px);
+    border:1px solid rgba(201,162,75,.22);
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  .stat{
+    min-width:128px;padding:11px 16px;border-radius:13px;
+    background:linear-gradient(165deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+    border:1px solid rgba(255,255,255,.07);
+  }
+  .stat .k{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#9fb0c4;font-weight:700}
+  .stat .v{font-family:"Fraunces",serif;font-weight:700;font-size:30px;line-height:1.05;margin-top:3px;color:#fff}
+  .stat .v small{font-size:15px;color:var(--gold-soft);font-weight:600}
+  .stat.alert .v{color:var(--gold-soft)}
+  .stat .v.bump{animation:bump .5s ease}
+  @keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.22)}100%{transform:scale(1)}}
+
+  /* ── Estado de carga / aviso ──────────────────────────────── */
+  #boot{
+    position:absolute;inset:0;z-index:9;display:grid;place-items:center;
+    background:radial-gradient(120% 90% at 50% 30%, #14365c, var(--navy-deep));
+    transition:opacity .6s;
+  }
+  #boot .ring{width:46px;height:46px;border-radius:50%;
+    border:3px solid rgba(201,162,75,.2);border-top-color:var(--gold);
+    animation:spin 1s linear infinite}
+  @keyframes spin{to{rotate:360deg}}
+  #boot p{margin-top:16px;color:#9fb0c4;font-weight:600;font-size:13px;letter-spacing:.04em}
+  #boot.hide{opacity:0;pointer-events:none}
+
+  .toast{
+    position:absolute;left:50%;top:78px;translate:-50% 0;z-index:8;
+    background:rgba(8,27,48,.85);border:1px solid rgba(201,162,75,.3);
+    color:#e7dcc6;font-size:12.5px;font-weight:600;
+    padding:9px 15px;border-radius:11px;backdrop-filter:blur(8px);
+    box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:420px;text-align:center;
+    opacity:0;transition:opacity .4s;pointer-events:none;
+  }
+  .toast.show{opacity:1}
+
+  .hint{
+    position:absolute;left:50%;bottom:108px;translate:-50% 0;z-index:5;
+    font-size:11.5px;color:#7e8ea3;letter-spacing:.06em;pointer-events:none;
+    opacity:.8;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="scene"></div>
+  <div id="labels"></div>
+
+  <div class="brand">
+    <div class="mark">
+      <div class="crest">V</div>
+      <div>
+        <h1>Oficina Virtual</h1>
+        <div class="sub">Vacation Rental México</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+  <div class="hint">arrastra para girar · rueda para acercar</div>
+
+  <div id="boot"><div style="text-align:center"><div class="ring"></div><p>Encendiendo la oficina…</p></div></div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+/* ════════════════════════════════════════════════════════════════
+   CONFIG  — todo lo que vas a tocar vive aquí
+   ════════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  // El personaje de muestra. Déjalo junto a este archivo, o pon tu URL de R2:
+  // characterUrl: "https://<tu-bucket>.r2.dev/oficina/recepcionista.glb"
+  characterUrl: "https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/oficina/Zombie_Male.gltf",
+
+  // Pose por defecto al sentarse. Si "sit" se ve raro con tu skin,
+  // cámbialo a "stand" (Idle de pie) en cada puesto.
+  // Animaciones disponibles en el pack: Idle, SitDown, StandUp, Walk, Run...
+
+  // Estados → color. (mismos del semáforo del portal)
+  estados: {
+    trabajando: { color: 0x3FB950, label: "Trabajando" },
+    aprobacion: { color: 0xC9A24B, label: "Pide tu OK" },
+    esperando:  { color: 0x8B98A9, label: "Esperando" },
+    observando: { color: 0x4A90D9, label: "Observando" },
+  },
+
+  // Los puestos. x/z = posición en el piso · ropa = color de su traje (placeholder).
+  equipo: [
+    { id:"rodrigo",  nombre:"Rodrigo",  rol:"Dirección",     x:-6.5, z:-2.5, estado:"observando", ropa:0x16365A, pose:"sit" },
+    { id:"josimar",  nombre:"Josimar",  rol:"Operaciones",   x:-2.2, z:-3.6, estado:"trabajando", ropa:0x2E6E8E, pose:"sit" },
+    { id:"paulo",    nombre:"Paulo",    rol:"Mantenimiento", x: 2.2, z:-3.6, estado:"esperando",  ropa:0x7A5230, pose:"sit" },
+    { id:"daniela",  nombre:"Daniela",  rol:"Limpieza",      x: 6.5, z:-2.5, estado:"trabajando", ropa:0x3FB950, pose:"stand" },
+    { id:"zayda",    nombre:"Zayda",    rol:"Recepción",     x: 0.0, z: 2.4, estado:"aprobacion", ropa:0xC9A24B, pose:"sit", aprobacion:true },
+    { id:"daniel",   nombre:"Daniel",   rol:"Remoto · Italia",x:-5.0, z: 3.4, estado:"observando", ropa:0x4A90D9, pose:"sit" },
+  ],
+};
+
+/* ════════════════════════════════════════════════════════════════
+   STATE — los números del tablero.  ← aquí enchufas Supabase.
+   ════════════════════════════════════════════════════════════════ */
+const STATE = {
+  reservasHoy:   8,
+  pendientes:    1,   // baja al confirmar la de Recepción
+  limpiezas:     3,
+  ocupacion:     86,  // %
+};
+// ←SUPABASE: reemplaza estos valores con un fetch real, p.ej:
+// const { data } = await supabase.from('kpis_oficina').select('*').single();
+// Object.assign(STATE, data); renderDock();
+
+/* ════════════════════════════════════════════════════════════════ */
+
+const EST = CONFIG.estados;
+const scene = new THREE.Scene();
+const office = new THREE.Group();          // todo lo orbitable
+scene.add(office);
+
+/* ── Render ─────────────────────────────────────────────── */
+const sceneEl = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+sceneEl.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.style.cssText = "position:absolute;inset:0;pointer-events:none";
+document.getElementById('labels').appendChild(labelRenderer.domElement);
+
+/* ── Cámara isométrica + controles ──────────────────────── */
+let camera;
+function makeCamera(){
+  const f = 9, a = innerWidth/innerHeight;
+  camera = new THREE.OrthographicCamera(-f*a, f*a, f, -f, 0.1, 200);
+  camera.position.set(16, 15, 16);
+  camera.lookAt(0,1.4,0);
+}
+makeCamera();
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0,1.4,0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minPolarAngle = 0.6;
+controls.maxPolarAngle = 1.15;          // que no baje al ras del piso
+controls.minZoom = 0.7; controls.maxZoom = 2.2;
+controls.enablePan = false;
+controls.update();
+
+/* ── Luces (look de juguete, sombras suaves) ────────────── */
+scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x20304a, 0.85));
+const key = new THREE.DirectionalLight(0xfff2d6, 1.5);
+key.position.set(9, 16, 7);
+key.castShadow = true;
+key.shadow.mapSize.set(2048,2048);
+Object.assign(key.shadow.camera,{left:-16,right:16,top:16,bottom:-16,near:1,far:60});
+key.shadow.bias = -0.0004;
+scene.add(key);
+scene.add(new THREE.DirectionalLight(0x8fb4ff, 0.35).translateX(-8).translateY(6).translateZ(-8));
+
+/* ── Materiales reutilizables ───────────────────────────── */
+const M = {
+  floor:   new THREE.MeshStandardMaterial({ color:0x12365c, roughness:.95 }),
+  floorB:  new THREE.MeshStandardMaterial({ color:0x0d2b48, roughness:.95 }),
+  rug:     new THREE.MeshStandardMaterial({ color:0x0a2138, roughness:1 }),
+  wall:    new THREE.MeshStandardMaterial({ color:0x0c2742, roughness:1 }),
+  trim:    new THREE.MeshStandardMaterial({ color:0xC9A24B, roughness:.5, metalness:.3 }),
+  desk:    new THREE.MeshStandardMaterial({ color:0xE7DCC6, roughness:.7 }),
+  deskLeg: new THREE.MeshStandardMaterial({ color:0x16365A, roughness:.6 }),
+  chair:   new THREE.MeshStandardMaterial({ color:0x081B30, roughness:.6 }),
+  monitor: new THREE.MeshStandardMaterial({ color:0x0a1626, roughness:.4 }),
+  plantPot:new THREE.MeshStandardMaterial({ color:0xC9A24B, roughness:.6 }),
+  leaf:    new THREE.MeshStandardMaterial({ color:0x2f8f57, roughness:.9 }),
+};
+const box = (w,h,d,m)=>{ const g=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); g.castShadow=g.receiveShadow=true; return g; };
+
+/* ── Piso a cuadros + alfombra + paredes ────────────────── */
+function buildRoom(){
+  const N=18, tile=1.6, half=N*tile/2;
+  for(let i=0;i<N;i++)for(let j=0;j<N;j++){
+    const t=box(tile,0.2,tile,(i+j)%2?M.floor:M.floorB);
+    t.position.set(i*tile-half+tile/2,-0.1,j*tile-half+tile/2);
+    t.castShadow=false; office.add(t);
+  }
+  const rug=box(15,0.05,11,M.rug); rug.position.y=0.02; rug.castShadow=false; office.add(rug);
+  const rugTrim=box(15.4,0.04,11.4,M.trim); rugTrim.position.y=0.015; rugTrim.castShadow=false; office.add(rugTrim);
+
+  // dos paredes traseras bajas (cuarto isométrico)
+  const wL=box(0.3,5,N*tile,M.wall); wL.position.set(-half,2.5,0); office.add(wL);
+  const wR=box(N*tile,5,0.3,M.wall); wR.position.set(0,2.5,-half); office.add(wR);
+  const tL=box(0.36,0.3,N*tile,M.trim); tL.position.set(-half,5,0); office.add(tL);
+  const tR=box(N*tile,0.3,0.36,M.trim); tR.position.set(0,5,-half); office.add(tR);
+
+  // letrero VRM en la pared del fondo
+  const sign=box(4.4,1.5,0.2,M.wall); sign.position.set(0,3.4,-half+0.2);
+  const signTrim=box(4.7,1.8,0.12,M.trim); signTrim.position.set(0,3.4,-half+0.12);
+  office.add(signTrim,sign);
+  const v=makeText3D("VRM"); v.position.set(0,3.4,-half+0.32); office.add(v);
+
+  // plantas en esquinas
+  [[half-1.4,half-1.4],[-half+1.4,-half+5]].forEach(([x,z])=>office.add(plant(x,z)));
+}
+function plant(x,z){
+  const g=new THREE.Group();
+  const pot=box(0.7,0.7,0.7,M.plantPot); pot.position.y=0.35; g.add(pot);
+  for(let i=0;i<3;i++){ const l=new THREE.Mesh(new THREE.SphereGeometry(0.55-i*0.08,8,6),M.leaf);
+    l.castShadow=true; l.position.y=1+i*0.4; l.scale.y=1.3; g.add(l); }
+  g.position.set(x,0,z); return g;
+}
+function makeText3D(txt){           // letrero simple con canvas
+  const c=document.createElement('canvas'); c.width=512;c.height=180;
+  const x=c.getContext('2d'); x.fillStyle="#C9A24B";
+  x.font="700 130px Fraunces, serif"; x.textAlign="center"; x.textBaseline="middle";
+  x.fillText(txt,256,98);
+  const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(3.6,1.27),
+    new THREE.MeshBasicMaterial({map:tex,transparent:true}));
+  return m;
+}
+
+/* ── Escritorio + monitor (pantalla emisiva = color de estado) ── */
+function buildDesk(person){
+  const g=new THREE.Group();
+  const top=box(2.4,0.16,1.2,M.desk); top.position.y=1.0; g.add(top);
+  [[-1,-0.5],[1,-0.5],[-1,0.5],[1,0.5]].forEach(([lx,lz])=>{
+    const leg=box(0.14,1.0,0.14,M.deskLeg); leg.position.set(lx,0.5,lz); g.add(leg);
+  });
+  // monitor (mira hacia el trabajador, en +z)
+  const stand=box(0.12,0.45,0.12,M.monitor); stand.position.set(0,1.3,-0.35); g.add(stand);
+  const bezel=box(1.5,0.95,0.08,M.monitor); bezel.position.set(0,1.75,-0.35); g.add(bezel);
+  const screenMat=new THREE.MeshStandardMaterial({
+    color:0x0a1626, emissive:EST[person.estado].color, emissiveIntensity:0.9, roughness:.3 });
+  const screen=new THREE.Mesh(new THREE.PlaneGeometry(1.34,0.8),screenMat);
+  screen.position.set(0,1.75,-0.305); screen.rotation.y=Math.PI; g.add(screen);
+  // silla
+  const seat=box(0.8,0.12,0.8,M.chair); seat.position.set(0,0.6,0.85);
+  const back=box(0.8,0.9,0.12,M.chair); back.position.set(0,1.05,1.2);
+  g.add(seat,back);
+
+  g.position.set(person.x,0,person.z);
+  office.add(g);
+  return { group:g, screenMat };
+}
+
+/* ── Etiqueta de personaje (CSS2D) ──────────────────────── */
+function makeTag(person){
+  const el=document.createElement('div'); el.className='tag';
+  el.innerHTML=`<div class="pill">
+      <span class="sdot" id="sdot-${person.id}"></span>
+      <span class="name">${person.nombre}</span>
+      <span class="role">· ${person.rol}</span>
+    </div>`;
+  el.querySelector('.sdot').style.color = '#'+EST[person.estado].color.toString(16).padStart(6,'0');
+  const o=new CSS2DObject(el); o.position.set(person.x,3.2,person.z); office.add(o);
+  return el;
+}
+
+/* ── Burbuja de aprobación (Recepción) ──────────────────── */
+function makeApprovalBubble(person){
+  const el=document.createElement('div'); el.className='approval';
+  el.innerHTML=`
+    <div class="hd"><span class="ping"></span><b>Reserva por confirmar</b></div>
+    <div class="body">Unidad <span class="unit">2302</span> · 3 noches<br>Pago recibido — falta tu OK</div>
+    <div class="act"><button class="ok">Confirmar</button><button class="no">Luego</button></div>`;
+  const o=new CSS2DObject(el); o.position.set(person.x,4.4,person.z); office.add(o);
+
+  el.querySelector('.ok').addEventListener('click',()=>confirmarReserva(person,el,o));
+  el.querySelector('.no').addEventListener('click',()=>{ el.classList.add('gone');
+    setTimeout(()=>{office.remove(o);},450); });
+  return o;
+}
+
+function confirmarReserva(person, el, obj){
+  // ←SUPABASE: aquí va la confirmación real, p.ej:
+  // await supabase.from('reservas').update({estado:'confirmada'}).eq('unidad','2302');
+  el.classList.add('gone');
+  setTimeout(()=>office.remove(obj),450);
+
+  setEstado(person.id,'trabajando');             // recepción pasa a verde
+  STATE.pendientes = Math.max(0,STATE.pendientes-1);
+  STATE.reservasHoy += 1;
+  renderDock(true);
+  toast('Reserva 2302 confirmada · Zayda ahora en verde');
+}
+
+/* ── Cambiar estado de un puesto (badge + pantalla) ─────── */
+const monitors = {};        // id → screenMat
+function setEstado(id, estado){
+  const p = CONFIG.equipo.find(e=>e.id===id); if(!p) return;
+  p.estado = estado;
+  const col = EST[estado].color;
+  const dot = document.getElementById('sdot-'+id);
+  if(dot) dot.style.color = '#'+col.toString(16).padStart(6,'0');
+  if(monitors[id]) monitors[id].emissive.setHex(col);
+}
+
+/* ── Tablero de control ─────────────────────────────────── */
+function renderDock(bump){
+  let dock=document.querySelector('.dock');
+  const data=[
+    {k:"Reservas hoy", v:STATE.reservasHoy},
+    {k:"Pendientes",   v:STATE.pendientes, alert:STATE.pendientes>0},
+    {k:"Limpiezas",    v:STATE.limpiezas},
+    {k:"Ocupación",    v:STATE.ocupacion, suf:"%"},
+  ];
+  if(!dock){
+    dock=document.createElement('div'); dock.className='dock'; document.getElementById('app').appendChild(dock);
+  }
+  dock.innerHTML = data.map(d=>`
+    <div class="stat ${d.alert?'alert':''}">
+      <div class="k">${d.k}</div>
+      <div class="v ${bump?'bump':''}">${d.v}${d.suf?`<small>${d.suf}</small>`:''}</div>
+    </div>`).join('');
+}
+
+/* ── Leyenda ────────────────────────────────────────────── */
+function renderLegend(){
+  document.getElementById('legend').innerHTML = Object.entries(EST).map(([,e])=>`
+    <div class="row"><span class="dot" style="color:#${e.color.toString(16).padStart(6,'0')}"></span>${e.label}</div>
+  `).join('');
+}
+
+/* ── Toast ──────────────────────────────────────────────── */
+let toastT;
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),3600);
+}
+
+/* ════════════════════════════════════════════════════════
+   PERSONAJES — carga el GLB, clona por puesto, recolorea ropa
+   ════════════════════════════════════════════════════════ */
+const mixers = [];
+let clips = [];
+
+function placeCharacter(person, source){
+  let model, mixer=null;
+
+  if(source){
+    model = cloneSkinned(source);                       // clon con esqueleto propio
+    model.traverse(o=>{
+      if(o.isMesh){
+        o.castShadow=true; o.receiveShadow=true;
+        o.material = o.material.clone();                  // material propio → recolorear
+        if(/cloth/i.test(o.material.name)) o.material.color.setHex(person.ropa);
+      }
+    });
+    mixer = new THREE.AnimationMixer(model);
+    const want = person.pose==='stand' ? 'Idle'
+               : person.pose==='walk'  ? 'Walk' : 'SitDown';
+    const clip = clips.find(c=>c.name===want) || clips.find(c=>/idle/i.test(c.name)) || clips[0];
+    if(clip){
+      const act=mixer.clipAction(clip);
+      if(person.pose==='sit'){ act.setLoop(THREE.LoopOnce); act.clampWhenFinished=true; }
+      act.play();
+    }
+    mixers.push(mixer);
+  } else {
+    model = placeholderFigure(person.ropa);               // respaldo si el GLB no carga
+  }
+
+  // sentar/parar en su sitio
+  model.scale.setScalar(2.0);
+  const sit = person.pose==='sit';
+  model.position.set(person.x, 0, person.z + (sit?0.85:1.4));
+  model.rotation.y = Math.PI;                              // mirando al monitor / cámara
+  office.add(model);
+}
+
+function placeholderFigure(color){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.28,0.6,4,12),
+    new THREE.MeshStandardMaterial({color,roughness:.6}));
+  body.position.y=0.7; body.castShadow=true;
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.26,16,12),
+    new THREE.MeshStandardMaterial({color:0xE7DCC6,roughness:.7}));
+  head.position.y=1.3; head.castShadow=true;
+  g.add(body,head); return g;
+}
+
+/* ── Construcción de la oficina ─────────────────────────── */
+buildRoom();
+renderLegend();
+renderDock();
+CONFIG.equipo.forEach(p=>{
+  monitors[p.id] = buildDesk(p).screenMat;
+  makeTag(p);
+  if(p.aprobacion) makeApprovalBubble(p);
+});
+
+const loader = new GLTFLoader();
+loader.load(CONFIG.characterUrl,
+  (gltf)=>{
+    clips = gltf.animations || [];
+    CONFIG.equipo.forEach(p=>placeCharacter(p, gltf.scene));
+    hideBoot();
+    toast(`Modelo cargado · ${clips.length} animaciones · clic en la burbuja dorada para confirmar`);
+  },
+  undefined,
+  (err)=>{
+    console.warn('No se pudo cargar el GLB:', CONFIG.characterUrl, err);
+    CONFIG.equipo.forEach(p=>placeCharacter(p, null));      // respaldo con cuadros
+    hideBoot();
+    toast('Sin GLB: sírvelo junto al archivo o pon tu URL de R2 en CONFIG.characterUrl');
+  }
+);
+function hideBoot(){ const b=document.getElementById('boot'); b.classList.add('hide'); setTimeout(()=>b.remove(),650); }
+
+/* ── Bucle ──────────────────────────────────────────────── */
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta(), t = clock.elapsedTime;
+  mixers.forEach(m=>m.update(dt));
+  // parpadeo sutil de pantallas
+  CONFIG.equipo.forEach((p,i)=>{ const m=monitors[p.id];
+    if(m) m.emissiveIntensity = 0.75 + Math.sin(t*2 + i)*0.18; });
+  controls.update();
+  renderer.render(scene,camera);
+  labelRenderer.render(scene,camera);
+}
+animate();
+
+/* ── Resize ─────────────────────────────────────────────── */
+addEventListener('resize',()=>{
+  const f=9,a=innerWidth/innerHeight;
+  camera.left=-f*a;camera.right=f*a;camera.top=f;camera.bottom=-f;camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+  labelRenderer.setSize(innerWidth,innerHeight);
+});
+renderer.setSize(innerWidth,innerHeight);
+labelRenderer.setSize(innerWidth,innerHeight);
+
+// expongo helpers para que pruebes desde la consola:
+window.VRM = { setEstado, STATE, renderDock, CONFIG };
+</script>
+</body>
+</html>
