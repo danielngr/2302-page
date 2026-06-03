@@ -125,6 +125,34 @@
   .modpanel .open-portal{margin-top:14px;border:0;cursor:pointer;font-family:var(--font-display);font-weight:700;font-size:13px;padding:11px;border-radius:11px;background:linear-gradient(160deg,var(--terra-soft),var(--terra));color:#fff}
   .modpanel .mnote{margin-top:auto;font-family:var(--font-mono);font-size:10.5px;color:var(--dim);line-height:1.5;border-top:1px solid var(--border);padding-top:14px}
   .modpanel .mclose{position:absolute;top:18px;right:18px;border:0;background:rgba(0,0,0,.05);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;color:var(--muted)}
+  /* panel registros */
+  .regwrap{flex:1;overflow-y:auto;margin:4px -6px 0;padding:0 6px}
+  .rsum{display:flex;justify-content:space-between;align-items:center;font-family:var(--font-mono);font-size:12px;color:var(--muted);padding:4px 2px 12px;position:sticky;top:0;background:#fffaf1;z-index:2}
+  .rsum b{font-family:var(--font-display);font-size:18px;color:#2a2018}
+  .rpill{font-family:var(--font-mono);font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(0,0,0,.05);color:var(--muted)}
+  .rpill.on{background:rgba(224,162,62,.16);color:#b5571f;font-weight:600}
+  .rday{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:12px 2px 7px}
+  .rrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:11px;margin-bottom:7px;background:rgba(255,255,255,.6)}
+  .rrow .rl{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .rrow .rdep{font-family:var(--font-display);font-weight:700;font-size:13px;color:#2a2018;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rrow .rgu{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rrow .rr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:0 0 auto}
+  .rrow .rt{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.04em;color:var(--dim);text-transform:uppercase}
+  .rb{font-family:var(--font-mono);font-size:10px;font-weight:600;padding:3px 9px;border-radius:999px}
+  .rb.ok{background:rgba(31,169,104,.14);color:#1FA968}
+  .rb.pend{background:rgba(224,162,62,.16);color:#b5571f}
+  .rb.man{background:rgba(0,0,0,.05);color:var(--muted)}
+  .rnote{font-family:var(--font-mono);font-size:11px;color:var(--dim);line-height:1.5;padding:14px 2px;text-align:center}
+  .rsum2{display:flex;gap:7px;flex-wrap:wrap;padding:0 2px 4px}
+  .rtag{font-family:var(--font-mono);font-size:10.5px;font-weight:600;padding:4px 10px;border-radius:999px}
+  .rtag.ok{background:rgba(31,169,104,.14);color:#1FA968}
+  .rtag.warn{background:rgba(224,162,62,.18);color:#b5571f}
+  .rb.warn{background:rgba(224,162,62,.2);color:#b5571f}
+  .rmind{margin-top:14px;border-top:1px solid var(--border);padding-top:14px}
+  .rmh{font-family:var(--font-display);font-weight:700;font-size:12.5px;color:#2a2018;margin-bottom:7px}
+  .rmtxt{font-size:11.5px;color:var(--muted);line-height:1.5;background:rgba(255,255,255,.6);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+  .rmbtn{margin-top:8px;border:0;cursor:pointer;font-family:var(--font-display);font-weight:700;font-size:12px;padding:9px 14px;border-radius:10px;background:linear-gradient(160deg,var(--terra-soft),var(--terra));color:#fff}
+  .rmnote{margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--dim);line-height:1.5}
 </style>
 </head>
 <body>
@@ -162,6 +190,12 @@ const CONFIG = {
   escala: 1.2, asientoY: 0.0,
   mirada: Math.PI,   // miran a su monitor (sentados derechos). Ajusta si hace falta.
 
+  // ← misma conexión que usa tu portal (anon key pública, protegida por RLS)
+  supabase: {
+    url: "https://grsykedeppdwenpfxlfh.supabase.co",
+    key: "sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm",
+  },
+
   estados: {
     trabajando:{color:0x1FA968,label:"Trabajando"},
     aprobacion:{color:0xE0A23E,label:"Pide tu OK"},
@@ -170,14 +204,16 @@ const CONFIG = {
   },
 
   // modelo = archivo en R2 · acento = silla + franja del cubículo
+  // cada mono = un módulo/agente del portal
   equipo: [
-    { id:"rodrigo", nombre:"Rodrigo", rol:"Dirección",     x:-7.0, z:-4.5, estado:"observando", acento:0xB89155, pose:"sit", modelo:"OldClassy_Male.gltf" },
-    { id:"josimar", nombre:"Josimar", rol:"Operaciones",   x:-1.0, z:-4.5, estado:"trabajando", acento:0x5E7E96, pose:"sit", modelo:"Ninja_Male.gltf" },
-    { id:"paulo",   nombre:"Paulo",   rol:"Mantenimiento", x:-7.0, z: 1.5, estado:"esperando",  acento:0xB0764F, pose:"sit", modelo:"Zombie_Male.gltf" },
-    { id:"daniel",  nombre:"Daniel",  rol:"Remoto · Italia",x:-1.0,z: 1.5, estado:"observando", acento:0x7E7392, pose:"sit", modelo:"Elf.gltf" },
-    { id:"zayda",   nombre:"Zayda",   rol:"Recepción",     x: 6.5, z: 3.2, estado:"aprobacion", acento:0xB89155, pose:"sit", modelo:"Chef_Female.gltf", recepcion:true },
-    { id:"daniela", nombre:"Daniela", rol:"Limpieza",      x: 6.5, z:-3.5, estado:"trabajando", acento:0x5C8A6E, pose:"stand", modelo:"Viking_Female.gltf" },
-    { id:"lola",    nombre:"Lola",    rol:"Mascota VRM",   x:-6.5, z: 8.5, estado:"trabajando", acento:0xB0764F, pose:"stand", modelo:"Cow.gltf", escala:1.0, mascota:true },
+    { id:"nomina",       nombre:"Nómina",       rol:"Pagos equipo",   modulo:"nomina",      x:-7.0, z:-4.5, estado:"observando", acento:0xB89155, pose:"sit",   modelo:"OldClassy_Male.gltf" },
+    { id:"servicios",    nombre:"Servicios",    rol:"Extras huésped", modulo:"servicios",   x:-1.0, z:-4.5, estado:"trabajando", acento:0x5E7E96, pose:"sit",   modelo:"Ninja_Male.gltf" },
+    { id:"registros",    nombre:"Registros",    rol:"Check-in digital",modulo:"registros",  x:-7.0, z: 1.5, estado:"esperando",  acento:0xB0764F, pose:"sit",   modelo:"Zombie_Male.gltf" },
+    { id:"resenas",      nombre:"Reseñas",      rol:"Reviews → órdenes",modulo:"reviews",   x:-1.0, z: 1.5, estado:"observando", acento:0x7E7392, pose:"sit",   modelo:"Elf.gltf" },
+    { id:"aircover",     nombre:"AirCover",     rol:"Cobro de daños", modulo:"aircover",    x:-7.0, z:-9.0, estado:"observando", acento:0xA9763E, pose:"sit",   modelo:"Cowboy_Male.gltf" },
+    { id:"housekeeping", nombre:"Housekeeping", rol:"Limpiezas",      modulo:"housekeeping",x: 6.5, z: 3.2, estado:"trabajando", acento:0xB89155, pose:"sit",   modelo:"Chef_Female.gltf", recepcion:true },
+    { id:"botlimpiezas", nombre:"Bot Limpiezas",rol:"Salud del bot",  modulo:null,          x: 6.5, z:-3.5, estado:"trabajando", acento:0x5C8A6E, pose:"sit",   modelo:"Viking_Female.gltf" },
+    { id:"recordatorios",nombre:"Recordatorios",rol:"No se calla",    modulo:null,          x:-6.5, z: 8.5, estado:"trabajando", acento:0xB0764F, pose:"sit",   modelo:"Cow.gltf", escala:1.0 },
   ],
 };
 
@@ -328,6 +364,85 @@ const MODULES=[
   {key:'reviews',    nombre:'Reviews',    color:0xE0C03E, desc:'Reseñas de Airbnb del portafolio (745+).',                        rows:()=>[['Total','745+'],['Nuevas','—']]},
   {key:'reportes',   nombre:'Reportes',   color:0xE0563E, desc:'Reportes de operación: pendientes, en proceso, resueltos.',       rows:()=>[['Pendientes',STATE.reportes],['Alertas',STATE.alertas]]},
 ];
+
+/* ════════════ REGISTROS · datos reales (Supabase) ════════════ */
+/* tipo de envío por depa — portado tal cual de tu portal */
+const TMPL = {
+  "QUIYA":{tipo:"pdf"},"VENETIAN":{tipo:"pdf"},"GD":{tipo:"pdf"},"FLAMINGOS":{tipo:"pdf"},
+  "ALBATROS":{tipo:"pdf"},"ALAMAR":{tipo:"pdf"},"XIKIRI":{tipo:"pdf"},"PENINSULA":{tipo:"pdf"},
+  "NAUTICO":{tipo:"whatsapp"},"RINCON":{tipo:"whatsapp"},"MARSALA":{tipo:"whatsapp"},"AMOARA":{tipo:"whatsapp"},
+  "PLAYA ESMERALDA":{tipo:"whatsapp"},"ARCANO":{tipo:"whatsapp"},"MARINA SOL":{tipo:"whatsapp"},
+  "TULES":{tipo:"correo"},
+  "ARIA":{tipo:"frakcio"},"MARITIMA GOLF":{tipo:"frakcio"},
+  "MARITIMA 9S":{tipo:"gforms"},"MARITIMA 10I":{tipo:"gforms"},"MARITIMA 6S":{tipo:"gforms"},"MARITIMA PHN":{tipo:"gforms"},
+  "MARALMA":{tipo:"pdf"},"BOLONGO":{tipo:"frakcio"},"ZOHO":{tipo:"frakcio"},
+  "PUERTARENA":{tipo:"frakcio"},"BAY VIEW":{tipo:"frakcio"},"BVG":{tipo:"frakcio"},"ZANTAMAR":{tipo:"frakcio"},
+  "MASCOTA":{tipo:"manual"},
+};
+const REG_ALIAS = {'ARIA 1001':'ARIA PH 1001','ARIA PH':'ARIA PH 1001','ALAMAR 101':'DELTA 2 101','ALMAR 101':'DELTA 2 101','ALAMAR CABO 903':'ALAMAR 903','CABO 903':'ALAMAR 903'};
+function getTipo(depto){let d=(depto||"").toUpperCase().trim();if(REG_ALIAS[d])d=REG_ALIAS[d];const k=Object.keys(TMPL).find(k=>d.startsWith(k));return k?TMPL[k].tipo:"general";}
+function displayDepto(depto){const d=(depto||"").toUpperCase().trim();return REG_ALIAS[d]||(depto||"—");}
+const TIPO_LABEL={pdf:"PDF · correo",correo:"Correo",frakcio:"QR Frakcio",gforms:"Google Form",whatsapp:"Mensaje WA",manual:"Manual",general:"—"};
+function esEnviado(r){const t=r._tipo;if(t==='frakcio')return !!r.frakcio_enviado;if(t==='gforms')return !!r.maritima_enviado;return !!r.pdf_generado;}
+function nochesEntre(a,b){if(!a||!b)return null;const d1=new Date(a+'T00:00:00'),d2=new Date(b+'T00:00:00');const n=Math.round((d2-d1)/86400000);return isNaN(n)?null:n;}
+function regLink(depto){return 'https://danielngr.github.io/2302-page/registro.html?dept='+encodeURIComponent((depto||'').toUpperCase().trim());}
+const REMINDER_MSG="Hola 👋 Te recuerdo que aún no has completado el formulario de registro para tu llegada a Punta Mita. Es importante que quede listo al menos 24 horas antes de tu check-in para que no haya problemas con el acceso.";
+function copiarRecordatorio(){try{navigator.clipboard.writeText(REMINDER_MSG);toast('Recordatorio copiado ✓');}catch(e){toast('Cópialo manualmente desde el panel');}}
+
+let REGISTROS=[], REG_LOADED=false, REG_ERR=null;
+async function loadRegistros(){
+  const {url,key}=CONFIG.supabase; if(!url||!key){REG_ERR='nokey';return;}
+  try{
+    const hoy=new Date();const d0=new Date(hoy);d0.setDate(hoy.getDate()-2);const d1=new Date(hoy);d1.setDate(hoy.getDate()+6);
+    const desde=d0.toISOString().split('T')[0], hasta=d1.toISOString().split('T')[0];
+    const fields='id,depto,nombre,fecha_entrada,fecha_salida,num_adultos,num_menores,pdf_generado,tipo_formato,frakcio_enviado,maritima_enviado,telefono,email';
+    const res=await fetch(`${url}/rest/v1/registros_checkin?select=${fields}&fecha_entrada=gte.${desde}&fecha_entrada=lte.${hasta}&order=fecha_entrada.asc,created_at.desc`,{headers:{apikey:key,Authorization:'Bearer '+key}});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const rows=await res.json();
+    REGISTROS=rows.map(r=>{r._tipo=(r.tipo_formato&&r.tipo_formato!=='general')?r.tipo_formato:getTipo(r.depto);r._depto=displayDepto(r.depto);r._enviado=esEnviado(r);r._noches=nochesEntre(r.fecha_entrada,r.fecha_salida);r._corta=(r._noches!=null&&r._noches<=1);return r;});
+    REG_LOADED=true;REG_ERR=null;evaluarRegistros();
+  }catch(e){REG_ERR=e.message;console.warn('registros',e);}
+}
+const _hoyStr=()=>new Date().toISOString().split('T')[0];
+function regStats(){let total=0,env=0,pendHoy=0,cortas=0,listos=0;const h=_hoyStr();REGISTROS.forEach(r=>{total++;if(r._enviado)env++;if(r._corta&&!r._enviado)cortas++;if(!r._enviado&&r.fecha_entrada<=h&&r._tipo!=='manual'&&!r._corta)pendHoy++;if(!r._enviado&&!r._corta&&(r._tipo==='pdf'||r._tipo==='correo'))listos++;});return{total,env,pend:total-env,pendHoy,cortas,listos};}
+function evaluarRegistros(){
+  if(REG_ERR||!REG_LOADED)return;const s=regStats();
+  NOTIFS=NOTIFS.filter(n=>n.id!=='reg-pend'&&n.id!=='reg-corta');
+  let urgent=false;
+  if(s.pendHoy>0){urgent=true;setEstado('registros','aprobacion');ensurePending('registros');
+    ensureNotif({id:'reg-pend',persona:'registros',color:0xE0563E,titulo:'⚠ '+s.pendHoy+' registro(s) pendientes HOY',detalle:'Check-in de hoy sin enviar · emergencia (push)',accion:'Ver'});}
+  if(s.cortas>0){ensureNotif({id:'reg-corta',persona:'registros',color:0xE0A23E,titulo:s.cortas+' registro(s) de 1 noche',detalle:'Posible error de fecha del huésped · revisa en el portal',accion:'Ver'});
+    if(!urgent){urgent=true;setEstado('registros','aprobacion');ensurePending('registros');}}
+  if(!urgent){setEstado('registros','trabajando');clearPending('registros');}
+  renderNotifs();
+  if(document.getElementById('modpanel').classList.contains('open'))openModule('registros');
+}
+function fmtDia(s){const d=new Date(s+'T00:00:00');return d.toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'});}
+function registrosPanelHTML(){
+  if(REG_ERR==='nokey')return `<div class="rnote">Falta tu <b>SUPABASE_URL</b> y <b>anon key</b> en CONFIG.supabase.</div>`;
+  if(REG_ERR)return `<div class="rnote" style="color:var(--red)">No pude leer Supabase: ${REG_ERR}. (Revisa RLS / la anon key.)</div>`;
+  if(!REG_LOADED)return `<div class="rnote">Cargando check-ins…</div>`;
+  const s=regStats();const h=_hoyStr();const tm=new Date();tm.setDate(tm.getDate()+1);const tmStr=tm.toISOString().split('T')[0];
+  const groups={};REGISTROS.forEach(r=>{(groups[r.fecha_entrada]=groups[r.fecha_entrada]||[]).push(r);});
+  const dias=Object.keys(groups).sort();
+  let html=`<div class="rsum"><span><b>${s.env}</b>/${s.total} enviados</span><span class="rpill ${s.pend?'on':''}">${s.pend} pendientes</span></div>`;
+  if(s.listos||s.cortas){html+=`<div class="rsum2">${s.listos?`<span class="rtag ok">✓ ${s.listos} listos p/ correo</span>`:''}${s.cortas?`<span class="rtag warn">⚠ ${s.cortas} revisar fecha</span>`:''}</div>`;}
+  if(dias.length){dias.forEach(d=>{
+    const lbl=d===h?'Hoy':d===tmStr?'Mañana':fmtDia(d);
+    html+=`<div class="rday">${lbl}</div>`;
+    groups[d].forEach(r=>{
+      let badge;
+      if(r._corta&&!r._enviado)badge='<span class="rb warn">⚠ Revisar fecha</span>';
+      else if(r._enviado)badge='<span class="rb ok">Enviado</span>';
+      else if(r._tipo==='manual')badge='<span class="rb man">Manual</span>';
+      else badge='<span class="rb pend">Pendiente</span>';
+      const noches=r._noches!=null?` · ${r._noches}n`:'';
+      html+=`<div class="rrow"><div class="rl"><span class="rdep">${r._depto}</span><span class="rgu">${r.nombre||'—'}</span></div><div class="rr"><span class="rt">${TIPO_LABEL[r._tipo]||r._tipo}${noches}</span>${badge}</div></div>`;
+    });
+  });}else{html+=`<div class="rnote">Sin check-ins entre −2 y +6 días.</div>`;}
+  html+=`<div class="rmind"><div class="rmh">📨 Recordatorio · huésped sin registro</div><div class="rmtxt">${REMINDER_MSG}</div><button class="rmbtn" onclick="VRM.copiarRecordatorio()">Copiar mensaje</button><div class="rmnote">El link por depa (registro.html?dept=) se adjunta solo cuando conectemos tu hoja de reservas para detectar llegadas que aún no llenaron el formulario.</div></div>`;
+  return html;
+}
 function cabinetPaper(name,color){
   const W=240,H=132,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
   const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;
@@ -438,8 +553,9 @@ function deskCore(p){const g=new THREE.Group();
   const post=box(.1,.55,.1,M.deskLeg);post.position.set(0,.3,.8);g.add(seat,back,post);
   monitors[p.id]=sm;g.add(deskLamp());return g;}
 function buildCubicle(p){const g=deskCore(p),pH=1.55,am=accentMat(p.acento);
-  const back=box(2.5,pH,0.12,M.panel);back.position.set(0,pH/2,1.3);const br=box(2.5,0.1,0.16,am);br.position.set(0,pH,1.3);
-  const side=box(0.12,pH,2.5,M.panel);side.position.set(1.25,pH/2,0.1);const sr=box(0.16,0.1,2.5,am);sr.position.set(1.25,pH,0.1);
+  const bH=1.95,bZ=1.85; // mampara trasera más alta y empujada atrás (el mono ya no la traspasa)
+  const back=box(2.7,bH,0.12,M.panel);back.position.set(0,bH/2,bZ);const br=box(2.7,0.1,0.16,am);br.position.set(0,bH,bZ);
+  const side=box(0.12,pH,2.6,M.panel);side.position.set(1.25,pH/2,0.35);const sr=box(0.16,0.1,2.6,am);sr.position.set(1.25,pH,0.35);
   g.add(back,br,side,sr);g.position.set(p.x,0,p.z);office.add(g);}
 function buildReception(p){const g=deskCore(p);
   const front=box(3.2,1.15,0.5,M.counter);front.position.set(0,0.58,-1.05);const ledge=box(3.4,0.12,0.7,M.wood);ledge.position.set(0,1.18,-1.05);
@@ -452,12 +568,12 @@ function makeTag(p){const el=document.createElement('div');el.className='tag';
   el.innerHTML=`<div class="pill"><span class="sdot" id="sdot-${p.id}"></span><span class="name">${p.nombre}</span><span class="role">${p.rol}</span></div>`;
   el.querySelector('.sdot').style.color=hex(EST[p.estado].color);const o=new CSS2DObject(el);o.position.set(p.x,p.mascota?1.9:2.7,p.z);office.add(o);}
 /* ── avisos (campana + bandeja + puntito) ── */
-let NOTIFS=[
-  {id:'r2302', persona:'zayda', color:0xE0A23E, titulo:'Reserva 2302 por confirmar', detalle:'3 noches · pago recibido', accion:'Confirmar'},
-  {id:'al1',   persona:null,    color:0xE0563E, titulo:'1 alerta accionable',         detalle:'Operación · revisar reporte', accion:null},
-];
+let NOTIFS=[];
 const pendDots={};
 function makePending(p){const el=document.createElement('div');el.className='pend';const o=new CSS2DObject(el);o.position.set(p.x,p.mascota?2.2:3.05,p.z);office.add(o);pendDots[p.id]=o;}
+function ensurePending(id){if(pendDots[id])return;const p=CONFIG.equipo.find(e=>e.id===id);if(p)makePending(p);}
+function clearPending(id){if(pendDots[id]){office.remove(pendDots[id]);delete pendDots[id];}}
+function ensureNotif(n){if(!NOTIFS.find(x=>x.id===n.id))NOTIFS.push(n);else NOTIFS=NOTIFS.map(x=>x.id===n.id?n:x);}
 function renderNotifs(){
   const cnt=document.getElementById('bellCnt');cnt.textContent=NOTIFS.length;cnt.classList.toggle('zero',NOTIFS.length===0);
   const box=document.getElementById('notifs');
@@ -466,9 +582,7 @@ function renderNotifs(){
 }
 function actNotif(id){
   const n=NOTIFS.find(x=>x.id===id);if(!n)return;
-  if(id==='r2302'){ // ←SUPABASE: await supabase.from('reservas').update({estado:'confirmada'}).eq('unidad','2302');
-    setEstado('zayda','trabajando');STATE.checkins+=1;renderDock(true);updateBoards();toast('Reserva 2302 confirmada · Zayda en verde');
-  }
+  if(id==='reg-pend'){openModule('registros');document.getElementById('notifs').classList.remove('open');return;}
   if(n.persona&&pendDots[n.persona]){office.remove(pendDots[n.persona]);delete pendDots[n.persona];}
   NOTIFS=NOTIFS.filter(x=>x.id!==id);renderNotifs();
 }
@@ -506,10 +620,21 @@ CONFIG.equipo.forEach(p=>{
 NOTIFS.forEach(n=>{if(n.persona){const p=CONFIG.equipo.find(e=>e.id===n.persona);if(p)makePending(p);}});
 renderNotifs();
 document.getElementById('bell').addEventListener('click',()=>document.getElementById('notifs').classList.toggle('open'));
+loadRegistros(); // ← lee tus check-ins reales y pone al mono de Registros en su estado
 
 /* ── clic en archiveros → panel de módulo ── */
 function openModule(key){const m=MODULES.find(x=>x.key===key);if(!m)return;
   const p=document.getElementById('modpanel');
+  if(key==='registros'){
+    p.innerHTML=`<button class="mclose" onclick="VRM.closeModule()">✕</button>
+      <div class="mhd"><span class="mdot" style="color:${hex(m.color)}"></span><h2>Registros</h2></div>
+      <div class="mkey">Agente · check-in digital</div>
+      <div class="regwrap">${registrosPanelHTML()}</div>
+      <div class="mnote">Lee tu tabla <b>registros_checkin</b> en vivo (ventana −2 a +6 días). El tipo de envío se detecta por depa; generar/enviar automático (PDF, Frakcio, mensaje) se conecta en la siguiente capa.</div>`;
+    document.getElementById('modalBg').classList.add('open');p.classList.add('open');
+    if(!REG_LOADED&&REG_ERR!=='nokey'){loadRegistros().then(()=>{if(p.classList.contains('open'))openModule('registros');});}
+    return;
+  }
   p.innerHTML=`<button class="mclose" onclick="VRM.closeModule()">✕</button>
     <div class="mhd"><span class="mdot" style="color:${hex(m.color)}"></span><h2>${m.nombre}</h2></div>
     <div class="mkey">Módulo del portal · mod-${m.key}</div>
@@ -555,7 +680,7 @@ const clk=new THREE.Clock();
   controls.update();renderer.render(scene,camera);labelRenderer.render(scene,camera);})();
 addEventListener('resize',()=>{sizeCamera();renderer.setSize(innerWidth,innerHeight);labelRenderer.setSize(innerWidth,innerHeight);});
 renderer.setSize(innerWidth,innerHeight);labelRenderer.setSize(innerWidth,innerHeight);
-window.VRM={setEstado,STATE,renderDock,updateBoards,CONFIG,closeModule,openModule,toast};
+window.VRM={setEstado,STATE,renderDock,updateBoards,CONFIG,closeModule,openModule,toast,loadRegistros,copiarRecordatorio,get REGISTROS(){return REGISTROS;}};
 </script>
 </body>
 </html>
