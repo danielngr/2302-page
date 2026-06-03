@@ -713,27 +713,38 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
 
     try {
       const today = _todayISO();
-      const { data, error } = await window.vrmSupabase
-        .from('public_availability')
-        .select('check_in, check_out')
-        .eq('unit_id', unitId)
-        .gte('check_out', today);
 
-      if (error) {
-        console.warn('[VRM] loadAvailability error:', error.message);
-        return new Set();
-      }
+      // Dos fuentes de bloqueo, consultadas en paralelo:
+      //   1) public_availability → lo que viene de Airbnb / VRBO (iCal)
+      //   2) reservas confirmadas → tus ventas directas en la web
+      const [extRes, dirRes] = await Promise.all([
+        window.vrmSupabase
+          .from('public_availability')
+          .select('check_in, check_out')
+          .eq('unit_id', unitId)
+          .gte('check_out', today),
+        window.vrmSupabase
+          .from('reservas')
+          .select('checkin, checkout')
+          .eq('unidad', unitId)
+          .eq('status', 'confirmed')
+          .gte('checkout', today),
+      ]);
+
+      if (extRes.error) console.warn('[VRM] public_availability:', extRes.error.message);
+      if (dirRes.error) console.warn('[VRM] reservas:', dirRes.error.message);
 
       const blocked = new Set();
-      (data || []).forEach(b => {
-        let cur = b.check_in;
-        while (cur < b.check_out) {
-          blocked.add(cur);
-          cur = _nextDayStr(cur);
-        }
-      });
+      const addRange = (ci, co) => {
+        if (!ci || !co) return;
+        let cur = ci;
+        while (cur < co) { blocked.add(cur); cur = _nextDayStr(cur); }
+      };
+      (extRes.data || []).forEach(b => addRange(b.check_in, b.check_out));
+      (dirRes.data || []).forEach(r => addRange(r.checkin, r.checkout));
+
       window.availabilityCache[unitId] = { blocked, ts: Date.now() };
-      console.log(`[VRM] Loaded ${blocked.size} blocked days for ${unitId}`);
+      console.log(`[VRM] ${blocked.size} días bloqueados en ${unitId} (Airbnb + directas)`);
       return blocked;
     } catch (e) {
       console.warn('[VRM] loadAvailability exception:', e.message);
