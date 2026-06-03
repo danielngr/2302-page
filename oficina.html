@@ -559,20 +559,20 @@ function deskCore(p){const g=new THREE.Group();
   const cm=M.chair;const seat=box(.78,.12,.78,cm);seat.position.set(0,.58,.8);const back=box(.78,.85,.12,cm);back.position.set(0,1.0,1.15);
   const post=box(.1,.55,.1,M.deskLeg);post.position.set(0,.3,.8);g.add(seat,back,post);
   monitors[p.id]=sm;g.add(deskLamp());
-  const plate=deskPlate(p);plate.position.set(0,1.17,-0.52);plate.rotation.y=Math.PI;g.add(plate);
+  const plate=deskPlate(p);plate.position.set(0,1.21,-0.52);plate.rotation.y=Math.PI;g.add(plate);
   return g;}
 const plates={};
 function deskPlate(p){
-  const W=340,H=92,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
-  const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;tex.wrapS=THREE.RepeatWrapping;tex.repeat.x=-1;tex.offset.x=1; // des-espeja al mirar desde -z
+  const W=460,H=124,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
+  const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;
   function draw(col){
-    x.clearRect(0,0,W,H);rr(x,3,3,W-6,H-6,13);x.fillStyle='#211d18';x.fill();x.lineWidth=2;x.strokeStyle='rgba(255,255,255,.09)';x.stroke();
-    x.beginPath();x.arc(30,H/2,8,0,7);x.shadowColor=col;x.shadowBlur=11;x.fillStyle=col;x.fill();x.shadowBlur=0;
-    x.fillStyle='#e8e0d2';x.font='700 32px "JetBrains Mono",monospace';x.textAlign='left';x.textBaseline='middle';x.fillText((p.nombre||'').toUpperCase(),52,H/2+2);
+    x.clearRect(0,0,W,H);rr(x,4,4,W-8,H-8,16);x.fillStyle='#211d18';x.fill();x.lineWidth=2.5;x.strokeStyle='rgba(255,255,255,.1)';x.stroke();
+    x.beginPath();x.arc(38,H/2,12,0,7);x.shadowColor=col;x.shadowBlur=14;x.fillStyle=col;x.fill();x.shadowBlur=0;
+    x.fillStyle='#ece4d6';x.font='700 46px "JetBrains Mono",monospace';x.textAlign='left';x.textBaseline='middle';x.fillText((p.nombre||'').toUpperCase(),66,H/2+3);
     tex.needsUpdate=true;
   }
-  const c0=hex(EST[p.estado].color);draw(c0);if(document.fonts)document.fonts.ready.then(()=>draw(hex(EST[p.estado].color)));
-  const m=new THREE.Mesh(new THREE.PlaneGeometry(0.96,0.26),new THREE.MeshBasicMaterial({map:tex,transparent:true}));
+  draw(hex(EST[p.estado].color));if(document.fonts)document.fonts.ready.then(()=>draw(hex(EST[p.estado].color)));
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(1.34,0.36),new THREE.MeshBasicMaterial({map:tex,transparent:true}));
   m.userData.redraw=draw;plates[p.id]=m;return m;}
 function buildCubicle(p){const g=deskCore(p),pH=1.55,am=accentMat(p.acento);
   const bH=1.95,bZ=1.85; // mampara trasera más alta y empujada atrás (el mono ya no la traspasa)
