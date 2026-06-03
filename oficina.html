@@ -395,8 +395,8 @@ let REGISTROS=[], REG_LOADED=false, REG_ERR=null;
 async function loadRegistros(){
   const {url,key}=CONFIG.supabase; if(!url||!key){REG_ERR='nokey';return;}
   try{
-    const hoy=new Date();const d0=new Date(hoy);d0.setDate(hoy.getDate()-2);const d1=new Date(hoy);d1.setDate(hoy.getDate()+6);
-    const desde=d0.toISOString().split('T')[0], hasta=d1.toISOString().split('T')[0];
+    const hoy=new Date();const d1=new Date(hoy);d1.setDate(hoy.getDate()+6);
+    const desde=hoy.toISOString().split('T')[0], hasta=d1.toISOString().split('T')[0];
     const fields='id,depto,nombre,fecha_entrada,fecha_salida,num_adultos,num_menores,pdf_generado,tipo_formato,frakcio_enviado,maritima_enviado,telefono,email';
     const H={apikey:key,Authorization:'Bearer '+key};
     const [res,resC]=await Promise.all([
@@ -445,7 +445,7 @@ function registrosPanelHTML(){
       const noches=r._noches!=null?` · ${r._noches}n`:'';
       html+=`<div class="rrow"><div class="rl"><span class="rdep">${r._depto}</span><span class="rgu">${r.nombre||'—'}</span></div><div class="rr"><span class="rt">${TIPO_LABEL[r._tipo]||r._tipo}${noches}</span>${badge}</div></div>`;
     });
-  });}else{html+=`<div class="rnote">Sin check-ins entre −2 y +6 días.</div>`;}
+  });}else{html+=`<div class="rnote">Sin check-ins de hoy en adelante.</div>`;}
   html+=`<div class="rmind"><div class="rmh">📨 Recordatorio · huésped sin registro</div><div class="rmtxt">${REMINDER_MSG}</div><button class="rmbtn" onclick="VRM.copiarRecordatorio()">Copiar mensaje</button><div class="rmnote">El link por depa (registro.html?dept=) se adjunta solo cuando conectemos tu hoja de reservas para detectar llegadas que aún no llenaron el formulario.</div></div>`;
   return html;
 }
@@ -558,7 +558,22 @@ function deskCore(p){const g=new THREE.Group();
   const scr=new THREE.Mesh(new THREE.PlaneGeometry(1.32,.78),sm);scr.position.set(0,1.72,-.255);scr.rotation.y=Math.PI;g.add(scr);
   const cm=M.chair;const seat=box(.78,.12,.78,cm);seat.position.set(0,.58,.8);const back=box(.78,.85,.12,cm);back.position.set(0,1.0,1.15);
   const post=box(.1,.55,.1,M.deskLeg);post.position.set(0,.3,.8);g.add(seat,back,post);
-  monitors[p.id]=sm;g.add(deskLamp());return g;}
+  monitors[p.id]=sm;g.add(deskLamp());
+  const plate=deskPlate(p);plate.position.set(0,1.17,-0.52);plate.rotation.y=Math.PI;g.add(plate);
+  return g;}
+const plates={};
+function deskPlate(p){
+  const W=340,H=92,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
+  const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;tex.wrapS=THREE.RepeatWrapping;tex.repeat.x=-1;tex.offset.x=1; // des-espeja al mirar desde -z
+  function draw(col){
+    x.clearRect(0,0,W,H);rr(x,3,3,W-6,H-6,13);x.fillStyle='#211d18';x.fill();x.lineWidth=2;x.strokeStyle='rgba(255,255,255,.09)';x.stroke();
+    x.beginPath();x.arc(30,H/2,8,0,7);x.shadowColor=col;x.shadowBlur=11;x.fillStyle=col;x.fill();x.shadowBlur=0;
+    x.fillStyle='#e8e0d2';x.font='700 32px "JetBrains Mono",monospace';x.textAlign='left';x.textBaseline='middle';x.fillText((p.nombre||'').toUpperCase(),52,H/2+2);
+    tex.needsUpdate=true;
+  }
+  const c0=hex(EST[p.estado].color);draw(c0);if(document.fonts)document.fonts.ready.then(()=>draw(hex(EST[p.estado].color)));
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(0.96,0.26),new THREE.MeshBasicMaterial({map:tex,transparent:true}));
+  m.userData.redraw=draw;plates[p.id]=m;return m;}
 function buildCubicle(p){const g=deskCore(p),pH=1.55,am=accentMat(p.acento);
   const bH=1.95,bZ=1.85; // mampara trasera más alta y empujada atrás (el mono ya no la traspasa)
   const back=box(2.7,bH,0.12,M.panel);back.position.set(0,bH/2,bZ);const br=box(2.7,0.1,0.16,am);br.position.set(0,bH,bZ);
@@ -614,7 +629,7 @@ function actNotif(id){
   if(id==='reg-pend'||id==='reg-corta'){openModule('registros');document.getElementById('notifs').classList.remove('open');return;}
   NOTIFS=NOTIFS.filter(x=>x.id!==id);renderNotifs();
 }
-function setEstado(id,e){const p=CONFIG.equipo.find(x=>x.id===id);if(!p)return;p.estado=e;const d=document.getElementById('sdot-'+id);if(d)d.style.color=hex(EST[e].color);if(monitors[id])monitors[id].emissive.setHex(EST[e].color);}
+function setEstado(id,e){const p=CONFIG.equipo.find(x=>x.id===id);if(!p)return;p.estado=e;if(monitors[id])monitors[id].emissive.setHex(EST[e].color);if(plates[id]&&plates[id].userData.redraw)plates[id].userData.redraw(hex(EST[e].color));}
 
 /* ── UI 2D ── */
 function renderDock(bump){let dock=document.querySelector('.dock');if(!dock){dock=document.createElement('div');dock.className='dock';document.getElementById('app').appendChild(dock);}
@@ -648,7 +663,6 @@ function placeCharacter(p,source,clips){let model,mixer=null;
   const home=new THREE.Vector3(p.x,0,p.z+(sit?0.7:1.0));model.position.copy(home);
   model.rotation.y=p.recepcion?CONFIG.mirada-0.25:CONFIG.mirada;
   office.add(model);
-  const lab=agentLabel(p);lab.position.set(0,1.95/sc,0);model.add(lab);
   agents[p.id]={p,model,mixer,clips:clips||[],home,homeRot:model.rotation.y,formed:false,urgente:false,slot:null,target:null,faceOnArrive:0,arriveAnim:sit?'sit':'idle'};
   playAnim(agents[p.id],sit?'sit':'idle');
 }
@@ -674,7 +688,7 @@ function openModule(key){const m=MODULES.find(x=>x.key===key);if(!m)return;
       <div class="mhd"><span class="mdot" style="color:${hex(m.color)}"></span><h2>Registros</h2></div>
       <div class="mkey">Agente · check-in digital</div>
       <div class="regwrap">${registrosPanelHTML()}</div>
-      <div class="mnote">Lee tu tabla <b>registros_checkin</b> en vivo (ventana −2 a +6 días). El tipo de envío se detecta por depa; generar/enviar automático (PDF, Frakcio, mensaje) se conecta en la siguiente capa.</div>`;
+      <div class="mnote">Lee tu tabla <b>registros_checkin</b> en vivo (de hoy en adelante, hasta +6 días). El tipo de envío se detecta por depa; generar/enviar automático (PDF, Frakcio, mensaje) se conecta en la siguiente capa.</div>`;
     document.getElementById('modalBg').classList.add('open');p.classList.add('open');
     if(!REG_LOADED&&REG_ERR!=='nokey'){loadRegistros().then(()=>{if(p.classList.contains('open'))openModule('registros');});}
     return;
