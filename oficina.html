@@ -153,6 +153,9 @@
   .rmtxt{font-size:11.5px;color:var(--muted);line-height:1.5;background:rgba(255,255,255,.6);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
   .rmbtn{margin-top:8px;border:0;cursor:pointer;font-family:var(--font-display);font-weight:700;font-size:12px;padding:9px 14px;border-radius:10px;background:linear-gradient(160deg,var(--terra-soft),var(--terra));color:#fff}
   .rmnote{margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--dim);line-height:1.5}
+  .rrow.sinr{border-color:rgba(224,122,62,.35);background:rgba(224,122,62,.06)}
+  .abtn{border:0;cursor:pointer;font-family:var(--font-display);font-weight:700;font-size:11px;padding:7px 12px;border-radius:9px;background:linear-gradient(160deg,var(--terra-soft),var(--terra));color:#fff;white-space:nowrap}
+  .abtn:hover{filter:brightness(1.06)}
 </style>
 </head>
 <body>
@@ -411,14 +414,31 @@ async function loadRegistros(){
   }catch(e){REG_ERR=e.message;console.warn('registros',e);}
 }
 const _hoyStr=()=>new Date().toISOString().split('T')[0];
+const _tomStr=()=>{const t=new Date();t.setDate(t.getDate()+1);return t.toISOString().split('T')[0];};
+let RESERVAS=[], RES_LOADED=false;
+async function loadReservas(){
+  const {url,key}=CONFIG.supabase; if(!url||!key)return;
+  try{
+    const hoy=new Date();const d1=new Date(hoy);d1.setDate(hoy.getDate()+6);
+    const desde=hoy.toISOString().split('T')[0], hasta=d1.toISOString().split('T')[0];
+    const res=await fetch(`${url}/rest/v1/reservas_ical?select=codigo,depto,fecha_entrada,fecha_salida,tel4,url&fecha_entrada=gte.${desde}&fecha_entrada=lte.${hasta}&order=fecha_entrada.asc`,{headers:{apikey:key,Authorization:'Bearer '+key}});
+    if(res.ok){RESERVAS=await res.json();RES_LOADED=true;evaluarRegistros();}
+  }catch(e){console.warn('reservas_ical',e);}
+}
+function normD(s){return (s||'').toUpperCase().replace(/\s+/g,' ').trim();}
+function tieneRegistro(r){const rd=normD(r.depto);return REGISTROS.some(x=>{const xd=normD(x.depto);return x.fecha_entrada===r.fecha_entrada&&(xd===rd||xd.startsWith(rd)||rd.startsWith(xd));});}
+function sinRegistro(){return RESERVAS.filter(r=>!tieneRegistro(r));}
+function nudge(url){try{navigator.clipboard.writeText(REMINDER_MSG);}catch(e){}toast('Mensaje copiado · pégalo en el chat');window.open(url,'_blank');}
 function regStats(){let total=0,env=0,pendHoy=0,cortas=0,listos=0;const h=_hoyStr();REGISTROS.forEach(r=>{total++;if(r._enviado)env++;if(r._corta&&!r._enviado)cortas++;if(!r._enviado&&r.fecha_entrada<=h&&r._tipo!=='manual'&&!r._corta)pendHoy++;if(!r._enviado&&!r._corta&&(r._tipo==='pdf'||r._tipo==='correo'))listos++;});return{total,env,pend:total-env,pendHoy,cortas,listos};}
 function evaluarRegistros(){
   if(REG_ERR||!REG_LOADED)return;const s=regStats();
-  NOTIFS=NOTIFS.filter(n=>n.id!=='reg-pend'&&n.id!=='reg-corta');
+  const srU = RES_LOADED ? sinRegistro().filter(r=>r.fecha_entrada<=_tomStr()) : [];
+  NOTIFS=NOTIFS.filter(n=>n.id!=='reg-pend'&&n.id!=='reg-corta'&&n.id!=='reg-sinreg');
   if(s.pendHoy>0)ensureNotif({id:'reg-pend',persona:'registros',color:0xE0563E,titulo:'⚠ '+s.pendHoy+' registro(s) pendientes HOY',detalle:'Check-in de hoy sin enviar · emergencia (push)',accion:'Ver'});
   if(s.cortas>0)ensureNotif({id:'reg-corta',persona:'registros',color:0xE0A23E,titulo:s.cortas+' registro(s) de 1 noche',detalle:'Posible error de fecha del huésped · revisa en el portal',accion:'Ver'});
+  if(srU.length)ensureNotif({id:'reg-sinreg',persona:'registros',color:0xE0A23E,titulo:srU.length+' huésped(es) sin registro',detalle:'Llegan hoy/mañana · recuérdales llenar el formulario',accion:'Ver'});
   if(s.pendHoy>0){setEstado('registros','aprobacion');formUp('registros',true);}
-  else if(s.cortas>0){setEstado('registros','aprobacion');formUp('registros',false);}
+  else if(s.cortas>0||srU.length){setEstado('registros','aprobacion');formUp('registros',false);}
   else{setEstado('registros','trabajando');standDown('registros');}
   renderNotifs();
   if(document.getElementById('modpanel').classList.contains('open'))openModule('registros');
@@ -446,7 +466,19 @@ function registrosPanelHTML(){
       html+=`<div class="rrow"><div class="rl"><span class="rdep">${r._depto}</span><span class="rgu">${r.nombre||'—'}</span></div><div class="rr"><span class="rt">${TIPO_LABEL[r._tipo]||r._tipo}${noches}</span>${badge}</div></div>`;
     });
   });}else{html+=`<div class="rnote">Sin check-ins de hoy en adelante.</div>`;}
-  html+=`<div class="rmind"><div class="rmh">📨 Recordatorio · huésped sin registro</div><div class="rmtxt">${REMINDER_MSG}</div><button class="rmbtn" onclick="VRM.copiarRecordatorio()">Copiar mensaje</button><div class="rmnote">El link por depa (registro.html?dept=) se adjunta solo cuando conectemos tu hoja de reservas para detectar llegadas que aún no llenaron el formulario.</div></div>`;
+  const sr = RES_LOADED ? sinRegistro() : [];
+  if(sr.length){
+    html+=`<div class="rday" style="color:#b5571f">Sin registro · recuérdales (${sr.length})</div>`;
+    sr.forEach(r=>{
+      const lbl=r.fecha_entrada===h?'hoy':r.fecha_entrada===tmStr?'mañana':fmtDia(r.fecha_entrada);
+      html+=`<div class="rrow sinr"><div class="rl"><span class="rdep">${displayDepto(r.depto)}</span><span class="rgu">llega ${lbl}${r.tel4?` · …${r.tel4}`:''}</span></div><div class="rr"><button class="abtn" onclick="VRM.nudge('${r.url}')">Abrir chat ✈</button></div></div>`;
+    });
+  } else if(RES_LOADED){
+    html+=`<div class="rmnote" style="text-align:center;padding:10px 2px">Todas las llegadas próximas ya tienen registro ✦</div>`;
+  } else {
+    html+=`<div class="rmnote" style="text-align:center;padding:10px 2px">Conecta el sync de iCal (tabla <b>reservas_ical</b>) para detectar llegadas sin registro.</div>`;
+  }
+  html+=`<div class="rmind"><div class="rmh">📨 Mensaje que se copia al abrir el chat</div><div class="rmtxt">${REMINDER_MSG}</div></div>`;
   return html;
 }
 function cabinetPaper(name,color){
@@ -626,7 +658,7 @@ function renderNotifs(){
 }
 function actNotif(id){
   const n=NOTIFS.find(x=>x.id===id);if(!n)return;
-  if(id==='reg-pend'||id==='reg-corta'){openModule('registros');document.getElementById('notifs').classList.remove('open');return;}
+  if(id==='reg-pend'||id==='reg-corta'||id==='reg-sinreg'){openModule('registros');document.getElementById('notifs').classList.remove('open');return;}
   NOTIFS=NOTIFS.filter(x=>x.id!==id);renderNotifs();
 }
 function setEstado(id,e){const p=CONFIG.equipo.find(x=>x.id===id);if(!p)return;p.estado=e;if(monitors[id])monitors[id].emissive.setHex(EST[e].color);if(plates[id]&&plates[id].userData.redraw)plates[id].userData.redraw(hex(EST[e].color));}
@@ -679,6 +711,7 @@ CONFIG.equipo.forEach(p=>{
 renderNotifs();
 document.getElementById('bell').addEventListener('click',()=>document.getElementById('notifs').classList.toggle('open'));
 loadRegistros(); // ← lee tus check-ins reales y pone al mono de Registros en su estado
+loadReservas();  // ← lee reservas_ical (sync) para detectar llegadas sin registro
 
 /* ── clic en archiveros → panel de módulo ── */
 function openModule(key){const m=MODULES.find(x=>x.key===key);if(!m)return;
@@ -743,7 +776,7 @@ const clk=new THREE.Clock();
   controls.update();renderer.render(scene,camera);labelRenderer.render(scene,camera);})();
 addEventListener('resize',()=>{sizeCamera();renderer.setSize(innerWidth,innerHeight);labelRenderer.setSize(innerWidth,innerHeight);});
 renderer.setSize(innerWidth,innerHeight);labelRenderer.setSize(innerWidth,innerHeight);
-window.VRM={setEstado,STATE,renderDock,updateBoards,CONFIG,closeModule,openModule,toast,loadRegistros,copiarRecordatorio,get REGISTROS(){return REGISTROS;}};
+window.VRM={setEstado,STATE,renderDock,updateBoards,CONFIG,closeModule,openModule,toast,loadRegistros,loadReservas,nudge,copiarRecordatorio,get REGISTROS(){return REGISTROS;},get RESERVAS(){return RESERVAS;}};
 </script>
 </body>
 </html>
