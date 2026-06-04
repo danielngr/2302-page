@@ -391,7 +391,7 @@ function correoEnviado(r){const rd=(r.depto||'').toUpperCase().replace(/\s+/g,''
 function esEnviado(r){const t=r._tipo;if(t==='frakcio')return !!r.frakcio_enviado;if(t==='gforms')return !!r.maritima_enviado;if(r.pdf_generado)return true;return correoEnviado(r);}
 function nochesEntre(a,b){if(!a||!b)return null;const d1=new Date(a+'T00:00:00'),d2=new Date(b+'T00:00:00');const n=Math.round((d2-d1)/86400000);return isNaN(n)?null:n;}
 function regLink(depto){return 'https://danielngr.github.io/2302-page/registro.html?dept='+encodeURIComponent((depto||'').toUpperCase().trim());}
-const REMINDER_MSG="Hola 👋 Te recuerdo que aún no has completado el formulario de registro para tu llegada a Punta Mita. Es importante que quede listo al menos 24 horas antes de tu check-in para que no haya problemas con el acceso.";
+const REMINDER_MSG="Hola 👋 Te recuerdo que aún no has completado el formulario de registro para tu llegada. Es importante que quede listo al menos 24 horas antes de tu check-in para que no haya problemas con el acceso.";
 function copiarRecordatorio(){try{navigator.clipboard.writeText(REMINDER_MSG);toast('Recordatorio copiado ✓');}catch(e){toast('Cópialo manualmente desde el panel');}}
 
 let REGISTROS=[], REG_LOADED=false, REG_ERR=null;
@@ -453,6 +453,19 @@ function registrosPanelHTML(){
   const dias=Object.keys(groups).sort();
   let html=`<div class="rsum"><span><b>${s.env}</b>/${s.total} enviados</span><span class="rpill ${s.pend?'on':''}">${s.pend} pendientes</span></div>`;
   if(s.listos||s.cortas){html+=`<div class="rsum2">${s.listos?`<span class="rtag ok">✓ ${s.listos} listos p/ correo</span>`:''}${s.cortas?`<span class="rtag warn">⚠ ${s.cortas} revisar fecha</span>`:''}</div>`;}
+  // ── Sin registro (arriba: es lo accionable) ──
+  const _p3=new Date();_p3.setDate(_p3.getDate()+3);const p3=_p3.toISOString().split('T')[0];
+  const sr = RES_LOADED ? sinRegistro().filter(r=>r.fecha_entrada<=p3) : [];
+  if(sr.length){
+    html+=`<div class="rday" style="color:#b5571f">Sin registro · recuérdales (${sr.length})</div>`;
+    sr.forEach(r=>{
+      const lbl=r.fecha_entrada===h?'hoy':r.fecha_entrada===tmStr?'mañana':fmtDia(r.fecha_entrada);
+      html+=`<div class="rrow sinr"><div class="rl"><span class="rdep">${displayDepto(r.depto)}</span><span class="rgu">llega ${lbl}${r.tel4?` · …${r.tel4}`:''}</span></div><div class="rr"><button class="abtn" onclick="VRM.nudge('${r.url}')">Abrir chat ✈</button></div></div>`;
+    });
+  } else if(RES_LOADED){
+    html+=`<div class="rmnote" style="text-align:left;padding:6px 2px 2px">Llegadas próximas: todas con registro ✦</div>`;
+  }
+  // ── Check-ins ya llenados ──
   if(dias.length){dias.forEach(d=>{
     const lbl=d===h?'Hoy':d===tmStr?'Mañana':fmtDia(d);
     html+=`<div class="rday">${lbl}</div>`;
@@ -466,19 +479,6 @@ function registrosPanelHTML(){
       html+=`<div class="rrow"><div class="rl"><span class="rdep">${r._depto}</span><span class="rgu">${r.nombre||'—'}</span></div><div class="rr"><span class="rt">${TIPO_LABEL[r._tipo]||r._tipo}${noches}</span>${badge}</div></div>`;
     });
   });}else{html+=`<div class="rnote">Sin check-ins de hoy en adelante.</div>`;}
-  const _p3=new Date();_p3.setDate(_p3.getDate()+3);const p3=_p3.toISOString().split('T')[0];
-  const sr = RES_LOADED ? sinRegistro().filter(r=>r.fecha_entrada<=p3) : [];
-  if(sr.length){
-    html+=`<div class="rday" style="color:#b5571f">Sin registro · recuérdales (${sr.length})</div>`;
-    sr.forEach(r=>{
-      const lbl=r.fecha_entrada===h?'hoy':r.fecha_entrada===tmStr?'mañana':fmtDia(r.fecha_entrada);
-      html+=`<div class="rrow sinr"><div class="rl"><span class="rdep">${displayDepto(r.depto)}</span><span class="rgu">llega ${lbl}${r.tel4?` · …${r.tel4}`:''}</span></div><div class="rr"><button class="abtn" onclick="VRM.nudge('${r.url}')">Abrir chat ✈</button></div></div>`;
-    });
-  } else if(RES_LOADED){
-    html+=`<div class="rmnote" style="text-align:center;padding:10px 2px">Todas las llegadas próximas ya tienen registro ✦</div>`;
-  } else {
-    html+=`<div class="rmnote" style="text-align:center;padding:10px 2px">Conecta el sync de iCal (tabla <b>reservas_ical</b>) para detectar llegadas sin registro.</div>`;
-  }
   html+=`<div class="rmind"><div class="rmh">📨 Mensaje que se copia al abrir el chat</div><div class="rmtxt">${REMINDER_MSG}</div></div>`;
   return html;
 }
