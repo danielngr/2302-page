@@ -426,7 +426,7 @@ async function loadReservas(){
   }catch(e){console.warn('reservas_ical',e);}
 }
 function normD(s){return (s||'').toUpperCase().replace(/\s+/g,' ').trim();}
-function tieneRegistro(r){const rd=normD(r.depto);return REGISTROS.some(x=>{const xd=normD(x.depto);return x.fecha_entrada===r.fecha_entrada&&(xd===rd||xd.startsWith(rd)||rd.startsWith(xd));});}
+function tieneRegistro(r){const rd=normD(displayDepto(r.depto));return REGISTROS.some(x=>{const xd=normD(displayDepto(x.depto));return x.fecha_entrada===r.fecha_entrada&&(xd===rd||xd.startsWith(rd)||rd.startsWith(xd));});}
 function sinRegistro(){return RESERVAS.filter(r=>!tieneRegistro(r));}
 function nudge(url){try{navigator.clipboard.writeText(REMINDER_MSG);}catch(e){}toast('Mensaje copiado · pégalo en el chat');window.open(url,'_blank');}
 function regStats(){let total=0,env=0,pendHoy=0,cortas=0,listos=0;const h=_hoyStr();REGISTROS.forEach(r=>{total++;if(r._enviado)env++;if(r._corta&&!r._enviado)cortas++;if(!r._enviado&&r.fecha_entrada<=h&&r._tipo!=='manual'&&!r._corta)pendHoy++;if(!r._enviado&&!r._corta&&(r._tipo==='pdf'||r._tipo==='correo'))listos++;});return{total,env,pend:total-env,pendHoy,cortas,listos};}
@@ -466,7 +466,8 @@ function registrosPanelHTML(){
       html+=`<div class="rrow"><div class="rl"><span class="rdep">${r._depto}</span><span class="rgu">${r.nombre||'—'}</span></div><div class="rr"><span class="rt">${TIPO_LABEL[r._tipo]||r._tipo}${noches}</span>${badge}</div></div>`;
     });
   });}else{html+=`<div class="rnote">Sin check-ins de hoy en adelante.</div>`;}
-  const sr = RES_LOADED ? sinRegistro() : [];
+  const _p3=new Date();_p3.setDate(_p3.getDate()+3);const p3=_p3.toISOString().split('T')[0];
+  const sr = RES_LOADED ? sinRegistro().filter(r=>r.fecha_entrada<=p3) : [];
   if(sr.length){
     html+=`<div class="rday" style="color:#b5571f">Sin registro · recuérdales (${sr.length})</div>`;
     sr.forEach(r=>{
