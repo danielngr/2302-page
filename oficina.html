@@ -136,9 +136,10 @@
   .rrow .rl{display:flex;flex-direction:column;gap:2px;min-width:0}
   .rrow .rdep{font-family:var(--font-display);font-weight:700;font-size:13px;color:#2a2018;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .rrow .rgu{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .rrow .rr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:0 0 auto}
+  .rrow .rr{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto}
   .rrow .rt{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.04em;color:var(--dim);text-transform:uppercase}
-  .rb{font-family:var(--font-mono);font-size:10px;font-weight:600;padding:3px 9px;border-radius:999px}
+  .rrow .rtipo{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.04em;color:var(--dim);text-transform:uppercase;margin-top:3px;white-space:nowrap}
+  .rb{font-family:var(--font-mono);font-size:10px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
   .rb.ok{background:rgba(31,169,104,.14);color:#1FA968}
   .rb.pend{background:rgba(224,162,62,.16);color:#b5571f}
   .rb.man{background:rgba(0,0,0,.05);color:var(--muted)}
@@ -390,9 +391,12 @@ const REG_ALIAS = {'ARIA 1001':'ARIA PH 1001','ARIA PH':'ARIA PH 1001','ALAMAR 1
 function getTipo(depto){let d=(depto||"").toUpperCase().trim();if(REG_ALIAS[d])d=REG_ALIAS[d];const k=Object.keys(TMPL).find(k=>d.startsWith(k));return k?TMPL[k].tipo:"general";}
 function displayDepto(depto){const d=(depto||"").toUpperCase().trim();return REG_ALIAS[d]||(depto||"—");}
 const TIPO_LABEL={pdf:"PDF · correo",correo:"Correo",frakcio:"QR Frakcio",gforms:"Google Form",whatsapp:"Mensaje WA",manual:"Manual",general:"—"};
-let CORREOS=[];
+let CORREOS=[],FRQR=[],CFV=[];
 function correoEnviado(r){const rd=(r.depto||'').toUpperCase().replace(/\s+/g,'');return CORREOS.some(c=>c.enviado&&c.fecha===r.fecha_entrada&&(()=>{const cd=(c.depto||'').toUpperCase().replace(/\s+/g,'');return cd&&(rd.includes(cd)||cd.includes(rd));})());}
-function esEnviado(r){return !!r.pdf_generado||correoEnviado(r);}
+function _matchDF(arr,r,flag){const rd=(r.depto||'').toUpperCase().replace(/\s+/g,'');return arr.some(x=>{if(flag&&!x[flag])return false;if(x.fecha!==r.fecha_entrada)return false;const xd=(x.depto||'').toUpperCase().replace(/\s+/g,'');return xd&&(rd.includes(xd)||xd.includes(rd));});}
+function qrEnviado(r){return _matchDF(FRQR,r,'qr_enviado');}
+function cfEnviado(r){return _matchDF(CFV,r,null);}
+function esEnviado(r){if(esComunidad(r.depto))return cfEnviado(r)||!!r.pdf_generado;if(esFrakcioQR(r.depto))return qrEnviado(r)||!!r.frakcio_enviado||!!r.pdf_generado;if(r._tipo==='gforms')return !!r.maritima_enviado||!!r.pdf_generado;return !!r.pdf_generado||correoEnviado(r);}
 function nochesEntre(a,b){if(!a||!b)return null;const d1=new Date(a+'T00:00:00'),d2=new Date(b+'T00:00:00');const n=Math.round((d2-d1)/86400000);return isNaN(n)?null:n;}
 function regLink(depto){return 'https://danielngr.github.io/2302-page/registro.html?dept='+encodeURIComponent((depto||'').toUpperCase().trim());}
 const REMINDER_MSG="Hola 👋 Te recuerdo que aún no has completado el formulario de registro para tu llegada. Es importante que quede listo al menos 24 horas antes de tu check-in para que no haya problemas con el acceso.";
@@ -444,12 +448,16 @@ async function loadRegistros(){
     const desde=hoy.toISOString().split('T')[0], hasta=d1.toISOString().split('T')[0];
     const fields='id,depto,nombre,fecha_entrada,fecha_salida,num_adultos,num_menores,ocupantes,pdf_generado,tipo_formato,frakcio_enviado,maritima_enviado,telefono,email';
     const H={apikey:key,Authorization:'Bearer '+key};
-    const [res,resC]=await Promise.all([
+    const [res,resC,resF,resV]=await Promise.all([
       fetch(`${url}/rest/v1/registros_checkin?select=${fields}&fecha_entrada=gte.${desde}&fecha_entrada=lte.${hasta}&order=fecha_entrada.asc,created_at.desc`,{headers:H}),
-      fetch(`${url}/rest/v1/correos_enviados?select=depto,fecha,enviado&fecha=gte.${desde}`,{headers:H}).catch(()=>null)
+      fetch(`${url}/rest/v1/correos_enviados?select=depto,fecha,enviado&fecha=gte.${desde}`,{headers:H}).catch(()=>null),
+      fetch(`${url}/rest/v1/frakcio_qr?select=depto,fecha,qr_enviado&fecha=gte.${desde}`,{headers:H}).catch(()=>null),
+      fetch(`${url}/rest/v1/comunidad_visitas?select=depto,fecha&fecha=gte.${desde}`,{headers:H}).catch(()=>null)
     ]);
     if(!res.ok)throw new Error('HTTP '+res.status);
     CORREOS=(resC&&resC.ok)?await resC.json():[];
+    FRQR=(resF&&resF.ok)?await resF.json():[];
+    CFV=(resV&&resV.ok)?await resV.json():[];
     const rows=await res.json();
     REGISTROS=rows.map(r=>{r._tipo=(r.tipo_formato&&r.tipo_formato!=='general')?r.tipo_formato:getTipo(r.depto);r._depto=displayDepto(r.depto);r._enviado=esEnviado(r);r._noches=nochesEntre(r.fecha_entrada,r.fecha_salida);r._corta=(r._noches!=null&&r._noches<=1);return r;});
     REG_LOADED=true;REG_ERR=null;evaluarRegistros();
@@ -494,14 +502,15 @@ function entradasUnificadas(){
   return [...map.values()];
 }
 function _rowU(e){
-  const reg=e.reg;let badge,sub,btn='';
-  if(!reg){badge='<span class="rb sinreg">Pendiente de registro</span>';sub=`llega${e.tel4?` · …${e.tel4}`:''}`;btn=e.url?`<button class="lbtn" onclick="VRM.nudge('${e.url}')">Abrir chat ✈</button>`:'';}
-  else if(reg._corta&&!reg._enviado){badge='<span class="rb warn">⚠ Revisar fecha</span>';sub=reg.nombre||'—';btn=esQR(reg.depto)?`<button class="lbtn" onclick="VRM.enviarQR('${reg.id}')">QR ✈</button>`:'';}
-  else if(reg._enviado){badge='<span class="rb ok">Enviado</span>';sub=reg.nombre||'—';}
-  else if(reg._tipo==='manual'){badge='<span class="rb man">Manual</span>';sub=reg.nombre||'—';}
-  else{badge='<span class="rb pend">Pendiente por enviar</span>';sub=reg.nombre||'—';btn=esQR(reg.depto)?`<button class="lbtn" onclick="VRM.enviarQR('${reg.id}')">QR ✈</button>`:'';}
+  const reg=e.reg;let badge,btn='';
+  if(!reg){badge='<span class="rb sinreg">Sin registro</span>';btn=e.url?`<button class="lbtn" onclick="VRM.nudge('${e.url}')">Abrir chat ✈</button>`:'';}
+  else if(reg._corta&&!reg._enviado){badge='<span class="rb warn">Revisar fecha</span>';btn=esQR(reg.depto)?`<button class="lbtn" onclick="VRM.enviarQR('${reg.id}')">QR ✈</button>`:'';}
+  else if(reg._enviado){badge='<span class="rb ok">Enviado</span>';}
+  else if(reg._tipo==='manual'){badge='<span class="rb man">Manual</span>';}
+  else{badge='<span class="rb pend">Por enviar</span>';btn=esQR(reg.depto)?`<button class="lbtn" onclick="VRM.enviarQR('${reg.id}')">QR ✈</button>`:'';}
+  const nombre=reg?(reg.nombre||'—'):`llega${e.tel4?` · …${e.tel4}`:''}`;
   const tipo=reg?`${TIPO_LABEL[reg._tipo]||reg._tipo}${reg._noches!=null?` · ${reg._noches}n`:''}`:'';
-  return `<div class="rrow ${!reg?'sinr':''}"><div class="rl"><span class="rdep">${e.depto}</span><span class="rgu">${sub}</span></div><div class="rr">${tipo?`<span class="rt">${tipo}</span>`:''}${badge}${btn}</div></div>`;
+  return `<div class="rrow ${!reg?'sinr':''}"><div class="rl"><span class="rdep">${e.depto}</span><span class="rgu">${nombre}</span>${tipo?`<span class="rtipo">${tipo}</span>`:''}</div><div class="rr">${badge}${btn}</div></div>`;
 }
 function registrosPanelHTML(){
   if(REG_ERR==='nokey')return `<div class="rnote">Falta tu <b>SUPABASE_URL</b> y <b>anon key</b> en CONFIG.supabase.</div>`;
