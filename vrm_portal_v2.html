@@ -4333,16 +4333,30 @@
                     : (reg ? (reg.tipo_formato || tmplTipo) : tmplTipo);
 
                 if(getComunidadProperty(depto)){
-                    // ComunidadFeliz (BOLONGO) — registrar visita
-                    if(reg && reg.id) {
-                        const done=reg.pdf_generado;
+                    // ComunidadFeliz (BOLONGO) — buscar registro del huésped de forma
+                    // flexible: ignora guiones/espacios (G13 == G-13) y tolera ±1 día.
+                    const normCF = s => (s||'').toUpperCase().replace(/[-\s]+/g,'').trim();
+                    const dCF = normCF(depto);
+                    let regCF = (reg && reg.id) ? reg : null;
+                    if(!regCF){
+                        const cands = (todosRegistros||[]).filter(x=>{
+                            const xd = normCF(x.depto);
+                            return xd===dCF || xd.includes(dCF) || dCF.includes(xd);
+                        });
+                        const base = new Date(fiso+'T12:00:00').getTime();
+                        regCF = cands.find(x=>x.fecha_entrada===fiso)
+                             || cands.find(x=> Math.abs(new Date(x.fecha_entrada+'T12:00:00').getTime()-base) <= 86400000)
+                             || null;
+                    }
+                    if(regCF && regCF.id) {
+                        const done=regCF.pdf_generado;
                         if(!done){pend++;totalPend++;}
-                        rowsH += itemHTML(reg);
+                        rowsH += itemHTML(regCF);
                         return;
                     }
                     const cfOk = visitaCFEnviada(depto, fiso);
-                    const tieneReg = reg && reg.nombre;
-                    const guestName = tieneReg ? reg.nombre : null;
+                    const tieneReg = regCF && regCF.nombre;
+                    const guestName = tieneReg ? regCF.nombre : null;
                     const cfBtn = cfOk
                         ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Visita registrada</button>`
                         : tieneReg
