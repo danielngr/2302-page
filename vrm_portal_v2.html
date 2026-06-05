@@ -3940,6 +3940,9 @@
                 const tipo = getTmpl(entrada).tipo;
                 if(tipo === 'manual') {
                     // Manual no cuenta
+                } else if(getComunidadProperty(entrada)) {
+                    // Comunidad Feliz (Bolongo): se marca en comunidad_visitas, no en frakcio_qr
+                    if(!visitaCFEnviada(entrada, fiso)) pendientes++;
                 } else if(tipo === 'frakcio') {
                     const qrRec = (frakcioQR||[]).find(x =>
                         x.depto && x.depto.toUpperCase()===entrada.toUpperCase() && x.fecha===fiso
@@ -4818,6 +4821,8 @@
             const fechaSalida = regSalida ? (regSalida.fecha_salida || fechaISO) : fechaISO;
             const r = await enviarVisitaComunidadFeliz(depto, fechaISO, fechaSalida);
             comunidadVisitas.push({ depto, fecha: fechaISO, qr_url: r.qrUrl || null, invitation_url: r.invitationUrl || null });
+            // Persistir en comunidad_visitas (sobrevive recarga y lo lee la oficina)
+            fetch(`${SUPABASE_URL}/rest/v1/comunidad_visitas`, { method:"POST", keepalive:true, headers:{ "apikey":SUPABASE_KEY, "Authorization":`Bearer ${SUPABASE_KEY}`, "Content-Type":"application/json", "Prefer":"return=minimal" }, body: JSON.stringify({ depto, fecha: fechaISO, qr_url: r.qrUrl||null, invitation_url: r.invitationUrl||null }) }).catch(()=>{});
             if (r.qrUrl)               mostrarModalQR(depto, r.qrUrl);
             else if (r.invitationUrl)  mostrarModalQR(depto, r.invitationUrl);
             else                       toast("✓ Visita registrada (sin URL de QR)");
