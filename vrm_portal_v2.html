@@ -4766,9 +4766,10 @@
     function isoMX(fecha, hora) { return `${fecha}T${hora}:00.000-06:00`; }
     function visitaCFEnviada(depto, fecha) {
         const d = (depto || '').toUpperCase().trim();
+        const near = (a,b)=>{ if(!a||!b) return false; const da=new Date(String(a).slice(0,10)+'T00:00:00'), db=new Date(String(b).slice(0,10)+'T00:00:00'); return Math.abs((da-db)/86400000) <= 1; };
         return (comunidadVisitas || []).some(x => {
             const xd = (x.depto || '').toUpperCase().trim();
-            return x.fecha === fecha && (xd === d || xd.includes(d) || d.includes(xd));
+            return near(x.fecha, fecha) && (xd === d || xd.includes(d) || d.includes(xd));
         });
     }
     async function enviarVisitaComunidadFeliz(depto, fechaEntrada, fechaSalida) {
