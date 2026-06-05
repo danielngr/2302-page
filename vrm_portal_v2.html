@@ -3625,7 +3625,7 @@
         return `${_yy}-${_mm}-${_dd}`;
     }
 
-    let todosRegistros = [], frakcioQR = [], formatoManual = [], correosEnviados = [], frakcioCheckins = [], gformsCheckins = [];
+    let todosRegistros = [], frakcioQR = [], formatoManual = [], correosEnviados = [], frakcioCheckins = [], gformsCheckins = [], comunidadVisitas = [];
     let dispSemanaOffset = 0; // 0=semana actual
     let sheetHoy = 0;
 
@@ -3839,6 +3839,13 @@
                 });
                 correosEnviados = resC.ok ? await resC.json() : [];
             } catch(e) { correosEnviados = []; }
+            // Cargar visitas ComunidadFeliz ya enviadas (anti-duplicados)
+            try {
+                const resCF = await fetch(`${SUPABASE_URL}/rest/v1/comunidad_visitas?select=id,depto,fecha,qr_url,invitation_url&fecha=gte.${desde}`, {
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+                });
+                comunidadVisitas = resCF.ok ? await resCF.json() : [];
+            } catch(e) { comunidadVisitas = []; }
             const recientes = await resReg.json();
             todosRegistros = recientes.map(r => {
                 const m = getTmpl(r.depto||"");
@@ -4106,9 +4113,11 @@
           ? `<button class="btn btn-outline-white" data-idioma-btn="${r.id}" onclick="event.stopPropagation();toggleIdioma('${r.id}')" title="${getIdiomaRegistro(r.id)==='es'?'Idioma: Español (click para EN)':'Language: English (click for ES)'}" style="min-width:44px;font-weight:600;font-size:11px;padding:6px 10px"><i class="ph-bold ph-translate"></i> ${getIdiomaRegistro(r.id).toUpperCase()}</button>`
           : '';
         if(getComunidadProperty(r.depto)) {
-            accion = (r.nombre && r.nombre.trim())
-                ? `<button class="btn btn-outline-yellow" onclick="registrarVisitaCF('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> Registrar visita</button>`
-                : `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
+            accion = visitaCFEnviada(r.depto, r.fecha_entrada||'')
+                ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Visita registrada</button>`
+                : (r.nombre && r.nombre.trim())
+                    ? `<button class="btn btn-outline-yellow" onclick="registrarVisitaCF('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> Registrar visita</button>`
+                    : `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
         } else if(r.pdf_generado) {
             accion=`<div style="display:flex;gap:6px;flex-wrap:wrap">${idiomaBtn}<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Generado</button></div>`;
         } else if(tipoEf==="pdf") {
@@ -4331,18 +4340,21 @@
                         rowsH += itemHTML(reg);
                         return;
                     }
+                    const cfOk = visitaCFEnviada(depto, fiso);
                     const tieneReg = reg && reg.nombre;
                     const guestName = tieneReg ? reg.nombre : null;
-                    const cfBtn = tieneReg
-                        ? `<button class="btn btn-outline-yellow" onclick="registrarVisitaCF('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> Registrar visita</button>`
-                        : `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
-                    rowsH+=`<div class="list-item">
+                    const cfBtn = cfOk
+                        ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Visita registrada</button>`
+                        : tieneReg
+                            ? `<button class="btn btn-outline-yellow" onclick="registrarVisitaCF('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> Registrar visita</button>`
+                            : `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
+                    rowsH+=`<div class="list-item${cfOk?' generado':''}">
                         <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">BOLONGO</span></div>
                         <div class="${guestName?'guest-name':'guest-name guest-empty'}">${guestName||'—'}</div>
                         <div>${cfBtn}</div>
                         <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
                     </div>`;
-                    pend++; totalPend++;
+                    if(!cfOk){ pend++; totalPend++; }
                 } else if(tipo==="correo"){
                     // Si hay registro con datos del huésped, usar itemHTML (con chevron+drawer)
                     if(reg && reg.id) {
@@ -4735,6 +4747,13 @@
         return null;
     }
     function isoMX(fecha, hora) { return `${fecha}T${hora}:00.000-06:00`; }
+    function visitaCFEnviada(depto, fecha) {
+        const d = (depto || '').toUpperCase().trim();
+        return (comunidadVisitas || []).some(x => {
+            const xd = (x.depto || '').toUpperCase().trim();
+            return x.fecha === fecha && (xd === d || xd.includes(d) || d.includes(xd));
+        });
+    }
     async function enviarVisitaComunidadFeliz(depto, fechaEntrada, fechaSalida) {
         const propertyId = getComunidadProperty(depto);
         if (!propertyId) throw new Error(`Depto ${depto} no está en COMUNIDAD_PROPERTY_MAP`);
@@ -4767,7 +4786,7 @@
                 "apikey": SUPABASE_KEY,
                 "Authorization": `Bearer ${SUPABASE_KEY}`,
             },
-            body: JSON.stringify({ input })
+            body: JSON.stringify({ input, depto, fecha: fechaEntrada })
         });
         const out = await fn.json();
         console.log('[ComunidadFeliz]', JSON.stringify(out));
@@ -4784,6 +4803,7 @@
             });
             const fechaSalida = regSalida ? (regSalida.fecha_salida || fechaISO) : fechaISO;
             const r = await enviarVisitaComunidadFeliz(depto, fechaISO, fechaSalida);
+            comunidadVisitas.push({ depto, fecha: fechaISO, qr_url: r.qrUrl || null, invitation_url: r.invitationUrl || null });
             if (r.qrUrl)               mostrarModalQR(depto, r.qrUrl);
             else if (r.invitationUrl)  mostrarModalQR(depto, r.invitationUrl);
             else                       toast("✓ Visita registrada (sin URL de QR)");
