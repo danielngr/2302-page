@@ -393,7 +393,8 @@ function displayDepto(depto){const d=(depto||"").toUpperCase().trim();return REG
 const TIPO_LABEL={pdf:"PDF · correo",correo:"Correo",frakcio:"QR Frakcio",gforms:"Google Form",whatsapp:"Mensaje WA",manual:"Manual",general:"—"};
 let CORREOS=[],FRQR=[],CFV=[];
 function correoEnviado(r){const rd=(r.depto||'').toUpperCase().replace(/\s+/g,'');return CORREOS.some(c=>c.enviado&&c.fecha===r.fecha_entrada&&(()=>{const cd=(c.depto||'').toUpperCase().replace(/\s+/g,'');return cd&&(rd.includes(cd)||cd.includes(rd));})());}
-function _matchDF(arr,r,flag){const rd=(r.depto||'').toUpperCase().replace(/\s+/g,'');return arr.some(x=>{if(flag&&!x[flag])return false;if(x.fecha!==r.fecha_entrada)return false;const xd=(x.depto||'').toUpperCase().replace(/\s+/g,'');return xd&&(rd.includes(xd)||xd.includes(rd));});}
+function _dNear(a,b){if(!a||!b)return false;const da=new Date(String(a).slice(0,10)+'T00:00:00'),db=new Date(String(b).slice(0,10)+'T00:00:00');return Math.abs((da-db)/86400000)<=1;}
+function _matchDF(arr,r,flag){const rd=(r.depto||'').toUpperCase().replace(/\s+/g,'');return arr.some(x=>{if(flag&&!x[flag])return false;if(!_dNear(x.fecha,r.fecha_entrada))return false;const xd=(x.depto||'').toUpperCase().replace(/\s+/g,'');return xd&&(rd.includes(xd)||xd.includes(rd));});}
 function qrEnviado(r){return _matchDF(FRQR,r,'qr_enviado');}
 function cfEnviado(r){return _matchDF(CFV,r,null);}
 function esEnviado(r){if(esComunidad(r.depto))return cfEnviado(r)||!!r.pdf_generado;if(esFrakcioQR(r.depto))return qrEnviado(r)||!!r.frakcio_enviado||!!r.pdf_generado;if(r._tipo==='gforms')return !!r.maritima_enviado||!!r.pdf_generado;return !!r.pdf_generado||correoEnviado(r);}
