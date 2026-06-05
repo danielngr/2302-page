@@ -393,6 +393,44 @@ function nochesEntre(a,b){if(!a||!b)return null;const d1=new Date(a+'T00:00:00')
 function regLink(depto){return 'https://danielngr.github.io/2302-page/registro.html?dept='+encodeURIComponent((depto||'').toUpperCase().trim());}
 const REMINDER_MSG="Hola 👋 Te recuerdo que aún no has completado el formulario de registro para tu llegada. Es importante que quede listo al menos 24 horas antes de tu check-in para que no haya problemas con el acceso.";
 function copiarRecordatorio(){try{navigator.clipboard.writeText(REMINDER_MSG);toast('Recordatorio copiado ✓');}catch(e){toast('Cópialo manualmente desde el panel');}}
+const QR_MSG="Hola, en este enlace encontrarás el QR para que puedan mostrar en la caseta, así como el reglamento del complejo.";
+const COMUNIDAD_PROPERTY_MAP={"BOLONGO 0N":"1877178","BOLONGO 3N":"1877208","BOLONGO 211":"1877310","BOLONGO G13":"1877263","BOLONGO G-13":"1877263","BOLONGO L05":"1877250","BOLONGO L-05":"1877250"};
+function getComunidadProperty(depto){const d=(depto||'').toUpperCase().trim();if(COMUNIDAD_PROPERTY_MAP[d])return COMUNIDAD_PROPERTY_MAP[d];for(const k of Object.keys(COMUNIDAD_PROPERTY_MAP)){if(d.includes(k)||k.includes(d))return COMUNIDAD_PROPERTY_MAP[k];}return null;}
+const FRAKCIO_DEPTOS=["ARIA 812","ARIA 906","ARIA 1001","ARIA PH 1001","ARIA 1010","ARIA 1013","ZANTAMAR","ZANTAMAR 109B","MARITIMA GOLF LW1","MARITIMA GOLF LW1B","MARITIMA GOLF 2M","MARITIMA GOLF 2L","MARITIMA GOLF 5R","BVG 505","BVG B-505","BVG 506","BVG B-506","BVG","BAY VIEW"];
+function esComunidad(depto){return !!getComunidadProperty(depto);}
+function esFrakcioQR(depto){const d=(depto||'').toUpperCase().trim();return FRAKCIO_DEPTOS.some(k=>d===k||d.includes(k)||k.includes(d));}
+function esQR(depto){return esComunidad(depto)||esFrakcioQR(depto);}
+function isoMX(fecha,hora){return `${fecha}T${hora}:00.000-06:00`;}
+function _ocup(r){let o=r.ocupantes;if(typeof o==='string'){try{o=JSON.parse(o||'[]');}catch(e){o=[];}}return Array.isArray(o)?o:[];}
+function findReservaUrl(depto,fecha){const d=normD(depto);const m=RESERVAS.find(r=>{const rd=normD(displayDepto(r.depto));return r.fecha_entrada===fecha&&(rd===d||rd.startsWith(d)||d.startsWith(rd));});return m?m.url:null;}
+function copyTxt(t){try{navigator.clipboard.writeText(t);}catch(e){}}
+async function enviarQR(id){
+  const r=REGISTROS.find(x=>String(x.id)===String(id)); if(!r){toast('No encontré el registro');return;}
+  const depto=r.depto, fecha=r.fecha_entrada;
+  const reservaUrl=findReservaUrl(displayDepto(depto),fecha);
+  const {url,key}=CONFIG.supabase; const H={'content-type':'application/json',apikey:key,Authorization:'Bearer '+key};
+  const ocup=_ocup(r);
+  toast('Generando QR…');
+  try{
+    let qrUrl=null;
+    if(esComunidad(depto)){
+      const propertyId=getComunidadProperty(depto);
+      const companion=ocup.slice(1).filter(o=>(o.nombre||'').trim()).map(o=>({name:o.nombre.trim()}));
+      const input=[{guestType:"guest",name:r.nombre||depto,propertyId:String(propertyId),public:true,registeredAt:isoMX(fecha,"13:00"),estimatedLeavingDate:isoMX(r.fecha_salida||fecha,"11:00"),companionGuests:companion}];
+      const fn=await fetch(`${url}/functions/v1/comunidad-visita`,{method:'POST',headers:H,body:JSON.stringify({input,depto,fecha})});
+      const out=await fn.json(); if(out.error)throw new Error(out.error); qrUrl=out.qrUrl||out.invitationUrl;
+    }else if(esFrakcioQR(depto)){
+      const fn=await fetch(`${url}/functions/v1/frakcio-qr`,{method:'POST',headers:H,body:JSON.stringify({depto,fechaEntrada:fecha,fechaSalida:r.fecha_salida||fecha,nombre:r.nombre,adultos:r.num_adultos,menores:r.num_menores,ocupantes:ocup})});
+      const out=await fn.json(); if(out.error)throw new Error(out.error);
+      if(out.split&&out.urls){const txt=QR_MSG+'\n\n'+out.urls.filter(u=>u.url).map(u=>`${u.depto}: ${u.url}`).join('\n');copyTxt(txt);if(reservaUrl)window.open(reservaUrl,'_blank');toast('QR (2 grupos) copiado · pégalo en el chat');return;}
+      qrUrl=out.qrUrl;
+    }else{toast('Este depa no genera QR');return;}
+    if(!qrUrl){toast('No obtuve la URL del QR — revisa el registro');return;}
+    copyTxt(QR_MSG+'\n\n'+qrUrl);
+    if(reservaUrl){window.open(reservaUrl,'_blank');toast('QR copiado · pégalo en el chat');}
+    else toast('QR copiado · no encontré la reserva en Airbnb, ábrela manual');
+  }catch(e){toast('❌ '+(e.message||e));}
+}
 
 let REGISTROS=[], REG_LOADED=false, REG_ERR=null;
 async function loadRegistros(){
@@ -400,7 +438,7 @@ async function loadRegistros(){
   try{
     const hoy=new Date();const d1=new Date(hoy);d1.setDate(hoy.getDate()+6);
     const desde=hoy.toISOString().split('T')[0], hasta=d1.toISOString().split('T')[0];
-    const fields='id,depto,nombre,fecha_entrada,fecha_salida,num_adultos,num_menores,pdf_generado,tipo_formato,frakcio_enviado,maritima_enviado,telefono,email';
+    const fields='id,depto,nombre,fecha_entrada,fecha_salida,num_adultos,num_menores,ocupantes,pdf_generado,tipo_formato,frakcio_enviado,maritima_enviado,telefono,email';
     const H={apikey:key,Authorization:'Bearer '+key};
     const [res,resC]=await Promise.all([
       fetch(`${url}/rest/v1/registros_checkin?select=${fields}&fecha_entrada=gte.${desde}&fecha_entrada=lte.${hasta}&order=fecha_entrada.asc,created_at.desc`,{headers:H}),
@@ -476,7 +514,8 @@ function registrosPanelHTML(){
       else if(r._tipo==='manual')badge='<span class="rb man">Manual</span>';
       else badge='<span class="rb pend">Pendiente</span>';
       const noches=r._noches!=null?` · ${r._noches}n`:'';
-      html+=`<div class="rrow"><div class="rl"><span class="rdep">${r._depto}</span><span class="rgu">${r.nombre||'—'}</span></div><div class="rr"><span class="rt">${TIPO_LABEL[r._tipo]||r._tipo}${noches}</span>${badge}</div></div>`;
+      const qrBtn=esQR(r.depto)?`<button class="abtn" style="margin-left:6px" onclick="VRM.enviarQR('${r.id}')">QR ✈</button>`:'';
+      html+=`<div class="rrow"><div class="rl"><span class="rdep">${r._depto}</span><span class="rgu">${r.nombre||'—'}</span></div><div class="rr"><span class="rt">${TIPO_LABEL[r._tipo]||r._tipo}${noches}</span>${badge}${qrBtn}</div></div>`;
     });
   });}else{html+=`<div class="rnote">Sin check-ins de hoy en adelante.</div>`;}
   html+=`<div class="rmind"><div class="rmh">📨 Mensaje que se copia al abrir el chat</div><div class="rmtxt">${REMINDER_MSG}</div></div>`;
@@ -777,7 +816,7 @@ const clk=new THREE.Clock();
   controls.update();renderer.render(scene,camera);labelRenderer.render(scene,camera);})();
 addEventListener('resize',()=>{sizeCamera();renderer.setSize(innerWidth,innerHeight);labelRenderer.setSize(innerWidth,innerHeight);});
 renderer.setSize(innerWidth,innerHeight);labelRenderer.setSize(innerWidth,innerHeight);
-window.VRM={setEstado,STATE,renderDock,updateBoards,CONFIG,closeModule,openModule,toast,loadRegistros,loadReservas,nudge,copiarRecordatorio,get REGISTROS(){return REGISTROS;},get RESERVAS(){return RESERVAS;}};
+window.VRM={setEstado,STATE,renderDock,updateBoards,CONFIG,closeModule,openModule,toast,loadRegistros,loadReservas,nudge,enviarQR,copiarRecordatorio,get REGISTROS(){return REGISTROS;},get RESERVAS(){return RESERVAS;}};
 </script>
 </body>
 </html>
