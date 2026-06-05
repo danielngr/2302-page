@@ -4105,7 +4105,11 @@
         const idiomaBtn = necesitaSelectorIdioma(r)
           ? `<button class="btn btn-outline-white" data-idioma-btn="${r.id}" onclick="event.stopPropagation();toggleIdioma('${r.id}')" title="${getIdiomaRegistro(r.id)==='es'?'Idioma: Español (click para EN)':'Language: English (click for ES)'}" style="min-width:44px;font-weight:600;font-size:11px;padding:6px 10px"><i class="ph-bold ph-translate"></i> ${getIdiomaRegistro(r.id).toUpperCase()}</button>`
           : '';
-        if(r.pdf_generado) {
+        if(getComunidadProperty(r.depto)) {
+            accion = (r.nombre && r.nombre.trim())
+                ? `<button class="btn btn-outline-yellow" onclick="registrarVisitaCF('${r.depto}','${r.fecha_entrada||''}')"><i class="ph-bold ph-qr-code"></i> Registrar visita</button>`
+                : `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
+        } else if(r.pdf_generado) {
             accion=`<div style="display:flex;gap:6px;flex-wrap:wrap">${idiomaBtn}<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> Generado</button></div>`;
         } else if(tipoEf==="pdf") {
             const _tieneCorreo = tieneCorreoConfigured(r.depto||'');
@@ -4319,7 +4323,27 @@
                     ? tmplTipo
                     : (reg ? (reg.tipo_formato || tmplTipo) : tmplTipo);
 
-                if(tipo==="correo"){
+                if(getComunidadProperty(depto)){
+                    // ComunidadFeliz (BOLONGO) — registrar visita
+                    if(reg && reg.id) {
+                        const done=reg.pdf_generado;
+                        if(!done){pend++;totalPend++;}
+                        rowsH += itemHTML(reg);
+                        return;
+                    }
+                    const tieneReg = reg && reg.nombre;
+                    const guestName = tieneReg ? reg.nombre : null;
+                    const cfBtn = tieneReg
+                        ? `<button class="btn btn-outline-yellow" onclick="registrarVisitaCF('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> Registrar visita</button>`
+                        : `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
+                    rowsH+=`<div class="list-item">
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">BOLONGO</span></div>
+                        <div class="${guestName?'guest-name':'guest-name guest-empty'}">${guestName||'—'}</div>
+                        <div>${cfBtn}</div>
+                        <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
+                    </div>`;
+                    pend++; totalPend++;
+                } else if(tipo==="correo"){
                     // Si hay registro con datos del huésped, usar itemHTML (con chevron+drawer)
                     if(reg && reg.id) {
                         const done=reg.pdf_generado;
@@ -4690,6 +4714,86 @@
     }
 
 
+
+    // ═══════════════ COMUNIDAD FELIZ — REGISTRO DE VISITAS ═══════════════
+    const COMUNIDAD_FN_URL = `${SUPABASE_URL}/functions/v1/comunidad-visita`;
+    const COMUNIDAD_PROPERTY_MAP = {
+        "BOLONGO 0N":   "1877178",   // Fase 1 0N
+        "BOLONGO 3N":   "1877208",   // Fase 1 3N
+        "BOLONGO 211":  "1877310",   // Fase 2 211
+        "BOLONGO G13":  "1877263",   // Fase 2 G-13
+        "BOLONGO G-13": "1877263",
+        "BOLONGO L05":  "1877250",   // Fase 2 L-05
+        "BOLONGO L-05": "1877250",
+    };
+    function getComunidadProperty(depto) {
+        const d = (depto || '').toUpperCase().trim();
+        if (COMUNIDAD_PROPERTY_MAP[d]) return COMUNIDAD_PROPERTY_MAP[d];
+        for (const key of Object.keys(COMUNIDAD_PROPERTY_MAP)) {
+            if (d.includes(key) || key.includes(d)) return COMUNIDAD_PROPERTY_MAP[key];
+        }
+        return null;
+    }
+    function isoMX(fecha, hora) { return `${fecha}T${hora}:00.000-06:00`; }
+    async function enviarVisitaComunidadFeliz(depto, fechaEntrada, fechaSalida) {
+        const propertyId = getComunidadProperty(depto);
+        if (!propertyId) throw new Error(`Depto ${depto} no está en COMUNIDAD_PROPERTY_MAP`);
+        const deptoQuery = `*${depto}*`;
+        const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/registros_checkin?depto=ilike.${encodeURIComponent(deptoQuery)}&fecha_entrada=eq.${fechaEntrada}&select=nombre,fecha_entrada,fecha_salida,ocupantes&order=created_at.desc&limit=1`,
+            { headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` } }
+        );
+        const data = await res.json();
+        const reg = data[0];
+        const nombre  = reg ? reg.nombre : depto;
+        const fSalida = (reg && reg.fecha_salida) ? reg.fecha_salida : fechaSalida;
+        let ocupantes = reg ? (typeof reg.ocupantes === 'string' ? JSON.parse(reg.ocupantes || '[]') : (reg.ocupantes || [])) : [];
+        const companionGuests = ocupantes.slice(1)
+            .filter(o => (o.nombre || '').trim())
+            .map(o => ({ name: o.nombre.trim(), guestType: "guest" }));
+        const input = [{
+            guestType: "guest",
+            name: nombre,
+            propertyId: String(propertyId),
+            public: true,
+            registeredAt:         isoMX(fechaEntrada, "15:00"),
+            estimatedLeavingDate: isoMX(fSalida,      "11:00"),
+            companionGuests: companionGuests,
+        }];
+        const fn = await fetch(COMUNIDAD_FN_URL, {
+            method: "POST",
+            headers: {
+                "content-type": "application/json",
+                "apikey": SUPABASE_KEY,
+                "Authorization": `Bearer ${SUPABASE_KEY}`,
+            },
+            body: JSON.stringify({ input })
+        });
+        const out = await fn.json();
+        console.log('[ComunidadFeliz]', JSON.stringify(out));
+        if (!out.success) throw new Error(out.error || 'Error ComunidadFeliz');
+        return { qrUrl: out.qrUrl, invitationUrl: out.invitationUrl, name: out.name, propertyName: out.propertyName };
+    }
+    async function registrarVisitaCF(depto, fechaISO) {
+        const btn = document.querySelector(`[onclick*="registrarVisitaCF('${depto}'"]`);
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner"></i> Enviando...'; }
+        try {
+            const regSalida = todosRegistros.find(x => {
+                const d = (x.depto || '').toUpperCase().trim(), dep = depto.toUpperCase();
+                return (d === dep || d.startsWith(dep + ' ') || dep.startsWith(d + ' '));
+            });
+            const fechaSalida = regSalida ? (regSalida.fecha_salida || fechaISO) : fechaISO;
+            const r = await enviarVisitaComunidadFeliz(depto, fechaISO, fechaSalida);
+            if (r.qrUrl)               mostrarModalQR(depto, r.qrUrl);
+            else if (r.invitationUrl)  mostrarModalQR(depto, r.invitationUrl);
+            else                       toast("✓ Visita registrada (sin URL de QR)");
+            if (btn) { btn.disabled = true; btn.classList.add('solid'); btn.innerHTML = '<i class="ph-bold ph-check"></i> Visita registrada'; }
+        } catch (e) {
+            toast("❌ Error: " + e.message);
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph-bold ph-qr-code"></i> Registrar visita'; }
+        }
+    }
+    // ═════════════════════════════════════════════════════════════════════
 
     const FRAKCIO_REAL = [
         "ARIA 812","ARIA 906","ARIA 1001","ARIA PH 1001","ARIA 1010","ARIA 1013",
