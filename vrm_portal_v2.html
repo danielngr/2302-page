@@ -2655,8 +2655,13 @@
                 <!-- Header nómina -->
                 <div class="glass-panel nom-header-bar" style="margin-top:16px;border-radius:var(--radius-lg)">
                     <div>
-                        <div style="font-family:var(--font-display);font-size:16px;font-weight:700">Nómina Activa</div>
-                        <div class="nom-periodo" id="nom-periodo">—</div>
+                        <div style="font-family:var(--font-display);font-size:16px;font-weight:700">Nómina <span id="nom-titulo-sem"></span></div>
+                        <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
+                            <button class="btn btn-ghost" onclick="nomCambiarSemana(-1)" style="padding:3px 10px;font-size:13px">‹</button>
+                            <div class="nom-periodo" id="nom-periodo">—</div>
+                            <button class="btn btn-ghost" onclick="nomCambiarSemana(1)" style="padding:3px 10px;font-size:13px">›</button>
+                            <button class="btn btn-ghost" id="nom-hoy-btn" onclick="nomCambiarSemana(0,true)" style="padding:3px 10px;font-size:11px;display:none">Hoy</button>
+                        </div>
                     </div>
                     <div style="display:flex;gap:12px;align-items:center">
                         <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:100px;display:flex;align-items:center;gap:8px;padding:8px 14px">
@@ -7138,17 +7143,19 @@
         });
     }
 
+    let nomOffset = 0;
+    function nomCambiarSemana(d, reset){ nomOffset = reset ? 0 : nomOffset + d; cargarNomina(); }
     async function cargarNomina() {
         const body = document.getElementById('nom-body');
 
-        // Periodo: semana actual (viernes→jueves)
-        const hoy = new Date();
-        const diasDesdeViernes = (hoy.getDay() - 5 + 7) % 7;
-        const viernesActual = new Date(hoy); viernesActual.setDate(hoy.getDate() - diasDesdeViernes);
-        const juevesActual = new Date(viernesActual); juevesActual.setDate(viernesActual.getDate() + 6);
-        const viernesISO = viernesActual.toISOString().split('T')[0];
-        const juevesISO = juevesActual.toISOString().split('T')[0];
+        // Periodo: semana navegable (viernes→jueves) según nomOffset
+        const sem = dispGetSemana(nomOffset);
+        const viernesActual = sem.viernes, juevesActual = sem.jueves;
+        const viernesISO = sem.viernesISO;
+        const juevesISO = sem.juevesISO;
         document.getElementById('nom-periodo').textContent = `${viernesActual.getDate()} ${MESES[viernesActual.getMonth()]} — ${juevesActual.getDate()} ${MESES[juevesActual.getMonth()]}`;
+        const _t=document.getElementById('nom-titulo-sem'); if(_t) _t.textContent = sem.esActual ? 'Activa' : '';
+        const _h=document.getElementById('nom-hoy-btn'); if(_h) _h.style.display = sem.esActual ? 'none' : 'inline-flex';
 
         // Cargar staff + limpiezas + ajustes filtrados por semana actual
         const [resStaff, resLimp, resAjustes] = await Promise.all([
@@ -7273,11 +7280,11 @@
         if(isNaN(monto) || monto === 0) { toast("⚠️ Ingresa un monto válido"); return; }
         if(!motivo.trim()) { toast("⚠️ El motivo es obligatorio"); document.getElementById('aj-motivo')?.focus(); return; }
 
-        const hoyAj = new Date().toISOString().split('T')[0];
+        const fechaAj = dispGetSemana(nomOffset).viernesISO; // cae en la semana que estás viendo en Nómina
         await fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes`, {
             method:"POST", keepalive:true,
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-            body:JSON.stringify({staff_id:staffId, monto, motivo, estatus:"pendiente", fecha:hoyAj})
+            body:JSON.stringify({staff_id:staffId, monto, motivo, estatus:"pendiente", fecha:fechaAj})
         });
         document.querySelector('.modal-overlay')?.remove();
         toast("✓ Ajuste guardado");
