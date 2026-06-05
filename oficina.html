@@ -132,7 +132,7 @@
   .rpill{font-family:var(--font-mono);font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(0,0,0,.05);color:var(--muted)}
   .rpill.on{background:rgba(224,162,62,.16);color:#b5571f;font-weight:600}
   .rday{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:12px 2px 7px}
-  .rrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:11px;margin-bottom:7px;background:rgba(255,255,255,.6)}
+  .rrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 13px;border:1px solid var(--border);border-radius:11px;margin-bottom:8px;background:rgba(255,255,255,.6)}
   .rrow .rl{display:flex;flex-direction:column;gap:2px;min-width:0}
   .rrow .rdep{font-family:var(--font-display);font-weight:700;font-size:13px;color:#2a2018;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .rrow .rgu{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -148,6 +148,9 @@
   .rtag.ok{background:rgba(31,169,104,.14);color:#1FA968}
   .rtag.warn{background:rgba(224,162,62,.18);color:#b5571f}
   .rb.warn{background:rgba(224,162,62,.2);color:#b5571f}
+  .rb.sinreg{background:rgba(224,122,62,.14);color:#b5571f}
+  .lbtn{border:1px solid rgba(224,122,62,.45);cursor:pointer;font-family:var(--font-display);font-weight:700;font-size:10.5px;padding:5px 11px;border-radius:8px;background:rgba(224,122,62,.08);color:#b5571f;white-space:nowrap}
+  .lbtn:hover{background:rgba(224,122,62,.18)}
   .rmind{margin-top:14px;border-top:1px solid var(--border);padding-top:14px}
   .rmh{font-family:var(--font-display);font-weight:700;font-size:12.5px;color:#2a2018;margin-bottom:7px}
   .rmtxt{font-size:11.5px;color:var(--muted);line-height:1.5;background:rgba(255,255,255,.6);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
@@ -357,6 +360,7 @@ function makeWindow(){
 
 /* ── archiveros = módulos del portal ── */
 const clickableCabinets=[];
+const clickableAgents=[];
 const MODULES=[
   {key:'registros',  nombre:'Registros',  color:0x3E8FE0, desc:'Check-in digital y generación de PDFs por unidad.',               rows:()=>[['Pendientes hoy',STATE.checkins],['PDFs','—']]},
   {key:'housekeeping',nombre:'Housekeeping',color:0x1FA968, desc:'Estado y asignación de limpiezas del día.',                      rows:()=>[['Limpiezas hoy',STATE.limpiezas],['Pendientes','—']]},
@@ -482,43 +486,41 @@ function evaluarRegistros(){
   if(document.getElementById('modpanel').classList.contains('open'))openModule('registros');
 }
 function fmtDia(s){const d=new Date(s+'T00:00:00');return d.toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'});}
+function regDe(depto,fecha){const d=normD(displayDepto(depto));return REGISTROS.find(x=>{const xd=normD(displayDepto(x.depto));return x.fecha_entrada===fecha&&(xd===d||xd.startsWith(d)||d.startsWith(xd));})||null;}
+function entradasUnificadas(){
+  const map=new Map();const key=(dep,f)=>normD(displayDepto(dep))+'|'+f;
+  if(RES_LOADED)RESERVAS.forEach(res=>{map.set(key(res.depto,res.fecha_entrada),{depto:displayDepto(res.depto),fecha:res.fecha_entrada,tel4:res.tel4||'',url:res.url||'',reg:regDe(res.depto,res.fecha_entrada)});});
+  REGISTROS.forEach(r=>{const k=key(r.depto,r.fecha_entrada);if(!map.has(k))map.set(k,{depto:r._depto,fecha:r.fecha_entrada,tel4:'',url:findReservaUrl(r._depto,r.fecha_entrada)||'',reg:r});});
+  return [...map.values()];
+}
+function _rowU(e){
+  const reg=e.reg;let badge,sub,btn='';
+  if(!reg){badge='<span class="rb sinreg">Pendiente de registro</span>';sub=`llega${e.tel4?` · …${e.tel4}`:''}`;btn=e.url?`<button class="lbtn" onclick="VRM.nudge('${e.url}')">Abrir chat ✈</button>`:'';}
+  else if(reg._corta&&!reg._enviado){badge='<span class="rb warn">⚠ Revisar fecha</span>';sub=reg.nombre||'—';btn=esQR(reg.depto)?`<button class="lbtn" onclick="VRM.enviarQR('${reg.id}')">QR ✈</button>`:'';}
+  else if(reg._enviado){badge='<span class="rb ok">Enviado</span>';sub=reg.nombre||'—';}
+  else if(reg._tipo==='manual'){badge='<span class="rb man">Manual</span>';sub=reg.nombre||'—';}
+  else{badge='<span class="rb pend">Pendiente por enviar</span>';sub=reg.nombre||'—';btn=esQR(reg.depto)?`<button class="lbtn" onclick="VRM.enviarQR('${reg.id}')">QR ✈</button>`:'';}
+  const tipo=reg?`${TIPO_LABEL[reg._tipo]||reg._tipo}${reg._noches!=null?` · ${reg._noches}n`:''}`:'';
+  return `<div class="rrow ${!reg?'sinr':''}"><div class="rl"><span class="rdep">${e.depto}</span><span class="rgu">${sub}</span></div><div class="rr">${tipo?`<span class="rt">${tipo}</span>`:''}${badge}${btn}</div></div>`;
+}
 function registrosPanelHTML(){
   if(REG_ERR==='nokey')return `<div class="rnote">Falta tu <b>SUPABASE_URL</b> y <b>anon key</b> en CONFIG.supabase.</div>`;
   if(REG_ERR)return `<div class="rnote" style="color:var(--red)">No pude leer Supabase: ${REG_ERR}. (Revisa RLS / la anon key.)</div>`;
   if(!REG_LOADED)return `<div class="rnote">Cargando check-ins…</div>`;
-  const s=regStats();const h=_hoyStr();const tm=new Date();tm.setDate(tm.getDate()+1);const tmStr=tm.toISOString().split('T')[0];
-  const groups={};REGISTROS.forEach(r=>{(groups[r.fecha_entrada]=groups[r.fecha_entrada]||[]).push(r);});
+  const s=regStats();const h=_hoyStr();const tmStr=_tomStr();
+  const ents=entradasUnificadas();
+  const groups={};ents.forEach(e=>{(groups[e.fecha]=groups[e.fecha]||[]).push(e);});
   const dias=Object.keys(groups).sort();
   let html=`<div class="rsum"><span><b>${s.env}</b>/${s.total} enviados</span><span class="rpill ${s.pend?'on':''}">${s.pend} pendientes</span></div>`;
-  if(s.listos||s.cortas){html+=`<div class="rsum2">${s.listos?`<span class="rtag ok">✓ ${s.listos} listos p/ correo</span>`:''}${s.cortas?`<span class="rtag warn">⚠ ${s.cortas} revisar fecha</span>`:''}</div>`;}
-  // ── Sin registro (arriba: es lo accionable) ──
-  const _p3=new Date();_p3.setDate(_p3.getDate()+3);const p3=_p3.toISOString().split('T')[0];
-  const sr = RES_LOADED ? sinRegistro().filter(r=>r.fecha_entrada<=p3) : [];
-  if(sr.length){
-    html+=`<div class="rday" style="color:#b5571f">Sin registro · recuérdales (${sr.length})</div>`;
-    sr.forEach(r=>{
-      const lbl=r.fecha_entrada===h?'hoy':r.fecha_entrada===tmStr?'mañana':fmtDia(r.fecha_entrada);
-      html+=`<div class="rrow sinr"><div class="rl"><span class="rdep">${displayDepto(r.depto)}</span><span class="rgu">llega ${lbl}${r.tel4?` · …${r.tel4}`:''}</span></div><div class="rr"><button class="abtn" onclick="VRM.nudge('${r.url}')">Abrir chat ✈</button></div></div>`;
-    });
-  } else if(RES_LOADED){
-    html+=`<div class="rmnote" style="text-align:left;padding:6px 2px 2px">Llegadas próximas: todas con registro ✦</div>`;
-  }
-  // ── Check-ins ya llenados ──
-  if(dias.length){dias.forEach(d=>{
+  if(!dias.length){html+=`<div class="rnote">Sin llegadas ni check-ins próximos.</div>`;}
+  const ord=e=>{const r=e.reg;return (r&&(r._enviado||r._tipo==='manual'))?1:0;};
+  dias.forEach(d=>{
     const lbl=d===h?'Hoy':d===tmStr?'Mañana':fmtDia(d);
     html+=`<div class="rday">${lbl}</div>`;
-    groups[d].forEach(r=>{
-      let badge;
-      if(r._corta&&!r._enviado)badge='<span class="rb warn">⚠ Revisar fecha</span>';
-      else if(r._enviado)badge='<span class="rb ok">Enviado</span>';
-      else if(r._tipo==='manual')badge='<span class="rb man">Manual</span>';
-      else badge='<span class="rb pend">Pendiente</span>';
-      const noches=r._noches!=null?` · ${r._noches}n`:'';
-      const qrBtn=esQR(r.depto)?`<button class="abtn" style="margin-left:6px" onclick="VRM.enviarQR('${r.id}')">QR ✈</button>`:'';
-      html+=`<div class="rrow"><div class="rl"><span class="rdep">${r._depto}</span><span class="rgu">${r.nombre||'—'}</span></div><div class="rr"><span class="rt">${TIPO_LABEL[r._tipo]||r._tipo}${noches}</span>${badge}${qrBtn}</div></div>`;
-    });
-  });}else{html+=`<div class="rnote">Sin check-ins de hoy en adelante.</div>`;}
-  html+=`<div class="rmind"><div class="rmh">📨 Mensaje que se copia al abrir el chat</div><div class="rmtxt">${REMINDER_MSG}</div></div>`;
+    groups[d].sort((a,b)=>ord(a)-ord(b)||a.depto.localeCompare(b.depto));
+    groups[d].forEach(e=>{html+=_rowU(e);});
+  });
+  html+=`<div class="rmind"><div class="rmh">📨 Mensajes que se copian</div><div class="rmtxt"><b>Recordatorio:</b> ${REMINDER_MSG}</div><div class="rmtxt" style="margin-top:6px"><b>QR:</b> ${QR_MSG}</div></div>`;
   return html;
 }
 function cabinetPaper(name,color){
@@ -735,6 +737,7 @@ function placeCharacter(p,source,clips){let model,mixer=null;
   const home=new THREE.Vector3(p.x,0,p.z+(sit?0.7:1.0));model.position.copy(home);
   model.rotation.y=p.recepcion?CONFIG.mirada-0.25:CONFIG.mirada;
   office.add(model);
+  model.userData.module=p.id;clickableAgents.push(model);
   agents[p.id]={p,model,mixer,clips:clips||[],home,homeRot:model.rotation.y,formed:false,urgente:false,slot:null,target:null,faceOnArrive:0,arriveAnim:sit?'sit':'idle'};
   playAnim(agents[p.id],sit?'sit':'idle');
 }
@@ -785,14 +788,14 @@ renderer.domElement.addEventListener('pointerup',e=>{
   const r=renderer.domElement.getBoundingClientRect();
   pointer.x=((e.clientX-r.left)/r.width)*2-1;pointer.y=-((e.clientY-r.top)/r.height)*2+1;
   raycaster.setFromCamera(pointer,camera);
-  const hits=raycaster.intersectObjects(clickableCabinets,true);
+  const hits=raycaster.intersectObjects(clickableCabinets.concat(clickableAgents),true);
   if(hits.length){let o=hits[0].object;while(o&&o.userData.module===undefined)o=o.parent;if(o)openModule(o.userData.module);}
 });
 renderer.domElement.addEventListener('pointermove',e=>{
   const r=renderer.domElement.getBoundingClientRect();
   pointer.x=((e.clientX-r.left)/r.width)*2-1;pointer.y=-((e.clientY-r.top)/r.height)*2+1;
   raycaster.setFromCamera(pointer,camera);
-  renderer.domElement.style.cursor=raycaster.intersectObjects(clickableCabinets,true).length?'pointer':'';
+  renderer.domElement.style.cursor=raycaster.intersectObjects(clickableCabinets.concat(clickableAgents),true).length?'pointer':'';
 });
 
 let pending=CONFIG.equipo.length;const loader=new GLTFLoader();
