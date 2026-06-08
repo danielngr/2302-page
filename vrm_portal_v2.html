@@ -3631,7 +3631,7 @@
     }
 
     let todosRegistros = [], frakcioQR = [], formatoManual = [], correosEnviados = [], frakcioCheckins = [], gformsCheckins = [], comunidadVisitas = [];
-    let dispSemanaOffset = 0; // 0=semana actual
+    let dispSemanaOffset = (new Date().getDay() === 4) ? 0 : -1; // por defecto: la semana que se paga (la que cerró el jueves más reciente), igual que el .py
     let sheetHoy = 0;
 
     // ── Idioma por registro (persistente) ──────────────────────────────
@@ -10646,7 +10646,7 @@ function updateNotifBadge(){
         const filtroFecha = `&fecha=gte.${sem.viernesISO}&fecha=lte.${sem.juevesISO}`;
 
         const [resStaff, resLimp, resAjustes, resExtras] = await Promise.all([
-            fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?select=id,nombre,nombre_completo,cuenta_bancaria,banco,es_fijo,monto_fijo&order=nombre.asc`, {
+            fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?select=id,nombre,nombre_completo,cuenta_bancaria,banco,es_fijo,monto_fijo&activo=eq.true&order=nombre.asc`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
             }),
             fetch(`${SUPABASE_URL}/rest/v1/limpiezas?select=staff_id,fecha,tarifa_aplicada&estatus=in.(terminada,pagada)${filtroFecha}`, {
@@ -10679,15 +10679,16 @@ function updateNotifBadge(){
         // Construir lista — solo chicas con monto > 0 o fijos
         dispPersonas = [];
         staff.forEach(s => {
-            const monto = montosPorStaff[s.id] || 0;
-            if(monto > 0 || s.es_fijo) {
+            const base = montosPorStaff[s.id] || 0;
+            const montoFinal = s.es_fijo ? (parseFloat(s.monto_fijo) || 0) : base;
+            if(montoFinal > 0) {   // igual que el .py: omite si <= 0 (incluye fijos sin monto)
                 dispPersonas.push({
                     id: s.id,
                     apodo: s.nombre,
                     nombre_completo: s.nombre_completo || s.nombre,
                     cuenta: s.cuenta_bancaria || '',
                     banco: s.banco || dispGetBanco(s.cuenta_bancaria||''),
-                    monto: s.es_fijo ? (parseFloat(s.monto_fijo) || 0) : monto,
+                    monto: montoFinal,
                     es_fijo: s.es_fijo || false,
                     es_extra: false
                 });
@@ -11157,19 +11158,23 @@ function updateNotifBadge(){
                 ['A','B','C','D','E'].forEach(col => { delete ws[col + (r+1)]; });
             }
 
-            // 5. Insertar datos con estilos copiados de fila 2
-            dispPersonas.forEach((p, i) => {
+            // 5. Insertar datos (banco como VALOR, ordenado por nombre como el .py)
+            const ordenadas = [...dispPersonas].sort((a,b)=>(a.nombre_completo||'').localeCompare(b.nombre_completo||''));
+            ordenadas.forEach((p, i) => {
                 const r = i + 2;
-                const formulaBanco = `=IF(+LEN(A${r})=18,+VLOOKUP(+LEFT(A${r},3),Bancos!$A$1:$B$95,2,FALSE), IF(+LEN(A${r})=16, +VLOOKUP(+LEFT(A${r},8),Bins!$A$1:$B$86668,2,FALSE), ""))`;
                 ws['A'+r] = Object.assign({}, styleA2, {t:'s', v: String(p.cuenta), w: String(p.cuenta)});
-                ws['B'+r] = Object.assign({}, styleB2, {t:'s', f: formulaBanco, v: ''});
+                ws['B'+r] = Object.assign({}, styleB2, {t:'s', v: p.banco || '', w: p.banco || ''});
                 ws['C'+r] = Object.assign({}, styleC2, {t:'s', v: p.nombre_completo, w: p.nombre_completo});
                 ws['D'+r] = Object.assign({}, styleD2, {t:'n', v: p.monto, w: String(p.monto)});
                 ws['E'+r] = Object.assign({}, styleE2, {t:'s', v: 'Transferencia ', w: 'Transferencia '});
             });
 
             // 6. Actualizar rango
-            ws['!ref'] = `A1:E${dispPersonas.length + 1}`;
+            ws['!ref'] = `A1:E${ordenadas.length + 1}`;
+
+            // 6b. Dejar SOLO la hoja Dispersion (ligera; abre en Excel 2010 y muestra el banco sin recalcular)
+            wb.SheetNames = ['Dispersion'];
+            wb.Sheets = { Dispersion: ws };
 
             // 6. Descargar
             const buf = XLSX.write(wb, {bookType:'xlsx', type:'array'});
@@ -11177,9 +11182,9 @@ function updateNotifBadge(){
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            const hoy = new Date();
-            const fecha = hoy.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
-            a.download = `dispersion_${fecha}.xlsx`;
+            const _s = dispGetSemana(dispSemanaOffset);
+            const _f = d => `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`;
+            a.download = `dispersion_${_f(_s.viernes)}_${_f(_s.jueves)}.xlsx`;
             a.click();
             URL.revokeObjectURL(url);
             toast('✓ Excel descargado');
