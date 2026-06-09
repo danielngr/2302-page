@@ -847,10 +847,13 @@ async function nomPrepararArchivo(){
       put('D',r,{t:'n',v:p.monto,w:String(p.monto)});
       put('E',r,{t:'s',v:'Transferencia ',w:'Transferencia '});
     });
-    // Forzar TODOS los bordes finos NEGROS (la cuadrícula), conservando fuente/fmt por columna
+    // Bordes finos NEGROS + encabezado gris (igual que tu macro)
     const BORDER={top:{style:'thin',color:{rgb:'000000'}},bottom:{style:'thin',color:{rgb:'000000'}},left:{style:'thin',color:{rgb:'000000'}},right:{style:'thin',color:{rgb:'000000'}}};
-    ['A','B','C','D','E'].forEach(c=>{const h=ws[c+'1'];if(h)h.s=Object.assign({},h.s||{},{border:BORDER});});
+    const HEAD_S={font:{name:'Arial',sz:11,bold:true},alignment:{horizontal:'center',vertical:'center'},fill:{patternType:'solid',fgColor:{rgb:'D9D9D9'}},border:BORDER};
+    ['A','B','C','D','E'].forEach(c=>{if(ws[c+'1'])ws[c+'1'].s=HEAD_S;});
     for(let r=2;r<=fin+1;r++)['A','B','C','D','E'].forEach(c=>{const cl=ws[c+r]||(ws[c+r]={t:'z'});cl.s=Object.assign({},S[c]||{},{border:BORDER});});
+    // Forzar bordes negros también en las demás hojas (Hoja1/Bins/Bancos) para igualar tu macro
+    ['Hoja1','Bins','Bancos'].forEach(sh=>{const w=wb.Sheets[sh];if(!w||!w['!ref'])return;const rg=XLSX.utils.decode_range(w['!ref']);for(let R=rg.s.r;R<=rg.e.r;R++)for(let C=rg.s.c;C<=rg.e.c;C++){const ad=XLSX.utils.encode_cell({r:R,c:C});const cl=w[ad];if(cl)cl.s=Object.assign({},cl.s||{},{border:BORDER});}});
     ws['!ref']=`A1:E${Math.max(fin+1, NOM.personas.length+1)}`;
     const out=XLSX.write(wb,{bookType:'xlsx',type:'array',cellStyles:true});
     const s=NOM.sem; const ff=d=>`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`;
