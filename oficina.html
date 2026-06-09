@@ -767,6 +767,114 @@ loadRegistros(); // ← lee tus check-ins reales y pone al mono de Registros en 
 loadReservas();  // ← lee reservas_ical (sync) para detectar llegadas sin registro
 
 /* ── clic en archiveros → panel de módulo ── */
+/* ════════════ NÓMINA · agente (dispersión semanal, alineado a tu generar_dispersion.py) ════════════ */
+const DISP_BANCOS = {"133": "ACTINVER", "062": "AFIRME", "721": "albo", "706": "ARCUS FI", "659": "ASP INTEGRA OPC", "127": "AZTECA", "166": "BaBien", "030": "BAJIO", "002": "BANAMEX", "154": "BANCO COVALTO", "006": "BANCOMEXT", "137": "BANCOPPEL", "160": "BANCO S3", "152": "BANCREA", "019": "BANJERCITO", "147": "BANKAOOL", "106": "BANK OF AMERICA", "159": "BANK OF CHINA", "009": "BANOBRAS", "072": "BANORTE", "058": "BANREGIO", "060": "BANSI", "001": "BANXICO", "129": "BARCLAYS", "145": "BBASE", "012": "BBVA MEXICO", "112": "BMONEX", "677": "CAJA POP MEXICA", "683": "CAJA TELEFONIST", "715": "CASHI CUENTA", "630": "CB INTERCAM", "631": "CI BOLSA", "124": "CITI MEXICO", "901": "CLS", "903": "CoDi Valida", "130": "COMPARTAMOS", "140": "CONSUBANCO", "725": "COOPDESARROLLO", "652": "CREDICAPITAL", "688": "CREDICLUB", "680": "CRISTOBAL COLON", "723": "Cuenca", "729": "Dep y Pag Dig", "151": "DONDE", "616": "FINAMEX", "634": "FINCOMUN", "734": "FINCO PAY", "738": "FINTOC", "699": "FONDEADORA", "685": "FONDO (FIRA)", "601": "GBM", "167": "HEY BANCO", "168": "HIPOTECARIA FED", "021": "HSBC", "155": "ICBC", "036": "INBURSA", "902": "INDEVAL", "150": "INMOBILIARIO", "136": "INTERCAM BANCO", "059": "INVEX", "110": "JP MORGAN", "128": "KAPITAL", "661": "KLAR", "653": "KUSPIT", "670": "LIBERTAD", "602": "MASARI", "722": "Mercado Pago W", "720": "MexPago", "042": "MIFEL", "158": "MIZUHO BANK", "600": "MONEXCB", "108": "MUFG", "132": "MULTIVA BANCO", "135": "NAFIN", "638": "NU MEXICO", "710": "NVIO", "148": "PAGATODO", "732": "Peibo", "620": "PROFUTURO", "156": "SABADELL", "014": "SANTANDER", "044": "SCOTIABANK", "157": "SHINHAN", "728": "SPIN BY OXXO", "646": "STP", "730": "Swap", "703": "TESORED", "684": "TRANSFER", "727": "TRANSFER DIRECT", "138": "UALA", "656": "UNAGRA", "617": "VALMEX", "605": "VALUE", "113": "VE POR MAS", "141": "VOLKSWAGEN"};
+const DISP_BINS = {"41523141": "BBVA", "41523137": "BBVA", "40276600": "AZTECA PR", "52635401": "AZTECA PR", "41691608": "BANCOPPEL", "40276658": "AZTECA PR", "41523143": "BBVA", "40276657": "AZTECA PR", "52041659": "CITIBANAMEX", "41523144": "BBVA", "41523139": "BBVA", "41523140": "BBVA", "41523142": "BBVA", "40985130": "BBVA", "41891400": "BANORTE PR", "41523135": "BBVA", "52041661": "CITIBANAMEX"};
+function nomGetBanco(c){c=String(c||'').trim();if(c.length===18)return DISP_BANCOS[c.substring(0,3)]||'';if(c.length===16)return DISP_BINS[c.substring(0,8)]||'';return '';}
+function nomGetSemana(){const hoy=new Date();const wd=hoy.getDay();const dd=(wd-4+7)%7;const jue=new Date(hoy);jue.setHours(0,0,0,0);jue.setDate(hoy.getDate()-dd);const vie=new Date(jue);vie.setDate(jue.getDate()-6);const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;return {viernes:vie,jueves:jue,viernesISO:iso(vie),juevesISO:iso(jue)};}
+let NOM={personas:[],total:0,sem:null,loaded:false,err:null,enviada:false};
+function nomMoney(n){return '$'+(n||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function nomFmt(d){const M=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];return `${d.getDate()} ${M[d.getMonth()]}`;}
+async function loadNomina(){
+  const {url,key}=CONFIG.supabase; if(!url||!key){NOM.err='nokey';return;}
+  const H={apikey:key,Authorization:'Bearer '+key};
+  const sem=nomGetSemana(); NOM.sem=sem;
+  const f=`&fecha=gte.${sem.viernesISO}&fecha=lte.${sem.juevesISO}`;
+  try{
+    const [staff,limp,aj,ex]=await Promise.all([
+      fetch(`${url}/rest/v1/staff_limpieza?select=id,nombre,nombre_completo,cuenta_bancaria,banco,es_fijo,monto_fijo&activo=eq.true&order=nombre.asc`,{headers:H}).then(r=>r.json()),
+      fetch(`${url}/rest/v1/limpiezas?select=staff_id,tarifa_aplicada,fecha&estatus=in.(terminada,pagada)${f}`,{headers:H}).then(r=>r.json()),
+      fetch(`${url}/rest/v1/nomina_ajustes?select=staff_id,monto&estatus=in.(pendiente,pagado)${f}`,{headers:H}).then(r=>r.json()),
+      fetch(`${url}/rest/v1/dispersion_extras?semana_inicio=eq.${sem.viernesISO}&select=*`,{headers:H}).then(r=>r.ok?r.json():[])
+    ]);
+    const m={}; (limp||[]).forEach(l=>{m[l.staff_id]=(m[l.staff_id]||0)+parseFloat(l.tarifa_aplicada||0);});
+    (aj||[]).forEach(a=>{m[a.staff_id]=(m[a.staff_id]||0)+parseFloat(a.monto||0);});
+    const ps=[];
+    (staff||[]).forEach(s=>{const base=m[s.id]||0;const mf=s.es_fijo?(parseFloat(s.monto_fijo)||0):base;if(mf>0)ps.push({nombre:s.nombre_completo||s.nombre,cuenta:s.cuenta_bancaria||'',banco:s.banco||nomGetBanco(s.cuenta_bancaria||''),monto:mf,tipo:s.es_fijo?'fijo':'limpieza'});});
+    (ex||[]).forEach(e=>{ps.push({nombre:e.nombre_completo||'',cuenta:e.cuenta_bancaria||'',banco:nomGetBanco(e.cuenta_bancaria||''),monto:parseFloat(e.monto||0),tipo:'extra'});});
+    ps.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+    NOM.personas=ps; NOM.total=ps.reduce((s,p)=>s+p.monto,0); NOM.loaded=true; NOM.err=null;
+  }catch(e){NOM.err=e.message;}
+}
+function nominaPanelHTML(){
+  if(NOM.err==='nokey')return `<div class="rnote">Falta configurar Supabase.</div>`;
+  if(NOM.err)return `<div class="rnote" style="color:var(--red)">No pude leer Supabase: ${NOM.err}</div>`;
+  if(!NOM.loaded)return `<div class="rnote">Calculando nómina…</div>`;
+  const s=NOM.sem;const g={limpieza:[],fijo:[],extra:[]};NOM.personas.forEach(p=>g[p.tipo].push(p));
+  const secc=(t,arr)=>arr.length?`<div class="nomsec">${t} · ${nomMoney(arr.reduce((a,p)=>a+p.monto,0))}</div>`+arr.map(p=>`<div class="nomrow"><div class="nl"><span class="nnm">${p.nombre}</span><span class="nac">${p.cuenta||'—'} · ${p.banco||'⚠️ banco?'}</span></div><span class="nmt">${nomMoney(p.monto)}</span></div>`).join(''):'';
+  return `
+    <div class="nomtot"><div class="nbig">${nomMoney(NOM.total)}</div><div class="nsub">${NOM.personas.length} personas · ${nomFmt(s.viernes)} – ${nomFmt(s.jueves)}</div></div>
+    ${secc('PERSONAL DE LIMPIEZA',g.limpieza)}${secc('FIJOS',g.fijo)}${secc('EXTRAS',g.extra)}
+    <div class="nomextra"><input id="nx-nom" placeholder="Nombre"><input id="nx-cta" placeholder="Cuenta / CLABE" inputmode="numeric"><input id="nx-mto" placeholder="Monto" inputmode="numeric"><button class="lbtn" onclick="VRM.nomAddExtra()">+ extra</button></div>
+    <button class="nomconfirm" onclick="VRM.nomConfirmar()">✅ Confirmar y enviar por WhatsApp</button>`;
+}
+function nomAddExtra(){
+  const gv=id=>(document.getElementById(id)||{}).value;
+  const nom=gv('nx-nom'),cta=String(gv('nx-cta')||'').trim(),mto=parseFloat(gv('nx-mto'));
+  if(!nom||!cta||!(mto>0)){toast('Completa nombre, cuenta y monto');return;}
+  NOM.personas.push({nombre:nom,cuenta:cta,banco:nomGetBanco(cta),monto:mto,tipo:'extra'});
+  NOM.personas.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+  NOM.total=NOM.personas.reduce((s,p)=>s+p.monto,0);
+  openModule('nomina'); toast('Extra agregado a esta dispersión');
+}
+async function nomConfirmar(){
+  if(!NOM.personas.length){toast('Sin datos de nómina');return;}
+  toast('⏳ Generando Excel…');
+  try{
+    const tpl='https://grsykedeppdwenpfxlfh.supabase.co/storage/v1/object/public/assets/macro%20(1)%20(2).xlsx%2001.04.26.xlsx';
+    const buf=await (await fetch(tpl)).arrayBuffer();
+    const XLSX=await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs');
+    const wb=XLSX.read(new Uint8Array(buf),{type:'array',cellFormula:true});
+    const ws=wb.Sheets['Dispersion'];
+    const st=c=>ws[c]?JSON.parse(JSON.stringify(ws[c])):{};
+    const A2=st('A2'),B2=st('B2'),C2=st('C2'),D2=st('D2'),E2=st('E2');
+    const range=XLSX.utils.decode_range(ws['!ref']||'A1:E100');
+    for(let r=1;r<=range.e.r;r++)['A','B','C','D','E'].forEach(c=>delete ws[c+(r+1)]);
+    NOM.personas.forEach((p,i)=>{const r=i+2;
+      ws['A'+r]=Object.assign({},A2,{t:'s',v:String(p.cuenta),w:String(p.cuenta)});
+      ws['B'+r]=Object.assign({},B2,{t:'s',v:p.banco||'',w:p.banco||''});
+      ws['C'+r]=Object.assign({},C2,{t:'s',v:p.nombre,w:p.nombre});
+      ws['D'+r]=Object.assign({},D2,{t:'n',v:p.monto,w:String(p.monto)});
+      ws['E'+r]=Object.assign({},E2,{t:'s',v:'Transferencia ',w:'Transferencia '});
+    });
+    ws['!ref']=`A1:E${NOM.personas.length+1}`;
+    wb.SheetNames=['Dispersion']; wb.Sheets={Dispersion:ws};
+    const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const s=NOM.sem; const ff=d=>`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`;
+    const fname=`dispersion_${ff(s.viernes)}_${ff(s.jueves)}.xlsx`;
+    const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const file=new File([blob],fname,{type:blob.type});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'Dispersión nómina',text:`Dispersión ${nomFmt(s.viernes)}–${nomFmt(s.jueves)} · ${nomMoney(NOM.total)}`});
+      NOM.enviada=true; nomAlertHide(); toast('Compartido ✓');
+    }else{
+      const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=fname;a.click();URL.revokeObjectURL(u);
+      toast('Descargado · compártelo por WhatsApp');
+    }
+  }catch(e){toast('Error: '+e.message);}
+}
+function nomEsPayday(){const wd=new Date().getDay();return wd===5||wd===4;}
+function nomAlertShow(){if(document.getElementById('nomalert'))return;const d=document.createElement('div');d.id='nomalert';d.innerHTML=`🔔 Nómina lista — <b>${nomMoney(NOM.total)}</b> · solo falta tu confirmación &nbsp;<span class="go">Abrir →</span>`;d.onclick=()=>openModule('nomina');document.body.appendChild(d);}
+function nomAlertHide(){const d=document.getElementById('nomalert');if(d)d.remove();}
+async function evaluarNomina(){await loadNomina();if(NOM.loaded&&NOM.personas.length&&nomEsPayday()&&!NOM.enviada)nomAlertShow();}
+(function(){const st=document.createElement('style');st.textContent=`
+.nomtot{background:linear-gradient(135deg,#7C5CCB,#5a3fa0);border-radius:14px;padding:14px;text-align:center;margin-bottom:12px;color:#fff}
+.nomtot .nbig{font-size:26px;font-weight:800;letter-spacing:-.5px}
+.nomtot .nsub{font-size:11px;opacity:.85;text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.nomsec{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#b6a6ff;margin:12px 0 4px;font-weight:700}
+.nomrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.nomrow .nl{display:flex;flex-direction:column;gap:2px;min-width:0}
+.nomrow .nnm{font-weight:600;font-size:13px}
+.nomrow .nac{font-size:10px;color:#8a8a8a;font-family:ui-monospace,monospace}
+.nomrow .nmt{font-weight:800;color:#1FA968;white-space:nowrap}
+.nomextra{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;padding-top:12px;border-top:1px dashed rgba(255,255,255,.12)}
+.nomextra input{flex:1;min-width:84px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px;color:#fff;font-size:12px;outline:none}
+.nomconfirm{width:100%;margin-top:12px;background:#1FA968;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer}
+.nomconfirm:active{transform:scale(.99)}
+#nomalert{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:9999;background:#7C5CCB;color:#fff;padding:11px 18px;border-radius:999px;font-size:13px;cursor:pointer;box-shadow:0 8px 24px rgba(124,92,203,.45);display:flex;gap:6px;align-items:center;max-width:92vw}
+#nomalert .go{font-weight:800;text-decoration:underline}
+`;document.head.appendChild(st);})();
+
 function openModule(key){const m=MODULES.find(x=>x.key===key);if(!m)return;
   const p=document.getElementById('modpanel');
   if(key==='registros'){
@@ -777,6 +885,16 @@ function openModule(key){const m=MODULES.find(x=>x.key===key);if(!m)return;
       <div class="mnote">Lee tu tabla <b>registros_checkin</b> en vivo (de hoy en adelante, hasta +6 días). El tipo de envío se detecta por depa; generar/enviar automático (PDF, Frakcio, mensaje) se conecta en la siguiente capa.</div>`;
     document.getElementById('modalBg').classList.add('open');p.classList.add('open');
     if(!REG_LOADED&&REG_ERR!=='nokey'){loadRegistros().then(()=>{if(p.classList.contains('open'))openModule('registros');});}
+    return;
+  }
+  if(key==='nomina'||key==='dispersion'){
+    p.innerHTML=`<button class="mclose" onclick="VRM.closeModule()">✕</button>
+      <div class="mhd"><span class="mdot" style="color:${hex(0x7C5CCB)}"></span><h2>Nómina</h2></div>
+      <div class="mkey">Agente · dispersión semanal</div>
+      <div class="regwrap">${nominaPanelHTML()}</div>
+      <div class="mnote">Calcula la semana que se paga igual que tu generador. Al confirmar genera el Excel del banco (banco ya escrito, solo hoja Dispersion) y abre compartir para enviarlo por WhatsApp.</div>`;
+    document.getElementById('modalBg').classList.add('open');p.classList.add('open');
+    if(!NOM.loaded&&NOM.err!=='nokey'){loadNomina().then(()=>{if(p.classList.contains('open'))openModule('nomina');});}
     return;
   }
   p.innerHTML=`<button class="mclose" onclick="VRM.closeModule()">✕</button>
@@ -813,7 +931,7 @@ CONFIG.equipo.forEach(p=>{loader.load(CONFIG.baseUrl+p.modelo,
   g=>{placeCharacter(p,g.scene,g.animations||[]);done();},
   undefined,
   e=>{console.warn('no cargó',p.modelo,e);placeCharacter(p,null,[]);done();});});
-function done(){if(--pending<=0){hideBoot();evaluarRegistros();toast('Oficina lista · el mono se forma en Dirección si hay algo urgente');}}
+function done(){if(--pending<=0){hideBoot();evaluarRegistros();evaluarNomina();toast('Oficina lista · el mono se forma en Dirección si hay algo urgente');}}
 function hideBoot(){const b=document.getElementById('boot');b.classList.add('hide');setTimeout(()=>b.remove(),650);}
 
 /* ── loop / resize ── */
@@ -829,7 +947,7 @@ const clk=new THREE.Clock();
   controls.update();renderer.render(scene,camera);labelRenderer.render(scene,camera);})();
 addEventListener('resize',()=>{sizeCamera();renderer.setSize(innerWidth,innerHeight);labelRenderer.setSize(innerWidth,innerHeight);});
 renderer.setSize(innerWidth,innerHeight);labelRenderer.setSize(innerWidth,innerHeight);
-window.VRM={setEstado,STATE,renderDock,updateBoards,CONFIG,closeModule,openModule,toast,loadRegistros,loadReservas,nudge,enviarQR,copiarRecordatorio,get REGISTROS(){return REGISTROS;},get RESERVAS(){return RESERVAS;}};
+window.VRM={setEstado,STATE,renderDock,updateBoards,CONFIG,closeModule,openModule,toast,loadRegistros,loadReservas,nudge,enviarQR,copiarRecordatorio,loadNomina,nomConfirmar,nomAddExtra,get REGISTROS(){return REGISTROS;},get RESERVAS(){return RESERVAS;}};
 </script>
 </body>
 </html>
