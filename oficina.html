@@ -851,7 +851,7 @@ async function nomPrepararArchivo(){
     const BORDER={top:{style:'thin',color:{rgb:'000000'}},bottom:{style:'thin',color:{rgb:'000000'}},left:{style:'thin',color:{rgb:'000000'}},right:{style:'thin',color:{rgb:'000000'}}};
     const HEAD_S={font:{name:'Arial',sz:11,bold:true},alignment:{horizontal:'center',vertical:'center'},fill:{patternType:'solid',fgColor:{rgb:'D9D9D9'}},border:BORDER};
     ['A','B','C','D','E'].forEach(c=>{if(ws[c+'1'])ws[c+'1'].s=HEAD_S;});
-    for(let r=2;r<=fin+1;r++)['A','B','C','D','E'].forEach(c=>{const cl=ws[c+r]||(ws[c+r]={t:'z'});cl.s=Object.assign({},S[c]||{},{border:BORDER});});
+    for(let r=2;r<=fin+1;r++)['A','B','C','D','E'].forEach(c=>{const cl=ws[c+r]||(ws[c+r]={t:'z'});const ex={border:BORDER};if(c==='B')ex.alignment={horizontal:'center',vertical:'center'};cl.s=Object.assign({},S[c]||{},ex);});
     // Forzar bordes negros también en las demás hojas (Hoja1/Bins/Bancos) para igualar tu macro
     ['Hoja1','Bins','Bancos'].forEach(sh=>{const w=wb.Sheets[sh];if(!w||!w['!ref'])return;const rg=XLSX.utils.decode_range(w['!ref']);for(let R=rg.s.r;R<=rg.e.r;R++)for(let C=rg.s.c;C<=rg.e.c;C++){const ad=XLSX.utils.encode_cell({r:R,c:C});const cl=w[ad];if(cl)cl.s=Object.assign({},cl.s||{},{border:BORDER});}});
     ws['!ref']=`A1:E${Math.max(fin+1, NOM.personas.length+1)}`;
