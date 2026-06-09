@@ -11163,7 +11163,7 @@ function updateNotifBadge(){
             ordenadas.forEach((p, i) => {
                 const r = i + 2;
                 ws['A'+r] = Object.assign({}, styleA2, {t:'s', v: String(p.cuenta), w: String(p.cuenta)});
-                ws['B'+r] = Object.assign({}, styleB2, {t:'s', v: p.banco || '', w: p.banco || ''});
+                ws['B'+r] = Object.assign({}, styleB2, {t:'s', f:`IF(+LEN(A${r})=18,+VLOOKUP(+LEFT(A${r},3),Bancos!$A$1:$B$95,2,FALSE), IF(+LEN(A${r})=16, +VLOOKUP(+LEFT(A${r},8),Bins!$A$1:$B$86668,2,FALSE), ""))`, v: p.banco || '', w: p.banco || ''});
                 ws['C'+r] = Object.assign({}, styleC2, {t:'s', v: p.nombre_completo, w: p.nombre_completo});
                 ws['D'+r] = Object.assign({}, styleD2, {t:'n', v: p.monto, w: String(p.monto)});
                 ws['E'+r] = Object.assign({}, styleE2, {t:'s', v: 'Transferencia ', w: 'Transferencia '});
@@ -11171,10 +11171,6 @@ function updateNotifBadge(){
 
             // 6. Actualizar rango
             ws['!ref'] = `A1:E${ordenadas.length + 1}`;
-
-            // 6b. Dejar SOLO la hoja Dispersion (ligera; abre en Excel 2010 y muestra el banco sin recalcular)
-            wb.SheetNames = ['Dispersion'];
-            wb.Sheets = { Dispersion: ws };
 
             // 6. Descargar
             const buf = XLSX.write(wb, {bookType:'xlsx', type:'array'});
