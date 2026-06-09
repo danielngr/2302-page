@@ -837,13 +837,12 @@ async function nomPrepararArchivo(){
     for(let r=1;r<=range.e.r;r++)['A','B','C','D','E'].forEach(c=>delete ws[c+(r+1)]);
     NOM.personas.forEach((p,i)=>{const r=i+2;
       ws['A'+r]=Object.assign({},A2,{t:'s',v:String(p.cuenta),w:String(p.cuenta)});
-      ws['B'+r]=Object.assign({},B2,{t:'s',v:p.banco||'',w:p.banco||''});
+      ws['B'+r]=Object.assign({},B2,{t:'s',f:`IF(+LEN(A${r})=18,+VLOOKUP(+LEFT(A${r},3),Bancos!$A$1:$B$95,2,FALSE), IF(+LEN(A${r})=16, +VLOOKUP(+LEFT(A${r},8),Bins!$A$1:$B$86668,2,FALSE), ""))`,v:p.banco||'',w:p.banco||''});
       ws['C'+r]=Object.assign({},C2,{t:'s',v:p.nombre,w:p.nombre});
       ws['D'+r]=Object.assign({},D2,{t:'n',v:p.monto,w:String(p.monto)});
       ws['E'+r]=Object.assign({},E2,{t:'s',v:'Transferencia ',w:'Transferencia '});
     });
     ws['!ref']=`A1:E${NOM.personas.length+1}`;
-    wb.SheetNames=['Dispersion']; wb.Sheets={Dispersion:ws};
     const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
     const s=NOM.sem; const ff=d=>`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`;
     NOM.fname=`dispersion_${ff(s.viernes)}_${ff(s.jueves)}.xlsx`;
