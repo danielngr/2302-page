@@ -2672,6 +2672,9 @@
                         <span style="font-family:var(--font-mono);font-size:13px;color:var(--status-green);font-weight:700" id="nom-total-global">$0.00</span><button class="btn btn-ghost" onclick="abrirHistorico()" style="font-size:11px;padding:9px 14px">
                             <i class="ph ph-clock-counter-clockwise"></i> Histórico
                         </button>
+                        <button class="btn btn-outline-white" id="nom-tg-btn" onclick="nomEnviarTelegram()" style="font-size:11px">
+                            <i class="ph-bold ph-paper-plane-tilt"></i> Enviar a Telegram
+                        </button>
                         <button class="btn btn-outline-red" onclick="liquidarSemana()" style="font-size:11px">
                             <i class="ph-bold ph-currency-circle-dollar"></i> Liquidar semana
                         </button>
@@ -7143,8 +7146,8 @@
         });
     }
 
-    let nomOffset = 0;
-    function nomCambiarSemana(d, reset){ nomOffset = reset ? 0 : nomOffset + d; cargarNomina(); }
+    let nomOffset = (new Date().getDay() === 4) ? 0 : -1; // por defecto: la semana que se paga (cerró el jueves), igual que Dispersión y el .py
+    function nomCambiarSemana(d, reset){ nomOffset = reset ? ((new Date().getDay() === 4) ? 0 : -1) : nomOffset + d; cargarNomina(); }
     async function cargarNomina() {
         const body = document.getElementById('nom-body');
 
@@ -7154,8 +7157,10 @@
         const viernesISO = sem.viernesISO;
         const juevesISO = sem.juevesISO;
         document.getElementById('nom-periodo').textContent = `${viernesActual.getDate()} ${MESES[viernesActual.getMonth()]} — ${juevesActual.getDate()} ${MESES[juevesActual.getMonth()]}`;
-        const _t=document.getElementById('nom-titulo-sem'); if(_t) _t.textContent = sem.esActual ? 'Activa' : '';
-        const _h=document.getElementById('nom-hoy-btn'); if(_h) _h.style.display = sem.esActual ? 'none' : 'inline-flex';
+        const _defOff = (new Date().getDay() === 4) ? 0 : -1; // offset de la semana de pago
+        const _enPago = (nomOffset === _defOff);
+        const _t=document.getElementById('nom-titulo-sem'); if(_t) _t.textContent = _enPago ? 'a pagar' : '';
+        const _h=document.getElementById('nom-hoy-btn'); if(_h) _h.style.display = _enPago ? 'none' : 'inline-flex';
 
         // Cargar staff + limpiezas + ajustes filtrados por semana actual
         const [resStaff, resLimp, resAjustes] = await Promise.all([
@@ -7253,6 +7258,13 @@
     }
 
     function nomAjuste(staffId, nombre) {
+        const sem = dispGetSemana(nomOffset);
+        const hoyISO = new Date().toISOString().split('T')[0];
+        let defISO = hoyISO;
+        if(hoyISO < sem.viernesISO) defISO = sem.viernesISO;   // antes de la semana → primer día
+        if(hoyISO > sem.juevesISO)  defISO = sem.juevesISO;    // después → último día
+        // etiquetas de días de la semana (vie→jue) para que sepa a qué día corresponde cada fecha
+        const DIAS = ["dom","lun","mar","mié","jue","vie","sáb"];
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.innerHTML = `<div class="modal-box" style="max-width:420px">
@@ -7264,6 +7276,8 @@
                 <div class="ajuste-form">
                     <input class="ajuste-input" id="aj-monto" type="number" placeholder="Monto (+bono / -descuento)" step="0.01">
                     <input class="ajuste-input" id="aj-motivo" type="text" placeholder="Motivo (bono, préstamo, etc.)">
+                    <label style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:4px">Día de la semana (${sem.viernes.getDate()} ${MESES[sem.viernes.getMonth()]} → ${sem.jueves.getDate()} ${MESES[sem.jueves.getMonth()]})</label>
+                    <input class="ajuste-input" id="aj-fecha" type="date" value="${defISO}" min="${sem.viernesISO}" max="${sem.juevesISO}">
                     <button class="btn btn-outline-white" onclick="nomGuardarAjuste('${staffId}')">
                         <i class="ph-bold ph-check"></i> Guardar ajuste
                     </button>
@@ -7280,7 +7294,10 @@
         if(isNaN(monto) || monto === 0) { toast("⚠️ Ingresa un monto válido"); return; }
         if(!motivo.trim()) { toast("⚠️ El motivo es obligatorio"); document.getElementById('aj-motivo')?.focus(); return; }
 
-        const fechaAj = dispGetSemana(nomOffset).viernesISO; // cae en la semana que estás viendo en Nómina
+        const sem = dispGetSemana(nomOffset);
+        let fechaAj = document.getElementById('aj-fecha')?.value || sem.viernesISO;
+        // seguridad: que la fecha caiga dentro de la semana visible
+        if(fechaAj < sem.viernesISO || fechaAj > sem.juevesISO) fechaAj = sem.viernesISO;
         await fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes`, {
             method:"POST", keepalive:true,
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
@@ -7289,6 +7306,30 @@
         document.querySelector('.modal-overlay')?.remove();
         toast("✓ Ajuste guardado");
         cargarNomina();
+    }
+
+    async function nomEnviarTelegram() {
+        const btn = document.getElementById('nom-tg-btn');
+        const total = document.getElementById('nom-total-global')?.textContent || '';
+        if(!confirm(`¿Disparar la nómina a Telegram ahora?\n\nSe genera con los datos actuales (incluye los ajustes que acabas de agregar) y te llega el Excel al chat en ~1 min.\n\nTotal actual: ${total}`)) return;
+        if(btn){ btn.disabled = true; btn.style.opacity = '0.6'; btn.innerHTML = '<i class="ph ph-spinner"></i> Enviando...'; }
+        try {
+            const res = await fetch(`${SUPABASE_URL}/functions/v1/disparar-nomina`, {
+                method:"POST",
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json"},
+                body: JSON.stringify({})
+            });
+            if(res.ok) {
+                toast("✓ Nómina disparada — te llega a Telegram en ~1 min");
+            } else {
+                const t = await res.text();
+                toast("⚠️ No se pudo disparar: " + t.substring(0,80));
+            }
+        } catch(e) {
+            toast("⚠️ Error de red: " + e.message);
+        } finally {
+            if(btn){ btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '<i class="ph-bold ph-paper-plane-tilt"></i> Enviar a Telegram'; }
+        }
     }
 
     async function liquidarSemana() {
