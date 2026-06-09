@@ -2404,10 +2404,6 @@
                     <i class="ph ph-money"></i>
                     Nómina
                 </div>
-                <div class="nav-item" onclick="goTo('dispersion',this)">
-                    <i class="ph ph-paper-plane-tilt"></i>
-                    Dispersión
-                </div>
 
             </div>
 
@@ -2671,6 +2667,12 @@
                         </div>
                         <span style="font-family:var(--font-mono);font-size:13px;color:var(--status-green);font-weight:700" id="nom-total-global">$0.00</span><button class="btn btn-ghost" onclick="abrirHistorico()" style="font-size:11px;padding:9px 14px">
                             <i class="ph ph-clock-counter-clockwise"></i> Histórico
+                        </button>
+                        <button class="btn btn-ghost" onclick="dispAgregarExtra()" style="font-size:11px;padding:9px 14px">
+                            <i class="ph ph-user-plus"></i> Persona extra
+                        </button>
+                        <button class="btn btn-ghost" onclick="dispGenerarExcel()" style="font-size:11px;padding:9px 14px">
+                            <i class="ph ph-file-xls"></i> Generar Excel
                         </button>
                         <button class="btn btn-outline-white" id="nom-tg-btn" onclick="nomEnviarTelegram()" style="font-size:11px">
                             <i class="ph-bold ph-paper-plane-tilt"></i> Enviar a Telegram
@@ -7162,8 +7164,8 @@
         const _t=document.getElementById('nom-titulo-sem'); if(_t) _t.textContent = _enPago ? 'a pagar' : '';
         const _h=document.getElementById('nom-hoy-btn'); if(_h) _h.style.display = _enPago ? 'none' : 'inline-flex';
 
-        // Cargar staff + limpiezas + ajustes filtrados por semana actual
-        const [resStaff, resLimp, resAjustes] = await Promise.all([
+        // Cargar staff + limpiezas + ajustes + extras filtrados por semana
+        const [resStaff, resLimp, resAjustes, resExtras] = await Promise.all([
             fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?activo=eq.true&select=*`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
             }),
@@ -7172,12 +7174,16 @@
             }),
             fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=in.(pendiente,pagado)&fecha=gte.${viernesISO}&fecha=lte.${juevesISO}&select=*`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/dispersion_extras?semana_inicio=eq.${viernesISO}&select=*`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             })
         ]);
 
         const staff = await resStaff.json();
         const limpiezas = await resLimp.json();
         const ajustes = await resAjustes.json();
+        const extras = resExtras.ok ? await resExtras.json() : [];
 
         if(!staff.length) {
             body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-tertiary)">Sin staff registrado</div>`;
@@ -7191,8 +7197,8 @@
             const misAjustes = ajustes.filter(a => a.staff_id===s.id);
             const totalLimp = misLimp.reduce((acc,l) => acc+(parseFloat(l.tarifa_aplicada)||0), 0);
             const totalAjust = misAjustes.reduce((acc,a) => acc+(parseFloat(a.monto)||0), 0);
-            const total = totalLimp + totalAjust;
-            totalGlobal += total;
+            const total = s.es_fijo ? (parseFloat(s.monto_fijo)||0) : (totalLimp + totalAjust); // fijos = monto fijo (igual que el banco)
+            if(total > 0) totalGlobal += total; // igual que el archivo del banco: omite <= 0
 
             const iniciales = s.nombre.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
 
@@ -7218,7 +7224,7 @@
                     <div class="nom-avatar">${iniciales}</div>
                     <div style="flex:1">
                         <div class="nom-name">${s.nombre}</div>
-                        <div class="nom-count">${misLimp.length} limpieza${misLimp.length!==1?'s':''} · ${misAjustes.length} ajuste${misAjustes.length!==1?'s':''}</div>
+                        <div class="nom-count">${s.es_fijo ? 'FIJO · $'+(parseFloat(s.monto_fijo)||0).toFixed(0) : (misLimp.length+' limpieza'+(misLimp.length!==1?'s':'')+' · '+misAjustes.length+' ajuste'+(misAjustes.length!==1?'s':''))}</div>
                     </div>
                     <div class="nom-total">$${total.toFixed(0)}</div>
                     <i class="ph ph-caret-down nom-chevron"></i>
@@ -7248,8 +7254,47 @@
             </div>`;
         }).join('');
 
-        body.innerHTML = html;
+        // Sección de Extras (personas fuera de staff) — misma data que Dispersión
+        let extrasHtml = '';
+        if(extras.length) {
+            const extraRows = extras.map(e => {
+                const monto = parseFloat(e.monto||0);
+                totalGlobal += monto;
+                const bco = dispGetBanco(e.cuenta_bancaria||'');
+                return `<div class="nom-staff">
+                    <div class="nom-staff-header" style="cursor:default">
+                        <div class="nom-avatar" style="background:rgba(224,122,62,.15);color:var(--accent-terracota)"><i class="ph ph-user-plus"></i></div>
+                        <div style="flex:1">
+                            <div class="nom-name">${e.nombre_completo||'—'}</div>
+                            <div class="nom-count">EXTRA · ${e.cuenta_bancaria||'—'} · ${bco||'—'}</div>
+                        </div>
+                        <div class="nom-total">$${monto.toFixed(0)}</div>
+                        <button class="btn btn-ghost" onclick="nomEliminarExtra('${e.id}')" style="padding:8px 10px;color:var(--status-red);margin-left:6px" title="Quitar extra">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+            extrasHtml = `<div style="padding:10px 16px 6px;font-family:var(--font-mono);font-size:10px;color:var(--accent-terracota);text-transform:uppercase;letter-spacing:.5px;border-top:1px solid rgba(255,255,255,.06);margin-top:6px">Extras de la semana</div>${extraRows}`;
+        }
+
+        body.innerHTML = html + extrasHtml;
         document.getElementById('nom-total-global').textContent = `$${totalGlobal.toFixed(0)}`;
+
+        // Sincronizar Dispersión (misma semana) para que "Generar Excel" y "Enviar a Telegram" usen estos datos
+        dispSemanaOffset = nomOffset;
+        dispCargar();
+    }
+
+    // Quitar una persona extra desde la vista de Nómina (borra de dispersion_extras de esta semana)
+    async function nomEliminarExtra(id) {
+        if(!confirm('¿Quitar esta persona extra de la semana?')) return;
+        await fetch(`${SUPABASE_URL}/rest/v1/dispersion_extras?id=eq.${id}`, {
+            method:"DELETE", keepalive:true,
+            headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+        }).catch(()=>{});
+        toast('✓ Extra quitada');
+        cargarNomina();
     }
 
     function nomToggle(staffId) {
@@ -11167,6 +11212,7 @@ function updateNotifBadge(){
         toast('✓ Guardando...');
         // Recargar todo para evitar duplicados y tener datos frescos
         await dispCargar();
+        if(document.getElementById('mod-nomina')?.classList.contains('active')) cargarNomina();
         toast('✓ Persona agregada');
     }
 
