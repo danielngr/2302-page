@@ -4103,6 +4103,21 @@
         div.innerHTML=h; div.style.display="block";
     }
 
+    // ── Origen de reserva (Airbnb/Hostfully) + atajo de chat ───
+    function _origenBadge(origen){
+        if(origen==='Airbnb') return `<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;padding:2px 6px;border-radius:20px;background:rgba(255,90,95,.15);color:#FF5A5F;margin-left:6px;vertical-align:middle">Airbnb</span>`;
+        if(origen==='Hostfully') return `<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;padding:2px 6px;border-radius:20px;background:rgba(74,164,255,.15);color:#4AA4FF;margin-left:6px;vertical-align:middle">Hostfully</span>`;
+        return '';
+    }
+    function _chatBtnHTML(origen, codAir){
+        let url, title;
+        if(origen==='Airbnb' && codAir){ url=`https://www.airbnb.com/hosting/reservations/details/${codAir}`; title='Abrir chat en Airbnb'; }
+        else if(origen==='Hostfully'){ url='https://platform.hostfully.com/'; title='Abrir bandeja en Hostfully'; }
+        else if(codAir){ url=`https://www.airbnb.com/hosting/reservations/details/${codAir}`; title='Abrir chat en Airbnb'; }
+        else return '';
+        return `<a class="btn btn-outline-white" href="${url}" target="_blank" rel="noopener" title="${title}" onclick="event.stopPropagation()" style="min-width:40px;padding:6px 10px"><i class="ph-bold ph-chat-circle-dots"></i></a>`;
+    }
+
     function itemHTML(r) {
         let accion="";
         // Tipo efectivo: si tipo_formato viene vacío o no es un tipo de acción conocido
@@ -4254,11 +4269,11 @@
         return `<div id="li-wrap-${r.id}">
             <div class="list-item${r.pdf_generado?' generado':''}" id="li-${r.id}" style="cursor:default">
                 <div class="depto-info">
-                    <span class="depto-name">${displayDepto(r.depto)}</span>
+                    <span class="depto-name">${displayDepto(r.depto)}${_origenBadge(r._origen||'')}</span>
                     <span class="depto-type">${fmtFecha(r.fecha_entrada)} → ${fmtFecha(r.fecha_salida)} · ${r.num_adultos||0}A${(r.num_menores||0)>0?" "+(r.num_menores)+"N":""}</span>
                 </div>
                 ${nombre}
-                <div>${accion}</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${_chatBtnHTML(r._origen||'', r._codAir||'')}${accion}</div>
                 <button class="chevron-btn" id="chev-${r.id}" onclick="toggleDetalle('${r.id}')">
                     <i class="ph ph-caret-down"></i>
                 </button>
@@ -4333,6 +4348,8 @@
                 const depto=(row[2]||'').trim().replace(/"/g,'');
                 const deptoDisp=displayDepto(depto); // nombre unificado solo para mostrar
                 const reg=matchReg(depto);
+                const _o=(row[8]||'').replace(/"/g,'').trim(), _c=(row[9]||'').replace(/"/g,'').trim(), _h=(row[10]||'').replace(/"/g,'').trim();
+                if(reg){ reg._origen=_o; reg._codAir=_c; reg._huesped=_h; }
                 // EXACT override: si el depto está en EXACT (whatsapp, frakcio), prioriza ese tipo
                 // sobre reg.tipo_formato que puede estar mal guardado en DB
                 const tmplTipo = getTmpl(depto).tipo;
