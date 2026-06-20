@@ -13,6 +13,7 @@ main{position:relative;z-index:1}
 .feat-frame{box-shadow:0 40px 100px -30px rgba(0,0,0,.7)}
 :root{--sans:"Space Grotesk",system-ui,sans-serif;--mono:"Space Mono",monospace;--serif:"Cormorant Garamond",serif;--cream:#f1ece1;--aqua:#9fd8e6;--bg:#070d10}
 *{margin:0;padding:0;box-sizing:border-box}
+html{overflow-x:hidden}
 html.lenis,html.lenis body{height:auto}.lenis.lenis-smooth{scroll-behavior:auto!important}
 body{background:var(--bg);color:var(--cream);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow-x:clip}
 @media(pointer:fine){body{cursor:none}a,button,.menu,.ixli,[data-mag]{cursor:none}}
@@ -508,7 +509,7 @@ footer{padding:64px var(--gx) 40px}
   .wsec .wlive-bot{gap:20px}
   .wsec .wlive-c b{font-size:11px}
   .wsec .wlive-c i{font-size:7.5px}
-  .wsec .idx,.wsec .wcoord{font-size:9px;top:5.5vh}
+  .wsec .idx,.wsec .wcoord{display:none}
   .wsec .r-cap{font-size:9px;bottom:8vh}
   .wsec .r-line{bottom:6vh}
   .gal-head{margin-bottom:18px}
@@ -540,8 +541,8 @@ footer{padding:64px var(--gx) 40px}
 const loader=document.getElementById('loader');function hideLoader(){loader.style.opacity=0;setTimeout(()=>loader.style.display='none',750);}
 try{
   const THREE=await import('three');const {FontLoader}=await import('three/addons/loaders/FontLoader.js');const {TextGeometry}=await import('three/addons/geometries/TextGeometry.js');const {RoomEnvironment}=await import('three/addons/environments/RoomEnvironment.js');
-  const canvas=document.getElementById('logo3d');const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?1.5:2));renderer.setSize(innerWidth,innerHeight);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;
-  const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,0.1,100);camera.position.set(0,0,11);
+  const canvas=document.getElementById('logo3d');const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?1.5:2));renderer.setSize(canvas.clientWidth||innerWidth,canvas.clientHeight||innerHeight,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;
+  const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(42,(canvas.clientWidth||innerWidth)/(canvas.clientHeight||innerHeight),0.1,100);camera.position.set(0,0,11);
   const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new RoomEnvironment(renderer),0.04).texture;
 
   /* ---------- FONDO: varios clips de hero que se intercalan (crossfade) ----------
@@ -611,7 +612,8 @@ try{
   new FontLoader().load('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json',function(font){const geo=new TextGeometry('VRM',{font,size:3,height:0.9,curveSegments:26,bevelEnabled:true,bevelThickness:0.14,bevelSize:0.09,bevelSegments:10});geo.center();mesh=new THREE.Mesh(geo,mat);mesh.renderOrder=2;group.add(mesh);fit();hideLoader();var f=document.getElementById('logofallback');if(f)f.style.opacity=0;});
   function fit(){coverPlanes();if(!mesh)return;mesh.geometry.computeBoundingBox();const bb=mesh.geometry.boundingBox,w=bb.max.x-bb.min.x;const visW=2*Math.tan(camera.fov*Math.PI/360)*camera.position.z*camera.aspect;const target=visW*(innerWidth<760?0.62:0.40);group.scale.setScalar(target/w);}
   let mx=0,my=0,cx=0,cy=0;const coarse=matchMedia('(pointer:coarse)').matches;addEventListener('pointermove',e=>{mx=(e.clientX/innerWidth-0.5);my=(e.clientY/innerHeight-0.5);});
-  addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);fit();});
+  function heroResize(){var w=canvas.clientWidth||innerWidth,h=canvas.clientHeight||innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);fit();}
+  addEventListener('resize',heroResize);heroResize();
   const clock=new THREE.Clock();
   function loop(){requestAnimationFrame(loop);updateFade(performance.now()/1000);if(window.scrollY>innerHeight*1.15){clock.getDelta();return;}const t=clock.elapsedTime;cx+=(mx-cx)*0.05;cy+=(my-cy)*0.05;group.rotation.y=coarse?t*0.32:(Math.sin(t*0.3)*0.26+cx*0.6);group.rotation.x=coarse?Math.sin(t*0.5)*0.06:(Math.sin(t*0.22)*0.05-cy*0.4);group.position.y=Math.sin(t*0.7)*0.12;renderer.render(scene,camera);}
   loop();setTimeout(hideLoader,4000);
@@ -908,7 +910,7 @@ function buildWhale(arr){
   inst.count=D.length;ready=true;
 }
 buildWhale(WHALE_PTS);
-function whaleFit(){inst.scale.setScalar(matchMedia('(max-width:760px)').matches?0.66:1);}
+function whaleFit(){inst.scale.setScalar(matchMedia('(max-width:760px)').matches?0.55:1);}
 whaleFit();
 
 /* ---------- estado por scroll ---------- */
