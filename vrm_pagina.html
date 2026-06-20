@@ -637,7 +637,7 @@ window.addEventListener('load',function(){
   function raf(){ax+=(px-ax)*0.9;ay+=(py-ay)*0.9;bx+=(px-bx)*0.16;by+=(py-by)*0.16;rx+=(px-rx)*0.12;ry+=(py-ry)*0.12;
     if(fine){cur.style.transform='translate('+ax+'px,'+ay+'px) translate(-50%,-50%)';curr.style.transform='translate('+bx+'px,'+by+'px) translate(-50%,-50%)';}
     ixrev.style.transform='translate('+rx+'px,'+ry+'px) translate(-50%,-50%)';requestAnimationFrame(raf);}
-  raf();
+  if(fine)raf();
   // estados de cursor
   document.querySelectorAll('[data-cur=lg]').forEach(function(el){el.addEventListener('pointerenter',function(){curr.classList.add('lg');curr.textContent='Ver';});el.addEventListener('pointerleave',function(){curr.classList.remove('lg');curr.textContent='';});});
   document.querySelectorAll('a,.menu,.ixli').forEach(function(el){if(el.hasAttribute('data-cur'))return;el.addEventListener('pointerenter',function(){curr.classList.add('lg');});el.addEventListener('pointerleave',function(){curr.classList.remove('lg');});});
@@ -874,7 +874,7 @@ const smooth=(a,b,x)=>{x=Math.min(Math.max((x-a)/(b-a),0),1);return x*x*(3-2*x);
 /* ---------- three: ballena de cristal ---------- */
 const canvas=document.getElementById('wgl');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?1.25:1.5));
+renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?1.0:1.5));
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.92;renderer.outputColorSpace=THREE.SRGBColorSpace;
 const scene=new THREE.Scene();
 const stage=document.querySelector('.whale-stage');
@@ -903,10 +903,11 @@ function buildWhale(arr){
   const add=(rest)=>{
     const u=(rest.x-minx)/span;                          // cabeza (-X) -> 0 · cola (+X) -> 1
     const dir=rest.clone().normalize().add(new THREE.Vector3((Math.random()-.5)*0.5,(Math.random()-.5)*0.5,(Math.random()-.5)*0.5)).normalize();
-    D.push({rest,u,comp:0,dir,dist:4+Math.random()*11,axis:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize(),spin:0.4+Math.random()*1.1,phase:Math.random()*7,sc:0.08+Math.random()*0.08,pecSide:rest.z>=0?1:-1});
+    D.push({rest,u,comp:0,dir,amp:smooth(0.32,1.0,Math.min(u,1.0)),dist:4+Math.random()*11,axis:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize(),spin:0.4+Math.random()*1.1,phase:Math.random()*7,sc:0.08+Math.random()*0.08,pecSide:rest.z>=0?1:-1});
   };
-  for(const p of pts){ add(p);                            // punto original + duplicado con jitter -> más denso, menos huecos
-    add(p.clone().add(new THREE.Vector3((Math.random()-.5)*0.18,(Math.random()-.5)*0.18,(Math.random()-.5)*0.18))); }
+  const MOB=matchMedia('(max-width:760px)').matches;
+  for(const p of pts){ add(p);                            // punto original + (en desktop) duplicado con jitter -> más denso
+    if(!MOB) add(p.clone().add(new THREE.Vector3((Math.random()-.5)*0.18,(Math.random()-.5)*0.18,(Math.random()-.5)*0.18))); }
   inst.count=D.length;ready=true;
 }
 buildWhale(WHALE_PTS);
@@ -952,7 +953,7 @@ function setP(t){if(!ready)return;
   const expl=smooth(0.62,1.0,S), eexp=expl*expl*(3-2*expl); // sólo la EXPLOSIÓN final (la formación queda igual)
   const omega=1.25, k=3.1, glob=t*omega;                 // onda viajera cabeza -> cola
   for(let i=0;i<D.length;i++){const d=D[i];const r=ee*d.dist;
-    const amp=smooth(0.32,1.0,Math.min(d.u,1.0));         // ~0 en cabeza, máximo en la cola
+    const amp=d.amp;                                     // precalculado (constante por cristal)
     let fy=1.35*amp*Math.sin(glob-k*d.u);                 // golpe dorso-ventral del fluke
     if(d.comp===2) fy+=0.45*Math.sin(t*1.05+d.pecSide*0.7); // pectorales: aleteo propio
     const glide=0.14*Math.sin(t*0.6+0.5);                 // planeo de todo el cuerpo
@@ -966,7 +967,7 @@ function setP(t){if(!ready)return;
     dum.updateMatrix();inst.setMatrixAt(i,dum.matrix);}
   inst.instanceMatrix.needsUpdate=true;
 }
-let wVis=true;
+let wVis=true;let lastF=-1,lastSurf=-1;
 try{new IntersectionObserver(es=>{wVis=es[0].isIntersecting;},{rootMargin:'150px 0px'}).observe(document.querySelector('.wsec'));}catch(_){wVis=true;}
 const clock=new THREE.Clock();
 function loop(){requestAnimationFrame(loop);if(!wVis)return;const t=clock.getElapsedTime();
@@ -975,9 +976,9 @@ function loop(){requestAnimationFrame(loop);if(!wVis)return;const t=clock.getEla
 
   setP(t);
   const formed=1-e; // 0 disperso, 1 formado
-  vid.style.opacity=String(0.92-formed*0.40);
-  vid.style.filter=`blur(${formed*1.4}px) saturate(${1+formed*0.1})`;
-  if(wsurf){const surf=smooth(0.66,0.99,S);wsurf.style.opacity=(surf*0.72).toFixed(3);} // ascenso a la superficie
+  const fq=Math.round(formed*120);
+  if(fq!==lastF){lastF=fq;vid.style.opacity=String(0.92-formed*0.40);vid.style.filter=`blur(${formed*1.4}px) saturate(${1+formed*0.1})`;}
+  if(wsurf){const surf=smooth(0.66,0.99,S);const sq=Math.round(surf*120);if(sq!==lastSurf){lastSurf=sq;wsurf.style.opacity=(surf*0.72).toFixed(3);}} // ascenso a la superficie
   renderer.render(scene,camera);
 }
 sz();addEventListener('resize',()=>{sz();whaleFit();ScrollTrigger.refresh();});
