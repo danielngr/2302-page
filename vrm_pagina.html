@@ -92,6 +92,9 @@ nav .navr{display:flex;align-items:center;gap:16px}
 /* SECCIONES */
 .sec{padding:15vh 4vw;position:relative}
 .stk{position:sticky;top:0;min-height:100svh;overflow:hidden;background-color:var(--bg);background-size:cover;background-position:center;border-radius:30px 30px 0 0;box-shadow:0 -30px 60px rgba(0,0,0,.45);will-change:transform}
+/* ===== BANDA WORDMARK: la bahía dentro de las letras (revelado pixelado por cursor) ===== */
+.wordband{position:relative;z-index:1;height:clamp(170px,30vh,360px);overflow:hidden;background:var(--bg);cursor:crosshair}
+.wordband canvas{display:block;width:100%;height:100%}
 .snum{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--aqua)}
 .lead{font-family:var(--serif);font-weight:400;font-size:clamp(30px,4.4vw,62px);line-height:1.1;max-width:20ch}
 .lead i{font-style:italic}.lead b{font-weight:500}
@@ -138,26 +141,37 @@ nav .navr{display:flex;align-items:center;gap:16px}
 .gal-head .lead{margin-top:16px}
 .gal-hint{margin-top:20px;font-family:var(--mono);font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:rgba(241,236,225,.5);display:flex;align-items:center;gap:14px}
 .gal-hint::before{content:'';width:34px;height:1px;background:rgba(241,236,225,.42)}
-.gal-stage{position:relative;width:100%;height:clamp(420px,62vh,620px);perspective:3200px;perspective-origin:50% 48%;touch-action:pan-y;cursor:grab}
-.gal-stage.drag{cursor:grabbing}
-.gal-ring{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}
-.gcard{position:absolute;left:50%;top:50%;width:var(--cw,300px);height:var(--ch,408px);margin-left:calc(var(--cw,300px) / -2);margin-top:calc(var(--ch,408px) / -2);border-radius:8px;overflow:hidden;text-decoration:none;color:inherit;cursor:pointer;box-shadow:0 40px 90px -28px rgba(0,0,0,.82);backface-visibility:hidden;-webkit-backface-visibility:hidden;will-change:transform,opacity}
-.gcard-img{position:absolute;inset:0;background-size:cover;background-position:center;background-image:var(--img)}
+.gal-stage{position:relative;width:100%;height:clamp(420px,62vh,620px);overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x proximity}
+.gal-stage::-webkit-scrollbar{display:none}
+.gal-ring{display:flex;align-items:stretch;gap:10px;height:100%;width:max-content;padding:0 6vw}
+.gcard{position:relative;flex:0 0 auto;width:96px;height:100%;border-radius:12px;overflow:hidden;text-decoration:none;color:inherit;cursor:pointer;box-shadow:0 30px 70px -28px rgba(0,0,0,.8);scroll-snap-align:center;will-change:width;transition:width .62s cubic-bezier(.66,0,.2,1)}
+.gcard-img{position:absolute;inset:0;background-size:cover;background-position:center;background-image:var(--img);transition:transform .9s cubic-bezier(.66,0,.2,1)}
 .gcard-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,9,12,.08),transparent 32%,transparent 50%,rgba(4,9,12,.86))}
 .gc-n{position:absolute;top:18px;left:20px;font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:rgba(241,236,225,.92);z-index:2;text-shadow:0 1px 8px rgba(0,0,0,.6)}
-.gc-tag{position:absolute;top:18px;right:20px;font-family:var(--mono);font-size:8.5px;letter-spacing:.24em;text-transform:uppercase;color:rgba(241,236,225,.8);z-index:2;border:1px solid rgba(241,236,225,.36);padding:5px 9px;border-radius:999px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
-.gc-info{position:absolute;left:22px;right:22px;bottom:22px;z-index:2}
+.gc-tag{position:absolute;top:18px;right:20px;font-family:var(--mono);font-size:8.5px;letter-spacing:.24em;text-transform:uppercase;color:rgba(241,236,225,.8);z-index:2;border:1px solid rgba(241,236,225,.36);padding:5px 9px;border-radius:999px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);opacity:0;transform:translateY(-8px);transition:opacity .45s .1s,transform .45s .1s}
+.gc-info{position:absolute;left:22px;right:22px;bottom:22px;z-index:2;opacity:0;transform:translateY(14px);transition:opacity .55s .12s,transform .55s .12s}
 .gc-nm{font-family:var(--serif);font-weight:500;font-size:clamp(24px,2.1vw,33px);line-height:1.05;color:#fff}
 .gc-meta{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:rgba(241,236,225,.8);margin-top:9px}
 .gc-price{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--aqua);margin-top:10px}
 .gc-price i{color:rgba(241,236,225,.55);font-style:normal;font-size:9px;letter-spacing:.13em}
-.gc-go{display:inline-flex;align-items:center;gap:8px;margin-top:14px;font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#fff;opacity:0;transform:translateY(8px);transition:.5s}
-.gcard.is-front .gc-go{opacity:1;transform:none}
-.gcard-end{background:linear-gradient(150deg,#0c2731 0%,#06141c 100%);border:1px solid rgba(241,236,225,.18);display:grid;place-content:center;text-align:center;text-decoration:none;padding:28px}
+.gc-go{display:inline-flex;align-items:center;gap:8px;margin-top:14px;font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#fff}
+/* ===== ACORDEÓN: la card abierta (o con hover) se ensancha y muestra su contenido ===== */
+.gcard.is-open{width:clamp(300px,34vw,460px)}
+.gcard.is-open .gcard-img{transform:scale(1.05)}
+.gcard.is-open .gc-info,.gcard.is-open .gc-tag{opacity:1;transform:none}
+@media(pointer:fine){
+  .gal-ring:hover .gcard:not(:hover):not(.gcard-end){width:96px}
+  .gal-ring:hover .gcard:hover{width:clamp(300px,34vw,460px)}
+  .gcard:hover .gcard-img{transform:scale(1.05)}
+  .gcard:hover .gc-info,.gcard:hover .gc-tag{opacity:1;transform:none}
+  .gal-ring:hover .gcard:not(:hover) .gc-info{opacity:0;transform:translateY(14px)}
+  .gal-ring:hover .gcard:not(:hover) .gc-tag{opacity:0;transform:translateY(-8px)}
+}
+.gcard-end{flex:0 0 auto;width:clamp(260px,30vw,360px);height:100%;background:linear-gradient(150deg,#0c2731 0%,#06141c 100%);border:1px solid rgba(241,236,225,.18);display:grid;place-content:center;text-align:center;text-decoration:none;padding:28px}
 .gcard-end .ge-k{font-family:var(--mono);font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--aqua)}
 .gcard-end .ge-v{font-family:var(--serif);font-size:clamp(28px,2.8vw,42px);color:#fff;margin-top:14px;line-height:1.05}
 .gcard-end .ge-go{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:rgba(241,236,225,.82);margin-top:20px;display:inline-flex;gap:8px;align-items:center}
-.gal-foot{display:flex;align-items:center;justify-content:center;gap:22px;padding:clamp(14px,2.5vh,30px) 6vw 0;margin:0 auto}
+.gal-foot{display:none}
 .gnav{position:relative;overflow:hidden;width:50px;height:50px;border-radius:50%;color:#f4fafc;font-size:16px;display:grid;place-content:center;flex:none;cursor:pointer;isolation:isolate;
   background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(159,216,230,.08) 55%,rgba(255,255,255,.04));
   -webkit-backdrop-filter:blur(18px) saturate(1.5) brightness(1.05);backdrop-filter:blur(18px) saturate(1.5) brightness(1.05);
@@ -169,7 +183,7 @@ nav .navr{display:flex;align-items:center;gap:16px}
 @media(pointer:fine){.gnav:hover{transform:translateY(-2px);border-color:rgba(159,216,230,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.78),inset 0 -7px 14px rgba(120,200,220,.18),0 16px 34px rgba(0,0,0,.36)}}
 .gcount{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:rgba(241,236,225,.62);flex:none;min-width:56px;text-align:center}
 .gcount b{color:var(--cream);font-weight:400}
-@media(max-width:760px){.gal-stage{height:clamp(320px,46vh,430px);perspective:2500px}.gcard{--cw:202px;--ch:278px}}
+@media(max-width:760px){.gal-stage{height:clamp(380px,52vh,520px);scroll-snap-type:x mandatory}.gcard,.gcard.is-open{width:80vw}.gcard .gc-info,.gcard .gc-tag{opacity:1;transform:none}.gal-ring{gap:12px}}
 /* POR QUÉ */
 .why{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;margin-top:64px}
 .why .it{padding-top:22px;position:relative}
@@ -189,6 +203,22 @@ nav .navr{display:flex;align-items:center;gap:16px}
 .rev .stars{color:var(--aqua);letter-spacing:6px;font-size:18px;margin-top:8px}
 .rev .quote{font-family:var(--serif);font-size:clamp(22px,3vw,34px);line-height:1.4;margin-top:46px;font-style:italic}
 .rev .who{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(241,236,225,.6);margin-top:20px}
+/* ===== RESEÑAS estilo produx: ecualizador + tarjetas escalonadas con foco central ===== */
+.rsec{display:flex;flex-direction:column;justify-content:center}
+.rev-eq{display:flex;justify-content:center;align-items:flex-end;gap:5px;height:34px;margin:30px auto 0;width:min(340px,70vw)}
+.rev-eq i{flex:1;background:rgba(159,216,230,.2);border-radius:2px;transition:background .45s,opacity .45s;opacity:.5}
+.rev-eq i.on{background:var(--aqua);opacity:1;box-shadow:0 0 10px rgba(159,216,230,.55)}
+.rev-strip{display:flex;gap:clamp(16px,2vw,28px);overflow-x:auto;scroll-snap-type:x proximity;padding:46px 6vw 26px;align-items:flex-start;scrollbar-width:none}
+.rev-strip::-webkit-scrollbar{display:none}
+.rev-card{flex:0 0 auto;width:clamp(270px,30vw,400px);scroll-snap-align:center;background:#e8e1d6;color:#171a1c;border-radius:14px;padding:clamp(22px,2vw,32px);box-shadow:0 30px 70px -30px rgba(0,0,0,.7);opacity:.36;transform:scale(.9);transition:opacity .55s,transform .55s}
+.rev-card:nth-child(even){margin-top:clamp(28px,6vh,70px)}
+.rev-card.is-active{opacity:1;transform:scale(1)}
+.rc-top{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.rc-av{width:46px;height:46px;border-radius:50%;background:#0c2731;color:var(--aqua);display:grid;place-content:center;font-family:var(--mono);font-size:12px;letter-spacing:.04em;flex:none}
+.rc-id b{display:block;font-family:var(--sans);font-weight:600;font-size:15px;color:#171a1c}
+.rc-id i{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:rgba(23,26,28,.55);font-style:normal;margin-top:3px}
+.rc-q{font-family:var(--serif);font-size:clamp(19px,1.7vw,24px);line-height:1.4;color:#23282b}
+@media(max-width:760px){.rev-card{width:80vw}.rev-card:nth-child(even){margin-top:0}.rev-strip{scroll-snap-type:x mandatory;align-items:stretch}}
 /* CONTACTO */
 .contact{text-align:center}
 .contact .big{font-family:var(--serif);font-weight:400;font-size:clamp(40px,7vw,104px);line-height:1.02}
@@ -234,6 +264,14 @@ footer .lks{display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-
 .wsec .wcenter h1{font-weight:400;font-style:normal;font-size:clamp(38px,5.6vw,86px);line-height:1.0;margin-top:14px;text-shadow:0 6px 60px rgba(0,0,0,.5);color:#f3ecdd}
 .wsec .wcenter h1 i{font-style:italic}
 .wsec .wcenter .wsub{max-width:520px;margin:20px auto 0;font-size:18px;line-height:1.6;color:rgba(243,236,221,.78)}
+/* ===== ETIQUETAS FLOTANTES de la ballena (salen con el scroll) ===== */
+.wsec .wlabel{position:absolute;display:flex;align-items:center;gap:14px;z-index:3;opacity:0;pointer-events:none}
+.wsec .wlabel .wl-sq{width:54px;height:54px;flex:none;border:1px solid rgba(159,216,230,.5);border-radius:8px;background:linear-gradient(135deg,rgba(159,216,230,.2),rgba(159,216,230,.04));-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.wsec .wlabel .wl-tx{font-family:var(--mono);font-size:13px;letter-spacing:.04em;line-height:1.35;color:#f3ecdd;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+.wsec .wl1{top:20vh;left:7vw}
+.wsec .wl2{top:44vh;right:8vw;flex-direction:row-reverse;text-align:right}
+.wsec .wl3{bottom:26vh;left:10vw}
+@media(max-width:760px){.wsec .wlabel{display:none}}
 .wsec .r-line{position:absolute;left:6vw;bottom:7vh;width:0;height:1px;background:linear-gradient(90deg,rgba(243,236,221,.5),transparent);z-index:4}
 .wsec .r-cap{position:absolute;left:6vw;bottom:9vh;font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:rgba(243,236,221,.55);z-index:4}
 .wsec .wdata{display:inline-flex;gap:clamp(18px,3vw,44px);justify-content:center;align-items:flex-start;margin:24px auto 0;flex-wrap:wrap}
@@ -299,7 +337,7 @@ footer .lks{display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-
     <div class="gal-head">
       <div class="snum reveal">Todas las casas</div>
       <p class="lead reveal" style="margin-top:16px">La bahía <i>entera</i>.</p>
-      <div class="gal-hint reveal">Arrastra para explorar</div>
+      <div class="gal-hint reveal">Pasa el cursor para abrir · desliza para ver más</div>
     </div>
     <div class="gal-stage" id="galStage">
       <div class="gal-ring" id="galRing">
@@ -420,6 +458,9 @@ footer .lks{display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-
           <div class="wcoord">20°37′N · 105°13′W</div>
           <div class="r-cap" id="wrcap">Megaptera novaeangliae</div>
           <div class="r-line" id="wrline"></div>
+          <div class="wlabel wl1"><span class="wl-sq"></span><span class="wl-tx">Avistamientos<br>cada mañana</span></div>
+          <div class="wlabel wl2"><span class="wl-sq"></span><span class="wl-tx">A minutos<br>de tus casas</span></div>
+          <div class="wlabel wl3"><span class="wl-sq"></span><span class="wl-tx">Temporada<br>Dic — Mar</span></div>
           <div class="wcenter">
             <div class="web" id="web" style="opacity:0">Cada invierno regresan</div>
             <h1><span class="mask"><span>Donde</span></span> <span class="mask"><span>vuelven</span></span><br><span class="mask"><span><i>las ballenas</i></span></span></h1>
@@ -444,15 +485,43 @@ footer .lks{display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-
     <span>Puerto Vallarta <b>·</b></span><span>Punta de Mita <b>·</b></span><span>Nuevo Vallarta <b>·</b></span><span>Flamingos <b>·</b></span><span>La Cruz de Huanacaxtle <b>·</b></span><span>Riviera Nayarit <b>·</b></span>
   </div></div>
 
-  <section id="s-resenas" class="sec" data-bg="https://i.imgur.com/JV7Bscs.jpeg">
+  <section id="s-resenas" class="sec rsec" data-bg="https://i.imgur.com/JV7Bscs.jpeg">
     <div class="rev">
       <div class="snum reveal" style="text-align:center">05 / Lo que dicen</div>
-      <div class="big reveal" style="margin-top:20px">4.83</div>
+      <div class="big reveal" style="margin-top:14px">4.83</div>
       <div class="stars reveal">★ ★ ★ ★ ★</div>
-      <p class="quote" data-par="48" data-split style="margin-top:46px">"Sentimos que alguien de verdad nos cuidaba. La casa, la bahía, todo como nos lo prometieron — y más."</p>
-      <div class="who reveal">James &amp; Lily R. · 517 reseñas verificadas desde 2018</div>
+      <div class="who reveal">517 reseñas verificadas · desde 2018</div>
+    </div>
+    <div class="rev-eq reveal" id="revEq" aria-hidden="true"></div>
+    <div class="rev-strip" id="revStrip">
+      <article class="rev-card is-active">
+        <div class="rc-top"><span class="rc-av">JL</span><span class="rc-id"><b>James &amp; Lily R.</b><i>Vancouver, Canadá</i></span></div>
+        <p class="rc-q">"Sentimos que alguien de verdad nos cuidaba. La casa, la bahía, todo como nos lo prometieron — y más."</p>
+      </article>
+      <article class="rev-card">
+        <div class="rc-top"><span class="rc-av">SM</span><span class="rc-id"><b>Sarah &amp; Mike</b><i>Austin, TX</i></span></div>
+        <p class="rc-q">"Booking direct saved us a ton and the team replied within minutes. The villa was spotless and exactly like the photos."</p>
+      </article>
+      <article class="rev-card">
+        <div class="rc-top"><span class="rc-av">MT</span><span class="rc-id"><b>Marcos T.</b><i>Ciudad de México</i></span></div>
+        <p class="rc-q">"La mejor ubicación de la bahía. Nos contestaron a cualquier hora y la casa superó por mucho las expectativas."</p>
+      </article>
+      <article class="rev-card">
+        <div class="rc-top"><span class="rc-av">TH</span><span class="rc-id"><b>The Hendersons</b><i>Seattle, WA</i></span></div>
+        <p class="rc-q">"Whales from the terrace every single morning. Honestly the best stay we've had anywhere in Mexico."</p>
+      </article>
+      <article class="rev-card">
+        <div class="rc-top"><span class="rc-av">DG</span><span class="rc-id"><b>Daniela G.</b><i>Guadalajara</i></span></div>
+        <p class="rc-q">"Todo impecable. Desde el check-in hasta la limpieza se nota que conocen cada casa a detalle."</p>
+      </article>
+      <article class="rev-card">
+        <div class="rc-top"><span class="rc-av">PL</span><span class="rc-id"><b>Pablo y Lucía</b><i>Monterrey</i></span></div>
+        <p class="rc-q">"Reservamos directo y salió más barato que en Airbnb. Repetiremos sin pensarlo dos veces."</p>
+      </article>
     </div>
   </section>
+
+  <div class="wordband" id="wordband"><canvas id="wbCanvas"></canvas></div>
 
   <section id="s-contacto" class="sec contact" data-bg="https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/a2cbb607-d8f6-476d-b001-46d7baf3104c.jpeg">
     <div class="snum reveal" style="text-align:center">06 / Tu estancia</div>
@@ -754,7 +823,7 @@ window.addEventListener('load',function(){
       var bg=el.getAttribute&&el.getAttribute('data-bg');
       if(bg){ el.style.backgroundImage='linear-gradient(rgba(6,12,15,.5),rgba(6,12,15,.66)), url("'+bg+'")';
               el.style.backgroundSize='cover'; el.style.backgroundPosition='center'; }
-      if(el.id!=='s-ballena' && !el.classList.contains('marq') && el.tagName!=='FOOTER'){
+      if(el.id!=='s-ballena' && !el.classList.contains('marq') && !el.classList.contains('wordband') && el.tagName!=='FOOTER'){
         el.classList.add('stk');                                  // se pega arriba (position:sticky desde la clase)
       } else {
         el.style.position='relative';                             // ballena/marquesina/footer: normales pero opacos
@@ -922,57 +991,71 @@ window.addEventListener('load',function(){
     }).catch(function(){clearTimeout(to);}); // si falla: se quedan los textos estáticos
   })();
 
-  /* ---- CARRUSEL CIRCULAR 3D: anillo giratorio con arrastre + flechas + auto-rotación ---- */
+  /* ---- GALERÍA: acordeón horizontal (hover abre en desktop · swipe en móvil) ---- */
   (function setupGallery(){
-    var stage=document.getElementById('galStage'); if(!stage)return;
-    var ring=document.getElementById('galRing');
-    var cards=[].slice.call(ring.querySelectorAll('.gcard'));
-    var curEl=document.getElementById('galCur'),totEl=document.getElementById('galTot');
-    var prev=document.getElementById('galPrev'),next=document.getElementById('galNext');
-    var n=cards.length; if(!n)return;
-    if(totEl)totEl.textContent=('0'+n).slice(-2);
-    var anglePer=360/n, radius=560;
-    function layout(){
-      var cw=cards[0].offsetWidth||300, sep=(window.innerWidth<760?26:58);
-      radius=Math.max(330,(cw+sep)/(2*Math.sin(Math.PI/n)));
-      cards.forEach(function(c,i){c.style.transform='rotateY('+(i*anglePer)+'deg) translateZ('+radius+'px)';});
+    var ring=document.getElementById('galRing'); if(!ring)return;
+    var first=ring.querySelector('.gcard:not(.gcard-end)');
+    if(first)first.classList.add('is-open');   // primera casa abierta por defecto
+  })();
+
+  /* ---- RESEÑAS: foco en la tarjeta central + ecualizador de avance ---- */
+  (function(){
+    var strip=document.getElementById('revStrip'), eq=document.getElementById('revEq');
+    if(!strip)return;
+    var cards=[].slice.call(strip.querySelectorAll('.rev-card'));
+    var heights=[42,72,54,90,60,100,76,50,86,64,96,46,80,58,74,52], bars=[];
+    if(eq){for(var i=0;i<heights.length;i++){var b=document.createElement('i');b.style.height=heights[i]+'%';eq.appendChild(b);bars.push(b);}}
+    function update(){
+      var mid=strip.scrollLeft+strip.clientWidth/2, best=null, bd=1e9;
+      cards.forEach(function(c){var cc=c.offsetLeft+c.offsetWidth/2, d=Math.abs(cc-mid); if(d<bd){bd=d;best=c;}});
+      cards.forEach(function(c){c.classList.toggle('is-active',c===best);});
+      if(bars.length){var mx=strip.scrollWidth-strip.clientWidth, pr=mx>0?strip.scrollLeft/mx:0, on=Math.round(pr*(bars.length-1));
+        bars.forEach(function(b,i){b.classList.toggle('on',i<=on);});}
     }
-    var rot=0,target=0,dragging=false,moved=false,hovered=false,inView=false,autoPause=0,sx=0,st=0;
-    function frame(){
-      requestAnimationFrame(frame);
-      if(!inView)return;
-      var now=performance.now();
-      if(!dragging&&!hovered&&now>autoPause){target+=0.05;}
-      rot+=(target-rot)*0.09;
-      ring.style.transform='rotateY('+rot+'deg)';
-      var bestI=0,bestD=1e9;
-      for(var i=0;i<n;i++){
-        var a=((i*anglePer+rot)%360+360)%360, d=Math.min(a,360-a);
-        cards[i].style.opacity=Math.max(0.16,1-d/112).toFixed(3);
-        if(d<bestD){bestD=d;bestI=i;}
+    var tick=false;
+    strip.addEventListener('scroll',function(){if(!tick){tick=true;requestAnimationFrame(function(){update();tick=false;});}},{passive:true});
+    addEventListener('resize',update); setTimeout(update,250);
+  })();
+
+  /* ---- BANDA WORDMARK: la bahía dentro de las letras + revelado pixelado por cursor ---- */
+  (function(){
+    var band=document.getElementById('wordband'), cv=document.getElementById('wbCanvas');
+    if(!cv||!cv.getContext)return;
+    var ctx=cv.getContext('2d'), word='LA BAHÍA';
+    var dpr=Math.min(2,window.devicePixelRatio||1);
+    var coarse=matchMedia('(pointer:coarse)').matches;
+    var img=new Image(); img.crossOrigin='anonymous'; var ready=false;
+    var off=document.createElement('canvas'), octx=off.getContext('2d');
+    var W=0,H=0,font=0,mx=-9999,my=-9999;
+    function buildPix(){ if(!ready||!W)return; var bs=14; off.width=Math.max(1,Math.round(W/bs)); off.height=Math.max(1,Math.round(H/bs)); octx.clearRect(0,0,off.width,off.height); octx.drawImage(img,0,0,off.width,off.height); }
+    function draw(){
+      if(!W||!H)return;
+      ctx.clearRect(0,0,W,H);
+      ctx.font='700 '+font+'px "Cormorant Garamond",Georgia,serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle='#e9e3d7';
+      ctx.fillText(word,W/2,H/2);
+      if(ready){
+        ctx.save();
+        ctx.globalCompositeOperation='source-atop';
+        ctx.imageSmoothingEnabled=false;
+        if(coarse){ ctx.drawImage(off,0,0,off.width,off.height,0,0,W,H); }
+        else if(mx>-9000){ ctx.beginPath(); ctx.arc(mx,my,Math.max(64,W*0.085),0,Math.PI*2); ctx.clip(); ctx.drawImage(off,0,0,off.width,off.height,0,0,W,H); }
+        ctx.restore();
+        ctx.imageSmoothingEnabled=true;
+        ctx.globalCompositeOperation='source-over';
       }
-      for(var j=0;j<n;j++){cards[j].classList.toggle('is-front',j===bestI);}
-      if(curEl)curEl.textContent=('0'+(((-Math.round(rot/anglePer))%n+n)%n+1)).slice(-2);
     }
-    function nudge(){autoPause=performance.now()+3200;}
-    function step(dir){nudge();target-=dir*anglePer;}
-    if(prev)prev.addEventListener('click',function(){step(-1);});
-    if(next)next.addEventListener('click',function(){step(1);});
-    // arrastre (mouse y táctil; el scroll vertical lo maneja touch-action:pan-y)
-    stage.addEventListener('pointerdown',function(e){dragging=true;moved=false;sx=e.clientX;st=target;stage.classList.add('drag');nudge();if(e.pointerType==='mouse'){try{stage.setPointerCapture(e.pointerId);}catch(_){}}});
-    stage.addEventListener('pointermove',function(e){if(!dragging)return;var dx=e.clientX-sx;if(Math.abs(dx)>4)moved=true;target=st+dx*0.32;nudge();});
-    function endDrag(){if(!dragging)return;dragging=false;stage.classList.remove('drag');autoPause=performance.now()+1600;}
-    stage.addEventListener('pointerup',endDrag);stage.addEventListener('pointercancel',endDrag);window.addEventListener('pointerup',endDrag);
-    // evitar que un arrastre dispare el click de la tarjeta final
-    stage.addEventListener('click',function(e){if(moved){e.preventDefault();e.stopPropagation();}},true);
-    // hover (desktop) pausa la auto-rotación
-    stage.addEventListener('pointerenter',function(e){if(e.pointerType==='mouse')hovered=true;});
-    stage.addEventListener('pointerleave',function(){hovered=false;});
-    // rueda horizontal (trackpad) -> gira ; vertical -> página
-    stage.addEventListener('wheel',function(e){if(Math.abs(e.deltaX)>Math.abs(e.deltaY)){target+=e.deltaX*0.22;nudge();e.preventDefault();}},{passive:false});
-    try{new IntersectionObserver(function(es){inView=es[0].isIntersecting;},{threshold:.12}).observe(document.getElementById('s-galeria'));}catch(_){inView=true;}
-    layout();addEventListener('resize',layout);setTimeout(layout,300);
-    frame();
+    function size(){ W=band.clientWidth; H=band.clientHeight; if(!W||!H)return; cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); cv.style.width=W+'px'; cv.style.height=H+'px'; ctx.setTransform(dpr,0,0,dpr,0,0); font=Math.min(W/(word.length*0.56),H*0.82); buildPix(); draw(); }
+    img.onload=function(){ ready=true; buildPix(); draw(); };
+    img.src='https://i.imgur.com/RV3b2sb.jpeg';
+    if(!coarse){
+      band.addEventListener('pointermove',function(e){ var r=band.getBoundingClientRect(); mx=e.clientX-r.left; my=e.clientY-r.top; draw(); });
+      band.addEventListener('pointerleave',function(){ mx=-9999; my=-9999; draw(); });
+    }
+    size(); addEventListener('resize',size);
+    if(document.fonts&&document.fonts.ready){ document.fonts.ready.then(size); }
+    setTimeout(size,400);
   })();
 
   /* ---- buscador liquid-glass (fechas + huéspedes) ---- */
@@ -1082,6 +1165,14 @@ gsap.fromTo('#wrline',{width:0},{width:'30vw',scrollTrigger:{trigger:'.whale-wra
 /* fundido de la sección ballena: melt-in al entrar, melt-out al salir (une con las secciones vecinas) */
 gsap.fromTo('.whale-stage',{autoAlpha:0},{autoAlpha:1,ease:'none',scrollTrigger:{trigger:'.wsec',start:'top bottom',end:'top 50%',scrub:true}});
 gsap.fromTo('.whale-stage',{autoAlpha:1},{autoAlpha:0,ease:'none',scrollTrigger:{trigger:'.wsec',start:'bottom 50%',end:'bottom top',scrub:true}});
+
+/* etiquetas flotantes: van saliendo conforme avanza el scroll de la ballena (solo desktop) */
+if(matchMedia('(pointer:fine)').matches){
+  ['.wl1','.wl2','.wl3'].forEach(function(sel,i){
+    gsap.fromTo(sel,{autoAlpha:0,y:22,filter:'blur(8px)'},{autoAlpha:1,y:0,filter:'blur(0px)',ease:'none',
+      scrollTrigger:{trigger:'.whale-wrap',start:(24+i*15)+'% top',end:(36+i*15)+'% top',scrub:true}});
+  });
+}
 
 function whaleState(s){
   let e,swim;
