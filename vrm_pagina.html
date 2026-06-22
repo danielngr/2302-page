@@ -840,6 +840,16 @@ window.addEventListener('load',function(){
             gsap.set(sec,{scale:sc});
           }});
       });
+      // CINEMATOGRÁFICO: al cubrirse, el contenido de cada panel hace parallax — el titular se eleva/escala/desvanece
+      // a un ritmo y el resto a otro (profundidad). Así el scroll SIEMPRE transforma algo, no solo desliza.
+      main.querySelectorAll('.stk').forEach(function(sec){
+        if(sec.id==='s-galeria'||sec.id==='s-resenas')return;   // estas ya tienen su propio movimiento
+        var head=sec.querySelector('.lead,.big,h2');
+        var rest=[].slice.call(sec.querySelectorAll('.snum,.stats,.why,.cbtns,.line'));
+        var st={trigger:sec,start:'top top',end:'bottom top',scrub:true};
+        if(head)gsap.fromTo(head,{yPercent:0,scale:1,autoAlpha:1},{yPercent:-32,scale:0.84,autoAlpha:0.12,ease:'none',scrollTrigger:st});
+        if(rest.length)gsap.fromTo(rest,{yPercent:0,autoAlpha:1},{yPercent:-14,autoAlpha:0.1,ease:'none',scrollTrigger:st});
+      });
     }
   })();
 
