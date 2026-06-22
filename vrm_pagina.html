@@ -92,6 +92,7 @@ nav .navr{display:flex;align-items:center;gap:16px}
 /* SECCIONES */
 .sec{padding:15vh 4vw;position:relative}
 .stk{position:sticky;top:0;min-height:100svh;overflow:hidden;background-color:var(--bg);background-size:cover;background-position:center;border-radius:30px 30px 0 0;box-shadow:0 -30px 60px rgba(0,0,0,.45);will-change:transform}
+.stk-bg{position:absolute;inset:-9%;background-size:cover;background-position:center;z-index:-1;will-change:transform;pointer-events:none}
 /* ===== BANDA WORDMARK: la bahía dentro de las letras (revelado pixelado por cursor) ===== */
 .wordband{position:relative;z-index:1;height:clamp(170px,30vh,360px);overflow:hidden;background:var(--bg);cursor:crosshair}
 .wordband canvas{display:block;width:100%;height:100%}
@@ -821,34 +822,25 @@ window.addEventListener('load',function(){
       el.style.zIndex=z++;
       el.style.backgroundColor='var(--bg)';                       // opaco siempre
       var bg=el.getAttribute&&el.getAttribute('data-bg');
-      if(bg){ el.style.backgroundImage='linear-gradient(rgba(6,12,15,.5),rgba(6,12,15,.66)), url("'+bg+'")';
-              el.style.backgroundSize='cover'; el.style.backgroundPosition='center'; }
+      if(bg){ var bgl=document.createElement('div'); bgl.className='stk-bg';
+              bgl.style.backgroundImage='linear-gradient(rgba(6,12,15,.5),rgba(6,12,15,.66)), url("'+bg+'")';
+              el.insertBefore(bgl,el.firstChild); }
       if(el.id!=='s-ballena' && !el.classList.contains('marq') && !el.classList.contains('wordband') && el.tagName!=='FOOTER'){
         el.classList.add('stk');                                  // se pega arriba (position:sticky desde la clase)
       } else {
         el.style.position='relative';                             // ballena/marquesina/footer: normales pero opacos
       }
     });
-    // Cada panel se TRANSFORMA con el scroll: entra con zoom-in y retrocede al cubrirse (no solo desliza). Desktop.
+    // FONDO CINEMATOGRÁFICO (Ken Burns): el fondo de cada panel hace zoom + parallax con el scroll. Visible siempre, también en móvil.
+    main.querySelectorAll('.stk-bg').forEach(function(bgl){
+      gsap.fromTo(bgl,{scale:1.0,yPercent:-6},{scale:1.18,yPercent:6,ease:'none',
+        scrollTrigger:{trigger:bgl.parentNode,start:'top bottom',end:'bottom top',scrub:true}});
+    });
+    // Profundidad (desktop): el panel entra con zoom y retrocede al cubrirse.
     if(!matchMedia('(pointer:coarse)').matches){
       main.querySelectorAll('.stk').forEach(function(sec){
         ScrollTrigger.create({trigger:sec,start:'top bottom',end:'bottom top',
-          onUpdate:function(self){
-            var pr=self.progress, sc;
-            if(pr<0.5){ sc=1.06-(pr/0.5)*0.06; }        // entrando: zoom-in de 1.06 -> 1 al pegarse
-            else{ sc=1-((pr-0.5)/0.5)*0.08; }            // cubriéndose: retrocede 1 -> 0.92
-            gsap.set(sec,{scale:sc});
-          }});
-      });
-      // CINEMATOGRÁFICO: al cubrirse, el contenido de cada panel hace parallax — el titular se eleva/escala/desvanece
-      // a un ritmo y el resto a otro (profundidad). Así el scroll SIEMPRE transforma algo, no solo desliza.
-      main.querySelectorAll('.stk').forEach(function(sec){
-        if(sec.id==='s-galeria'||sec.id==='s-resenas')return;   // estas ya tienen su propio movimiento
-        var head=sec.querySelector('.lead,.big,h2');
-        var rest=[].slice.call(sec.querySelectorAll('.snum,.stats,.why,.cbtns,.line'));
-        var st={trigger:sec,start:'top top',end:'bottom top',scrub:true};
-        if(head)gsap.fromTo(head,{yPercent:0,scale:1,autoAlpha:1},{yPercent:-32,scale:0.84,autoAlpha:0.12,ease:'none',scrollTrigger:st});
-        if(rest.length)gsap.fromTo(rest,{yPercent:0,autoAlpha:1},{yPercent:-14,autoAlpha:0.1,ease:'none',scrollTrigger:st});
+          onUpdate:function(self){ var pr=self.progress, sc; if(pr<0.5){sc=1.06-(pr/0.5)*0.06;}else{sc=1-((pr-0.5)/0.5)*0.07;} gsap.set(sec,{scale:sc}); }});
       });
     }
   })();
