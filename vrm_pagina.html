@@ -99,7 +99,7 @@ nav .navr{display:flex;align-items:center;gap:16px}
 .stat .v{font-family:var(--serif);font-weight:500;font-size:clamp(40px,5vw,76px);line-height:1}
 .stat .l{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(241,236,225,.6);margin-top:10px;max-width:22ch}
 /* ===== "BOX" QUE SE ABRE DESDE EL CENTRO (primer scroll tras el hero) ===== */
-.boxopen{position:relative;overflow:hidden;will-change:clip-path}
+.boxopen{position:relative;overflow:hidden}
 .boxopen .box-bg{position:absolute;inset:0;z-index:0;background:linear-gradient(180deg,rgba(6,12,15,.5),rgba(6,12,15,.64));pointer-events:none}
 .boxopen .box-in{position:relative;z-index:1}
 @media(max-width:760px){.stats{grid-template-columns:1fr 1fr}}
@@ -733,49 +733,53 @@ window.addEventListener('load',function(){
     el.addEventListener('pointerleave',function(){gsap.to(el,{x:0,y:0,duration:.6,ease:'elastic.out(1,0.4)'});});
   });
 
-  /* reveals simples */
-  // HERO se disuelve hacia el fondo fotografico (sin corte seco)
-  gsap.to('.hero',{autoAlpha:0,scale:1.06,ease:'none',scrollTrigger:{trigger:'.hero',start:'24% top',end:'bottom top',scrub:true}});
-  gsap.utils.toArray('.reveal').forEach(function(el){gsap.to(el,{opacity:1,y:0,duration:.9,ease:'power3.out',scrollTrigger:{trigger:el,start:'top 88%'}});});
-  /* headline: palabras suben con máscara */
+  /* ============ SCROLL · reveals al entrar (estilo produx) ============
+     Sin scrub ni pin en el contenido: cada elemento se anima UNA sola vez al entrar,
+     con easing largo y suave -> el scroll se siente fluido sin importar la velocidad. */
+  var RE='power3.out';
+
+  // HERO: disolucion suave hacia el fondo (unico scroll-linked, muy suave)
+  gsap.to('.hero',{autoAlpha:0,ease:'none',scrollTrigger:{trigger:'.hero',start:'34% top',end:'94% top',scrub:0.6}});
+
+  // REVEAL base: aparece y sube
+  gsap.utils.toArray('.reveal').forEach(function(el){
+    gsap.fromTo(el,{y:46,autoAlpha:0},{y:0,autoAlpha:1,duration:1.15,ease:RE,
+      scrollTrigger:{trigger:el,start:'top 88%',once:true}});
+  });
+
+  // HEADLINES: lineas que suben tras una mascara (firma produx)
   gsap.utils.toArray('[data-split]').forEach(function(el){
-    if(hasSplit){try{var s=new SplitText(el,{type:'lines,words',mask:'lines'});gsap.from(s.words,{yPercent:118,duration:1.05,ease:'expo.out',stagger:0.045,scrollTrigger:{trigger:el,start:'top 85%'}});return;}catch(e){}}
-    gsap.from(el,{y:30,opacity:0,duration:1,ease:'power3.out',scrollTrigger:{trigger:el,start:'top 86%'}});
+    if(hasSplit){try{
+      var s=new SplitText(el,{type:'lines',mask:'lines'});
+      gsap.set(el,{autoAlpha:1});
+      gsap.from(s.lines,{yPercent:120,duration:1.2,ease:'power4.out',stagger:0.10,
+        scrollTrigger:{trigger:el,start:'top 87%',once:true}});
+      return;
+    }catch(e){}}
+    gsap.fromTo(el,{y:38,autoAlpha:0},{y:0,autoAlpha:1,duration:1.15,ease:RE,scrollTrigger:{trigger:el,start:'top 88%',once:true}});
   });
-  /* líneas que se dibujan */
-  gsap.utils.toArray('.line,.why .it .ln').forEach(function(el){gsap.to(el,{scaleX:1,duration:1.1,ease:'power3.inOut',scrollTrigger:{trigger:el,start:'top 92%'}});});
-  /* contadores */
-  gsap.utils.toArray('[data-count]').forEach(function(el){var end=parseFloat(el.dataset.count),dec=el.dataset.dec?parseInt(el.dataset.dec):0,suf=el.dataset.suf||'',o={v:0};gsap.to(o,{v:end,duration:1.7,ease:'power2.out',scrollTrigger:{trigger:el,start:'top 90%'},onUpdate:function(){el.textContent=(dec?o.v.toFixed(dec):Math.round(o.v).toLocaleString('en-US'))+suf;}});});
 
-  /* ---- PARALLAX DE CAPAS (estilo Locomotive · se desactiva en táctil, como Zorge9) ---- */
-  if(!matchMedia('(pointer:coarse)').matches){
-    gsap.utils.toArray('[data-par]').forEach(function(el){
-      var sp=parseFloat(el.getAttribute('data-par'))||0;
-      var host=el.closest('section')||el;
-      gsap.fromTo(el,{y:sp},{y:-sp,ease:'none',scrollTrigger:{trigger:host,start:'top bottom',end:'bottom top',scrub:true}});
-    });
-  }
-
-  /* ---- "box" que se abre desde el centro en el primer scroll tras el hero ---- */
-  (function(){
-    var sec=document.getElementById('s-bahia'); if(!sec||!window.ScrollTrigger) return;
-    var bg=sec.querySelector('.box-bg');
-    if(matchMedia('(pointer:coarse)').matches){if(bg)bg.style.opacity=0;return;} // móvil: sin pin ni clip-path (clip-path traba el scroll); sección normal
-    var tl=gsap.timeline({scrollTrigger:{trigger:sec,start:'top top',end:'+=90%',scrub:0.6,pin:true,anticipatePin:1}});
-    tl.fromTo(sec,{clipPath:'inset(50% 50% round 22px)'},{clipPath:'inset(0% 0% round 0px)',ease:'power2.inOut',duration:0.72},0);
-    if(bg) tl.to(bg,{opacity:0,ease:'power1.out',duration:0.26},0.74);
-  })();
-
-  /* FEATURED: clip + escala + parallax + nombre */
-  gsap.utils.toArray('.feat').forEach(function(sec){
-    var img=sec.querySelector('.img'),frame=sec.querySelector('.feat-frame'),nm=sec.querySelectorAll('.feat-name>*'),vl=sec.querySelectorAll('.vlabel'),top=sec.querySelector('.feat-top');
-    var fcoarse=matchMedia('(pointer:coarse)').matches;
-    var tl=gsap.timeline({scrollTrigger:{trigger:sec,start:'top top',end:'+=115%',pin:true,scrub:1,anticipatePin:1}});
-    tl.fromTo(frame, fcoarse?{scale:0.8}:{scale:0.68,clipPath:'inset(10% 13% 10% 13%)'}, fcoarse?{scale:1,ease:'power2.inOut',duration:1}:{scale:1,clipPath:'inset(0% 0% 0% 0%)',ease:'power2.inOut',duration:1},0)
-      .fromTo(img,{scale:1.5},{scale:1.06,ease:'none',duration:1.25},0)
-      .fromTo([top,vl],{opacity:0},{opacity:1,duration:.5},0.15)
-      .fromTo(nm,{yPercent:70,opacity:0},{yPercent:0,opacity:1,stagger:.12,ease:'power3.out',duration:.7},0.3);
+  // Los que antes tenian PARALLAX ahora solo hacen un fade-up limpio
+  gsap.utils.toArray('[data-par]').forEach(function(el){
+    if(el.hasAttribute('data-split'))return;
+    gsap.fromTo(el,{y:42,autoAlpha:0},{y:0,autoAlpha:1,duration:1.1,ease:RE,
+      scrollTrigger:{trigger:el,start:'top 88%',once:true}});
   });
+
+  // Grupos con stagger (contenedores marcados [data-stagger])
+  gsap.utils.toArray('[data-stagger]').forEach(function(g){
+    gsap.fromTo(g.children,{y:34,autoAlpha:0},{y:0,autoAlpha:1,duration:1.05,ease:RE,stagger:0.09,
+      scrollTrigger:{trigger:g,start:'top 86%',once:true}});
+  });
+
+  // Lineas que se dibujan
+  gsap.utils.toArray('.line,.why .it .ln').forEach(function(el){
+    gsap.fromTo(el,{scaleX:0},{scaleX:1,duration:1.2,ease:'power3.inOut',transformOrigin:'left center',
+      scrollTrigger:{trigger:el,start:'top 92%',once:true}});
+  });
+
+  // Contadores
+  gsap.utils.toArray('[data-count]').forEach(function(el){var end=parseFloat(el.dataset.count),dec=el.dataset.dec?parseInt(el.dataset.dec):0,suf=el.dataset.suf||'',o={v:0};gsap.to(o,{v:end,duration:1.7,ease:'power2.out',scrollTrigger:{trigger:el,start:'top 90%',once:true},onUpdate:function(){el.textContent=(dec?o.v.toFixed(dec):Math.round(o.v).toLocaleString('en-US'))+suf;}});});
 
   /* ÍNDICE hover-reveal (estilo Fame) */
   var ix=document.getElementById('ix');
