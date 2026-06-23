@@ -80,7 +80,7 @@ nav .navr{display:flex;align-items:center;gap:16px}
 .ckok:hover{transform:translateY(-1px)}
 @media(max-width:760px){.ckbar{flex-direction:column;align-items:stretch;text-align:center;gap:11px;bottom:14px}.ckok{padding:13px}}
 /* CIERRE: ballena interactiva + descuento */
-.dsc{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:clamp(80px,11vh,130px) var(--gx) clamp(70px,9vh,110px);background:radial-gradient(88% 72% at 50% 48%,rgba(198,216,226,.62),rgba(132,158,176,.34) 46%,rgba(40,58,70,.08) 74%,transparent 86%),linear-gradient(180deg,#101d26,#13212b 55%,#101d26);overflow:hidden}
+.dsc{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:clamp(80px,11vh,130px) var(--gx) clamp(70px,9vh,110px);background:radial-gradient(72% 58% at 50% 52%,rgba(176,202,218,.78),rgba(120,150,170,.5) 40%,rgba(40,60,74,.18) 70%,transparent 88%),linear-gradient(180deg,#0e1a23,#16242e 52%,#0e1a23);overflow:hidden}
 .dsc-head{text-align:center;max-width:700px;margin:0 auto;flex:none}
 .dsc-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--aqua)}
 .dsc-title{font-family:var(--serif);font-size:clamp(34px,5.4vw,66px);line-height:1.03;color:var(--cream);margin:16px 0 0;font-weight:500}
@@ -1336,7 +1336,11 @@ sz();let _lw=innerWidth;addEventListener('resize',()=>{sz();whaleFit();if(innerW
 loop();
 </script>
 <script type="module">
-/* CIERRE: ballena de cristales interactiva (efecto pingüino). Reusa window.WHALE_PTS. Lazy-init: solo arranca al acercarte. */
+/* CIERRE: ballena de PUNTOS — técnica igloo adaptada a tema OSCURO (v4).
+   · plata LUMINOSA sobre oscuro (no negro: en tu fondo oscuro hay que invertir el valor)
+   · normal-esfera por punto (cada punto = mini-esfera 3D) -> volumen real
+   · vertical/zambullida + grande (presencia tipo pingüino). Orienta el GLB sea cual sea su eje.
+   · brillo por velocidad -> estela azul. Móvil = TAP · Desktop = cursor. */
 (function(){
   const sec=document.getElementById('s-descuento');
   const canvas=document.getElementById('wgl2');
@@ -1344,110 +1348,212 @@ loop();
   const hintEl=document.getElementById('dscHint');
   if(!sec||!canvas)return;
   const MOB=matchMedia('(max-width:760px)').matches;
-  let started=false, vis=false, THREE, renderer, scene, camera, group, inst, dum, D=[], cur=[], gScale=1, raf, last=0, reveal=0, THETA=0.7, footW=1, footH=1, _tmpCol=null, _settling=false;
-  function fitWhale(){ if(!camera||!group)return; const visH0=2*Math.tan(camera.fov*Math.PI/360)*camera.position.z, visW0=visH0*camera.aspect; gScale=Math.min(visW0*(MOB?0.96:0.92)/footW, visH0*(MOB?0.9:0.86)/footH); group.scale.setScalar(gScale); }
-  let pHas=false, pX=0, pY=0;
+
+  /* ====== TUNABLES ====== */
+  const GLB='https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/ballena.glb';
+  const NPTS  = MOB ? 60000 : 130000;
+  const THETA = 0.30;                 // ligera diagonal sobre la vertical (zambullida)
+  const FLIPY = false;                // si la cabeza queda arriba, ponlo true
+  const FILL  = MOB ? 0.92 : 0.9;     // cuánto del alto llena (presencia)
+  let PSIZE = MOB ? 3.8 : 3.3;        // tamaño del punto en px CSS. Ajústalo EN VIVO: WHALE_SIZE(5) en consola.
+  const RREP  = 2.4, FREP=3.4;        // repulsión / reventón
+  // paleta LUMINOSA (plata sobre oscuro) — volumen sin desaparecer en el fondo:
+  const C_DARK =[0.16,0.22,0.30];     // lado en sombra (gris-azul medio, aún visible)
+  const C_LIGHT=[0.86,0.93,1.0];      // lado iluminado (plata casi blanco)
+  const C_FAST =[0.42,0.74,1.0];      // estela rápida (azul)
+  const LIGHTP =[-0.6,1.0,0.35];      // luz arriba-izquierda
+  /* ====================== */
+
+  if(MOB && hintEl) hintEl.textContent='Toca la ballena para revelarla';
+
+  let started=false, vis=false, THREE, renderer, scene, camera, group, pts, mat, raf, last=0, reveal=0;
+  let footW=1, footH=1, gScale=1, N=0;
+  let burstT=-9, pActive=false, pMoveT=-9, pLx=0, pLy=0;
+  let rest=null, cur=null, vel=null;
 
   new IntersectionObserver(function(es){ vis=es[0].isIntersecting; if(vis&&!started) init(); }, {rootMargin:'25% 0px'}).observe(sec);
 
+  function fitWhale(){ if(!camera||!group)return;
+    const visH=2*Math.tan(camera.fov*Math.PI/360)*camera.position.z, visW=visH*camera.aspect;
+    gScale=Math.min(visW*(MOB?0.94:0.9)/footW, visH*FILL/footH);
+    group.scale.setScalar(gScale);
+  }
   function setPointer(cx,cy){
     if(!camera)return;
     const r=canvas.getBoundingClientRect();
     const nx=((cx-r.left)/r.width)*2-1, ny=-(((cy-r.top)/r.height)*2-1);
     const visH=2*Math.tan(camera.fov*Math.PI/360)*camera.position.z, visW=visH*camera.aspect;
-    pX=nx*visW/2; pY=ny*visH/2; pHas=true; _settling=true;
+    const wx=nx*visW/2, wy=ny*visH/2, cT=Math.cos(THETA), sT=Math.sin(THETA);
+    pLx=(wx*cT+wy*sT)/gScale; pLy=(-wx*sT+wy*cT)/gScale; pActive=true; pMoveT=performance.now();
   }
-  canvas.addEventListener('pointermove',function(e){ if(e.pointerType==='mouse') setPointer(e.clientX,e.clientY); });   // hover: solo desktop/mouse
-  canvas.addEventListener('pointerleave',function(){ if(!('ontouchstart' in window)) pHas=false; });
-  // TÁCTIL: decide en el primer movimiento — vertical = SCROLL (no repele), horizontal = interacción
-  let _tx=0,_ty=0,_tmode=0;  // 0=sin decidir, 1=scroll, 2=interactúa
-  canvas.addEventListener('touchstart',function(e){ if(e.touches[0]){ _tx=e.touches[0].clientX; _ty=e.touches[0].clientY; _tmode=0; } },{passive:true});
-  canvas.addEventListener('touchmove',function(e){
-    if(!e.touches[0])return;
-    const X=e.touches[0].clientX, Y=e.touches[0].clientY, ax=Math.abs(X-_tx), ay=Math.abs(Y-_ty);
-    if(_tmode===0){ if(ay>ax && ay>10){ _tmode=1; pHas=false; } else if(ax>10){ _tmode=2; } }
-    if(_tmode===2) setPointer(X,Y);
+  canvas.addEventListener('pointermove',function(e){ if(e.pointerType==='mouse'){ setPointer(e.clientX,e.clientY); reveal=Math.min(1,reveal+0.035); } });
+  canvas.addEventListener('pointerleave',function(e){ if(e.pointerType==='mouse') pActive=false; });
+  let tdown=0,txs=0,tys=0;
+  canvas.addEventListener('touchstart',function(e){ if(e.touches[0]){ tdown=performance.now(); txs=e.touches[0].clientX; tys=e.touches[0].clientY; } },{passive:true});
+  canvas.addEventListener('touchend',function(e){
+    const tch=(e.changedTouches&&e.changedTouches[0]); if(!tch)return;
+    const moved=Math.hypot(tch.clientX-txs,tch.clientY-tys), dt=performance.now()-tdown;
+    if(moved<14 && dt<450){ burstT=performance.now(); reveal=Math.min(1,reveal+0.5); }
   },{passive:true});
-  canvas.addEventListener('touchend',function(){ pHas=false; _tmode=0; });
+
+  /* pone el eje LARGO de la ballena en vertical (Y), sea cual sea la orientación del GLB */
+  function reorientVertical(p){
+    let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9,mnz=1e9,mxz=-1e9;
+    for(let i=0;i<p.length;i+=3){const x=p[i],y=p[i+1],z=p[i+2]; if(x<mnx)mnx=x;if(x>mxx)mxx=x;if(y<mny)mny=y;if(y>mxy)mxy=y;if(z<mnz)mnz=z;if(z>mxz)mxz=z;}
+    const ex=mxx-mnx, ey=mxy-mny, ez=mxz-mnz;
+    if(ex>=ey && ex>=ez){ for(let i=0;i<p.length;i+=3){const x=p[i],y=p[i+1]; p[i]=-y; p[i+1]=x;} }       // X largo -> Y (cabeza abajo)
+    else if(ez>=ey && ez>=ex){ for(let i=0;i<p.length;i+=3){const y=p[i+1],z=p[i+2]; p[i+1]=z; p[i+2]=-y;} } // Z largo -> Y
+    if(FLIPY){ for(let i=0;i<p.length;i+=3){ p[i+1]=-p[i+1]; } }
+  }
+
+  function fallbackCloud(){
+    const PTS=window.WHALE_PTS||[]; const pos=[], ao=[];
+    let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9,mnz=1e9,mxz=-1e9;
+    for(let i=0;i<PTS.length;i+=3){const x=PTS[i],y=PTS[i+1],z=PTS[i+2]; if(x<mnx)mnx=x;if(x>mxx)mxx=x;if(y<mny)mny=y;if(y>mxy)mxy=y;if(z<mnz)mnz=z;if(z>mxz)mxz=z;}
+    const cx=(mnx+mxx)/2,cy=(mny+mxy)/2,cz=(mnz+mxz)/2, base=PTS.length/3||1, copies=Math.max(1,Math.round(NPTS/base));
+    for(let i=0;i<PTS.length;i+=3){ for(let j=0;j<copies;j++){ pos.push(PTS[i]-cx+(Math.random()-.5)*0.16,PTS[i+1]-cy+(Math.random()-.5)*0.16,PTS[i+2]-cz+(Math.random()-.5)*0.16); ao.push(0.7+Math.random()*0.3); } }
+    return {positions:new Float32Array(pos), ao:new Float32Array(ao)};
+  }
+
+  async function sampleGLB(){
+    const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+    const {MeshSurfaceSampler}=await import('three/addons/math/MeshSurfaceSampler.js');
+    const gltf=await new Promise((res,rej)=>new GLTFLoader().load(GLB,res,undefined,rej));
+    gltf.scene.updateMatrixWorld(true);
+    const meshes=[]; gltf.scene.traverse(o=>{ if(o.isMesh&&o.geometry&&o.geometry.attributes.position) meshes.push(o); });
+    if(!meshes.length) throw new Error('GLB sin mallas');
+    const w=meshes.map(m=>m.geometry.attributes.position.count), tot=w.reduce((a,b)=>a+b,0);
+    const P=new THREE.Vector3(), Nr=new THREE.Vector3(); const pos=[], nrm=[];
+    let mn=new THREE.Vector3(1e9,1e9,1e9), mx=new THREE.Vector3(-1e9,-1e9,-1e9);
+    for(let mi=0;mi<meshes.length;mi++){
+      const g=meshes[mi].geometry.clone(); g.applyMatrix4(meshes[mi].matrixWorld);
+      if(!g.attributes.normal) g.computeVertexNormals();
+      const samp=new MeshSurfaceSampler(new THREE.Mesh(g)).build();
+      const n=Math.max(1,Math.round(NPTS*w[mi]/tot));
+      for(let i=0;i<n;i++){ samp.sample(P,Nr); pos.push(P.x,P.y,P.z); nrm.push(Nr.x,Nr.y,Nr.z);
+        if(P.x<mn.x)mn.x=P.x;if(P.y<mn.y)mn.y=P.y;if(P.z<mn.z)mn.z=P.z; if(P.x>mx.x)mx.x=P.x;if(P.y>mx.y)mx.y=P.y;if(P.z>mx.z)mx.z=P.z; }
+    }
+    const cx=(mn.x+mx.x)/2,cy=(mn.y+mx.y)/2,cz=(mn.z+mx.z)/2, span=Math.max(mx.x-mn.x,mx.y-mn.y,mx.z-mn.z)||1, k=9.6/span;
+    const M=pos.length/3, ap=new Float32Array(pos.length), ao=new Float32Array(M);
+    for(let i=0;i<M;i++){ ap[i*3]=(pos[i*3]-cx)*k; ap[i*3+1]=(pos[i*3+1]-cy)*k; ap[i*3+2]=(pos[i*3+2]-cz)*k;
+      ao[i]=0.5+0.5*Math.max(0,(nrm[i*3+1]*0.5+0.6)); }   // AO aprox por orientación de superficie
+    return {positions:ap, ao:ao};
+  }
 
   async function init(){
-    if(started)return;
-    const PTS=window.WHALE_PTS;
-    if(!PTS){ setTimeout(init,250); return; }   // espera a que la ballena principal exponga los puntos
-    started=true;
+    if(started)return; started=true;
     try{
       THREE=await import('three');
-      renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!MOB,powerPreference:'low-power'});
-      renderer.setPixelRatio(MOB?0.7:Math.min(devicePixelRatio,1.4));
-      renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.12; renderer.outputColorSpace=THREE.SRGBColorSpace;
+      renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:false,powerPreference:'low-power'});
+      renderer.setPixelRatio(Math.min(devicePixelRatio,MOB?1.6:2));
+      renderer.outputColorSpace=THREE.SRGBColorSpace;
       scene=new THREE.Scene();
-      camera=new THREE.PerspectiveCamera(42, (canvas.clientWidth||1)/Math.max(1,canvas.clientHeight||1), 0.1, 100); camera.position.set(0,0,15);
-      // SIN entorno PMREM: el material es mate, no lo necesita → ahorra mucha memoria (evita el crash del 3er contexto)
-      scene.add(new THREE.AmbientLight(0x6a7c86,0.32));
-      const key=new THREE.PointLight(0xffffff,95,170); key.position.set(-7,7,9); scene.add(key);   // luz fuerte: highlights blancos como igloo
-      const rim=new THREE.PointLight(0x8fd0e6,40,170); rim.position.set(8,-4,5); scene.add(rim);    // contraluz frío
-      const fill=new THREE.DirectionalLight(0xbfd3dd,0.3); fill.position.set(0,2,6); scene.add(fill);
-      const geo=new THREE.IcosahedronGeometry(1,MOB?0:1);
-      const mat=new THREE.MeshStandardMaterial({color:0xffffff,metalness:0.0,roughness:0.5,flatShading:false,envMapIntensity:0.95,side:MOB?THREE.FrontSide:THREE.DoubleSide});
-      let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9,mnz=1e9,mxz=-1e9, raw=[];
-      for(let i=0;i<PTS.length;i+=3){ const x=PTS[i],y=PTS[i+1],z=PTS[i+2]; raw.push([x,y,z]); if(x<mnx)mnx=x;if(x>mxx)mxx=x;if(y<mny)mny=y;if(y>mxy)mxy=y;if(z<mnz)mnz=z;if(z>mxz)mxz=z; }
-      const cxc=(mnx+mxx)/2, cyc=(mny+mxy)/2, czc=(mnz+mxz)/2;
-      // densificar: cada punto + copias con jitter → criatura TUPIDA tipo igloo (1300 pts solos se ven ralos)
-      const DENS=MOB?2:3; let pts=[];
-      for(let i=0;i<raw.length;i++){ pts.push(raw[i]); for(let j=1;j<DENS;j++) pts.push([raw[i][0]+(Math.random()-.5)*0.55, raw[i][1]+(Math.random()-.5)*0.55, raw[i][2]+(Math.random()-.5)*0.55]); }
-      const N=pts.length;
-      inst=new THREE.InstancedMesh(geo,mat,N);
-      dum=new THREE.Object3D(); _tmpCol=new THREE.Color();
-      for(let i=0;i<N;i++){
-        const rx=pts[i][0]-cxc, ry=pts[i][1]-cyc, rz=pts[i][2]-czc;
-        const sc=(MOB?0.16:0.13)+Math.random()*0.06;
-        D.push({rx:rx,ry:ry,rz:rz,sc:sc,sp:0.3+Math.random()*0.8,ph:Math.random()*7,ax:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize()});
-        cur.push({x:rx,y:ry});
-        dum.position.set(rx,ry,rz); dum.quaternion.setFromAxisAngle(D[i].ax,D[i].ph); dum.scale.set(sc,sc,sc); dum.updateMatrix(); inst.setMatrixAt(i,dum.matrix);
-        inst.setColorAt(i,_tmpCol.setRGB(0.72,0.80,0.86));   // plata frío en reposo
-      }
-      inst.instanceMatrix.needsUpdate=true; if(inst.instanceColor)inst.instanceColor.needsUpdate=true;
-      group=new THREE.Group(); group.add(inst); scene.add(group);
-      group.rotation.z=THETA;   // pose diagonal (zambullida): más presencia vertical y dramática
-      const wW=mxx-mnx, wH=mxy-mny, ct=Math.abs(Math.cos(THETA)), st=Math.abs(Math.sin(THETA));
-      footW=wW*ct+wH*st; footH=wW*st+wH*ct;   // huella tras rotar (para encuadrar en alto y ancho)
-      fitWhale();
+      camera=new THREE.PerspectiveCamera(42,(canvas.clientWidth||1)/Math.max(1,canvas.clientHeight||1),0.1,100);
+      camera.position.set(0,0,15);
+
+      let data;
+      try{ data=await sampleGLB(); console.log('🐋 GLB sampleado:',data.positions.length/3,'puntos'); }
+      catch(err){ console.warn('🐋 GLB sample falló, uso respaldo densificado:',err&&err.message); data=fallbackCloud(); }
+      const positions=data.positions, ao=data.ao; N=positions.length/3;
+      reorientVertical(positions);   // <- de pie (vertical), grande
+
+      rest=positions; cur=new Float32Array(positions); vel=new Float32Array(N);
+      const aSize=new Float32Array(N); for(let i=0;i<N;i++) aSize[i]=0.8+Math.random()*0.8;
+
+      const geo=new THREE.BufferGeometry();
+      geo.setAttribute('position',new THREE.BufferAttribute(cur,3));
+      geo.setAttribute('aAO',new THREE.BufferAttribute(ao,1));
+      geo.setAttribute('aVel',new THREE.BufferAttribute(vel,1));
+      geo.setAttribute('aSize',new THREE.BufferAttribute(aSize,1));
+
+      mat=new THREE.ShaderMaterial({
+        uniforms:{ uSize:{value:30},
+          uColorDark:{value:new THREE.Color(C_DARK[0],C_DARK[1],C_DARK[2])},
+          uColorLight:{value:new THREE.Color(C_LIGHT[0],C_LIGHT[1],C_LIGHT[2])},
+          uColorFast:{value:new THREE.Color(C_FAST[0],C_FAST[1],C_FAST[2])},
+          uLightPos:{value:new THREE.Vector3(LIGHTP[0],LIGHTP[1],LIGHTP[2])} },
+        transparent:true, depthWrite:true, depthTest:true, blending:THREE.NormalBlending,
+        vertexShader:`
+          uniform float uSize;
+          attribute float aAO,aVel,aSize;
+          varying float vAO,vVel;
+          void main(){
+            vec4 vp=modelViewMatrix*vec4(position,1.0);
+            vAO=aAO; vVel=aVel;
+            gl_Position=projectionMatrix*vp;
+            gl_PointSize=uSize*aSize/length(vp.xyz);
+          }`,
+        fragmentShader:`
+          precision highp float;
+          uniform vec3 uColorDark,uColorLight,uColorFast,uLightPos;
+          varying float vAO,vVel;
+          mat3 rotateY(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
+          float fit(float x,float a1,float a2,float b1,float b2){return clamp(b1+((x-a1)*(b2-b1))/(a2-a1),min(b1,b2),max(b1,b2));}
+          void main(){
+            float a=step(length(gl_PointCoord-0.5),0.5);
+            if(a<0.001) discard;
+            vec2 uv=2.0*gl_PointCoord-1.0;
+            vec3 n=vec3(uv,sqrt(1.0-clamp(dot(uv,uv),0.0,1.0))); n.y=1.0-n.y;
+            float lightShadow=max(0.0,dot(normalize(rotateY(3.1416)*uLightPos),normalize(n)));
+            float ramp=0.35+0.65*(lightShadow*vAO);            // base + luz×AO (no se apaga del todo)
+            vec3 color=mix(uColorDark,uColorLight,ramp);
+            color=mix(color,uColorFast,pow(fit(vVel,0.06,0.18,0.0,1.0),2.0));
+            a*=pow(fit(vVel,0.05,0.32,1.0,0.0),2.0)*0.45+0.55;
+            gl_FragColor=vec4(clamp(color,0.0,1.0),a);
+          }`
+      });
+      pts=new THREE.Points(geo,mat);
+      group=new THREE.Group(); group.add(pts); scene.add(group);
+      group.rotation.z=THETA;
+
+      geo.computeBoundingBox(); const bb=geo.boundingBox, wW=bb.max.x-bb.min.x, wH=bb.max.y-bb.min.y;
+      const ct=Math.abs(Math.cos(THETA)), st=Math.abs(Math.sin(THETA));
+      footW=wW*ct+wH*st; footH=wW*st+wH*ct;
+
       sz(); addEventListener('resize',sz);
-      try{renderer.compile(scene,camera);}catch(_){}
+      // ==== CONTROLES EN VIVO (escríbelos en la consola y ve el cambio al instante) ====
+      window.WHALE_SIZE =function(v){ PSIZE=+v; sz(); console.log('🐋 PSIZE =',v,'px'); };          // tamaño del punto
+      window.WHALE_THETA=function(v){ group.rotation.z=+v; console.log('🐋 THETA =',v,'rad'); };     // inclinación
+      window.WHALE_FLIP =function(){ for(let i=1;i<rest.length;i+=3){rest[i]=-rest[i];cur[i]=-cur[i];} console.log('🐋 flip vertical'); }; // voltear cabeza/cola
+      console.log('🐋 Controles: WHALE_SIZE(5) · WHALE_THETA(0.3) · WHALE_FLIP()');
       last=performance.now(); raf=requestAnimationFrame(loop);
     }catch(err){ console.warn('Ballena cierre:',err); }
   }
 
-  function sz(){ if(!renderer)return; const w=canvas.clientWidth||canvas.parentElement.clientWidth, h=canvas.clientHeight||w; renderer.setSize(w,h,false); camera.aspect=w/Math.max(1,h); camera.updateProjectionMatrix(); fitWhale(); }
+  function sz(){ if(!renderer)return;
+    const w=canvas.clientWidth||canvas.parentElement.clientWidth, h=canvas.clientHeight||w;
+    renderer.setSize(w,h,false); camera.aspect=w/Math.max(1,h); camera.updateProjectionMatrix();
+    mat.uniforms.uSize.value=PSIZE*renderer.getPixelRatio()*camera.position.z;   // tamaño en px CSS reales
+    fitWhale();
+  }
+
+  function step(now){
+    const t=now/1000, posAttr=pts.geometry.attributes.position.array, velAttr=pts.geometry.attributes.aVel.array;
+    const fresh = pActive && (now-pMoveT<160);
+    const e=(now-burstT)/1000; let burst=0; if(e>=0&&e<1.6){ burst = e<0.12?(e/0.12):Math.max(0,1-(e-0.12)/1.48); }
+    const k=0.16;
+    for(let i=0;i<N;i++){
+      const ix=i*3, rx=rest[ix],ry=rest[ix+1],rz=rest[ix+2];
+      let tx=rx+Math.sin(t*0.5+(i&63))*0.028, ty=ry+Math.cos(t*0.42+(i&127)*0.1)*0.028, tz=rz;
+      if(fresh){ const dx=cur[ix]-pLx, dy=cur[ix+1]-pLy, dd=Math.sqrt(dx*dx+dy*dy);
+        if(dd<RREP){ const f=(1-dd/RREP)*FREP, inv=dd>1e-4?1/dd:0; tx+=dx*inv*f; ty+=dy*inv*f; } }
+      if(burst>0){ const s=((i*9301+49297)%233280)/233280, ph=s*6.283, el=0.6+s*0.8;
+        tx+=Math.cos(ph)*burst*FREP*el; ty+=Math.sin(ph)*burst*FREP*el; tz+=(s-0.5)*burst*FREP; }
+      const nx=cur[ix]+(tx-cur[ix])*k, ny=cur[ix+1]+(ty-cur[ix+1])*k, nz=cur[ix+2]+(tz-cur[ix+2])*k;
+      const vx=nx-cur[ix], vy=ny-cur[ix+1], vz=nz-cur[ix+2];
+      velAttr[i]=Math.sqrt(vx*vx+vy*vy+vz*vz);
+      cur[ix]=nx; cur[ix+1]=ny; cur[ix+2]=nz;
+      posAttr[ix]=nx; posAttr[ix+1]=ny; posAttr[ix+2]=nz;
+    }
+    pts.geometry.attributes.position.needsUpdate=true;
+    pts.geometry.attributes.aVel.needsUpdate=true;
+  }
 
   function loop(now){
     raf=requestAnimationFrame(loop);
     if(!vis)return;
-    if(now-last<(MOB?45:16)) return; last=now;   // corre siempre (shimmer constante), pero barato
-    const t=now/1000;
-    const active = pHas || _settling;
-    const R=2.8, STR=5.0, k=0.14;
-    let plx=0, ply=0;
-    if(pHas){ const a=pX/gScale, b=pY/gScale, cT=Math.cos(THETA), sT=Math.sin(THETA); plx=a*cT+b*sT; ply=-a*sT+b*cT; }
-    const arr=inst.instanceMatrix.array; let maxD=0;
-    for(let i=0;i<D.length;i++){
-      const d=D[i]; let tx=d.rx, ty=d.ry;
-      if(pHas){
-        const dx=d.rx-plx, dy=d.ry-ply, dist=Math.sqrt(dx*dx+dy*dy);
-        if(dist<R){ const f=(1-dist/R)*STR, inv=dist>0.0001?1/dist:0; tx=d.rx+dx*inv*f; ty=d.ry+dy*inv*f; }
-      }
-      const c=cur[i]; c.x+=(tx-c.x)*k; c.y+=(ty-c.y)*k;
-      const o=i*16, ph=d.ph;
-      // shimmer constante (movimiento vivo aunque no toques) — barato: 3 sin/cos por partícula
-      arr[o+12]=c.x+Math.sin(t*0.5+ph)*0.05;
-      arr[o+13]=c.y+Math.cos(t*0.42+ph*1.3)*0.05;
-      arr[o+14]=d.rz+Math.sin(t*0.6+ph*0.7)*0.05;
-      if(active){ const ddx=c.x-d.rx, ddy=c.y-d.ry, dd=Math.sqrt(ddx*ddx+ddy*ddy); if(dd>maxD)maxD=dd;
-        const m=Math.min(1,dd/2.6); _tmpCol.setRGB(0.72-0.42*m, 0.80-0.10*m, 0.86+0.24*m); inst.setColorAt(i,_tmpCol); }
-    }
-    inst.instanceMatrix.needsUpdate=true;
-    if(active){ if(inst.instanceColor)inst.instanceColor.needsUpdate=true; if(!pHas && maxD<0.006) _settling=false; }
-    if(pHas){ reveal=Math.min(1,reveal+0.03); }
+    if(MOB && now-last<33) return; last=now;
+    step(now);
     if(reveal>0&&codeEl){ codeEl.style.opacity=(0.16+0.84*reveal).toFixed(3); if(hintEl&&reveal>0.5)hintEl.style.opacity='0'; }
     renderer.render(scene,camera);
   }
