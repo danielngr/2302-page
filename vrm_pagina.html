@@ -621,6 +621,7 @@ footer{padding:64px var(--gx) 40px}
 .mm-foot{margin-top:44px;font-family:var(--mono);font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:rgba(241,236,225,.5)}
 /* ===== AJUSTES MÓVIL ===== */
 @media(max-width:760px){
+  .grain,.wsec .wgrain{display:none}  /* mix-blend-mode fijo: repinta toda la pantalla cada frame en Safari iOS */
   /* glass fijos sin blur en móvil: el backdrop-filter se recalcula en cada frame del scroll y lagea/crashea */
   .bkpill{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:linear-gradient(135deg,rgba(36,64,78,.82),rgba(26,50,62,.8))!important}
   .menu,.pill{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:rgba(26,50,62,.8)!important}
@@ -791,8 +792,9 @@ window.addEventListener('load',function(){
 
   if(!window.gsap||!window.ScrollTrigger){return;}
   gsap.registerPlugin(ScrollTrigger);
+  try{ScrollTrigger.config({ignoreMobileResize:true});}catch(_){}
   var lenis=null;
-  try{if(window.Lenis){
+  try{if(window.Lenis && !matchMedia('(pointer:coarse)').matches){
     lenis=new Lenis({
       lerp:0.075,                     // más planeo/inercia -> el scroll "flota" (sensación produx)
       duration:1.35,
@@ -1250,7 +1252,7 @@ function loop(now){requestAnimationFrame(loop);if(!wVis)return;
   if(wsurf){const surf=smooth(0.66,0.99,S);const sq=Math.round(surf*120);if(sq!==lastSurf){lastSurf=sq;wsurf.style.opacity=(surf*0.72).toFixed(3);}} // ascenso a la superficie
   renderer.render(scene,camera);
 }
-sz();addEventListener('resize',()=>{sz();whaleFit();ScrollTrigger.refresh();});
+sz();let _lw=innerWidth;addEventListener('resize',()=>{sz();whaleFit();if(innerWidth!==_lw){_lw=innerWidth;ScrollTrigger.refresh();}});
 loop();
 </script>
 </body></html>
