@@ -1119,16 +1119,14 @@ const wsurf=document.getElementById('wsurf');
 const camera=new THREE.PerspectiveCamera(45,1,0.1,100);camera.position.set(0,0,21);
 function sz(){const w=canvas.clientWidth,h=canvas.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
 const WMOBM=matchMedia('(max-width:760px)').matches;
-if(!WMOBM){const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new RoomEnvironment(renderer),0.03).texture;} // móvil: sin env (material liviano) -> mucha menos GPU
+{const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new RoomEnvironment(renderer),WMOBM?0.04:0.03).texture;} // entorno premium en PC y móvil (reflejos)
 const warm=new THREE.PointLight(0xfff0d8,42,120);warm.position.set(10,9,8);scene.add(warm);
 const aqua=new THREE.PointLight(0x4fb6d6,58,90);aqua.position.set(-9,-5,3);scene.add(aqua);
 const rim=new THREE.PointLight(0xbfe6ff,50,90);rim.position.set(-4,4,-10);scene.add(rim);
 scene.add(new THREE.AmbientLight(0x6b818c,0.16));
 
 const geo=new THREE.OctahedronGeometry(1,0);
-const mat=WMOBM
-  ? new THREE.MeshPhongMaterial({color:0x3f9fd0,specular:0x8fd0e6,shininess:55,flatShading:true,side:THREE.DoubleSide})   // móvil: azul, specular suave
-  : new THREE.MeshStandardMaterial({color:0x3597cc,metalness:0.7,roughness:0.27,flatShading:true,envMapIntensity:0.85,side:THREE.DoubleSide});  // azul que se mantiene
+const mat=new THREE.MeshStandardMaterial({color:0x3597cc,metalness:0.7,roughness:0.27,flatShading:true,envMapIntensity:0.85,side:THREE.DoubleSide});  // azul premium reflectante (igual en móvil y PC)
 const N=2700;
 const inst=new THREE.InstancedMesh(geo,mat,N);inst.count=0;scene.add(inst);
 /* ---- TRANSFORMACIÓN POR SCROLL: la ballena "cobra vida" (color + brillo), como la roca que reverdece ---- */
@@ -1146,15 +1144,16 @@ function buildWhale(arr){
   const add=(rest)=>{
     const u=(rest.x-minx)/span;                          // cabeza (-X) -> 0 · cola (+X) -> 1
     const dir=rest.clone().normalize().add(new THREE.Vector3((Math.random()-.5)*0.5,(Math.random()-.5)*0.5,(Math.random()-.5)*0.5)).normalize();
-    D.push({rest,u,comp:0,dir,amp:smooth(0.32,1.0,Math.min(u,1.0)),dist:6+Math.random()*14,axis:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize(),spin:0.4+Math.random()*1.1,phase:Math.random()*7,sc:0.16+Math.random()*0.10,pecSide:rest.z>=0?1:-1});
+    D.push({rest,u,comp:0,dir,amp:smooth(0.32,1.0,Math.min(u,1.0)),dist:6+Math.random()*14,axis:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize(),spin:0.4+Math.random()*1.1,phase:Math.random()*7,sc:(MOB?0.26:0.16)+Math.random()*0.1,pecSide:rest.z>=0?1:-1});
   };
   const MOB=matchMedia('(max-width:760px)').matches;let _wi=0;
-  for(const p of pts){ if(MOB&&(_wi++%3===0))continue;     // en móvil ~1/3 menos de cristales (más fluido, casi no se nota)
+  for(const p of pts){ if(MOB&&(_wi++%2===0))continue;     // en móvil ~1/2 de cristales (mucho más fluido)
     add(p);                                                // punto original + (en desktop) duplicado con jitter -> más denso
     if(!MOB) add(p.clone().add(new THREE.Vector3((Math.random()-.5)*0.18,(Math.random()-.5)*0.18,(Math.random()-.5)*0.18))); }
   inst.count=D.length;ready=true;
 }
 buildWhale(WHALE_PTS);
+try{sz();renderer.compile(scene,camera);renderer.render(scene,camera);}catch(_){}  // precompila el shader (sin tirón al primer scroll)
 let whaleBase=1.2;function whaleFit(){whaleBase=matchMedia('(max-width:760px)').matches?0.64:1.2;}
 whaleFit();
 
@@ -1209,7 +1208,7 @@ function setP(t){if(!ready)return;
   inst.instanceMatrix.needsUpdate=true;
 }
 let wVis=true;let lastF=-1,lastSurf=-1;
-try{new IntersectionObserver(es=>{wVis=es[0].isIntersecting;},{rootMargin:'60% 0px'}).observe(document.querySelector('.wsec'));}catch(_){wVis=true;}
+try{new IntersectionObserver(es=>{wVis=es[0].isIntersecting;},{rootMargin:'25% 0px'}).observe(document.querySelector('.wsec'));}catch(_){wVis=true;}
 const clock=new THREE.Clock();
 const WCOARSE=matchMedia('(pointer:coarse)').matches;let wLast=0;
 function loop(now){requestAnimationFrame(loop);if(!wVis)return;
@@ -1231,15 +1230,15 @@ function loop(now){requestAnimationFrame(loop);if(!wVis)return;
   let exit=_cl((S-0.78)/0.22);                                // 0.78->1.0  : sube y sale ANTES de cruzar la lente
   let turnE=turn*turn*(3-2*turn);                             // giro suave
   let apprE=appr*appr*(3-2*appr);                             // acercamiento suave (desacelera al llegar)
-  let a=exit;                                                 // 0..1 una vez que llegó
-  let arcX=(1-Math.cos(a*Math.PI/2))*6.0;                     // se curva hacia un lado (ARCO, no diagonal)
-  let arcY=Math.sin(a*Math.PI/2)*22.0;                        // SUBE en parábola fluida (desacelera arriba)
-  const exX=0.6, exZ=13.0;                                    // se acerca sin cruzar la cámara (z=21)
-  const startYaw=-Math.PI/2+Math.sin(t*0.16)*0.15;            // empieza dándote la espalda
-  const faceYaw=Math.atan2(exZ,-exX);                         // ~180° después: te encara de cabeza
-  inst.rotation.y=startYaw*(1-turnE)+faceYaw*turnE;           // gira lento hasta voltear hacia ti
-  inst.rotation.x=0.06+Math.sin(t*0.13)*0.05-a*a*0.28;        // inclina la nariz al arquear hacia arriba
-  inst.position.set(apprE*exX + arcX, arcY, apprE*exZ);       // llega y SUBE en arco parabólico (no diagonal recta)
+  let a=exit;                                                // 0..1 una vez que llegó
+  const exX=0.6, exZ=WMOBM?9.5:13.0;                         // móvil: no se acerca tanto (se ve mejor de cerca)
+  let py=a*a*22.0;                                            // SUBE en parábola: arranca suave y acelera (no diagonal)
+  let pz=apprE*exZ - a*4.0;                                   // se aleja al subir => trayectoria curva (parábola en el plano Z-Y)
+  const startYaw=-Math.PI/2+Math.sin(t*0.16)*0.15;           // empieza dándote la espalda
+  const faceYaw=Math.atan2(exZ,-exX);                        // ~180° después: te encara de cabeza
+  inst.rotation.y=startYaw*(1-turnE)+faceYaw*turnE;          // gira lento hasta voltear hacia ti
+  inst.rotation.x=0.06+Math.sin(t*0.13)*0.05-a*a*0.28;       // inclina la nariz al arquear hacia arriba
+  inst.position.set(apprE*exX, py, pz);                      // llega y SUBE en arco parabólico
 
   setP(t);
   if(wsurf){const surf=smooth(0.66,0.99,S);const sq=Math.round(surf*120);if(sq!==lastSurf){lastSurf=sq;wsurf.style.opacity=(surf*0.72).toFixed(3);}} // ascenso a la superficie
