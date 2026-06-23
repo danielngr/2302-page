@@ -77,6 +77,7 @@ nav .navr{display:flex;align-items:center;gap:16px}
 .herovid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;filter:saturate(1.05) contrast(1.04)}
 #tint{position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(120% 90% at 50% 30%,transparent 42%,rgba(4,10,14,.5)),linear-gradient(180deg,rgba(4,10,14,.4) 0%,transparent 24%,transparent 58%,rgba(7,13,16,.85) 100%)}
 #logofallback{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:18vw;color:rgba(241,236,225,.1)}
+#logofallback.mob{font-family:"Cormorant Garamond",serif;font-style:italic;font-weight:500;font-size:26vw;color:rgba(241,236,225,.18)}
 #logo3d{position:absolute;inset:0;width:100%;height:100%;z-index:3;display:block}
 .tag{position:absolute;left:4vw;bottom:8vh;z-index:4;max-width:40ch}
 .tag .eb{font-family:var(--mono);font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:rgba(241,236,225,.82)}
@@ -686,6 +687,15 @@ footer{padding:64px var(--gx) 40px}
 <script type="module">
 const loader=document.getElementById('loader');function hideLoader(){loader.style.opacity=0;setTimeout(()=>loader.style.display='none',750);}
 try{
+  const MOB=matchMedia('(max-width:760px)').matches;
+  if(MOB){
+    /* MÓVIL: SIN WebGL en el hero -> un solo contexto WebGL en toda la página (la ballena). Evita el crash de memoria. Fondo de video HTML + logo en texto. */
+    const heroEl=document.querySelector('.hero');
+    const v=document.createElement('video');v.className='herovid';v.muted=true;v.loop=true;v.autoplay=true;v.playsInline=true;v.setAttribute('webkit-playsinline','');v.preload='auto';v.src='https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/hero_bahia.mp4';heroEl.insertBefore(v,heroEl.firstChild);v.play().catch(()=>{});
+    const _c=document.getElementById('logo3d');if(_c)_c.style.display='none';
+    const _f=document.getElementById('logofallback');if(_f)_f.classList.add('mob');
+    hideLoader();
+  } else {
   const THREE=await import('three');const {FontLoader}=await import('three/addons/loaders/FontLoader.js');const {TextGeometry}=await import('three/addons/geometries/TextGeometry.js');const {RoomEnvironment}=await import('three/addons/environments/RoomEnvironment.js');
   const canvas=document.getElementById('logo3d');const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!matchMedia('(max-width:760px)').matches});renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?1.0:2));renderer.setSize(canvas.clientWidth||innerWidth,canvas.clientHeight||innerHeight,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;
   const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(42,(canvas.clientWidth||innerWidth)/(canvas.clientHeight||innerHeight),0.1,100);camera.position.set(0,0,11);
@@ -763,6 +773,7 @@ try{
   const clock=new THREE.Clock();
   let heroLast=0,heroAway=false;function loop(now){requestAnimationFrame(loop);if(coarse&&now-heroLast<32)return;heroLast=now||0;updateFade(performance.now()/1000);if(window.scrollY>innerHeight*1.15){if(!heroAway){heroAway=true;clipEls.forEach(v=>{try{v.pause()}catch(_){}})}clock.getDelta();return;}if(heroAway){heroAway=false;clipEls.forEach(v=>{try{v.play().catch(()=>{})}catch(_){}})}const t=clock.elapsedTime;cx+=(mx-cx)*0.05;cy+=(my-cy)*0.05;group.rotation.y=coarse?Math.sin(t*0.28)*0.30:(Math.sin(t*0.3)*0.26+cx*0.6);group.rotation.x=coarse?Math.sin(t*0.5)*0.06:(Math.sin(t*0.22)*0.05-cy*0.4);group.position.y=Math.sin(t*0.7)*0.12;renderer.render(scene,camera);}
   loop();setTimeout(hideLoader,4000);
+  }
 }catch(err){console.warn('Logo 3D:',err);hideLoader();}
 </script>
 
