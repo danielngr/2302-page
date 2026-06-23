@@ -1230,14 +1230,16 @@ function loop(now){requestAnimationFrame(loop);if(!wVis)return;
   let appr=_cl((S-0.45)/0.40);                                // 0.45->0.85 : avanza acercándose
   let exit=_cl((S-0.78)/0.22);                                // 0.78->1.0  : sube y sale ANTES de cruzar la lente
   let turnE=turn*turn*(3-2*turn);                             // giro suave
-  let apprE=appr*appr;                                        // acelera al acercarse
-  let exitE=exit*exit;                                        // sube al final
-  const exX=0.6, exZ=13.0;                                    // se acerca MUCHO pero sin cruzar la cámara (z=21)
+  let apprE=appr*appr*(3-2*appr);                             // acercamiento suave (desacelera al llegar)
+  let a=exit;                                                 // 0..1 una vez que llegó
+  let arcX=(1-Math.cos(a*Math.PI/2))*6.0;                     // se curva hacia un lado (ARCO, no diagonal)
+  let arcY=Math.sin(a*Math.PI/2)*22.0;                        // SUBE en parábola fluida (desacelera arriba)
+  const exX=0.6, exZ=13.0;                                    // se acerca sin cruzar la cámara (z=21)
   const startYaw=-Math.PI/2+Math.sin(t*0.16)*0.15;            // empieza dándote la espalda
   const faceYaw=Math.atan2(exZ,-exX);                         // ~180° después: te encara de cabeza
   inst.rotation.y=startYaw*(1-turnE)+faceYaw*turnE;           // gira lento hasta voltear hacia ti
-  inst.rotation.x=0.06+Math.sin(t*0.13)*0.05-exitE*0.25;      // al subir, inclina la nariz
-  inst.position.set(apprE*exX, exitE*18.0, apprE*exZ + exitE*1.5);  // se acerca; muy cerca SUBE y sale por arriba
+  inst.rotation.x=0.06+Math.sin(t*0.13)*0.05-a*a*0.28;        // inclina la nariz al arquear hacia arriba
+  inst.position.set(apprE*exX + arcX, arcY, apprE*exZ);       // llega y SUBE en arco parabólico (no diagonal recta)
 
   setP(t);
   if(wsurf){const surf=smooth(0.66,0.99,S);const sq=Math.round(surf*120);if(sq!==lastSurf){lastSurf=sq;wsurf.style.opacity=(surf*0.72).toFixed(3);}} // ascenso a la superficie
