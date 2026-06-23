@@ -809,7 +809,10 @@ try{
   }
 
   const key=new THREE.DirectionalLight(0xffffff,1.3);key.position.set(4,8,10);scene.add(key);const fill=new THREE.DirectionalLight(0xbfe3ee,0.7);fill.position.set(-6,-2,4);scene.add(fill);scene.add(new THREE.AmbientLight(0x8fb0bd,0.25));
-  const mat=new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:0.06,transmission:1.0,thickness:1.8,ior:1.46,clearcoat:1.0,clearcoatRoughness:0.1,envMapIntensity:1.1,iridescence:0.32,iridescenceIOR:1.3,attenuationColor:new THREE.Color(0x9fd8e6),attenuationDistance:3.4,transparent:true});
+  const _MOBH=matchMedia('(max-width:760px)').matches;
+  const mat=_MOBH
+    ? new THREE.MeshPhysicalMaterial({color:0xcfeaf5,metalness:0.1,roughness:0.12,transmission:0,clearcoat:1.0,clearcoatRoughness:0.08,envMapIntensity:1.7,iridescence:0.5,iridescenceIOR:1.3,attenuationColor:new THREE.Color(0x9fd8e6),transparent:true,opacity:0.66})  // móvil: vidrio reflectante, SIN transmission (sin doble render por frame)
+    : new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:0.06,transmission:1.0,thickness:1.8,ior:1.46,clearcoat:1.0,clearcoatRoughness:0.1,envMapIntensity:1.1,iridescence:0.32,iridescenceIOR:1.3,attenuationColor:new THREE.Color(0x9fd8e6),attenuationDistance:3.4,transparent:true});  // PC: vidrio real con refracción
   const group=new THREE.Group();scene.add(group);let mesh=null;
   new FontLoader().load('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json',function(font){const geo=new TextGeometry('VRM',{font,size:3,height:0.9,curveSegments:26,bevelEnabled:true,bevelThickness:0.14,bevelSize:0.09,bevelSegments:10});geo.center();mesh=new THREE.Mesh(geo,mat);mesh.renderOrder=2;group.add(mesh);fit();hideLoader();var f=document.getElementById('logofallback');if(f)f.style.opacity=0;});
   function fit(){coverPlanes();if(!mesh)return;mesh.geometry.computeBoundingBox();const bb=mesh.geometry.boundingBox,w=bb.max.x-bb.min.x;const visW=2*Math.tan(camera.fov*Math.PI/360)*camera.position.z*camera.aspect;const target=visW*(innerWidth<760?0.62:0.40);group.scale.setScalar(target/w);}
@@ -1210,12 +1213,12 @@ const aqua=new THREE.PointLight(0x4fb6d6,58,90);aqua.position.set(-9,-5,3);scene
 const rim=new THREE.PointLight(0xbfe6ff,50,90);rim.position.set(-4,4,-10);scene.add(rim);
 scene.add(new THREE.AmbientLight(0x6b818c,0.16));
 
-const geo=new THREE.OctahedronGeometry(1,0);
-const mat=new THREE.MeshStandardMaterial({color:0x3597cc,metalness:0.7,roughness:0.27,flatShading:true,envMapIntensity:0.85,side:matchMedia('(max-width:760px)').matches?THREE.FrontSide:THREE.DoubleSide});  // premium reflectante (móvil y PC)
+const geo=new THREE.IcosahedronGeometry(1,matchMedia('(max-width:760px)').matches?0:1);
+const mat=new THREE.MeshStandardMaterial({color:0xa4b7c2,metalness:0.0,roughness:0.55,flatShading:false,envMapIntensity:0.9,side:matchMedia('(max-width:760px)').matches?THREE.FrontSide:THREE.DoubleSide});  // estilo igloo: perlas suaves mate
 const N=2700;
 const inst=new THREE.InstancedMesh(geo,mat,N);inst.count=0;scene.add(inst);
 /* ---- TRANSFORMACIÓN POR SCROLL: la ballena "cobra vida" (color + brillo), como la roca que reverdece ---- */
-const C_DORM=new THREE.Color(0x16415d), C_ALIVE=new THREE.Color(0x3597cc), C_WARM=new THREE.Color(0x7ecbe8), C_GLOW=new THREE.Color(0x1f6fa8);
+const C_DORM=new THREE.Color(0x47535c), C_ALIVE=new THREE.Color(0xa4b7c2), C_WARM=new THREE.Color(0xe0ebef), C_GLOW=new THREE.Color(0x33454f);
 const _tc=new THREE.Color(), _eg=new THREE.Color();
 const D=[];const dum=new THREE.Object3D();let ready=false;
 /* ---------- ballena PROCEDURAL (sin GLB): nube de puntos con silueta de jorobada ----------
@@ -1288,7 +1291,7 @@ function setP(t){if(!ready)return;
     const ex=ee*d.dist;
     dum.position.set(d.rest.x+fx + d.dir.x*ex, d.rest.y+fy + d.dir.y*ex + ee*7.5, d.rest.z + d.dir.z*ex); // dispersos = nube ALTA que desciende y se arma
     dum.quaternion.setFromAxisAngle(d.axis,d.phase+t*d.spin*0.25*(0.1+ee)+ee*Math.PI*1.4);
-    const sc=d.sc*(1-ee*0.5);dum.scale.set(sc,sc*1.4,sc); // dispersos = partículas finas; completos al formarse (sin disolución)
+    const sc=d.sc*(1-ee*0.5);dum.scale.set(sc,sc,sc); // dispersos = partículas finas; completos al formarse (sin disolución)
     dum.updateMatrix();inst.setMatrixAt(i,dum.matrix);}
   inst.instanceMatrix.needsUpdate=true;
 }
@@ -1375,8 +1378,8 @@ loop();
       scene.add(new THREE.AmbientLight(0x6b818c,0.18));
       const l1=new THREE.PointLight(0x4fb6d6,60,140); l1.position.set(-9,-3,7); scene.add(l1);
       const l2=new THREE.PointLight(0xbfe6ff,42,140); l2.position.set(7,6,8); scene.add(l2);
-      const geo=new THREE.OctahedronGeometry(1,0);
-      const mat=new THREE.MeshStandardMaterial({color:0x3597cc,metalness:0.7,roughness:0.27,flatShading:true,envMapIntensity:0.85,side:MOB?THREE.FrontSide:THREE.DoubleSide});
+      const geo=new THREE.IcosahedronGeometry(1,MOB?0:1);
+      const mat=new THREE.MeshStandardMaterial({color:0xa4b7c2,metalness:0.0,roughness:0.55,flatShading:false,envMapIntensity:0.9,side:MOB?THREE.FrontSide:THREE.DoubleSide});
       let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9,mnz=1e9,mxz=-1e9, raw=[];
       for(let i=0;i<PTS.length;i+=3){ const x=PTS[i],y=PTS[i+1],z=PTS[i+2]; raw.push([x,y,z]); if(x<mnx)mnx=x;if(x>mxx)mxx=x;if(y<mny)mny=y;if(y>mxy)mxy=y;if(z<mnz)mnz=z;if(z>mxz)mxz=z; }
       const cxc=(mnx+mxx)/2, cyc=(mny+mxy)/2, czc=(mnz+mxz)/2;
@@ -1389,7 +1392,7 @@ loop();
         const sc=(MOB?0.2:0.15)+Math.random()*0.08;
         D.push({rx:rx,ry:ry,rz:rz,sc:sc,sp:0.3+Math.random()*0.8,ph:Math.random()*7,ax:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize()});
         cur.push({x:rx,y:ry});
-        dum.position.set(rx,ry,rz); dum.quaternion.setFromAxisAngle(D[i].ax,D[i].ph); dum.scale.set(sc,sc*1.4,sc); dum.updateMatrix(); inst.setMatrixAt(i,dum.matrix);
+        dum.position.set(rx,ry,rz); dum.quaternion.setFromAxisAngle(D[i].ax,D[i].ph); dum.scale.set(sc,sc,sc); dum.updateMatrix(); inst.setMatrixAt(i,dum.matrix);
       }
       inst.instanceMatrix.needsUpdate=true;
       group=new THREE.Group(); group.add(inst); scene.add(group);
@@ -1420,7 +1423,7 @@ loop();
       const c=cur[i]; c.x+=(tx-c.x)*k; c.y+=(ty-c.y)*k;
       dum.position.set(c.x, c.y+Math.sin(t*0.8+d.ph)*0.03, d.rz);
       dum.quaternion.setFromAxisAngle(d.ax, d.ph + t*d.sp*0.15);
-      dum.scale.set(d.sc,d.sc*1.4,d.sc);
+      dum.scale.set(d.sc,d.sc,d.sc);
       dum.updateMatrix(); inst.setMatrixAt(i,dum.matrix);
     }
     inst.instanceMatrix.needsUpdate=true;
