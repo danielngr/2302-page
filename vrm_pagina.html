@@ -1175,7 +1175,7 @@ gsap.fromTo('#wrline',{width:0},{width:'30vw',scrollTrigger:{trigger:'.whale-wra
 
 /* fundido de la sección ballena: melt-in al entrar, melt-out al salir (une con las secciones vecinas) */
 gsap.fromTo('.whale-stage',{autoAlpha:0},{autoAlpha:1,ease:'none',scrollTrigger:{trigger:'.wsec',start:'top bottom',end:'top 92%',scrub:true}});
-gsap.fromTo('.whale-stage',{autoAlpha:1},{autoAlpha:0,ease:'none',scrollTrigger:{trigger:'.wsec',start:'bottom 50%',end:'bottom top',scrub:true}});
+gsap.fromTo('.whale-stage',{autoAlpha:1},{autoAlpha:0,ease:'none',scrollTrigger:{trigger:'.wsec',start:'bottom 20%',end:'bottom top',scrub:true}});
 
 /* etiquetas flotantes: van saliendo conforme avanza el scroll de la ballena (solo desktop) */
 if(matchMedia('(pointer:fine)').matches){
@@ -1224,10 +1224,16 @@ function loop(now){requestAnimationFrame(loop);if(!wVis)return;
   let alive=S<0.22?(S/0.22):1;                          // se mantiene viva (ya no se apaga)
   mat.emissive.lerp(_eg.copy(C_GLOW).multiplyScalar(0.6*alive),0.1);
   inst.scale.setScalar(whaleBase*(0.72+0.34*alive));
-  inst.rotation.y=-0.5+Math.sin(t*0.18)*0.28+(S-0.5)*1.1;inst.rotation.x=0.06+Math.sin(t*0.14)*0.04;
-  // NADA FUERA DE CUADRO: ya formada, en la última parte se va nadando hacia arriba/adelante y sale
-  let out=Math.max(0,(S-0.6)/0.4); out=out*out*(3-2*out);
-  inst.position.set(out*6, out*13, out*1.5);
+  // BREAKOUT (estilo AR out-of-bounds): ya formada, gira de cabeza y nada HACIA TI, crece y te pasa por encima
+  let out=Math.max(0,(S-0.5)/0.5);                            // todo el tramo final
+  let outE=out*out*(3-2*out);                                 // orientación suave
+  let dash=out*out;                                           // el avance ACELERA al final (whoosh)
+  const exX=1.0, exY=4.5, exZ=20.0;                           // casi hasta la cámara (z=21) -> gigante y pasa por encima
+  const baseYaw=-0.5+Math.sin(t*0.18)*0.28+(S-0.5)*1.1;       // nado normal
+  const exitYaw=Math.atan2(exZ,-exX);                         // encara de cabeza hacia ti
+  inst.rotation.y=baseYaw*(1-outE)+exitYaw*outE;              // se reorienta para venir de frente
+  inst.rotation.x=0.06+Math.sin(t*0.14)*0.04-outE*0.18;       // inclina la nariz
+  inst.position.set(dash*exX, dash*exY, dash*exZ);            // se viene encima y te pasa por arriba
 
   setP(t);
   if(wsurf){const surf=smooth(0.66,0.99,S);const sq=Math.round(surf*120);if(sq!==lastSurf){lastSurf=sq;wsurf.style.opacity=(surf*0.72).toFixed(3);}} // ascenso a la superficie
