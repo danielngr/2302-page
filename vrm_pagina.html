@@ -1361,7 +1361,7 @@ loop();
   let RETURN=0.16;      // regreso a casa (ease, sin rebote). Más alto = reforma rápido tras el reventón. (probado en vivo)
   let FRICTION=0.85;    // fricción (la pintura lanzada viaja hasta la pared y queda un momento, luego reforma)
   let NOISE=0.0016;     // ruido orgánico (vida sutil; con el modelo nuevo debe ser chico)
-  let PUSH=0.85;        // coef de EXPLOSIÓN (se activa con velocidad²: lento=suave, rápido=brusco) (probado en vivo)
+  let PUSH=0.55;        // coef de lanzamiento (rápido = salpicón a la pared; controlado, no estallido total) (probado en vivo)
   let RAD=2.0;          // tamaño del "pincel" (zona local que se lanza al darle, como pintura)
   const MAXR=5.6;       // contención: radio máximo del reventón (= cilindro), evita que se embarre por la pantalla
   let IMPULSE=0.55;     // reventón del tap (impulso de velocidad; viaja ~ IMPULSE/(1-FRICTION))
@@ -1398,7 +1398,7 @@ loop();
     const ox=pLx, oy=pLy;
     pLx=(wx*cT+wy*sT)/gScale; pLy=(-wx*sT+wy*cT)/gScale;
     const mvx=pLx-ox, mvy=pLy-oy, ml=Math.hypot(mvx,mvy);
-    if(ml>1e-3 && pActive){ pDx=mvx/ml; pDy=mvy/ml; pSpeed=Math.min(1,ml*1.4); }
+    if(ml>1e-3 && pActive){ pDx=mvx/ml; pDy=mvy/ml; pSpeed=Math.min(1,Math.max(0,(ml-0.12)*1.1)); }  // umbral: lento casi no lanza, solo lo rápido
     pActive=true; pMoveT=performance.now();
   }
   canvas.addEventListener('pointermove',function(e){ if(e.pointerType==='mouse'){ setPointer(e.clientX,e.clientY); reveal=Math.min(1,reveal+0.035); } });
@@ -1513,8 +1513,8 @@ loop();
             float lightShadow=max(0.0,dot(normalize(rotateY(3.1416)*uLightPos),normalize(n)));
             float ramp=0.35+0.65*(lightShadow*vAO);            // base + luz×AO (no se apaga del todo)
             vec3 color=mix(uColorDark,uColorLight,ramp);
-            color=mix(color,uColorFast,pow(fit(vVel,0.03,0.20,0.0,1.0),1.4));
-            color+=vec3(0.35)*fit(vVel,0.22,0.6,0.0,1.0);   // glow blanco en lo más veloz (chorro luminoso)
+            color=mix(color,uColorFast,pow(fit(vVel,0.16,0.55,0.0,1.0),1.8));   // BLANCO solo en lanzamientos rápidos (gris en suave, como el pingüino)
+            color+=vec3(0.32)*fit(vVel,0.55,1.05,0.0,1.0);   // glow blanco solo en lo MUY veloz
             a*=pow(fit(vVel,0.04,0.5,1.0,0.0),2.0)*0.32+0.68;
             gl_FragColor=vec4(clamp(color,0.0,1.0),a);
           }`
