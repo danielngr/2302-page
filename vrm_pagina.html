@@ -1127,8 +1127,8 @@ scene.add(new THREE.AmbientLight(0x6b818c,0.16));
 
 const geo=new THREE.OctahedronGeometry(1,0);
 const mat=WMOBM
-  ? new THREE.MeshPhongMaterial({color:0x3f9fd0,specular:0x8fd0e6,shininess:55,flatShading:true,side:THREE.DoubleSide})   // móvil: azul, specular suave (no blanquea)
-  : new THREE.MeshStandardMaterial({color:0x3597cc,metalness:0.7,roughness:0.27,flatShading:true,envMapIntensity:0.85,side:THREE.DoubleSide});  // azul que se MANTIENE (menos cromado)
+  ? new THREE.MeshPhongMaterial({color:0x3f9fd0,specular:0x8fd0e6,shininess:55,flatShading:true,side:THREE.DoubleSide,transparent:true})   // móvil: azul, specular suave
+  : new THREE.MeshStandardMaterial({color:0x3597cc,metalness:0.7,roughness:0.27,flatShading:true,envMapIntensity:0.85,side:THREE.DoubleSide,transparent:true});  // azul; se puede desvanecer al salir
 const N=2700;
 const inst=new THREE.InstancedMesh(geo,mat,N);inst.count=0;scene.add(inst);
 /* ---- TRANSFORMACIÓN POR SCROLL: la ballena "cobra vida" (color + brillo), como la roca que reverdece ---- */
@@ -1230,14 +1230,16 @@ function loop(now){requestAnimationFrame(loop);if(!wVis)return;
   let appr=_cl((S-0.45)/0.40);                                // 0.45->0.85 : avanza acercándose
   let exit=_cl((S-0.78)/0.22);                                // 0.78->1.0  : sube y sale ANTES de cruzar la lente
   let turnE=turn*turn*(3-2*turn);                             // giro suave
-  let apprE=appr*appr;                                        // acelera al acercarse
+  let apprE=appr*appr*(3-2*appr);                             // acercamiento SUAVE (sin whoosh brusco)
   let exitE=exit*exit;                                        // sube al final
-  const exX=0.6, exZ=13.0;                                    // se acerca MUCHO pero sin cruzar la cámara (z=21)
+  let fade=_cl((S-0.84)/0.14);                                // se desvanece al subir/salir (sin "sopa de cristales" de cerca)
+  mat.opacity=1-fade*fade;
+  const exX=0.6, exZ=10.0;                                    // se acerca grande pero sin llenar de más (z=21 cámara)
   const startYaw=-Math.PI/2+Math.sin(t*0.16)*0.15;            // empieza dándote la espalda
   const faceYaw=Math.atan2(exZ,-exX);                         // ~180° después: te encara de cabeza
   inst.rotation.y=startYaw*(1-turnE)+faceYaw*turnE;           // gira lento hasta voltear hacia ti
   inst.rotation.x=0.06+Math.sin(t*0.13)*0.05-exitE*0.25;      // al subir, inclina la nariz
-  inst.position.set(apprE*exX, exitE*18.0, apprE*exZ + exitE*1.5);  // se acerca; muy cerca SUBE y sale por arriba (no atraviesa la lente)
+  inst.position.set(apprE*exX, exitE*16.0, apprE*exZ + exitE*1.0);  // se acerca; SUBE y se desvanece hacia la superficie
 
   setP(t);
   if(wsurf){const surf=smooth(0.66,0.99,S);const sq=Math.round(surf*120);if(sq!==lastSurf){lastSurf=sq;wsurf.style.opacity=(surf*0.72).toFixed(3);}} // ascenso a la superficie
