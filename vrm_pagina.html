@@ -620,6 +620,9 @@ footer{padding:64px var(--gx) 40px}
 .mm-foot{margin-top:44px;font-family:var(--mono);font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:rgba(241,236,225,.5)}
 /* ===== AJUSTES MÓVIL ===== */
 @media(max-width:760px){
+  /* glass fijos sin blur en móvil: el backdrop-filter se recalcula en cada frame del scroll y lagea/crashea */
+  .bkpill{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:linear-gradient(135deg,rgba(36,64,78,.82),rgba(26,50,62,.8))!important}
+  .menu,.pill{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:rgba(26,50,62,.8)!important}
   nav{top:18px}
   .bkpill{padding:8px 8px 8px 13px;font-size:11px;gap:7px}
   .bkpill .bkcal{width:15px;height:15px}
@@ -758,7 +761,7 @@ try{
   function heroResize(){var w=canvas.clientWidth||innerWidth,h=canvas.clientHeight||innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);fit();}
   addEventListener('resize',heroResize);heroResize();
   const clock=new THREE.Clock();
-  let heroLast=0;function loop(now){requestAnimationFrame(loop);if(coarse&&now-heroLast<32)return;heroLast=now||0;updateFade(performance.now()/1000);if(window.scrollY>innerHeight*1.05){clock.getDelta();return;}const t=clock.elapsedTime;cx+=(mx-cx)*0.05;cy+=(my-cy)*0.05;group.rotation.y=coarse?Math.sin(t*0.28)*0.30:(Math.sin(t*0.3)*0.26+cx*0.6);group.rotation.x=coarse?Math.sin(t*0.5)*0.06:(Math.sin(t*0.22)*0.05-cy*0.4);group.position.y=Math.sin(t*0.7)*0.12;renderer.render(scene,camera);}
+  let heroLast=0,heroAway=false;function loop(now){requestAnimationFrame(loop);if(coarse&&now-heroLast<32)return;heroLast=now||0;updateFade(performance.now()/1000);if(window.scrollY>innerHeight*1.15){if(!heroAway){heroAway=true;clipEls.forEach(v=>{try{v.pause()}catch(_){}})}clock.getDelta();return;}if(heroAway){heroAway=false;clipEls.forEach(v=>{try{v.play().catch(()=>{})}catch(_){}})}const t=clock.elapsedTime;cx+=(mx-cx)*0.05;cy+=(my-cy)*0.05;group.rotation.y=coarse?Math.sin(t*0.28)*0.30:(Math.sin(t*0.3)*0.26+cx*0.6);group.rotation.x=coarse?Math.sin(t*0.5)*0.06:(Math.sin(t*0.22)*0.05-cy*0.4);group.position.y=Math.sin(t*0.7)*0.12;renderer.render(scene,camera);}
   loop();setTimeout(hideLoader,4000);
 }catch(err){console.warn('Logo 3D:',err);hideLoader();}
 </script>
@@ -1214,7 +1217,7 @@ try{new IntersectionObserver(es=>{wVis=es[0].isIntersecting;},{rootMargin:'25% 0
 const clock=new THREE.Clock();
 const WCOARSE=matchMedia('(pointer:coarse)').matches;let wLast=0;
 function loop(now){requestAnimationFrame(loop);if(!wVis)return;
-  if(WCOARSE&&now-wLast<32)return;wLast=now||0;
+  if(WCOARSE&&now-wLast<42)return;wLast=now||0;
   const t=clock.getElapsedTime();
   const e=whaleState(S).e;
   // color que cobra vida con el scroll: dormida (fría) -> viva (brillante) -> cálida (al nadar a la superficie)
