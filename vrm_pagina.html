@@ -684,7 +684,7 @@ footer{padding:64px var(--gx) 40px}
 const loader=document.getElementById('loader');function hideLoader(){loader.style.opacity=0;setTimeout(()=>loader.style.display='none',750);}
 try{
   const THREE=await import('three');const {FontLoader}=await import('three/addons/loaders/FontLoader.js');const {TextGeometry}=await import('three/addons/geometries/TextGeometry.js');const {RoomEnvironment}=await import('three/addons/environments/RoomEnvironment.js');
-  const canvas=document.getElementById('logo3d');const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?1.5:2));renderer.setSize(canvas.clientWidth||innerWidth,canvas.clientHeight||innerHeight,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;
+  const canvas=document.getElementById('logo3d');const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!matchMedia('(max-width:760px)').matches});renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?1.0:2));renderer.setSize(canvas.clientWidth||innerWidth,canvas.clientHeight||innerHeight,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;
   const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(42,(canvas.clientWidth||innerWidth)/(canvas.clientHeight||innerHeight),0.1,100);camera.position.set(0,0,11);
   const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new RoomEnvironment(renderer),0.04).texture;
 
@@ -1110,7 +1110,7 @@ const smooth=(a,b,x)=>{x=Math.min(Math.max((x-a)/(b-a),0),1);return x*x*(3-2*x);
 
 /* ---------- three: ballena de cristal ---------- */
 const canvas=document.getElementById('wgl');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+const renderer=new THREE.WebGLRenderer({canvas,antialias:!matchMedia('(max-width:760px)').matches,alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?1.0:1.5));
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.92;renderer.outputColorSpace=THREE.SRGBColorSpace;
 const scene=new THREE.Scene();
@@ -1119,14 +1119,16 @@ const wsurf=document.getElementById('wsurf');
 const camera=new THREE.PerspectiveCamera(45,1,0.1,100);camera.position.set(0,0,21);
 function sz(){const w=canvas.clientWidth,h=canvas.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
 const WMOBM=matchMedia('(max-width:760px)').matches;
-{const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new RoomEnvironment(renderer),WMOBM?0.04:0.03).texture;} // entorno premium en PC y móvil (reflejos)
+if(!WMOBM){const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new RoomEnvironment(renderer),0.03).texture;} // móvil sin env (mucha menos GPU/memoria, no calienta)
 const warm=new THREE.PointLight(0xfff0d8,42,120);warm.position.set(10,9,8);scene.add(warm);
 const aqua=new THREE.PointLight(0x4fb6d6,58,90);aqua.position.set(-9,-5,3);scene.add(aqua);
 const rim=new THREE.PointLight(0xbfe6ff,50,90);rim.position.set(-4,4,-10);scene.add(rim);
 scene.add(new THREE.AmbientLight(0x6b818c,0.16));
 
 const geo=new THREE.OctahedronGeometry(1,0);
-const mat=new THREE.MeshStandardMaterial({color:0x3597cc,metalness:0.7,roughness:0.27,flatShading:true,envMapIntensity:0.85,side:THREE.DoubleSide});  // azul premium reflectante (igual en móvil y PC)
+const mat=WMOBM
+  ? new THREE.MeshPhongMaterial({color:0x3597cc,specular:0x6fb4d4,shininess:42,flatShading:true})   // móvil: ligero, sin env, sin doble cara -> no calienta
+  : new THREE.MeshStandardMaterial({color:0x3597cc,metalness:0.7,roughness:0.27,flatShading:true,envMapIntensity:0.85,side:THREE.DoubleSide});  // PC: premium reflectante
 const N=2700;
 const inst=new THREE.InstancedMesh(geo,mat,N);inst.count=0;scene.add(inst);
 /* ---- TRANSFORMACIÓN POR SCROLL: la ballena "cobra vida" (color + brillo), como la roca que reverdece ---- */
@@ -1144,7 +1146,7 @@ function buildWhale(arr){
   const add=(rest)=>{
     const u=(rest.x-minx)/span;                          // cabeza (-X) -> 0 · cola (+X) -> 1
     const dir=rest.clone().normalize().add(new THREE.Vector3((Math.random()-.5)*0.5,(Math.random()-.5)*0.5,(Math.random()-.5)*0.5)).normalize();
-    D.push({rest,u,comp:0,dir,amp:smooth(0.32,1.0,Math.min(u,1.0)),dist:6+Math.random()*14,axis:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize(),spin:0.4+Math.random()*1.1,phase:Math.random()*7,sc:(MOB?0.26:0.16)+Math.random()*0.1,pecSide:rest.z>=0?1:-1});
+    D.push({rest,u,comp:0,dir,amp:smooth(0.32,1.0,Math.min(u,1.0)),dist:6+Math.random()*14,axis:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize(),spin:0.4+Math.random()*1.1,phase:Math.random()*7,sc:(MOB?0.2:0.16)+Math.random()*0.1,pecSide:rest.z>=0?1:-1});
   };
   const MOB=matchMedia('(max-width:760px)').matches;let _wi=0;
   for(const p of pts){ if(MOB&&(_wi++%2===0))continue;     // en móvil ~1/2 de cristales (mucho más fluido)
@@ -1231,9 +1233,9 @@ function loop(now){requestAnimationFrame(loop);if(!wVis)return;
   let turnE=turn*turn*(3-2*turn);                             // giro suave
   let apprE=appr*appr*(3-2*appr);                             // acercamiento suave (desacelera al llegar)
   let a=exit;                                                // 0..1 una vez que llegó
-  const exX=0.6, exZ=WMOBM?9.5:13.0;                         // móvil: no se acerca tanto (se ve mejor de cerca)
+  const exX=0.6, exZ=13.0;                         // llega cerca igual en móvil y PC
   let py=a*a*22.0;                                            // SUBE en parábola: arranca suave y acelera (no diagonal)
-  let pz=apprE*exZ - a*4.0;                                   // se aleja al subir => trayectoria curva (parábola en el plano Z-Y)
+  let pz=apprE*exZ - a*6.5;                         // se aleja al subir => arco visible (parábola, no vertical)
   const startYaw=-Math.PI/2+Math.sin(t*0.16)*0.15;           // empieza dándote la espalda
   const faceYaw=Math.atan2(exZ,-exX);                        // ~180° después: te encara de cabeza
   inst.rotation.y=startYaw*(1-turnE)+faceYaw*turnE;          // gira lento hasta voltear hacia ti
