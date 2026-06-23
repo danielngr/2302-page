@@ -1358,14 +1358,14 @@ loop();
   const THETA = 5.5;                  // pose (tu valor en vivo)
   const FLIPY = false;                // si la cabeza queda arriba, ponlo true
   const FILL  = MOB ? 0.92 : 0.9;     // cuánto del alto llena (presencia)
-  let PSIZE = 2.6;                    // tamaño FINO (puntos separados, granulado tipo pingüino). WHALE_SIZE(n) lo cambia.
+  let PSIZE = 3.6;                   // punto más grande = se lee DENSO/sólido (como el pingüino) (probado GPU)
   // FÍSICA estilo igloo (modelo fluido): velocidad + fricción para volar, y regreso por ease (sin rebote).
   let RETURN=0.08;      // regreso lento: el HUECO aguanta mientras circulas, reforma orgánico al soltar (GPU)
   let CURL=0.7;         // remolino al volar (swirl fluido) (probado en vivo GPU)
   let GRAV=0.008;       // gravedad suave de las apartadas (arco leve, no las dispara) (probado GPU)
   let FRICTION=0.88;    // las apartadas viajan en estela suave, sin explotar (probado GPU)
   let NOISE=0.0009;     // churn de reposo SUTIL (se mueve pero NO deforma la silueta) (probado en vivo GPU)
-  let PUSH=0.32;        // carva el hueco SUAVE al circular (sin lanzamiento violento) (probado GPU)
+  let PUSH=0.26;        // carva suave, el cuerpo queda más denso (dispersa menos) (probado GPU)
   let RAD=1.3;          // pincel LOCAL (al darle en una zona, solo esa vuela) (probado en vivo GPU)
   const MAXR=5.0;       // contención AJUSTADA al cilindro: las partículas chocan con la pared y crean el efecto
   let IMPULSE=0.55;     // reventón del tap (impulso de velocidad; viaja ~ IMPULSE/(1-FRICTION))
@@ -1521,9 +1521,11 @@ loop();
             if(dd<RADd){ float base=1.0-dd/RADd;
               vec2 away=dd>0.001?d/dd:vec2(0.0,0.0);
               float fThrow=base*(0.03+uPush*uSpeed*uSpeed);   // fling direccional (dramático al rápido)
-              float fCarve=base*uPush*0.45;                    // CARVA radial: aparta las partículas -> deja HUECO al circular
-              acc.xy+=uDir*fThrow + away*fCarve;
-              acc+=cn*fThrow*uCurl;             // remolino al volar
+              float fCarve=base*uPush*0.4;                     // aparta -> hueco al circular
+              // apartado ORGÁNICO: radial PERTURBADO por el curl -> borde irregular/fluido, NO círculo perfecto
+              vec2 awayN=normalize(away + cn.xy*1.2 + vec2(0.0001,0.0));
+              acc.xy+=uDir*fThrow + awayN*fCarve;
+              acc+=cn*(fThrow+fCarve*0.6)*uCurl;   // remolino también al apartar (rompe el anillo limpio)
             } }
           if(uBurst>0.5){ acc+=normalize(pos+vec3(1e-4))*uImpulse*(0.5+0.5*hash(pos)); }
           float fr=pow(uFriction,uDt);
