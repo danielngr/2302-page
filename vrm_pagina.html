@@ -1207,11 +1207,11 @@ const wsurf=document.getElementById('wsurf');
 const camera=new THREE.PerspectiveCamera(45,1,0.1,100);camera.position.set(0,0,21);
 function sz(){const w=canvas.clientWidth,h=canvas.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
 const WMOBM=matchMedia('(max-width:760px)').matches;
-{const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new RoomEnvironment(renderer),0.03).texture;} // reflejos premium en móvil y PC (el scroll era lo que calentaba, no esto)
+if(!matchMedia('(max-width:760px)').matches){const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new RoomEnvironment(renderer),0.03).texture;} // móvil: SIN entorno (mate no lo necesita; ahorra memoria y evita crash)
 const warm=new THREE.PointLight(0xfff0d8,42,120);warm.position.set(10,9,8);scene.add(warm);
 const aqua=new THREE.PointLight(0x4fb6d6,58,90);aqua.position.set(-9,-5,3);scene.add(aqua);
 const rim=new THREE.PointLight(0xbfe6ff,50,90);rim.position.set(-4,4,-10);scene.add(rim);
-scene.add(new THREE.AmbientLight(0x6b818c,0.16));
+scene.add(new THREE.AmbientLight(0x8398a4,0.34));
 
 const geo=new THREE.IcosahedronGeometry(1,matchMedia('(max-width:760px)').matches?0:1);
 const mat=new THREE.MeshStandardMaterial({color:0xa4b7c2,metalness:0.0,roughness:0.55,flatShading:false,envMapIntensity:0.9,side:matchMedia('(max-width:760px)').matches?THREE.FrontSide:THREE.DoubleSide});  // estilo igloo: perlas suaves mate
@@ -1344,7 +1344,7 @@ loop();
   const hintEl=document.getElementById('dscHint');
   if(!sec||!canvas)return;
   const MOB=matchMedia('(max-width:760px)').matches;
-  let started=false, vis=false, THREE, renderer, scene, camera, group, inst, dum, D=[], cur=[], gScale=1, raf, last=0, reveal=0, THETA=-1.2, footW=1, footH=1, _tmpCol=null;
+  let started=false, vis=false, THREE, renderer, scene, camera, group, inst, dum, D=[], cur=[], gScale=1, raf, last=0, reveal=0, THETA=0.7, footW=1, footH=1, _tmpCol=null, _settling=false;
   function fitWhale(){ if(!camera||!group)return; const visH0=2*Math.tan(camera.fov*Math.PI/360)*camera.position.z, visW0=visH0*camera.aspect; gScale=Math.min(visW0*(MOB?0.96:0.92)/footW, visH0*(MOB?0.9:0.86)/footH); group.scale.setScalar(gScale); }
   let pHas=false, pX=0, pY=0;
 
@@ -1355,7 +1355,7 @@ loop();
     const r=canvas.getBoundingClientRect();
     const nx=((cx-r.left)/r.width)*2-1, ny=-(((cy-r.top)/r.height)*2-1);
     const visH=2*Math.tan(camera.fov*Math.PI/360)*camera.position.z, visW=visH*camera.aspect;
-    pX=nx*visW/2; pY=ny*visH/2; pHas=true;
+    pX=nx*visW/2; pY=ny*visH/2; pHas=true; _settling=true;
   }
   canvas.addEventListener('pointermove',function(e){setPointer(e.clientX,e.clientY);});
   canvas.addEventListener('pointerleave',function(){pHas=false;});
@@ -1369,17 +1369,16 @@ loop();
     started=true;
     try{
       THREE=await import('three');
-      const {RoomEnvironment}=await import('three/addons/environments/RoomEnvironment.js');
-      renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!MOB});
-      renderer.setPixelRatio(MOB?0.8:Math.min(devicePixelRatio,1.5));
-      renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.95; renderer.outputColorSpace=THREE.SRGBColorSpace;
+      renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!MOB,powerPreference:'low-power'});
+      renderer.setPixelRatio(MOB?0.7:Math.min(devicePixelRatio,1.4));
+      renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.98; renderer.outputColorSpace=THREE.SRGBColorSpace;
       scene=new THREE.Scene();
       camera=new THREE.PerspectiveCamera(42, (canvas.clientWidth||1)/Math.max(1,canvas.clientHeight||1), 0.1, 100); camera.position.set(0,0,15);
-      {const pm=new THREE.PMREMGenerator(renderer); scene.environment=pm.fromScene(new RoomEnvironment(renderer),0.03).texture;}
-      scene.add(new THREE.AmbientLight(0x5a6b75,0.13));
+      // SIN entorno PMREM: el material es mate, no lo necesita → ahorra mucha memoria (evita el crash del 3er contexto)
+      scene.add(new THREE.AmbientLight(0x6a7c86,0.32));
       const key=new THREE.PointLight(0xffffff,95,170); key.position.set(-7,7,9); scene.add(key);   // luz fuerte: highlights blancos como igloo
-      const rim=new THREE.PointLight(0x8fd0e6,34,170); rim.position.set(8,-4,5); scene.add(rim);    // contraluz frío
-      const fill=new THREE.DirectionalLight(0xbfd3dd,0.22); fill.position.set(0,2,6); scene.add(fill);
+      const rim=new THREE.PointLight(0x8fd0e6,40,170); rim.position.set(8,-4,5); scene.add(rim);    // contraluz frío
+      const fill=new THREE.DirectionalLight(0xbfd3dd,0.3); fill.position.set(0,2,6); scene.add(fill);
       const geo=new THREE.IcosahedronGeometry(1,MOB?0:1);
       const mat=new THREE.MeshStandardMaterial({color:0xffffff,metalness:0.0,roughness:0.5,flatShading:false,envMapIntensity:0.95,side:MOB?THREE.FrontSide:THREE.DoubleSide});
       let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9,mnz=1e9,mxz=-1e9, raw=[];
@@ -1416,28 +1415,30 @@ loop();
   function loop(now){
     raf=requestAnimationFrame(loop);
     if(!vis)return;
-    if(MOB && now-last<42) return; last=now;
-    const t=now/1000;
-    const R=2.8, STR=5.0, k=0.14;   // se desplazan MUCHO y regresan (k bajo = regreso flotante)
-    let plx=0, ply=0;
-    if(pHas){ const a=pX/gScale, b=pY/gScale, cT=Math.cos(THETA), sT=Math.sin(THETA); plx=a*cT+b*sT; ply=-a*sT+b*cT; }
-    for(let i=0;i<D.length;i++){
-      const d=D[i]; let tx=d.rx, ty=d.ry;
-      if(pHas){
-        const dx=d.rx-plx, dy=d.ry-ply, dist=Math.sqrt(dx*dx+dy*dy);
-        if(dist<R){ const f=(1-dist/R)*STR, inv=dist>0.0001?1/dist:0; tx=d.rx+dx*inv*f; ty=d.ry+dy*inv*f; }
+    const active = pHas || _settling;
+    const minDt = active ? (MOB?42:16) : 240;   // en reposo: 4fps (casi sin costo); interactuando: a tope
+    if(now-last<minDt) return; last=now;
+    if(active){
+      const R=2.8, STR=5.0, k=0.14;   // se desplazan MUCHO y regresan (k bajo = regreso flotante)
+      let plx=0, ply=0;
+      if(pHas){ const a=pX/gScale, b=pY/gScale, cT=Math.cos(THETA), sT=Math.sin(THETA); plx=a*cT+b*sT; ply=-a*sT+b*cT; }
+      const arr=inst.instanceMatrix.array; let maxD=0;
+      for(let i=0;i<D.length;i++){
+        const d=D[i]; let tx=d.rx, ty=d.ry;
+        if(pHas){
+          const dx=d.rx-plx, dy=d.ry-ply, dist=Math.sqrt(dx*dx+dy*dy);
+          if(dist<R){ const f=(1-dist/R)*STR, inv=dist>0.0001?1/dist:0; tx=d.rx+dx*inv*f; ty=d.ry+dy*inv*f; }
+        }
+        const c=cur[i]; c.x+=(tx-c.x)*k; c.y+=(ty-c.y)*k;
+        const o=i*16; arr[o+12]=c.x; arr[o+13]=c.y; arr[o+14]=d.rz;   // solo traslación (rotación+escala ya horneadas): barato
+        const ddx=c.x-d.rx, ddy=c.y-d.ry, dd=Math.sqrt(ddx*ddx+ddy*ddy); if(dd>maxD)maxD=dd;
+        const m=Math.min(1,dd/2.6);
+        _tmpCol.setRGB(0.60-0.34*m, 0.70-0.04*m, 0.76+0.30*m);  // plata → AZUL al expandirse
+        inst.setColorAt(i,_tmpCol);
       }
-      const c=cur[i]; c.x+=(tx-c.x)*k; c.y+=(ty-c.y)*k;
-      dum.position.set(c.x, c.y+Math.sin(t*0.8+d.ph)*0.03, d.rz);
-      dum.quaternion.setFromAxisAngle(d.ax, d.ph + t*d.sp*0.15);
-      dum.scale.set(d.sc,d.sc,d.sc);
-      dum.updateMatrix(); inst.setMatrixAt(i,dum.matrix);
-      // color: plata frío en reposo → AZUL increíble cuanto más se expande
-      const ddx=c.x-d.rx, ddy=c.y-d.ry, m=Math.min(1,Math.sqrt(ddx*ddx+ddy*ddy)/2.6);
-      _tmpCol.setRGB(0.60-0.34*m, 0.70-0.04*m, 0.76+0.30*m);
-      inst.setColorAt(i,_tmpCol);
+      inst.instanceMatrix.needsUpdate=true; if(inst.instanceColor)inst.instanceColor.needsUpdate=true;
+      if(!pHas && maxD<0.006) _settling=false;   // ya regresó: dejar de trabajar
     }
-    inst.instanceMatrix.needsUpdate=true; if(inst.instanceColor)inst.instanceColor.needsUpdate=true;
     if(pHas){ reveal=Math.min(1,reveal+0.03); }
     if(reveal>0&&codeEl){ codeEl.style.opacity=(0.16+0.84*reveal).toFixed(3); if(hintEl&&reveal>0.5)hintEl.style.opacity='0'; }
     renderer.render(scene,camera);
