@@ -1359,9 +1359,9 @@ loop();
   let PSIZE = 2.6;                    // tamaño FINO (puntos separados, granulado tipo pingüino). WHALE_SIZE(n) lo cambia.
   // FÍSICA estilo igloo (modelo fluido): velocidad + fricción para volar, y regreso por ease (sin rebote).
   let RETURN=0.13;      // regreso a casa (ease, sin rebote). Alto = reforma rápido y mantiene la forma. (probado en vivo)
-  let FRICTION=0.78;    // fricción (la velocidad muere rápido -> el mechón no viaja por toda la pantalla)
+  let FRICTION=0.82;    // fricción (el reventón viaja/queda suspendido un momento, luego reforma)
   let NOISE=0.0016;     // ruido orgánico (vida sutil; con el modelo nuevo debe ser chico)
-  let PUSH=0.09;        // empuje del mouse SUAVE (solo despeina el borde, como el pingüino) (probado en vivo)
+  let PUSH=0.85;        // coef de EXPLOSIÓN (se activa con velocidad²: lento=suave, rápido=brusco) (probado en vivo)
   let RAD=1.5;          // radio del mouse (chico = efecto LOCAL, el resto del cuerpo intacto) (probado en vivo)
   let IMPULSE=0.55;     // reventón del tap (impulso de velocidad; viaja ~ IMPULSE/(1-FRICTION))
   // paleta LUMINOSA (plata sobre oscuro) — volumen sin desaparecer en el fondo:
@@ -1576,9 +1576,11 @@ loop();
       // SOLO fuerzas a la velocidad (sin resorte -> sin rebote elástico): ruido + empuje del mouse
       const p=i*0.21;
       let ax=Math.sin(cy*1.6+t*0.9+p)*NOISE, ay=Math.sin(cz*1.4+t*0.8+p*1.3)*NOISE, az=Math.sin(cx*1.7+t*0.7+p*0.7)*NOISE;
-      if(fresh){ const dx=cx-pLx, dy=cy-pLy, dd=Math.sqrt(dx*dx+dy*dy);
-        if(dd<RAD){ const f=(1-dd/RAD)*PUSH*(0.35+0.65*pSpeed);   // empuje en la dirección del mouse (corriente)
-          ax+=pDx*f; ay+=pDy*f; az+=(((i*131)&7)/7-0.5)*f*0.5; } }
+      if(fresh){ const RADd=RAD*(1+3.4*pSpeed);   // radio CRECE con velocidad: lento=local, rápido=casi todo el cuerpo
+        const dx=cx-pLx, dy=cy-pLy, dd=Math.sqrt(dx*dx+dy*dy);
+        if(dd<RADd){ const f=(1-dd/RADd)*(0.04+PUSH*pSpeed*pSpeed);   // base suave + EXPLOSIÓN por velocidad² (brusco como el pingüino)
+          const r1=(((i*131)&7)/7-0.5), r2=(((i*57)&7)/7-0.5);       // spray turbulento por partícula (no estela lisa)
+          ax+=pDx*f + r1*f*0.8*pSpeed; ay+=pDy*f + r2*f*0.8*pSpeed; az+=(((i*97)&7)/7-0.5)*f; } }
       // velocidad con fricción (advección, como fluido)
       let vx=(vv[ix]+ax*dt)*fr, vy=(vv[ix+1]+ay*dt)*fr, vz=(vv[ix+2]+az*dt)*fr;
       vv[ix]=vx; vv[ix+1]=vy; vv[ix+2]=vz;
