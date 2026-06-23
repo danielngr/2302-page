@@ -80,7 +80,7 @@ nav .navr{display:flex;align-items:center;gap:16px}
 .ckok:hover{transform:translateY(-1px)}
 @media(max-width:760px){.ckbar{flex-direction:column;align-items:stretch;text-align:center;gap:11px;bottom:14px}.ckok{padding:13px}}
 /* CIERRE: ballena interactiva + descuento */
-.dsc{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:clamp(80px,11vh,130px) var(--gx) clamp(70px,9vh,110px);background:radial-gradient(72% 52% at 50% 45%,rgba(172,198,214,.34),rgba(110,140,158,.12) 46%,transparent 70%),linear-gradient(180deg,#0a1219,#0d1822 55%,#0a1219);overflow:hidden}
+.dsc{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:clamp(80px,11vh,130px) var(--gx) clamp(70px,9vh,110px);background:radial-gradient(88% 72% at 50% 48%,rgba(198,216,226,.62),rgba(132,158,176,.34) 46%,rgba(40,58,70,.08) 74%,transparent 86%),linear-gradient(180deg,#101d26,#13212b 55%,#101d26);overflow:hidden}
 .dsc-head{text-align:center;max-width:700px;margin:0 auto;flex:none}
 .dsc-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--aqua)}
 .dsc-title{font-family:var(--serif);font-size:clamp(34px,5.4vw,66px);line-height:1.03;color:var(--cream);margin:16px 0 0;font-weight:500}
@@ -283,7 +283,7 @@ footer .lks{display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-
 .wsec .whale-deep{position:absolute;inset:0;z-index:0;background:linear-gradient(180deg,#0f212b 0%,#0c1e27 50%,#0a1820 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 34%,#000 100%);mask-image:linear-gradient(to bottom,transparent 0%,#000 34%,#000 100%)}
 .wsec .whale-vid,.wsec .whale-scrim{-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 34%,#000 86%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0%,#000 34%,#000 86%,transparent 100%)}
 .wsec #wgl{-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 8%,#000 92%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0%,#000 8%,#000 92%,transparent 100%)}
-.wsec .whale-scrim{position:absolute;inset:0;z-index:1;background:radial-gradient(92% 66% at 50% 42%,rgba(178,204,218,.2),transparent 52%),radial-gradient(125% 95% at 50% 38%,rgba(6,11,15,.02),rgba(6,11,15,.5) 92%);pointer-events:none}
+.wsec .whale-scrim{position:absolute;inset:0;z-index:1;background:radial-gradient(95% 70% at 50% 44%,rgba(190,212,224,.34),rgba(150,178,196,.12) 46%,transparent 60%),radial-gradient(130% 98% at 50% 40%,rgba(8,14,18,.0),rgba(8,14,18,.42) 94%);pointer-events:none}
 .wsec #wgl{position:absolute;left:0;top:-20vh;width:100%;height:140vh;z-index:2;display:block}
 .wsec .whale-surface{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;background:linear-gradient(180deg,rgba(230,242,246,.95) 0%,rgba(208,233,241,.45) 48%,rgba(208,233,241,0) 100%);will-change:opacity}
 .wsec .wgrain{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:.05;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
@@ -1423,30 +1423,30 @@ loop();
   function loop(now){
     raf=requestAnimationFrame(loop);
     if(!vis)return;
+    if(now-last<(MOB?45:16)) return; last=now;   // corre siempre (shimmer constante), pero barato
+    const t=now/1000;
     const active = pHas || _settling;
-    const minDt = active ? (MOB?42:16) : 240;   // en reposo: 4fps (casi sin costo); interactuando: a tope
-    if(now-last<minDt) return; last=now;
-    if(active){
-      const R=2.8, STR=5.0, k=0.14;   // se desplazan MUCHO y regresan (k bajo = regreso flotante)
-      let plx=0, ply=0;
-      if(pHas){ const a=pX/gScale, b=pY/gScale, cT=Math.cos(THETA), sT=Math.sin(THETA); plx=a*cT+b*sT; ply=-a*sT+b*cT; }
-      const arr=inst.instanceMatrix.array; let maxD=0;
-      for(let i=0;i<D.length;i++){
-        const d=D[i]; let tx=d.rx, ty=d.ry;
-        if(pHas){
-          const dx=d.rx-plx, dy=d.ry-ply, dist=Math.sqrt(dx*dx+dy*dy);
-          if(dist<R){ const f=(1-dist/R)*STR, inv=dist>0.0001?1/dist:0; tx=d.rx+dx*inv*f; ty=d.ry+dy*inv*f; }
-        }
-        const c=cur[i]; c.x+=(tx-c.x)*k; c.y+=(ty-c.y)*k;
-        const o=i*16; arr[o+12]=c.x; arr[o+13]=c.y; arr[o+14]=d.rz;   // solo traslación (rotación+escala ya horneadas): barato
-        const ddx=c.x-d.rx, ddy=c.y-d.ry, dd=Math.sqrt(ddx*ddx+ddy*ddy); if(dd>maxD)maxD=dd;
-        const m=Math.min(1,dd/2.6);
-        _tmpCol.setRGB(0.72-0.42*m, 0.80-0.10*m, 0.86+0.24*m);  // plata → AZUL al expandirse
-        inst.setColorAt(i,_tmpCol);
+    const R=2.8, STR=5.0, k=0.14;
+    let plx=0, ply=0;
+    if(pHas){ const a=pX/gScale, b=pY/gScale, cT=Math.cos(THETA), sT=Math.sin(THETA); plx=a*cT+b*sT; ply=-a*sT+b*cT; }
+    const arr=inst.instanceMatrix.array; let maxD=0;
+    for(let i=0;i<D.length;i++){
+      const d=D[i]; let tx=d.rx, ty=d.ry;
+      if(pHas){
+        const dx=d.rx-plx, dy=d.ry-ply, dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist<R){ const f=(1-dist/R)*STR, inv=dist>0.0001?1/dist:0; tx=d.rx+dx*inv*f; ty=d.ry+dy*inv*f; }
       }
-      inst.instanceMatrix.needsUpdate=true; if(inst.instanceColor)inst.instanceColor.needsUpdate=true;
-      if(!pHas && maxD<0.006) _settling=false;   // ya regresó: dejar de trabajar
+      const c=cur[i]; c.x+=(tx-c.x)*k; c.y+=(ty-c.y)*k;
+      const o=i*16, ph=d.ph;
+      // shimmer constante (movimiento vivo aunque no toques) — barato: 3 sin/cos por partícula
+      arr[o+12]=c.x+Math.sin(t*0.5+ph)*0.05;
+      arr[o+13]=c.y+Math.cos(t*0.42+ph*1.3)*0.05;
+      arr[o+14]=d.rz+Math.sin(t*0.6+ph*0.7)*0.05;
+      if(active){ const ddx=c.x-d.rx, ddy=c.y-d.ry, dd=Math.sqrt(ddx*ddx+ddy*ddy); if(dd>maxD)maxD=dd;
+        const m=Math.min(1,dd/2.6); _tmpCol.setRGB(0.72-0.42*m, 0.80-0.10*m, 0.86+0.24*m); inst.setColorAt(i,_tmpCol); }
     }
+    inst.instanceMatrix.needsUpdate=true;
+    if(active){ if(inst.instanceColor)inst.instanceColor.needsUpdate=true; if(!pHas && maxD<0.006) _settling=false; }
     if(pHas){ reveal=Math.min(1,reveal+0.03); }
     if(reveal>0&&codeEl){ codeEl.style.opacity=(0.16+0.84*reveal).toFixed(3); if(hintEl&&reveal>0.5)hintEl.style.opacity='0'; }
     renderer.render(scene,camera);
