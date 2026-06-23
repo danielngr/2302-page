@@ -1360,7 +1360,7 @@ loop();
   // FÍSICA estilo igloo (modelo fluido): velocidad + fricción para volar, y regreso por ease (sin rebote).
   let RETURN=0.16;      // regreso a casa (ease, sin rebote). Más alto = reforma rápido tras el reventón. (probado en vivo)
   let FRICTION=0.85;    // fricción (la pintura lanzada viaja hasta la pared y queda un momento, luego reforma)
-  let NOISE=0.0016;     // ruido orgánico (vida sutil; con el modelo nuevo debe ser chico)
+  let NOISE=0.005;      // ruido orgánico: las partículas SIEMPRE se mueven suave (como el pingüino en reposo)
   let PUSH=0.55;        // coef de lanzamiento (rápido = salpicón a la pared; controlado, no estallido total) (probado en vivo)
   let RAD=2.0;          // tamaño del "pincel" (zona local que se lanza al darle, como pintura)
   const MAXR=5.6;       // contención: radio máximo del reventón (= cilindro), evita que se embarre por la pantalla
@@ -1378,6 +1378,7 @@ loop();
   let footW=1, footH=1, gScale=1, N=0;
   let burstT=-9, pActive=false, pMoveT=-9, pLx=0, pLy=0, pDx=0, pDy=1, pSpeed=0;
   let pNX=0, pNY=0, rotY=0, rotX=0, envGroup=null;   // giro hacia el cursor + escenario
+  let ROTAMT=0.2;       // cuánto gira hacia el cursor (bajo = casi no se siente el bloque girando)
   let rest=null, cur=null, vel=null, vv=null, prevT=0, burstAppliedT=-9;
 
   new IntersectionObserver(function(es){ vis=es[0].isIntersecting; if(vis&&!started) init(); }, {rootMargin:'25% 0px'}).observe(sec);
@@ -1551,6 +1552,7 @@ loop();
       console.log('🐋 Física en vivo: WHALE_TUNE({push:0.09, noise:0.0016, friction:0.78})');
       window.WHALE_ENV=function(op){ if(envGroup) envGroup.traverse(o=>{ if(o.material) o.material.opacity=op; }); console.log('🐋 escenario opacidad',op); };
       window.WHALE_CAM=function(y){ camera.position.set(0,+y,15); camera.lookAt(0,0,0); console.log('🐋 cámara y=',y); };
+      window.WHALE_ROT=function(a){ ROTAMT=a; console.log('🐋 giro=',a); };
       window.WHALE_OBJ={get group(){return group;}, get env(){return envGroup;}, get cam(){return camera;}};
       prevT=performance.now(); last=prevT; raf=requestAnimationFrame(loop);
     }catch(err){ console.warn('Ballena cierre:',err); }
@@ -1609,9 +1611,9 @@ loop();
     step(now);
     // GIRO hacia el cursor (lento, con peso) + sway al reposo, como el pingüino
     const t=now/1000, fresh=pActive&&(now-pMoveT<1200);
-    const tgtY = fresh ? pNX*0.7 : Math.sin(t*0.25)*0.16;     // sigue al cursor / mece suave en reposo
-    const tgtX = fresh ? pNY*0.16 : Math.sin(t*0.2)*0.04;
-    rotY += (tgtY-rotY)*0.045; rotX += (tgtX-rotX)*0.045;     // ease lento = inercia
+    const tgtY = fresh ? pNX*ROTAMT : Math.sin(t*0.25)*0.14;     // giro SUTIL hacia el cursor (no jala todo el cuerpo)
+    const tgtX = fresh ? pNY*0.05 : Math.sin(t*0.2)*0.03;
+    rotY += (tgtY-rotY)*0.025; rotX += (tgtX-rotX)*0.025;     // ease MUY lento = casi no se siente el bloque girando
     if(group){ group.rotation.y=rotY; group.rotation.x=rotX; group.position.y=Math.sin(t*0.5)*0.18; }  // flota
     if(reveal>0&&codeEl){ codeEl.style.opacity=(0.16+0.84*reveal).toFixed(3); if(hintEl&&reveal>0.5)hintEl.style.opacity='0'; }
     renderer.render(scene,camera);
