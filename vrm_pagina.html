@@ -80,7 +80,7 @@ nav .navr{display:flex;align-items:center;gap:16px}
 .ckok:hover{transform:translateY(-1px)}
 @media(max-width:760px){.ckbar{flex-direction:column;align-items:stretch;text-align:center;gap:11px;bottom:14px}.ckok{padding:13px}}
 /* CIERRE: ballena interactiva + descuento */
-.dsc{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:clamp(80px,11vh,130px) var(--gx) clamp(70px,9vh,110px);background:linear-gradient(180deg,#070d10,#0a151b 55%,#070d10);overflow:hidden}
+.dsc{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:clamp(80px,11vh,130px) var(--gx) clamp(70px,9vh,110px);background:radial-gradient(72% 52% at 50% 45%,rgba(172,198,214,.34),rgba(110,140,158,.12) 46%,transparent 70%),linear-gradient(180deg,#0a1219,#0d1822 55%,#0a1219);overflow:hidden}
 .dsc-head{text-align:center;max-width:700px;margin:0 auto;flex:none}
 .dsc-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--aqua)}
 .dsc-title{font-family:var(--serif);font-size:clamp(34px,5.4vw,66px);line-height:1.03;color:var(--cream);margin:16px 0 0;font-weight:500}
@@ -280,10 +280,10 @@ footer .lks{display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-
 .wsec .whale-wrap{height:480vh;position:relative}
 .wsec .whale-stage{height:100vh;width:100%;overflow:visible;position:sticky;top:0;background:transparent}
 .wsec .whale-vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;will-change:opacity,filter;background:transparent}
-.wsec .whale-deep{position:absolute;inset:0;z-index:0;background:linear-gradient(180deg,#06131c 0%,#04141d 50%,#061019 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 34%,#000 100%);mask-image:linear-gradient(to bottom,transparent 0%,#000 34%,#000 100%)}
+.wsec .whale-deep{position:absolute;inset:0;z-index:0;background:linear-gradient(180deg,#0f212b 0%,#0c1e27 50%,#0a1820 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 34%,#000 100%);mask-image:linear-gradient(to bottom,transparent 0%,#000 34%,#000 100%)}
 .wsec .whale-vid,.wsec .whale-scrim{-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 34%,#000 86%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0%,#000 34%,#000 86%,transparent 100%)}
 .wsec #wgl{-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 8%,#000 92%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0%,#000 8%,#000 92%,transparent 100%)}
-.wsec .whale-scrim{position:absolute;inset:0;z-index:1;background:radial-gradient(120% 90% at 50% 38%,rgba(4,8,11,.15),rgba(4,8,11,.78) 88%);pointer-events:none}
+.wsec .whale-scrim{position:absolute;inset:0;z-index:1;background:radial-gradient(92% 66% at 50% 42%,rgba(178,204,218,.2),transparent 52%),radial-gradient(125% 95% at 50% 38%,rgba(6,11,15,.02),rgba(6,11,15,.5) 92%);pointer-events:none}
 .wsec #wgl{position:absolute;left:0;top:-20vh;width:100%;height:140vh;z-index:2;display:block}
 .wsec .whale-surface{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;background:linear-gradient(180deg,rgba(230,242,246,.95) 0%,rgba(208,233,241,.45) 48%,rgba(208,233,241,0) 100%);will-change:opacity}
 .wsec .wgrain{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:.05;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
@@ -1200,7 +1200,7 @@ const smooth=(a,b,x)=>{x=Math.min(Math.max((x-a)/(b-a),0),1);return x*x*(3-2*x);
 const canvas=document.getElementById('wgl');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:!matchMedia('(max-width:760px)').matches,alpha:true});
 renderer.setPixelRatio(matchMedia('(max-width:760px)').matches?0.8:Math.min(devicePixelRatio,1.5));
-renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.92;renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;renderer.outputColorSpace=THREE.SRGBColorSpace;
 const scene=new THREE.Scene();
 const stage=document.querySelector('.whale-stage');
 const wsurf=document.getElementById('wsurf');
@@ -1357,10 +1357,18 @@ loop();
     const visH=2*Math.tan(camera.fov*Math.PI/360)*camera.position.z, visW=visH*camera.aspect;
     pX=nx*visW/2; pY=ny*visH/2; pHas=true; _settling=true;
   }
-  canvas.addEventListener('pointermove',function(e){setPointer(e.clientX,e.clientY);});
-  canvas.addEventListener('pointerleave',function(){pHas=false;});
-  canvas.addEventListener('touchmove',function(e){ if(e.touches[0]) setPointer(e.touches[0].clientX,e.touches[0].clientY); },{passive:true});
-  canvas.addEventListener('touchend',function(){pHas=false;});
+  canvas.addEventListener('pointermove',function(e){ if(e.pointerType==='mouse') setPointer(e.clientX,e.clientY); });   // hover: solo desktop/mouse
+  canvas.addEventListener('pointerleave',function(){ if(!('ontouchstart' in window)) pHas=false; });
+  // TÁCTIL: decide en el primer movimiento — vertical = SCROLL (no repele), horizontal = interacción
+  let _tx=0,_ty=0,_tmode=0;  // 0=sin decidir, 1=scroll, 2=interactúa
+  canvas.addEventListener('touchstart',function(e){ if(e.touches[0]){ _tx=e.touches[0].clientX; _ty=e.touches[0].clientY; _tmode=0; } },{passive:true});
+  canvas.addEventListener('touchmove',function(e){
+    if(!e.touches[0])return;
+    const X=e.touches[0].clientX, Y=e.touches[0].clientY, ax=Math.abs(X-_tx), ay=Math.abs(Y-_ty);
+    if(_tmode===0){ if(ay>ax && ay>10){ _tmode=1; pHas=false; } else if(ax>10){ _tmode=2; } }
+    if(_tmode===2) setPointer(X,Y);
+  },{passive:true});
+  canvas.addEventListener('touchend',function(){ pHas=false; _tmode=0; });
 
   async function init(){
     if(started)return;
@@ -1371,7 +1379,7 @@ loop();
       THREE=await import('three');
       renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!MOB,powerPreference:'low-power'});
       renderer.setPixelRatio(MOB?0.7:Math.min(devicePixelRatio,1.4));
-      renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.98; renderer.outputColorSpace=THREE.SRGBColorSpace;
+      renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.12; renderer.outputColorSpace=THREE.SRGBColorSpace;
       scene=new THREE.Scene();
       camera=new THREE.PerspectiveCamera(42, (canvas.clientWidth||1)/Math.max(1,canvas.clientHeight||1), 0.1, 100); camera.position.set(0,0,15);
       // SIN entorno PMREM: el material es mate, no lo necesita → ahorra mucha memoria (evita el crash del 3er contexto)
@@ -1396,7 +1404,7 @@ loop();
         D.push({rx:rx,ry:ry,rz:rz,sc:sc,sp:0.3+Math.random()*0.8,ph:Math.random()*7,ax:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize()});
         cur.push({x:rx,y:ry});
         dum.position.set(rx,ry,rz); dum.quaternion.setFromAxisAngle(D[i].ax,D[i].ph); dum.scale.set(sc,sc,sc); dum.updateMatrix(); inst.setMatrixAt(i,dum.matrix);
-        inst.setColorAt(i,_tmpCol.setRGB(0.60,0.70,0.76));   // plata frío en reposo
+        inst.setColorAt(i,_tmpCol.setRGB(0.72,0.80,0.86));   // plata frío en reposo
       }
       inst.instanceMatrix.needsUpdate=true; if(inst.instanceColor)inst.instanceColor.needsUpdate=true;
       group=new THREE.Group(); group.add(inst); scene.add(group);
@@ -1433,7 +1441,7 @@ loop();
         const o=i*16; arr[o+12]=c.x; arr[o+13]=c.y; arr[o+14]=d.rz;   // solo traslación (rotación+escala ya horneadas): barato
         const ddx=c.x-d.rx, ddy=c.y-d.ry, dd=Math.sqrt(ddx*ddx+ddy*ddy); if(dd>maxD)maxD=dd;
         const m=Math.min(1,dd/2.6);
-        _tmpCol.setRGB(0.60-0.34*m, 0.70-0.04*m, 0.76+0.30*m);  // plata → AZUL al expandirse
+        _tmpCol.setRGB(0.72-0.42*m, 0.80-0.10*m, 0.86+0.24*m);  // plata → AZUL al expandirse
         inst.setColorAt(i,_tmpCol);
       }
       inst.instanceMatrix.needsUpdate=true; if(inst.instanceColor)inst.instanceColor.needsUpdate=true;
