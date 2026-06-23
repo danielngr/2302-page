@@ -687,15 +687,6 @@ footer{padding:64px var(--gx) 40px}
 <script type="module">
 const loader=document.getElementById('loader');function hideLoader(){loader.style.opacity=0;setTimeout(()=>loader.style.display='none',750);}
 try{
-  const MOB=matchMedia('(max-width:760px)').matches;
-  if(MOB){
-    /* MÓVIL: SIN WebGL en el hero -> un solo contexto WebGL en toda la página (la ballena). Evita el crash de memoria. Fondo de video HTML + logo en texto. */
-    const heroEl=document.querySelector('.hero');
-    const v=document.createElement('video');v.className='herovid';v.muted=true;v.loop=true;v.autoplay=true;v.playsInline=true;v.setAttribute('webkit-playsinline','');v.preload='auto';v.src='https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/hero_bahia.mp4';heroEl.insertBefore(v,heroEl.firstChild);v.play().catch(()=>{});
-    const _c=document.getElementById('logo3d');if(_c)_c.style.display='none';
-    const _f=document.getElementById('logofallback');if(_f)_f.classList.add('mob');
-    hideLoader();
-  } else {
   const THREE=await import('three');const {FontLoader}=await import('three/addons/loaders/FontLoader.js');const {TextGeometry}=await import('three/addons/geometries/TextGeometry.js');const {RoomEnvironment}=await import('three/addons/environments/RoomEnvironment.js');
   const canvas=document.getElementById('logo3d');const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!matchMedia('(max-width:760px)').matches});renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?1.0:2));renderer.setSize(canvas.clientWidth||innerWidth,canvas.clientHeight||innerHeight,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;
   const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(42,(canvas.clientWidth||innerWidth)/(canvas.clientHeight||innerHeight),0.1,100);camera.position.set(0,0,11);
@@ -773,7 +764,6 @@ try{
   const clock=new THREE.Clock();
   let heroLast=0,heroAway=false;function loop(now){requestAnimationFrame(loop);if(coarse&&now-heroLast<32)return;heroLast=now||0;updateFade(performance.now()/1000);if(window.scrollY>innerHeight*1.15){if(!heroAway){heroAway=true;clipEls.forEach(v=>{try{v.pause()}catch(_){}})}clock.getDelta();return;}if(heroAway){heroAway=false;clipEls.forEach(v=>{try{v.play().catch(()=>{})}catch(_){}})}const t=clock.elapsedTime;cx+=(mx-cx)*0.05;cy+=(my-cy)*0.05;group.rotation.y=coarse?Math.sin(t*0.28)*0.30:(Math.sin(t*0.3)*0.26+cx*0.6);group.rotation.x=coarse?Math.sin(t*0.5)*0.06:(Math.sin(t*0.22)*0.05-cy*0.4);group.position.y=Math.sin(t*0.7)*0.12;renderer.render(scene,camera);}
   loop();setTimeout(hideLoader,4000);
-  }
 }catch(err){console.warn('Logo 3D:',err);hideLoader();}
 </script>
 
@@ -1125,7 +1115,7 @@ const smooth=(a,b,x)=>{x=Math.min(Math.max((x-a)/(b-a),0),1);return x*x*(3-2*x);
 /* ---------- three: ballena de cristal ---------- */
 const canvas=document.getElementById('wgl');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:!matchMedia('(max-width:760px)').matches,alpha:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?1.0:1.5));
+renderer.setPixelRatio(matchMedia('(max-width:760px)').matches?0.7:Math.min(devicePixelRatio,1.5));
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.92;renderer.outputColorSpace=THREE.SRGBColorSpace;
 const scene=new THREE.Scene();
 const stage=document.querySelector('.whale-stage');
@@ -1160,10 +1150,10 @@ function buildWhale(arr){
   const add=(rest)=>{
     const u=(rest.x-minx)/span;                          // cabeza (-X) -> 0 · cola (+X) -> 1
     const dir=rest.clone().normalize().add(new THREE.Vector3((Math.random()-.5)*0.5,(Math.random()-.5)*0.5,(Math.random()-.5)*0.5)).normalize();
-    D.push({rest,u,comp:0,dir,amp:smooth(0.32,1.0,Math.min(u,1.0)),dist:6+Math.random()*14,axis:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize(),spin:0.4+Math.random()*1.1,phase:Math.random()*7,sc:(MOB?0.2:0.16)+Math.random()*0.1,pecSide:rest.z>=0?1:-1});
+    D.push({rest,u,comp:0,dir,amp:smooth(0.32,1.0,Math.min(u,1.0)),dist:6+Math.random()*14,axis:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize(),spin:0.4+Math.random()*1.1,phase:Math.random()*7,sc:(MOB?0.3:0.16)+Math.random()*0.1,pecSide:rest.z>=0?1:-1});
   };
   const MOB=matchMedia('(max-width:760px)').matches;let _wi=0;
-  for(const p of pts){ if(MOB&&(_wi++%2===0))continue;     // en móvil ~1/2 de cristales (mucho más fluido)
+  for(const p of pts){ if(MOB&&(_wi++%4!==0))continue;     // en móvil solo ~1/4 de cristales (prueba de peso)
     add(p);                                                // punto original + (en desktop) duplicado con jitter -> más denso
     if(!MOB) add(p.clone().add(new THREE.Vector3((Math.random()-.5)*0.18,(Math.random()-.5)*0.18,(Math.random()-.5)*0.18))); }
   inst.count=D.length;ready=true;
