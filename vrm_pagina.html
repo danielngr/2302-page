@@ -1352,10 +1352,10 @@ loop();
   /* ====== TUNABLES ====== */
   const GLB='https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/ballena.glb';
   const NPTS  = MOB ? 60000 : 130000;
-  const THETA = 0.30;                 // ligera diagonal sobre la vertical (zambullida)
+  const THETA = 5.5;                  // pose (tu valor en vivo)
   const FLIPY = false;                // si la cabeza queda arriba, ponlo true
   const FILL  = MOB ? 0.92 : 0.9;     // cuánto del alto llena (presencia)
-  let PSIZE = MOB ? 3.8 : 3.3;        // tamaño del punto en px CSS. Ajústalo EN VIVO: WHALE_SIZE(5) en consola.
+  let PSIZE = 5.0;                    // tamaño del punto en px CSS (tu valor en vivo). WHALE_SIZE(n) lo cambia.
   const RREP  = 2.4, FREP=3.4;        // repulsión / reventón
   // paleta LUMINOSA (plata sobre oscuro) — volumen sin desaparecer en el fondo:
   const C_DARK =[0.16,0.22,0.30];     // lado en sombra (gris-azul medio, aún visible)
@@ -1368,7 +1368,7 @@ loop();
 
   let started=false, vis=false, THREE, renderer, scene, camera, group, pts, mat, raf, last=0, reveal=0;
   let footW=1, footH=1, gScale=1, N=0;
-  let burstT=-9, pActive=false, pMoveT=-9, pLx=0, pLy=0;
+  let burstT=-9, pActive=false, pMoveT=-9, pLx=0, pLy=0, pDx=0, pDy=1, pSpeed=0;
   let rest=null, cur=null, vel=null;
 
   new IntersectionObserver(function(es){ vis=es[0].isIntersecting; if(vis&&!started) init(); }, {rootMargin:'25% 0px'}).observe(sec);
@@ -1384,7 +1384,11 @@ loop();
     const nx=((cx-r.left)/r.width)*2-1, ny=-(((cy-r.top)/r.height)*2-1);
     const visH=2*Math.tan(camera.fov*Math.PI/360)*camera.position.z, visW=visH*camera.aspect;
     const wx=nx*visW/2, wy=ny*visH/2, cT=Math.cos(THETA), sT=Math.sin(THETA);
-    pLx=(wx*cT+wy*sT)/gScale; pLy=(-wx*sT+wy*cT)/gScale; pActive=true; pMoveT=performance.now();
+    const ox=pLx, oy=pLy;
+    pLx=(wx*cT+wy*sT)/gScale; pLy=(-wx*sT+wy*cT)/gScale;
+    const mvx=pLx-ox, mvy=pLy-oy, ml=Math.hypot(mvx,mvy);
+    if(ml>1e-3 && pActive){ pDx=mvx/ml; pDy=mvy/ml; pSpeed=Math.min(1,ml*1.4); }
+    pActive=true; pMoveT=performance.now();
   }
   canvas.addEventListener('pointermove',function(e){ if(e.pointerType==='mouse'){ setPointer(e.clientX,e.clientY); reveal=Math.min(1,reveal+0.035); } });
   canvas.addEventListener('pointerleave',function(e){ if(e.pointerType==='mouse') pActive=false; });
@@ -1536,7 +1540,9 @@ loop();
       const ix=i*3, rx=rest[ix],ry=rest[ix+1],rz=rest[ix+2];
       let tx=rx+Math.sin(t*0.5+(i&63))*0.028, ty=ry+Math.cos(t*0.42+(i&127)*0.1)*0.028, tz=rz;
       if(fresh){ const dx=cur[ix]-pLx, dy=cur[ix+1]-pLy, dd=Math.sqrt(dx*dx+dy*dy);
-        if(dd<RREP){ const f=(1-dd/RREP)*FREP, inv=dd>1e-4?1/dd:0; tx+=dx*inv*f; ty+=dy*inv*f; } }
+        if(dd<RREP){ const f=(1-dd/RREP)*FREP*(0.4+0.6*pSpeed);
+          tx+=pDx*f; ty+=pDy*f;                        // FLUJO: peina los puntos hacia donde va el cursor (estela, no hueco)
+          tz+=(((i*131)&7)/7-0.5)*f*0.45; } }           // pizca de profundidad
       if(burst>0){ const s=((i*9301+49297)%233280)/233280, ph=s*6.283, el=0.6+s*0.8;
         tx+=Math.cos(ph)*burst*FREP*el; ty+=Math.sin(ph)*burst*FREP*el; tz+=(s-0.5)*burst*FREP; }
       const nx=cur[ix]+(tx-cur[ix])*k, ny=cur[ix+1]+(ty-cur[ix+1])*k, nz=cur[ix+2]+(tz-cur[ix+2])*k;
