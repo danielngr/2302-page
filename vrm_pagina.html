@@ -1352,7 +1352,8 @@ loop();
 
   /* ====== TUNABLES ====== */
   const GLB='https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/ballena.glb';
-  const NPTS  = MOB ? 90000 : 200000;
+  const SIM   = MOB ? 256 : 448;     // rejilla GPGPU: la física corre en GPU (texturas pos/vel)
+  const NPTS  = SIM*SIM;             // 65.536 móvil / 200.704 desktop
   const THETA = 5.5;                  // pose (tu valor en vivo)
   const FLIPY = false;                // si la cabeza queda arriba, ponlo true
   const FILL  = MOB ? 0.92 : 0.9;     // cuánto del alto llena (presencia)
@@ -1375,6 +1376,7 @@ loop();
   if(MOB && hintEl) hintEl.textContent='Toca la ballena para revelarla';
 
   let started=false, vis=false, THREE, renderer, scene, camera, group, pts, mat, raf, last=0, reveal=0;
+  let gpu=null, posVar=null, velVar=null, simU=null, NP=0, burstPulse=0;   // GPGPU
   let footW=1, footH=1, gScale=1, N=0;
   let burstT=-9, pActive=false, pMoveT=-9, pLx=0, pLy=0, pDx=0, pDy=1, pSpeed=0;
   let pNX=0, pNY=0, rotY=0, rotX=0, envGroup=null;   // giro hacia el cursor + escenario
@@ -1474,29 +1476,83 @@ loop();
       const positions=data.positions, ao=data.ao; N=positions.length/3;
       reorientVertical(positions);   // <- de pie (vertical), grande
 
-      rest=positions; cur=new Float32Array(positions); vel=new Float32Array(N); vv=new Float32Array(N*3);
-      const aSize=new Float32Array(N); for(let i=0;i<N;i++) aSize[i]=0.75+Math.random()*0.55;
+      // ===== GPGPU: la física corre en GPU (texturas de posición y velocidad, ping-pong) =====
+      const {GPUComputationRenderer}=await import('three/addons/misc/GPUComputationRenderer.js');
+      const M=positions.length/3; NP=SIM*SIM; N=NP;
+      gpu=new GPUComputationRenderer(SIM,SIM,renderer);
+      const tP=gpu.createTexture(), tV=gpu.createTexture(), tR=gpu.createTexture();
+      const pa=tP.image.data, va=tV.image.data, ra=tR.image.data;
+      const aoArr=new Float32Array(NP), sizeArr=new Float32Array(NP), refArr=new Float32Array(NP*2), bbPos=new Float32Array(NP*3);
+      for(let i=0;i<NP;i++){ const s=(i<M)?i:(i%M), x=positions[s*3],y=positions[s*3+1],z=positions[s*3+2];
+        pa[i*4]=x; pa[i*4+1]=y; pa[i*4+2]=z; pa[i*4+3]=0.0;
+        ra[i*4]=x; ra[i*4+1]=y; ra[i*4+2]=z; ra[i*4+3]=1.0;
+        va[i*4]=0; va[i*4+1]=0; va[i*4+2]=0; va[i*4+3]=0;
+        bbPos[i*3]=x; bbPos[i*3+1]=y; bbPos[i*3+2]=z;
+        aoArr[i]=ao[s]; sizeArr[i]=0.75+Math.random()*0.55;
+        refArr[i*2]=((i%SIM)+0.5)/SIM; refArr[i*2+1]=(Math.floor(i/SIM)+0.5)/SIM; }
+      rest=positions;
+      const VEL_FRAG=`
+        uniform float uTime,uDt,uNoise,uPush,uRad,uFriction,uSpeed,uFresh,uBurst,uImpulse;
+        uniform vec2 uMouse,uDir; uniform sampler2D tRest;
+        float h(vec2 s){ return fract(sin(dot(s,vec2(12.9898,78.233)))*43758.5453); }
+        void main(){
+          vec2 uv=gl_FragCoord.xy/resolution.xy;
+          vec3 pos=texture2D(tPos,uv).xyz, vel=texture2D(tVel,uv).xyz;
+          float p=uv.x*37.0+uv.y*61.0;
+          vec3 acc=vec3(sin(pos.y*1.6+uTime*0.9+p),sin(pos.z*1.4+uTime*0.8+p*1.3),sin(pos.x*1.7+uTime*0.7+p*0.7))*uNoise;
+          if(uFresh>0.5){
+            float RADd=uRad*(1.0+0.35*uSpeed);
+            vec2 d=pos.xy-uMouse; float dd=length(d);
+            if(dd<RADd){ float f=(1.0-dd/RADd)*(0.03+uPush*uSpeed*uSpeed);
+              float r1=h(uv)-0.5, r2=h(uv+0.7)-0.5, r3=h(uv+1.3)-0.5;
+              acc.xy+=uDir*f + vec2(r1,r2)*f*0.45*uSpeed; acc.z+=r3*f*0.6; } }
+          if(uBurst>0.5){ acc+=normalize(pos+vec3(1e-4))*uImpulse*(0.5+h(uv)); }
+          float fr=pow(uFriction,uDt);
+          vel=(vel+acc*uDt)*fr;
+          gl_FragColor=vec4(vel,1.0);
+        }`;
+      const POS_FRAG=`
+        uniform float uDt,uReturn,uMaxr; uniform sampler2D tRest;
+        void main(){
+          vec2 uv=gl_FragCoord.xy/resolution.xy;
+          vec4 P=texture2D(tPos,uv); vec3 pos=P.xyz; float vVel=P.w;
+          vec3 vel=texture2D(tVel,uv).xyz, rest=texture2D(tRest,uv).xyz;
+          pos+=vel*uDt;
+          pos+=(rest-pos)*(uReturn*uDt);
+          float dl=length(pos); if(dl>uMaxr) pos*=uMaxr/dl;
+          float sp=length(vel); vVel+=(sp-vVel)*0.12;
+          gl_FragColor=vec4(pos,vVel);
+        }`;
+      posVar=gpu.addVariable('tPos',POS_FRAG,tP);
+      velVar=gpu.addVariable('tVel',VEL_FRAG,tV);
+      gpu.setVariableDependencies(posVar,[posVar,velVar]);
+      gpu.setVariableDependencies(velVar,[posVar,velVar]);
+      Object.assign(velVar.material.uniforms,{ uTime:{value:0},uDt:{value:1},uNoise:{value:NOISE},uPush:{value:PUSH},uRad:{value:RAD},uFriction:{value:FRICTION},uSpeed:{value:0},uFresh:{value:0},uBurst:{value:0},uImpulse:{value:IMPULSE},uMouse:{value:new THREE.Vector2()},uDir:{value:new THREE.Vector2(0,1)},tRest:{value:tR} });
+      Object.assign(posVar.material.uniforms,{ uDt:{value:1},uReturn:{value:RETURN},uMaxr:{value:MAXR},tRest:{value:tR} });
+      const gerr=gpu.init(); if(gerr) throw new Error('GPGPU: '+gerr);
+      simU={vel:velVar.material.uniforms, pos:posVar.material.uniforms};
 
       const geo=new THREE.BufferGeometry();
-      geo.setAttribute('position',new THREE.BufferAttribute(cur,3));
-      geo.setAttribute('aAO',new THREE.BufferAttribute(ao,1));
-      geo.setAttribute('aVel',new THREE.BufferAttribute(vel,1));
-      geo.setAttribute('aSize',new THREE.BufferAttribute(aSize,1));
+      geo.setAttribute('position',new THREE.BufferAttribute(bbPos,3));   // solo para bbox/culling/fit (la pos real viene de la textura)
+      geo.setAttribute('aRef',new THREE.BufferAttribute(refArr,2));
+      geo.setAttribute('aAO',new THREE.BufferAttribute(aoArr,1));
+      geo.setAttribute('aSize',new THREE.BufferAttribute(sizeArr,1));
 
       mat=new THREE.ShaderMaterial({
-        uniforms:{ uSize:{value:30},
+        uniforms:{ uSize:{value:30}, tPos:{value:null},
           uColorDark:{value:new THREE.Color(C_DARK[0],C_DARK[1],C_DARK[2])},
           uColorLight:{value:new THREE.Color(C_LIGHT[0],C_LIGHT[1],C_LIGHT[2])},
           uColorFast:{value:new THREE.Color(C_FAST[0],C_FAST[1],C_FAST[2])},
           uLightPos:{value:new THREE.Vector3(LIGHTP[0],LIGHTP[1],LIGHTP[2])} },
         transparent:true, depthWrite:true, depthTest:true, blending:THREE.NormalBlending,
         vertexShader:`
-          uniform float uSize;
-          attribute float aAO,aVel,aSize;
+          uniform float uSize; uniform sampler2D tPos;
+          attribute vec2 aRef; attribute float aAO,aSize;
           varying float vAO,vVel;
           void main(){
-            vec4 vp=modelViewMatrix*vec4(position,1.0);
-            vAO=aAO; vVel=aVel;
+            vec4 P=texture2D(tPos,aRef);
+            vec4 vp=modelViewMatrix*vec4(P.xyz,1.0);
+            vAO=aAO; vVel=P.w;
             gl_Position=projectionMatrix*vp;
             gl_PointSize=uSize*aSize/length(vp.xyz);
           }`,
@@ -1546,7 +1602,7 @@ loop();
       // ==== CONTROLES EN VIVO (escríbelos en la consola y ve el cambio al instante) ====
       window.WHALE_SIZE =function(v){ PSIZE=+v; sz(); console.log('🐋 PSIZE =',v,'px'); };          // tamaño del punto
       window.WHALE_THETA=function(v){ group.rotation.z=+v; console.log('🐋 THETA =',v,'rad'); };     // inclinación
-      window.WHALE_FLIP =function(){ for(let i=1;i<rest.length;i+=3){rest[i]=-rest[i];cur[i]=-cur[i];} console.log('🐋 flip vertical'); }; // voltear cabeza/cola
+      window.WHALE_FLIP =function(){ console.log('🐋 flip: ahora se controla con FLIPY antes de samplear (la pos vive en GPU)'); };
       console.log('🐋 Controles: WHALE_SIZE(5) · WHALE_THETA(0.3) · WHALE_FLIP()');
       window.WHALE_TUNE=function(o){ o=o||{}; if('return'in o)RETURN=o['return']; if('friction'in o)FRICTION=o.friction; if('noise'in o)NOISE=o.noise; if('push'in o)PUSH=o.push; if('rad'in o)RAD=o.rad; if('impulse'in o)IMPULSE=o.impulse; console.log('🐋 física:',{RETURN,FRICTION,NOISE,PUSH,RAD,IMPULSE}); };
       console.log('🐋 Física en vivo: WHALE_TUNE({push:0.09, noise:0.0016, friction:0.78})');
@@ -1566,42 +1622,17 @@ loop();
   }
 
   function step(now){
-    const t=now/1000, posAttr=pts.geometry.attributes.position.array, velAttr=pts.geometry.attributes.aVel.array;
     let dt=(now-prevT)/16.667; if(!(dt>0)||dt>3) dt=1; prevT=now;
-    const fresh = pActive && (now-pMoveT<160);
-    const fr=Math.pow(FRICTION,dt);
-    // impulso del TAP: una sola vez por toque, hacia afuera (luego el resorte los regresa)
-    if(burstT>burstAppliedT){ burstAppliedT=burstT;
-      for(let i=0;i<N;i++){ const ix=i*3, x=cur[ix],y=cur[ix+1],z=cur[ix+2], l=Math.hypot(x,y,z)||1, s=0.5+Math.random();
-        vv[ix]+=x/l*IMPULSE*s; vv[ix+1]+=y/l*IMPULSE*s; vv[ix+2]+=z/l*IMPULSE*s; } }
-    for(let i=0;i<N;i++){
-      const ix=i*3, cx=cur[ix],cy=cur[ix+1],cz=cur[ix+2];
-      // SOLO fuerzas a la velocidad (sin resorte -> sin rebote elástico): ruido + empuje del mouse
-      const p=i*0.21;
-      let ax=Math.sin(cy*1.6+t*0.9+p)*NOISE, ay=Math.sin(cz*1.4+t*0.8+p*1.3)*NOISE, az=Math.sin(cx*1.7+t*0.7+p*0.7)*NOISE;
-      if(fresh){ const RADd=RAD*(1+0.35*pSpeed);   // LOCAL: solo lo que TOCAS se lanza (aventar pintura), el radio casi no crece
-        const dx=cx-pLx, dy=cy-pLy, dd=Math.sqrt(dx*dx+dy*dy);
-        if(dd<RADd){ const f=(1-dd/RADd)*(0.03+PUSH*pSpeed*pSpeed);   // se LANZA según la velocidad (salpicón a la pared)
-          const r1=(((i*131)&7)/7-0.5), r2=(((i*57)&7)/7-0.5);       // algo de spread (no chorro perfecto)
-          ax+=pDx*f + r1*f*0.45*pSpeed; ay+=pDy*f + r2*f*0.45*pSpeed; az+=(((i*97)&7)/7-0.5)*f*0.6; } }
-      // velocidad con fricción (advección, como fluido)
-      let vx=(vv[ix]+ax*dt)*fr, vy=(vv[ix+1]+ay*dt)*fr, vz=(vv[ix+2]+az*dt)*fr;
-      vv[ix]=vx; vv[ix+1]=vy; vv[ix+2]=vz;
-      let nx=cx+vx*dt, ny=cy+vy*dt, nz=cz+vz*dt;
-      // REGRESO: suavizado de posición hacia el origen (NUNCA rebota -> sin chicle). Lento = flota de vuelta.
-      const r=RETURN*dt;
-      nx+=(rest[ix]-nx)*r; ny+=(rest[ix+1]-ny)*r; nz+=(rest[ix+2]-nz)*r;
-      // CONTENCIÓN: el reventón no sale del cilindro (como el pingüino) -> clamp radial al volumen
-      const dl=Math.sqrt(nx*nx+ny*ny+nz*nz);
-      if(dl>MAXR){ const s=MAXR/dl; nx*=s; ny*=s; nz*=s; vv[ix]*=0.25; vv[ix+1]*=0.25; vv[ix+2]*=0.25; }
-      cur[ix]=nx; cur[ix+1]=ny; cur[ix+2]=nz;
-      posAttr[ix]=nx; posAttr[ix+1]=ny; posAttr[ix+2]=nz;
-      // velocidad suavizada para el color de estela (lerp, como igloo currentVel.a)
-      const sp=Math.sqrt(vx*vx+vy*vy+vz*vz);
-      velAttr[i]+=(sp-velAttr[i])*0.12;
-    }
-    pts.geometry.attributes.position.needsUpdate=true;
-    pts.geometry.attributes.aVel.needsUpdate=true;
+    const t=now/1000, fresh = pActive && (now-pMoveT<160);
+    if(burstT>burstAppliedT){ burstAppliedT=burstT; burstPulse=1; }   // TAP: un pulso radial
+    const u=simU.vel;
+    u.uTime.value=t; u.uDt.value=dt; u.uNoise.value=NOISE; u.uPush.value=PUSH; u.uRad.value=RAD; u.uFriction.value=FRICTION; u.uImpulse.value=IMPULSE;
+    u.uFresh.value=fresh?1:0; u.uSpeed.value=pSpeed; u.uBurst.value=burstPulse;
+    u.uMouse.value.set(pLx,pLy); u.uDir.value.set(pDx,pDy);
+    simU.pos.uDt.value=dt; simU.pos.uReturn.value=RETURN; simU.pos.uMaxr.value=MAXR;
+    gpu.compute();
+    mat.uniforms.tPos.value=gpu.getCurrentRenderTarget(posVar).texture;
+    burstPulse=0;
   }
 
   function loop(now){
