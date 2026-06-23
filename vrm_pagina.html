@@ -1359,11 +1359,12 @@ loop();
   const FILL  = MOB ? 0.92 : 0.9;     // cuánto del alto llena (presencia)
   let PSIZE = 2.6;                    // tamaño FINO (puntos separados, granulado tipo pingüino). WHALE_SIZE(n) lo cambia.
   // FÍSICA estilo igloo (modelo fluido): velocidad + fricción para volar, y regreso por ease (sin rebote).
-  let RETURN=0.16;      // regreso a casa (ease, sin rebote). Más alto = reforma rápido tras el reventón. (probado en vivo)
-  let FRICTION=0.85;    // fricción (la pintura lanzada viaja hasta la pared y queda un momento, luego reforma)
-  let NOISE=0.005;      // ruido orgánico: las partículas SIEMPRE se mueven suave (como el pingüino en reposo)
-  let PUSH=0.55;        // coef de lanzamiento (rápido = salpicón a la pared; controlado, no estallido total) (probado en vivo)
-  let RAD=2.0;          // tamaño del "pincel" (zona local que se lanza al darle, como pintura)
+  let RETURN=0.11;      // regreso más LENTO y orgánico (con variación por partícula = menos elástico) (GPU)
+  let CURL=0.6;         // intensidad del remolino al volar (swirl tipo fluido)
+  let FRICTION=0.86;    // la pintura viaja a la pared y queda un momento, luego reforma
+  let NOISE=0.006;      // churn de reposo: las partículas SIEMPRE se mueven (como el pingüino)
+  let PUSH=0.45;        // lanzamiento (rápido = salpicón local a la pared) (probado en vivo GPU)
+  let RAD=1.3;          // pincel LOCAL (al darle en una zona, solo esa vuela) (probado en vivo GPU)
   const MAXR=5.6;       // contención: radio máximo del reventón (= cilindro), evita que se embarre por la pantalla
   let IMPULSE=0.55;     // reventón del tap (impulso de velocidad; viaja ~ IMPULSE/(1-FRICTION))
   // paleta LUMINOSA (plata sobre oscuro) — volumen sin desaparecer en el fondo:
@@ -1492,33 +1493,45 @@ loop();
         refArr[i*2]=((i%SIM)+0.5)/SIM; refArr[i*2+1]=(Math.floor(i/SIM)+0.5)/SIM; }
       rest=positions;
       const VEL_FRAG=`
-        uniform float uTime,uDt,uNoise,uPush,uRad,uFriction,uSpeed,uFresh,uBurst,uImpulse;
+        uniform float uTime,uDt,uNoise,uPush,uRad,uFriction,uSpeed,uFresh,uBurst,uImpulse,uCurl;
         uniform vec2 uMouse,uDir; uniform sampler2D tRest;
-        float h(vec2 s){ return fract(sin(dot(s,vec2(12.9898,78.233)))*43758.5453); }
+        float hash(vec3 p){ p=fract(p*0.3183099+0.1); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+        float vnoise(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f);
+          return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+                     mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z); }
+        vec3 nv3(vec3 p){ return vec3(vnoise(p),vnoise(p+19.1),vnoise(p-43.7))*2.0-1.0; }
+        vec3 curl(vec3 p){ const float e=0.4;
+          vec3 dx=vec3(e,0.,0.),dy=vec3(0.,e,0.),dz=vec3(0.,0.,e);
+          vec3 x0=nv3(p-dx),x1=nv3(p+dx),y0=nv3(p-dy),y1=nv3(p+dy),z0=nv3(p-dz),z1=nv3(p+dz);
+          return vec3((y1.z-y0.z)-(z1.y-z0.y),(z1.x-z0.x)-(x1.z-x0.z),(x1.y-x0.y)-(y1.x-y0.x))/(2.0*e); }
         void main(){
           vec2 uv=gl_FragCoord.xy/resolution.xy;
           vec3 pos=texture2D(tPos,uv).xyz, vel=texture2D(tVel,uv).xyz;
-          float p=uv.x*37.0+uv.y*61.0;
-          vec3 acc=vec3(sin(pos.y*1.6+uTime*0.9+p),sin(pos.z*1.4+uTime*0.8+p*1.3),sin(pos.x*1.7+uTime*0.7+p*0.7))*uNoise;
+          // CURL-NOISE: remolino fluido (divergence-free). Siempre activo = reposo vivo; amplificado = swirl al volar.
+          vec3 cn=curl(pos*0.5 + vec3(0.0,0.0,uTime*0.18));
+          vec3 acc=cn*uNoise;
           if(uFresh>0.5){
             float RADd=uRad*(1.0+0.35*uSpeed);
             vec2 d=pos.xy-uMouse; float dd=length(d);
             if(dd<RADd){ float f=(1.0-dd/RADd)*(0.03+uPush*uSpeed*uSpeed);
-              float r1=h(uv)-0.5, r2=h(uv+0.7)-0.5, r3=h(uv+1.3)-0.5;
-              acc.xy+=uDir*f + vec2(r1,r2)*f*0.45*uSpeed; acc.z+=r3*f*0.6; } }
-          if(uBurst>0.5){ acc+=normalize(pos+vec3(1e-4))*uImpulse*(0.5+h(uv)); }
+              acc+=vec3(uDir,0.0)*f;            // empuje direccional (pintura)
+              acc+=cn*f*uCurl;                  // + REMOLINO al volar (no derecho)
+            } }
+          if(uBurst>0.5){ acc+=normalize(pos+vec3(1e-4))*uImpulse*(0.5+0.5*hash(pos)); }
           float fr=pow(uFriction,uDt);
           vel=(vel+acc*uDt)*fr;
           gl_FragColor=vec4(vel,1.0);
         }`;
       const POS_FRAG=`
         uniform float uDt,uReturn,uMaxr; uniform sampler2D tRest;
+        float hash(vec3 p){ p=fract(p*0.3183099+0.1); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
         void main(){
           vec2 uv=gl_FragCoord.xy/resolution.xy;
           vec4 P=texture2D(tPos,uv); vec3 pos=P.xyz; float vVel=P.w;
           vec3 vel=texture2D(tVel,uv).xyz, rest=texture2D(tRest,uv).xyz;
           pos+=vel*uDt;
-          pos+=(rest-pos)*(uReturn*uDt);
+          float rv=uReturn*(0.5+1.0*hash(rest*7.0));   // regreso con variación por partícula (NO todos juntos = menos elástico)
+          pos+=(rest-pos)*(rv*uDt);
           float dl=length(pos); if(dl>uMaxr) pos*=uMaxr/dl;
           float sp=length(vel); vVel+=(sp-vVel)*0.12;
           gl_FragColor=vec4(pos,vVel);
@@ -1527,7 +1540,7 @@ loop();
       velVar=gpu.addVariable('tVel',VEL_FRAG,tV);
       gpu.setVariableDependencies(posVar,[posVar,velVar]);
       gpu.setVariableDependencies(velVar,[posVar,velVar]);
-      Object.assign(velVar.material.uniforms,{ uTime:{value:0},uDt:{value:1},uNoise:{value:NOISE},uPush:{value:PUSH},uRad:{value:RAD},uFriction:{value:FRICTION},uSpeed:{value:0},uFresh:{value:0},uBurst:{value:0},uImpulse:{value:IMPULSE},uMouse:{value:new THREE.Vector2()},uDir:{value:new THREE.Vector2(0,1)},tRest:{value:tR} });
+      Object.assign(velVar.material.uniforms,{ uTime:{value:0},uDt:{value:1},uNoise:{value:NOISE},uPush:{value:PUSH},uRad:{value:RAD},uFriction:{value:FRICTION},uSpeed:{value:0},uFresh:{value:0},uBurst:{value:0},uImpulse:{value:IMPULSE},uCurl:{value:CURL},uMouse:{value:new THREE.Vector2()},uDir:{value:new THREE.Vector2(0,1)},tRest:{value:tR} });
       Object.assign(posVar.material.uniforms,{ uDt:{value:1},uReturn:{value:RETURN},uMaxr:{value:MAXR},tRest:{value:tR} });
       const gerr=gpu.init(); if(gerr) throw new Error('GPGPU: '+gerr);
       simU={vel:velVar.material.uniforms, pos:posVar.material.uniforms};
@@ -1604,7 +1617,7 @@ loop();
       window.WHALE_THETA=function(v){ group.rotation.z=+v; console.log('🐋 THETA =',v,'rad'); };     // inclinación
       window.WHALE_FLIP =function(){ console.log('🐋 flip: ahora se controla con FLIPY antes de samplear (la pos vive en GPU)'); };
       console.log('🐋 Controles: WHALE_SIZE(5) · WHALE_THETA(0.3) · WHALE_FLIP()');
-      window.WHALE_TUNE=function(o){ o=o||{}; if('return'in o)RETURN=o['return']; if('friction'in o)FRICTION=o.friction; if('noise'in o)NOISE=o.noise; if('push'in o)PUSH=o.push; if('rad'in o)RAD=o.rad; if('impulse'in o)IMPULSE=o.impulse; console.log('🐋 física:',{RETURN,FRICTION,NOISE,PUSH,RAD,IMPULSE}); };
+      window.WHALE_TUNE=function(o){ o=o||{}; if('return'in o)RETURN=o['return']; if('friction'in o)FRICTION=o.friction; if('noise'in o)NOISE=o.noise; if('push'in o)PUSH=o.push; if('rad'in o)RAD=o.rad; if('impulse'in o)IMPULSE=o.impulse; if('curl'in o)CURL=o.curl; console.log('🐋 física:',{RETURN,FRICTION,NOISE,PUSH,RAD,IMPULSE,CURL}); };
       console.log('🐋 Física en vivo: WHALE_TUNE({push:0.09, noise:0.0016, friction:0.78})');
       window.WHALE_ENV=function(op){ if(envGroup) envGroup.traverse(o=>{ if(o.material) o.material.opacity=op; }); console.log('🐋 escenario opacidad',op); };
       window.WHALE_CAM=function(y){ camera.position.set(0,+y,15); camera.lookAt(0,0,0); console.log('🐋 cámara y=',y); };
@@ -1626,7 +1639,7 @@ loop();
     const t=now/1000, fresh = pActive && (now-pMoveT<160);
     if(burstT>burstAppliedT){ burstAppliedT=burstT; burstPulse=1; }   // TAP: un pulso radial
     const u=simU.vel;
-    u.uTime.value=t; u.uDt.value=dt; u.uNoise.value=NOISE; u.uPush.value=PUSH; u.uRad.value=RAD; u.uFriction.value=FRICTION; u.uImpulse.value=IMPULSE;
+    u.uTime.value=t; u.uDt.value=dt; u.uNoise.value=NOISE; u.uPush.value=PUSH; u.uRad.value=RAD; u.uFriction.value=FRICTION; u.uImpulse.value=IMPULSE; u.uCurl.value=CURL;
     u.uFresh.value=fresh?1:0; u.uSpeed.value=pSpeed; u.uBurst.value=burstPulse;
     u.uMouse.value.set(pLx,pLy); u.uDir.value.set(pDx,pDy);
     simU.pos.uDt.value=dt; simU.pos.uReturn.value=RETURN; simU.pos.uMaxr.value=MAXR;
