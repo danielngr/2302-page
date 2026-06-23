@@ -1228,16 +1228,16 @@ function loop(now){requestAnimationFrame(loop);if(!wVis)return;
   const _cl=(x)=>x<0?0:x>1?1:x;
   let turn=_cl((S-0.22)/0.30);                                // 0.22->0.52 : gira lento hasta voltear hacia ti
   let appr=_cl((S-0.45)/0.40);                                // 0.45->0.85 : avanza acercándose
-  let exit=_cl((S-0.82)/0.18);                                // 0.82->1.0  : muy cerca -> sube y sale
+  let exit=_cl((S-0.78)/0.22);                                // 0.78->1.0  : sube y sale ANTES de cruzar la lente
   let turnE=turn*turn*(3-2*turn);                             // giro suave
   let apprE=appr*appr;                                        // acelera al acercarse
   let exitE=exit*exit;                                        // sube al final
-  const exX=0.6, exZ=20.0;                                    // hacia la cámara (z=21)
+  const exX=0.6, exZ=13.0;                                    // se acerca MUCHO pero sin cruzar la cámara (z=21)
   const startYaw=-Math.PI/2+Math.sin(t*0.16)*0.15;            // empieza dándote la espalda
   const faceYaw=Math.atan2(exZ,-exX);                         // ~180° después: te encara de cabeza
   inst.rotation.y=startYaw*(1-turnE)+faceYaw*turnE;           // gira lento hasta voltear hacia ti
   inst.rotation.x=0.06+Math.sin(t*0.13)*0.05-exitE*0.25;      // al subir, inclina la nariz
-  inst.position.set(apprE*exX, exitE*11.0, apprE*exZ + exitE*5.0);  // se acerca; muy cerca sube y sale completamente
+  inst.position.set(apprE*exX, exitE*18.0, apprE*exZ + exitE*1.5);  // se acerca; muy cerca SUBE y sale por arriba (no atraviesa la lente)
 
   setP(t);
   if(wsurf){const surf=smooth(0.66,0.99,S);const sq=Math.round(surf*120);if(sq!==lastSurf){lastSurf=sq;wsurf.style.opacity=(surf*0.72).toFixed(3);}} // ascenso a la superficie
