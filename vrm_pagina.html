@@ -1224,23 +1224,20 @@ function loop(now){requestAnimationFrame(loop);if(!wVis)return;
   let alive=S<0.22?(S/0.22):1;                          // se mantiene viva (ya no se apaga)
   mat.emissive.lerp(_eg.copy(C_GLOW).multiplyScalar(0.6*alive),0.1);
   inst.scale.setScalar(whaleBase*(0.72+0.34*alive));
-  // FASE FORMADA (showcase) + BREAKOUT
+  // CHOREO en 3 tiempos: 1) gira lento ~180° hasta encararte  2) viene hacia ti  3) muy cerca: sube y sale completamente
   const _cl=(x)=>x<0?0:x>1?1:x;
-  let form=_cl((S-0.22)/0.38);                                // 0 al formarse -> 1 al iniciar el breakout (~0.6)
-  let out=Math.max(0,(S-0.6)/0.4);                            // breakout en el último 40%
-  let outE=out*out*(3-2*out);                                 // orientación suave
-  let dash=out*out;                                           // el avance ACELERA al final (whoosh)
-  const exX=1.0, exY=2.4, exZ=20.0;                           // hacia la cámara (z=21); subida pequeña
-  // ROTA MÁS mientras está formada (muestra su volumen 3D), luego encara hacia ti para salir
-  let showYaw=-0.6+Math.sin(t*0.16)*0.22+form*Math.PI*1.4;    // ~250° de giro en el showcase
-  const exitYaw=Math.atan2(exZ,-exX);                         // encara de cabeza hacia ti
-  inst.rotation.y=showYaw*(1-outE)+exitYaw*outE;
-  inst.rotation.x=0.06+Math.sin(t*0.13)*0.05;                 // sin dispararse hacia arriba
-  // NADA atrás<->adelante (profundidad) -> efecto 3D, antes del breakout
-  let zswim=Math.sin(form*Math.PI*2.4)*3.4*(1-out);           // se acerca y aleja (porpoising en Z)
-  // BREAKOUT: se viene de frente; la SUBIDA entra TARDE (no luego luego hacia arriba)
-  let rise=dash*dash*dash;
-  inst.position.set(dash*exX, rise*exY, zswim+dash*exZ);
+  let turn=_cl((S-0.22)/0.30);                                // 0.22->0.52 : gira lento hasta voltear hacia ti
+  let appr=_cl((S-0.45)/0.40);                                // 0.45->0.85 : avanza acercándose
+  let exit=_cl((S-0.82)/0.18);                                // 0.82->1.0  : muy cerca -> sube y sale
+  let turnE=turn*turn*(3-2*turn);                             // giro suave
+  let apprE=appr*appr;                                        // acelera al acercarse
+  let exitE=exit*exit;                                        // sube al final
+  const exX=0.6, exZ=20.0;                                    // hacia la cámara (z=21)
+  const startYaw=-Math.PI/2+Math.sin(t*0.16)*0.15;            // empieza dándote la espalda
+  const faceYaw=Math.atan2(exZ,-exX);                         // ~180° después: te encara de cabeza
+  inst.rotation.y=startYaw*(1-turnE)+faceYaw*turnE;           // gira lento hasta voltear hacia ti
+  inst.rotation.x=0.06+Math.sin(t*0.13)*0.05-exitE*0.25;      // al subir, inclina la nariz
+  inst.position.set(apprE*exX, exitE*11.0, apprE*exZ + exitE*5.0);  // se acerca; muy cerca sube y sale completamente
 
   setP(t);
   if(wsurf){const surf=smooth(0.66,0.99,S);const sq=Math.round(surf*120);if(sq!==lastSurf){lastSurf=sq;wsurf.style.opacity=(surf*0.72).toFixed(3);}} // ascenso a la superficie
