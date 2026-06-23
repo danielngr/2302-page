@@ -80,18 +80,18 @@ nav .navr{display:flex;align-items:center;gap:16px}
 .ckok:hover{transform:translateY(-1px)}
 @media(max-width:760px){.ckbar{flex-direction:column;align-items:stretch;text-align:center;gap:11px;bottom:14px}.ckok{padding:13px}}
 /* CIERRE: ballena interactiva + descuento */
-.dsc{position:relative;padding:14vh var(--gx) 15vh;background:linear-gradient(180deg,#070d10,#0a151b 55%,#070d10);overflow:hidden}
-.dsc-head{text-align:center;max-width:700px;margin:0 auto}
+.dsc{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:clamp(80px,11vh,130px) var(--gx) clamp(70px,9vh,110px);background:linear-gradient(180deg,#070d10,#0a151b 55%,#070d10);overflow:hidden}
+.dsc-head{text-align:center;max-width:700px;margin:0 auto;flex:none}
 .dsc-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--aqua)}
 .dsc-title{font-family:var(--serif);font-size:clamp(34px,5.4vw,66px);line-height:1.03;color:var(--cream);margin:16px 0 0;font-weight:500}
 .dsc-hint{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(241,236,225,.5);margin-top:18px;transition:opacity .6s}
-.dsc-stage{position:relative;width:100%;height:clamp(440px,58vh,640px);margin-top:4vh;display:grid;place-items:center}
+.dsc-stage{position:relative;width:100%;flex:1 1 auto;min-height:clamp(460px,62vh,720px);margin-top:3vh;display:grid;place-items:center}
 .dsc-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:2;touch-action:pan-y;cursor:crosshair}
-.dsc-code{position:relative;z-index:1;text-align:center;opacity:.16;transition:opacity .55s ease;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:10px;padding:30px 46px;border-radius:24px;background:radial-gradient(130% 130% at 50% 50%,rgba(22,44,58,.6),rgba(8,16,20,.18) 68%,transparent);border:1px solid rgba(159,216,230,.16);box-shadow:0 0 70px rgba(159,216,230,.14),inset 0 1px 0 rgba(255,255,255,.08)}
-.dsc-code .dsc-k{font-family:var(--mono);font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:rgba(159,216,230,.85)}
-.dsc-code .dsc-v{font-family:var(--mono);font-weight:700;font-size:clamp(40px,8.4vw,82px);letter-spacing:.08em;color:#eafaff;text-shadow:0 0 34px rgba(159,216,230,.6)}
-.dsc-code .dsc-s{font-family:var(--sans);font-size:12.5px;color:rgba(241,236,225,.74)}
-@media(max-width:760px){.dsc{padding:11vh var(--gx) 12vh}.dsc-stage{height:clamp(380px,50vh,500px);margin-top:3vh}.dsc-code{padding:22px 30px}}
+.dsc-code{position:relative;z-index:1;text-align:center;opacity:.14;transition:opacity .55s ease;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:11px;padding:34px 52px;border-radius:26px;background:radial-gradient(130% 130% at 50% 50%,rgba(22,44,58,.62),rgba(8,16,20,.16) 68%,transparent);border:1px solid rgba(159,216,230,.16);box-shadow:0 0 90px rgba(159,216,230,.16),inset 0 1px 0 rgba(255,255,255,.08)}
+.dsc-code .dsc-k{font-family:var(--mono);font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:rgba(159,216,230,.88)}
+.dsc-code .dsc-v{font-family:var(--mono);font-weight:700;font-size:clamp(48px,11vw,104px);letter-spacing:.08em;color:#eafaff;text-shadow:0 0 44px rgba(159,216,230,.7),0 0 12px rgba(255,255,255,.5)}
+.dsc-code .dsc-s{font-family:var(--sans);font-size:13px;color:rgba(241,236,225,.78)}
+@media(max-width:760px){.dsc{padding:clamp(70px,9vh,100px) var(--gx) clamp(56px,7vh,84px)}.dsc-stage{min-height:62vh;margin-top:2vh}.dsc-code{padding:24px 30px}}
 /* HERO */
 .hero{position:sticky;top:0;height:100svh;height:100dvh;overflow:hidden}
 .herovid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;filter:saturate(1.05) contrast(1.04)}
@@ -1344,7 +1344,8 @@ loop();
   const hintEl=document.getElementById('dscHint');
   if(!sec||!canvas)return;
   const MOB=matchMedia('(max-width:760px)').matches;
-  let started=false, vis=false, THREE, renderer, scene, camera, group, inst, dum, D=[], cur=[], gScale=1, raf, last=0, reveal=0;
+  let started=false, vis=false, THREE, renderer, scene, camera, group, inst, dum, D=[], cur=[], gScale=1, raf, last=0, reveal=0, THETA=-1.2, footW=1, footH=1, _tmpCol=null;
+  function fitWhale(){ if(!camera||!group)return; const visH0=2*Math.tan(camera.fov*Math.PI/360)*camera.position.z, visW0=visH0*camera.aspect; gScale=Math.min(visW0*(MOB?0.96:0.92)/footW, visH0*(MOB?0.9:0.86)/footH); group.scale.setScalar(gScale); }
   let pHas=false, pX=0, pY=0;
 
   new IntersectionObserver(function(es){ vis=es[0].isIntersecting; if(vis&&!started) init(); }, {rootMargin:'25% 0px'}).observe(sec);
@@ -1375,45 +1376,51 @@ loop();
       scene=new THREE.Scene();
       camera=new THREE.PerspectiveCamera(42, (canvas.clientWidth||1)/Math.max(1,canvas.clientHeight||1), 0.1, 100); camera.position.set(0,0,15);
       {const pm=new THREE.PMREMGenerator(renderer); scene.environment=pm.fromScene(new RoomEnvironment(renderer),0.03).texture;}
-      scene.add(new THREE.AmbientLight(0x6b818c,0.18));
-      const l1=new THREE.PointLight(0x4fb6d6,60,140); l1.position.set(-9,-3,7); scene.add(l1);
-      const l2=new THREE.PointLight(0xbfe6ff,42,140); l2.position.set(7,6,8); scene.add(l2);
+      scene.add(new THREE.AmbientLight(0x5a6b75,0.13));
+      const key=new THREE.PointLight(0xffffff,95,170); key.position.set(-7,7,9); scene.add(key);   // luz fuerte: highlights blancos como igloo
+      const rim=new THREE.PointLight(0x8fd0e6,34,170); rim.position.set(8,-4,5); scene.add(rim);    // contraluz frío
+      const fill=new THREE.DirectionalLight(0xbfd3dd,0.22); fill.position.set(0,2,6); scene.add(fill);
       const geo=new THREE.IcosahedronGeometry(1,MOB?0:1);
-      const mat=new THREE.MeshStandardMaterial({color:0xa4b7c2,metalness:0.0,roughness:0.55,flatShading:false,envMapIntensity:0.9,side:MOB?THREE.FrontSide:THREE.DoubleSide});
+      const mat=new THREE.MeshStandardMaterial({color:0xffffff,metalness:0.0,roughness:0.5,flatShading:false,envMapIntensity:0.95,side:MOB?THREE.FrontSide:THREE.DoubleSide});
       let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9,mnz=1e9,mxz=-1e9, raw=[];
       for(let i=0;i<PTS.length;i+=3){ const x=PTS[i],y=PTS[i+1],z=PTS[i+2]; raw.push([x,y,z]); if(x<mnx)mnx=x;if(x>mxx)mxx=x;if(y<mny)mny=y;if(y>mxy)mxy=y;if(z<mnz)mnz=z;if(z>mxz)mxz=z; }
       const cxc=(mnx+mxx)/2, cyc=(mny+mxy)/2, czc=(mnz+mxz)/2;
-      let pts=raw; if(MOB) pts=raw.filter(function(_,i){return i%2===0;});
+      // densificar: cada punto + copias con jitter → criatura TUPIDA tipo igloo (1300 pts solos se ven ralos)
+      const DENS=MOB?2:3; let pts=[];
+      for(let i=0;i<raw.length;i++){ pts.push(raw[i]); for(let j=1;j<DENS;j++) pts.push([raw[i][0]+(Math.random()-.5)*0.55, raw[i][1]+(Math.random()-.5)*0.55, raw[i][2]+(Math.random()-.5)*0.55]); }
       const N=pts.length;
       inst=new THREE.InstancedMesh(geo,mat,N);
-      dum=new THREE.Object3D();
+      dum=new THREE.Object3D(); _tmpCol=new THREE.Color();
       for(let i=0;i<N;i++){
         const rx=pts[i][0]-cxc, ry=pts[i][1]-cyc, rz=pts[i][2]-czc;
-        const sc=(MOB?0.2:0.15)+Math.random()*0.08;
+        const sc=(MOB?0.16:0.13)+Math.random()*0.06;
         D.push({rx:rx,ry:ry,rz:rz,sc:sc,sp:0.3+Math.random()*0.8,ph:Math.random()*7,ax:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize()});
         cur.push({x:rx,y:ry});
         dum.position.set(rx,ry,rz); dum.quaternion.setFromAxisAngle(D[i].ax,D[i].ph); dum.scale.set(sc,sc,sc); dum.updateMatrix(); inst.setMatrixAt(i,dum.matrix);
+        inst.setColorAt(i,_tmpCol.setRGB(0.60,0.70,0.76));   // plata frío en reposo
       }
-      inst.instanceMatrix.needsUpdate=true;
+      inst.instanceMatrix.needsUpdate=true; if(inst.instanceColor)inst.instanceColor.needsUpdate=true;
       group=new THREE.Group(); group.add(inst); scene.add(group);
-      const w=mxx-mnx;
-      const visW0=2*Math.tan(camera.fov*Math.PI/360)*camera.position.z*camera.aspect;
-      gScale=(visW0*(MOB?0.82:0.6))/w; group.scale.setScalar(gScale);
+      group.rotation.z=THETA;   // pose diagonal (zambullida): más presencia vertical y dramática
+      const wW=mxx-mnx, wH=mxy-mny, ct=Math.abs(Math.cos(THETA)), st=Math.abs(Math.sin(THETA));
+      footW=wW*ct+wH*st; footH=wW*st+wH*ct;   // huella tras rotar (para encuadrar en alto y ancho)
+      fitWhale();
       sz(); addEventListener('resize',sz);
       try{renderer.compile(scene,camera);}catch(_){}
       last=performance.now(); raf=requestAnimationFrame(loop);
     }catch(err){ console.warn('Ballena cierre:',err); }
   }
 
-  function sz(){ if(!renderer)return; const w=canvas.clientWidth||canvas.parentElement.clientWidth, h=canvas.clientHeight||w; renderer.setSize(w,h,false); camera.aspect=w/Math.max(1,h); camera.updateProjectionMatrix(); }
+  function sz(){ if(!renderer)return; const w=canvas.clientWidth||canvas.parentElement.clientWidth, h=canvas.clientHeight||w; renderer.setSize(w,h,false); camera.aspect=w/Math.max(1,h); camera.updateProjectionMatrix(); fitWhale(); }
 
   function loop(now){
     raf=requestAnimationFrame(loop);
     if(!vis)return;
     if(MOB && now-last<42) return; last=now;
     const t=now/1000;
-    const R=2.0, STR=2.0, k=0.16;
-    const plx=pHas?pX/gScale:0, ply=pHas?pY/gScale:0;
+    const R=2.8, STR=5.0, k=0.14;   // se desplazan MUCHO y regresan (k bajo = regreso flotante)
+    let plx=0, ply=0;
+    if(pHas){ const a=pX/gScale, b=pY/gScale, cT=Math.cos(THETA), sT=Math.sin(THETA); plx=a*cT+b*sT; ply=-a*sT+b*cT; }
     for(let i=0;i<D.length;i++){
       const d=D[i]; let tx=d.rx, ty=d.ry;
       if(pHas){
@@ -1425,8 +1432,12 @@ loop();
       dum.quaternion.setFromAxisAngle(d.ax, d.ph + t*d.sp*0.15);
       dum.scale.set(d.sc,d.sc,d.sc);
       dum.updateMatrix(); inst.setMatrixAt(i,dum.matrix);
+      // color: plata frío en reposo → AZUL increíble cuanto más se expande
+      const ddx=c.x-d.rx, ddy=c.y-d.ry, m=Math.min(1,Math.sqrt(ddx*ddx+ddy*ddy)/2.6);
+      _tmpCol.setRGB(0.60-0.34*m, 0.70-0.04*m, 0.76+0.30*m);
+      inst.setColorAt(i,_tmpCol);
     }
-    inst.instanceMatrix.needsUpdate=true;
+    inst.instanceMatrix.needsUpdate=true; if(inst.instanceColor)inst.instanceColor.needsUpdate=true;
     if(pHas){ reveal=Math.min(1,reveal+0.03); }
     if(reveal>0&&codeEl){ codeEl.style.opacity=(0.16+0.84*reveal).toFixed(3); if(hintEl&&reveal>0.5)hintEl.style.opacity='0'; }
     renderer.render(scene,camera);
