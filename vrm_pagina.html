@@ -80,14 +80,15 @@ nav .navr{display:flex;align-items:center;gap:16px}
 .ckok:hover{transform:translateY(-1px)}
 @media(max-width:760px){.ckbar{flex-direction:column;align-items:stretch;text-align:center;gap:11px;bottom:14px}.ckok{padding:13px}}
 /* CIERRE: ballena interactiva + descuento */
-.dsc{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:clamp(80px,11vh,130px) var(--gx) clamp(70px,9vh,110px);background:radial-gradient(72% 58% at 50% 52%,rgba(176,202,218,.78),rgba(120,150,170,.5) 40%,rgba(40,60,74,.18) 70%,transparent 88%),linear-gradient(180deg,#0e1a23,#16242e 52%,#0e1a23);overflow:hidden}
+.dsc{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:clamp(80px,11vh,130px) var(--gx) clamp(70px,9vh,110px);background:radial-gradient(78% 44% at 50% 4%,rgba(238,245,248,.36),transparent 56%),radial-gradient(64% 56% at 50% 44%,#b3c1cb 0%,#94a6b3 40%,#5d7382 70%,#283a46 100%);overflow:hidden}
 .dsc-head{text-align:center;max-width:700px;margin:0 auto;flex:none}
 .dsc-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--aqua)}
 .dsc-title{font-family:var(--serif);font-size:clamp(34px,5.4vw,66px);line-height:1.03;color:var(--cream);margin:16px 0 0;font-weight:500}
 .dsc-hint{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(241,236,225,.5);margin-top:18px;transition:opacity .6s}
 .dsc-stage{position:relative;width:100%;flex:1 1 auto;min-height:clamp(460px,62vh,720px);margin-top:3vh;display:grid;place-items:center}
-.dsc-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:2;touch-action:pan-y;cursor:crosshair}
-.dsc-code{position:relative;z-index:1;text-align:center;opacity:.14;transition:opacity .55s ease;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:11px;padding:34px 52px;border-radius:26px;background:radial-gradient(130% 130% at 50% 50%,rgba(22,44,58,.62),rgba(8,16,20,.16) 68%,transparent);border:1px solid rgba(159,216,230,.16);box-shadow:0 0 90px rgba(159,216,230,.16),inset 0 1px 0 rgba(255,255,255,.08)}
+.dsc-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:2;touch-action:pan-y;cursor:none}
+body.whale-hover .cur,body.whale-hover .curr{opacity:0!important}
+.dsc-code{position:relative;z-index:1;text-align:center;opacity:.14;transition:opacity .55s ease;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:11px;padding:34px 52px;border-radius:26px;background:radial-gradient(120% 120% at 50% 50%,rgba(18,34,46,.34),rgba(12,22,28,.08) 60%,transparent);border:none;box-shadow:none}
 .dsc-code .dsc-k{font-family:var(--mono);font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:rgba(159,216,230,.88)}
 .dsc-code .dsc-v{font-family:var(--mono);font-weight:700;font-size:clamp(48px,11vw,104px);letter-spacing:.08em;color:#eafaff;text-shadow:0 0 44px rgba(159,216,230,.7),0 0 12px rgba(255,255,255,.5)}
 .dsc-code .dsc-s{font-family:var(--sans);font-size:13px;color:rgba(241,236,225,.78)}
@@ -1351,16 +1352,22 @@ loop();
 
   /* ====== TUNABLES ====== */
   const GLB='https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/ballena.glb';
-  const NPTS  = MOB ? 60000 : 130000;
+  const NPTS  = MOB ? 90000 : 200000;
   const THETA = 5.5;                  // pose (tu valor en vivo)
   const FLIPY = false;                // si la cabeza queda arriba, ponlo true
   const FILL  = MOB ? 0.92 : 0.9;     // cuánto del alto llena (presencia)
-  let PSIZE = 5.0;                    // tamaño del punto en px CSS (tu valor en vivo). WHALE_SIZE(n) lo cambia.
-  const RREP  = 2.4, FREP=3.4;        // repulsión / reventón
+  let PSIZE = 2.6;                    // tamaño FINO (puntos separados, granulado tipo pingüino). WHALE_SIZE(n) lo cambia.
+  // FÍSICA estilo igloo (modelo fluido): velocidad + fricción para volar, y regreso por ease (sin rebote).
+  let RETURN=0.05;      // regreso suave a casa (ease de posición, NUNCA rebota). Bajo = flota más tiempo afuera.
+  let FRICTION=0.91;    // fricción por frame (alto = la estela queda suspendida más tiempo, más larga)
+  let NOISE=0.0016;     // ruido orgánico (vida sutil; con el modelo nuevo debe ser chico)
+  let PUSH=0.42;        // empuje del mouse (fuerte: los puntos vuelan en estela como el pingüino)
+  let RAD=3.2;          // radio de influencia del mouse (zona de la estela)
+  let IMPULSE=0.55;     // reventón del tap (impulso de velocidad; viaja ~ IMPULSE/(1-FRICTION))
   // paleta LUMINOSA (plata sobre oscuro) — volumen sin desaparecer en el fondo:
   const C_DARK =[0.16,0.22,0.30];     // lado en sombra (gris-azul medio, aún visible)
   const C_LIGHT=[0.86,0.93,1.0];      // lado iluminado (plata casi blanco)
-  const C_FAST =[0.42,0.74,1.0];      // estela rápida (azul)
+  const C_FAST =[0.92,0.97,1.0];      // estela rápida: BLANCO brillante (como el chorro de luz del pingüino)
   const LIGHTP =[-0.6,1.0,0.35];      // luz arriba-izquierda
   /* ====================== */
 
@@ -1369,7 +1376,7 @@ loop();
   let started=false, vis=false, THREE, renderer, scene, camera, group, pts, mat, raf, last=0, reveal=0;
   let footW=1, footH=1, gScale=1, N=0;
   let burstT=-9, pActive=false, pMoveT=-9, pLx=0, pLy=0, pDx=0, pDy=1, pSpeed=0;
-  let rest=null, cur=null, vel=null;
+  let rest=null, cur=null, vel=null, vv=null, prevT=0, burstAppliedT=-9;
 
   new IntersectionObserver(function(es){ vis=es[0].isIntersecting; if(vis&&!started) init(); }, {rootMargin:'25% 0px'}).observe(sec);
 
@@ -1391,7 +1398,8 @@ loop();
     pActive=true; pMoveT=performance.now();
   }
   canvas.addEventListener('pointermove',function(e){ if(e.pointerType==='mouse'){ setPointer(e.clientX,e.clientY); reveal=Math.min(1,reveal+0.035); } });
-  canvas.addEventListener('pointerleave',function(e){ if(e.pointerType==='mouse') pActive=false; });
+  canvas.addEventListener('pointerenter',function(e){ if(e.pointerType==='mouse') document.body.classList.add('whale-hover'); });
+  canvas.addEventListener('pointerleave',function(e){ if(e.pointerType==='mouse'){ pActive=false; document.body.classList.remove('whale-hover'); } });
   let tdown=0,txs=0,tys=0;
   canvas.addEventListener('touchstart',function(e){ if(e.touches[0]){ tdown=performance.now(); txs=e.touches[0].clientX; tys=e.touches[0].clientY; } },{passive:true});
   canvas.addEventListener('touchend',function(e){
@@ -1461,8 +1469,8 @@ loop();
       const positions=data.positions, ao=data.ao; N=positions.length/3;
       reorientVertical(positions);   // <- de pie (vertical), grande
 
-      rest=positions; cur=new Float32Array(positions); vel=new Float32Array(N);
-      const aSize=new Float32Array(N); for(let i=0;i<N;i++) aSize[i]=0.8+Math.random()*0.8;
+      rest=positions; cur=new Float32Array(positions); vel=new Float32Array(N); vv=new Float32Array(N*3);
+      const aSize=new Float32Array(N); for(let i=0;i<N;i++) aSize[i]=0.75+Math.random()*0.55;
 
       const geo=new THREE.BufferGeometry();
       geo.setAttribute('position',new THREE.BufferAttribute(cur,3));
@@ -1501,8 +1509,9 @@ loop();
             float lightShadow=max(0.0,dot(normalize(rotateY(3.1416)*uLightPos),normalize(n)));
             float ramp=0.35+0.65*(lightShadow*vAO);            // base + luz×AO (no se apaga del todo)
             vec3 color=mix(uColorDark,uColorLight,ramp);
-            color=mix(color,uColorFast,pow(fit(vVel,0.06,0.18,0.0,1.0),2.0));
-            a*=pow(fit(vVel,0.05,0.32,1.0,0.0),2.0)*0.45+0.55;
+            color=mix(color,uColorFast,pow(fit(vVel,0.03,0.20,0.0,1.0),1.4));
+            color+=vec3(0.35)*fit(vVel,0.22,0.6,0.0,1.0);   // glow blanco en lo más veloz (chorro luminoso)
+            a*=pow(fit(vVel,0.04,0.5,1.0,0.0),2.0)*0.32+0.68;
             gl_FragColor=vec4(clamp(color,0.0,1.0),a);
           }`
       });
@@ -1520,7 +1529,9 @@ loop();
       window.WHALE_THETA=function(v){ group.rotation.z=+v; console.log('🐋 THETA =',v,'rad'); };     // inclinación
       window.WHALE_FLIP =function(){ for(let i=1;i<rest.length;i+=3){rest[i]=-rest[i];cur[i]=-cur[i];} console.log('🐋 flip vertical'); }; // voltear cabeza/cola
       console.log('🐋 Controles: WHALE_SIZE(5) · WHALE_THETA(0.3) · WHALE_FLIP()');
-      last=performance.now(); raf=requestAnimationFrame(loop);
+      window.WHALE_TUNE=function(o){ o=o||{}; if('return'in o)RETURN=o['return']; if('friction'in o)FRICTION=o.friction; if('noise'in o)NOISE=o.noise; if('push'in o)PUSH=o.push; if('rad'in o)RAD=o.rad; if('impulse'in o)IMPULSE=o.impulse; console.log('🐋 física:',{RETURN,FRICTION,NOISE,PUSH,RAD,IMPULSE}); };
+      console.log('🐋 Física en vivo: WHALE_TUNE({push:0.8, noise:0.06, friction:0.84, spring:0.01})');
+      prevT=performance.now(); last=prevT; raf=requestAnimationFrame(loop);
     }catch(err){ console.warn('Ballena cierre:',err); }
   }
 
@@ -1533,23 +1544,33 @@ loop();
 
   function step(now){
     const t=now/1000, posAttr=pts.geometry.attributes.position.array, velAttr=pts.geometry.attributes.aVel.array;
+    let dt=(now-prevT)/16.667; if(!(dt>0)||dt>3) dt=1; prevT=now;
     const fresh = pActive && (now-pMoveT<160);
-    const e=(now-burstT)/1000; let burst=0; if(e>=0&&e<1.6){ burst = e<0.12?(e/0.12):Math.max(0,1-(e-0.12)/1.48); }
-    const k=0.16;
+    const fr=Math.pow(FRICTION,dt);
+    // impulso del TAP: una sola vez por toque, hacia afuera (luego el resorte los regresa)
+    if(burstT>burstAppliedT){ burstAppliedT=burstT;
+      for(let i=0;i<N;i++){ const ix=i*3, x=cur[ix],y=cur[ix+1],z=cur[ix+2], l=Math.hypot(x,y,z)||1, s=0.5+Math.random();
+        vv[ix]+=x/l*IMPULSE*s; vv[ix+1]+=y/l*IMPULSE*s; vv[ix+2]+=z/l*IMPULSE*s; } }
     for(let i=0;i<N;i++){
-      const ix=i*3, rx=rest[ix],ry=rest[ix+1],rz=rest[ix+2];
-      let tx=rx+Math.sin(t*0.5+(i&63))*0.028, ty=ry+Math.cos(t*0.42+(i&127)*0.1)*0.028, tz=rz;
-      if(fresh){ const dx=cur[ix]-pLx, dy=cur[ix+1]-pLy, dd=Math.sqrt(dx*dx+dy*dy);
-        if(dd<RREP){ const f=(1-dd/RREP)*FREP*(0.4+0.6*pSpeed);
-          tx+=pDx*f; ty+=pDy*f;                        // FLUJO: peina los puntos hacia donde va el cursor (estela, no hueco)
-          tz+=(((i*131)&7)/7-0.5)*f*0.45; } }           // pizca de profundidad
-      if(burst>0){ const s=((i*9301+49297)%233280)/233280, ph=s*6.283, el=0.6+s*0.8;
-        tx+=Math.cos(ph)*burst*FREP*el; ty+=Math.sin(ph)*burst*FREP*el; tz+=(s-0.5)*burst*FREP; }
-      const nx=cur[ix]+(tx-cur[ix])*k, ny=cur[ix+1]+(ty-cur[ix+1])*k, nz=cur[ix+2]+(tz-cur[ix+2])*k;
-      const vx=nx-cur[ix], vy=ny-cur[ix+1], vz=nz-cur[ix+2];
-      velAttr[i]=Math.sqrt(vx*vx+vy*vy+vz*vz);
+      const ix=i*3, cx=cur[ix],cy=cur[ix+1],cz=cur[ix+2];
+      // SOLO fuerzas a la velocidad (sin resorte -> sin rebote elástico): ruido + empuje del mouse
+      const p=i*0.21;
+      let ax=Math.sin(cy*1.6+t*0.9+p)*NOISE, ay=Math.sin(cz*1.4+t*0.8+p*1.3)*NOISE, az=Math.sin(cx*1.7+t*0.7+p*0.7)*NOISE;
+      if(fresh){ const dx=cx-pLx, dy=cy-pLy, dd=Math.sqrt(dx*dx+dy*dy);
+        if(dd<RAD){ const f=(1-dd/RAD)*PUSH*(0.35+0.65*pSpeed);   // empuje en la dirección del mouse (corriente)
+          ax+=pDx*f; ay+=pDy*f; az+=(((i*131)&7)/7-0.5)*f*0.5; } }
+      // velocidad con fricción (advección, como fluido)
+      let vx=(vv[ix]+ax*dt)*fr, vy=(vv[ix+1]+ay*dt)*fr, vz=(vv[ix+2]+az*dt)*fr;
+      vv[ix]=vx; vv[ix+1]=vy; vv[ix+2]=vz;
+      let nx=cx+vx*dt, ny=cy+vy*dt, nz=cz+vz*dt;
+      // REGRESO: suavizado de posición hacia el origen (NUNCA rebota -> sin chicle). Lento = flota de vuelta.
+      const r=RETURN*dt;
+      nx+=(rest[ix]-nx)*r; ny+=(rest[ix+1]-ny)*r; nz+=(rest[ix+2]-nz)*r;
       cur[ix]=nx; cur[ix+1]=ny; cur[ix+2]=nz;
       posAttr[ix]=nx; posAttr[ix+1]=ny; posAttr[ix+2]=nz;
+      // velocidad suavizada para el color de estela (lerp, como igloo currentVel.a)
+      const sp=Math.sqrt(vx*vx+vy*vy+vz*vz);
+      velAttr[i]+=(sp-velAttr[i])*0.12;
     }
     pts.geometry.attributes.position.needsUpdate=true;
     pts.geometry.attributes.aVel.needsUpdate=true;
