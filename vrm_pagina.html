@@ -113,9 +113,10 @@ body.whale-hover .cur,body.whale-hover .curr{opacity:0!important}
 @media(max-width:760px){.coord{display:none}.tag{bottom:14vh}}
 /* SECCIONES */
 .sec{padding:15vh 4vw;position:relative}
-.stk{position:sticky;top:0;min-height:100svh;overflow:hidden;background-color:var(--bg);background-size:cover;background-position:center;border-radius:0;box-shadow:0 -12px 34px rgba(0,0,0,.32);will-change:transform}
-.stk-bg{position:absolute;inset:-9%;background-size:cover;background-position:center;z-index:-1;will-change:transform;pointer-events:none}
-@media(max-width:760px){.stk{box-shadow:0 -10px 30px rgba(0,0,0,.4)}}
+.stk{position:sticky;top:0;min-height:100svh;overflow:hidden;background-color:var(--bg);background-size:cover;background-position:center;border-radius:0;box-shadow:none;will-change:transform}
+.stk-bg{position:absolute;inset:clamp(36px,8vh,90px) clamp(18px,6vw,90px);border-radius:24px;overflow:hidden;box-shadow:0 50px 120px rgba(0,0,0,.55);z-index:-1;pointer-events:none}
+.stk-bg-img{position:absolute;inset:-10%;background-size:cover;background-position:center;will-change:transform}
+@media(max-width:760px){.stk{box-shadow:none} .stk .stk-bg{inset:clamp(22px,4vh,46px) clamp(12px,4vw,26px);border-radius:18px}}
 /* ===== BANDA WORDMARK: la bahía dentro de las letras (revelado pixelado por cursor) ===== */
 .wordband{position:relative;z-index:1;height:clamp(170px,30vh,360px);overflow:hidden;background:var(--bg);cursor:crosshair}
 .wordband canvas{display:block;width:100%;height:100%}
@@ -897,7 +898,9 @@ window.addEventListener('load',function(){
       el.style.backgroundColor='var(--bg)';                       // opaco siempre
       var bg=el.getAttribute&&el.getAttribute('data-bg');
       if(bg){ var bgl=document.createElement('div'); bgl.className='stk-bg';
-              bgl.style.backgroundImage='linear-gradient(rgba(6,12,15,.5),rgba(6,12,15,.66)), url("'+bg+'")';
+              var bgi=document.createElement('div'); bgi.className='stk-bg-img';
+              bgi.style.backgroundImage='linear-gradient(rgba(6,12,15,.5),rgba(6,12,15,.66)), url("'+bg+'")';
+              bgl.appendChild(bgi);
               el.insertBefore(bgl,el.firstChild); }
       if(el.id!=='s-ballena' && !el.classList.contains('marq') && !el.classList.contains('wordband') && el.tagName!=='FOOTER'){
         el.classList.add('stk');                                  // se pega arriba (position:sticky desde la clase)
@@ -907,9 +910,9 @@ window.addEventListener('load',function(){
       }
     });
     // FONDO CINEMATOGRÁFICO (Ken Burns): el fondo de cada panel hace zoom + parallax con el scroll. Visible siempre, también en móvil.
-    main.querySelectorAll('.stk-bg').forEach(function(bgl){
+    main.querySelectorAll('.stk-bg-img').forEach(function(bgl){
       gsap.fromTo(bgl,{scale:1.0,yPercent:-6},{scale:1.18,yPercent:6,ease:'none',
-        scrollTrigger:{trigger:bgl.parentNode,start:'top bottom',end:'bottom top',scrub:true}});
+        scrollTrigger:{trigger:bgl.closest('.stk')||bgl.parentNode.parentNode,start:'top bottom',end:'bottom top',scrub:true}});
     });
   })();
 
