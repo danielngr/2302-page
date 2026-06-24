@@ -1210,9 +1210,9 @@ const aqua=new THREE.PointLight(0x4fb6d6,58,90);aqua.position.set(-9,-5,3);scene
 const rim=new THREE.PointLight(0xbfe6ff,50,90);rim.position.set(-4,4,-10);scene.add(rim);
 scene.add(new THREE.AmbientLight(0x8398a4,0.34));
 
-const geo=new THREE.IcosahedronGeometry(0.026,matchMedia('(max-width:760px)').matches?0:1);
-const mat=new THREE.MeshStandardMaterial({color:0x9fd8e6,emissive:0x3597cc,emissiveIntensity:0.85,metalness:0.0,roughness:0.5,flatShading:false,envMapIntensity:0.9,side:matchMedia('(max-width:760px)').matches?THREE.FrontSide:THREE.DoubleSide});  // estilo igloo: perlas suaves mate
-const N=(matchMedia('(max-width:760px)').matches?22000:48000);
+const geo=new THREE.IcosahedronGeometry(0.044,matchMedia('(max-width:760px)').matches?0:1);
+const mat=new THREE.MeshStandardMaterial({color:0x9fd8e6,emissive:0x3597cc,emissiveIntensity:0.42,metalness:0.0,roughness:0.5,flatShading:false,envMapIntensity:0.9,blending:THREE.AdditiveBlending,transparent:true,depthWrite:false,side:matchMedia('(max-width:760px)').matches?THREE.FrontSide:THREE.DoubleSide});  // glow aditivo: las perlas se funden (sin anillos)
+const N=(matchMedia('(max-width:760px)').matches?26000:60000);
 const inst=new THREE.InstancedMesh(geo,mat,N);inst.count=0;scene.add(inst);
 /* ---- TRANSFORMACIÓN POR SCROLL: la ballena "cobra vida" (color + brillo), como la roca que reverdece ---- */
 const C_DORM=new THREE.Color(0x47535c), C_ALIVE=new THREE.Color(0xa4b7c2), C_WARM=new THREE.Color(0xe0ebef), C_GLOW=new THREE.Color(0x33454f);
@@ -1238,17 +1238,17 @@ function buildWhale(arr){
 buildWhale((function(P){
   var MOB=matchMedia('(max-width:760px)').matches;
   var MOB=matchMedia('(max-width:760px)').matches;
-  var CELL=MOB?0.04:0.028, M=MOB?40:90, KN=8, J=CELL*0.35;   // densidad UNIFORME: 1 punto por celda -> sin manchas ni huecos
+  var CELL=MOB?0.055:0.034, M=MOB?90:140, SKIP=3, KMAX=20, J=CELL*0.5;   // relleno CRUZA-ANILLOS + rejilla: superficie pareja, sin anillos ni manchas
   var n=P.length/3, pts=[];
   for(var i=0;i<n;i++)pts.push([P[i*3],P[i*3+1],P[i*3+2]]);
-  var NB=[];                                          // vecinos más cercanos por punto (1300 pts, una sola vez al cargar)
-  for(var i=0;i<n;i++){var d=[];for(var j=0;j<n;j++){if(j===i)continue;var dx=pts[i][0]-pts[j][0],dy=pts[i][1]-pts[j][1],dz=pts[i][2]-pts[j][2];d.push([dx*dx+dy*dy+dz*dz,j]);}d.sort(function(a,b){return a[0]-b[0];});var nb=[];for(var k=0;k<KN&&k<d.length;k++)nb.push(d[k][1]);NB.push(nb);}
-  var best=new Map();                                 // nube densa de candidatos -> rejilla deja 1 por celda = densidad pareja
+  var NB=[];                                          // 20 vecinos por punto (1300 pts, una sola vez al cargar)
+  for(var i=0;i<n;i++){var d=[];for(var j=0;j<n;j++){if(j===i)continue;var dx=pts[i][0]-pts[j][0],dy=pts[i][1]-pts[j][1],dz=pts[i][2]-pts[j][2];d.push([dx*dx+dy*dy+dz*dz,j]);}d.sort(function(a,b){return a[0]-b[0];});var nb=[];for(var k=0;k<KMAX&&k<d.length;k++)nb.push(d[k][1]);NB.push(nb);}
+  var best=new Map();                                 // candidatos que CRUZAN entre anillos -> rejilla deja 1 por celda
   function consider(x,y,z){var cx=Math.floor(x/CELL),cy=Math.floor(y/CELL),cz=Math.floor(z/CELL),key=cx+'_'+cy+'_'+cz,ex=(cx+0.5)*CELL,ey=(cy+0.5)*CELL,ez=(cz+0.5)*CELL,dd=(x-ex)*(x-ex)+(y-ey)*(y-ey)+(z-ez)*(z-ez),c=best.get(key);if(!c||dd<c[3])best.set(key,[x,y,z,dd]);}
-  for(var i=0;i<n;i++){var p=pts[i];consider(p[0],p[1],p[2]);var nb=NB[i];for(var r=0;r<M;r++){var q=pts[nb[(Math.random()*nb.length)|0]];var t=Math.random();consider(p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t,p[2]+(q[2]-p[2])*t);}}
+  for(var i=0;i<n;i++){var p=pts[i];consider(p[0],p[1],p[2]);var nb=NB[i];for(var r=0;r<M;r++){var idx=SKIP+((Math.random()*(KMAX-SKIP))|0);var q=pts[nb[idx]];var t=Math.random();consider(p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t,p[2]+(q[2]-p[2])*t);}}
   var o=[];
   best.forEach(function(b){o.push(b[0]+(Math.random()-0.5)*J,b[1]+(Math.random()-0.5)*J,b[2]+(Math.random()-0.5)*J);});
-  return o;                                           // desktop ~28K · móvil ~16K, densidad UNIFORME (sin manchas)
+  return o;                                           // desktop ~44K · móvil ~19K, superficie llena (sin anillos)
 })(WHALE_PTS));
 try{window.__W={inst:inst,mat:mat,geo:geo,D:D,scene:scene,buildWhale:buildWhale,WHALE_PTS:WHALE_PTS};}catch(_){}  // hook de afinado en vivo (densidad/brillo/tamaño)
 try{sz();renderer.compile(scene,camera);renderer.render(scene,camera);}catch(_){}  // precompila el shader (sin tirón al primer scroll)
