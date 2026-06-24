@@ -1294,7 +1294,7 @@ function crossRingDensify(P){
   if(ao){ var cc=new THREE.Color(), L=Math.min(D.length,ao.length); for(var i=0;i<L;i++){var a=ao[i]; cc.setRGB(a,a,a); inst.setColorAt(i,cc);} if(inst.instanceColor) inst.instanceColor.needsUpdate=true; }
 })();
 try{window.__W={inst:inst,mat:mat,geo:geo,D:D,scene:scene,camera:camera,renderer:renderer,buildWhale:buildWhale,WHALE_PTS:WHALE_PTS};}catch(_){}  // hook de afinado en vivo (densidad/brillo/tamaño/cámara)
-window.__WP={omega:1.0,k:3.1,beat:1.3,glide:0.12,wobble:1.0,yawOffset:0,pitchSign:1,bank:0.9,path:[[-7,-3,-40],[-5,-2.5,-31],[-3,-1.2,-18],[-1,0.3,-6],[1.5,2,5],[4,5,14]]};  // nado por camino 3D (afinable en vivo)
+window.__WP={omega:1.0,k:3.1,beat:1.3,glide:0.12,wobble:1.0,bigDisperse:3.0,yawOffset:0,pitchSign:1,bank:0.9,path:[[-7,-3,-40],[-5,-2.5,-31],[-3,-1.2,-18],[-1,0.3,-6],[1.5,2,5],[4,5,14]]};  // nado por camino 3D (afinable en vivo)
 try{sz();renderer.compile(scene,camera);renderer.render(scene,camera);}catch(_){}  // precompila el shader (sin tirón al primer scroll)
 let whaleBase=1.2;function whaleFit(){whaleBase=matchMedia('(max-width:760px)').matches?0.7:1.2;}
 whaleFit();
@@ -1303,6 +1303,9 @@ whaleFit();
 let S=0; // progreso de la sección
 ScrollTrigger.create({trigger:'.whale-wrap',start:'top top',end:'bottom bottom',scrub:true,
   onUpdate:self=>{S=self.progress;}});
+let F=0; // progreso de ENTRADA: la nube de partículas se ENSAMBLA mientras la sección sube desde abajo (puente continuo, no "cambio de página")
+ScrollTrigger.create({trigger:'.whale-wrap',start:'top bottom',end:'top top',scrub:true,
+  onUpdate:self=>{F=self.progress;}});
 // reveals de texto atados al progreso
 gsap.to('#web',{opacity:1,duration:1,scrollTrigger:{trigger:'.whale-wrap',start:'top top',end:'+=33%',scrub:true}});
 gsap.utils.toArray('.wsec .wcenter h1 .mask>span').forEach((el,i)=>{
@@ -1327,10 +1330,8 @@ if(matchMedia('(pointer:fine)').matches){
 }
 
 function whaleState(s){
-  let e,swim;
-  if(s<0.22){e=(0.22-s)/0.22;swim=1-e;}   // se forma antes
-  else{e=0;swim=1;}                          // formada y nadando (ya NO explota / se desarma)
-  return {e:Math.min(Math.max(e,0),1),swim:Math.min(Math.max(swim,0),1)};
+  const f=Math.min(Math.max(F,0),1);        // formación atada a la ENTRADA: la nube se ensambla mientras la sección sube
+  return {e:1-f, swim:f};                    // entrando: partículas GRANDES dispersas · al llegar: formada y nadando
 }
 function setP(t){if(!ready)return;
   const {e,swim}=whaleState(S);const ee=e*e*(3-2*e);
@@ -1345,7 +1346,7 @@ function setP(t){if(!ready)return;
     const ex=ee*d.dist;
     dum.position.set(d.rest.x+fx + d.dir.x*ex, d.rest.y+fy + d.dir.y*ex + ee*1.5, d.rest.z + d.dir.z*ex); // dispersos = nube ALTA que desciende y se arma
     dum.quaternion.setFromAxisAngle(d.axis,d.phase+t*d.spin*0.25*(0.1+ee)+ee*Math.PI*1.4);
-    const sc=d.sc*(1-ee*0.5);dum.scale.set(sc,sc,sc); // dispersos = partículas finas; completos al formarse (sin disolución)
+    const sc=d.sc*(1+ee*WP.bigDisperse);dum.scale.set(sc,sc,sc); // dispersas = partículas GRANDES 3D que flotan desde abajo; finas al unirse
     dum.updateMatrix();inst.setMatrixAt(i,dum.matrix);}
   inst.instanceMatrix.needsUpdate=true;
 }
