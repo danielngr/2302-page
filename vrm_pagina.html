@@ -1339,7 +1339,7 @@ function setP(t){if(!ready)return;
     const amp=d.amp, ph=glob-k*d.u;                              // amp precalculado (0 en cabeza -> 1 en cola)
     let wave=Math.sin(ph); wave*=(0.82+0.18*(wave<0?-wave:wave)); // asimetría: empuja más fuerte en el golpe
     let fy=WP.beat*amp*wave + 0.15*amp*Math.sin(2*ph+1.0);       // golpe dorso-ventral + rizo secundario (orgánico)
-    if(d.u<0.55&&(d.rest.z>1.0||d.rest.z<-1.0)) fy+=0.26*Math.sin(t*0.85+d.rest.z*0.5); // pectorales: aleteo propio
+    var fz=Math.abs(d.rest.z); if(d.u<0.6&&fz>0.85){var ft=Math.min((fz-0.85)/1.1,1);ft=ft*ft*(3-2*ft);fy+=0.24*ft*Math.sin(t*0.85+d.rest.z*0.5);} // pectorales: aleteo con rampa suave (base pegada al cuerpo, sin desgarre)
     fy=(fy+WP.glide*Math.sin(t*0.6+0.5))*swim;                   // + planeo de todo el cuerpo
     const fx=(-0.22*amp*(0.5+0.5*Math.cos(2*ph)))*swim;                       // leve avance/retroceso (porpoising)
     const ex=ee*d.dist;
