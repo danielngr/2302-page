@@ -1294,7 +1294,7 @@ function crossRingDensify(P){
   if(ao){ var cc=new THREE.Color(), L=Math.min(D.length,ao.length); for(var i=0;i<L;i++){var a=ao[i]; cc.setRGB(a,a,a); inst.setColorAt(i,cc);} if(inst.instanceColor) inst.instanceColor.needsUpdate=true; }
 })();
 try{window.__W={inst:inst,mat:mat,geo:geo,D:D,scene:scene,camera:camera,renderer:renderer,buildWhale:buildWhale,WHALE_PTS:WHALE_PTS};}catch(_){}  // hook de afinado en vivo (densidad/brillo/tamaño/cámara)
-window.__WP={omega:1.0,k:3.1,beat:1.3,glide:0.12,wobble:1.0,bigDisperse:3.0,yawOffset:0,pitchSign:1,bank:0.9,path:[[-7,-3,-40],[-5,-2.5,-31],[-3,-1.2,-18],[-1,0.3,-6],[1.5,2,5],[4,5,14]]};  // nado por camino 3D (afinable en vivo)
+window.__WP={omega:1.0,k:3.1,beat:1.3,glide:0.12,wobble:1.0,bigDisperse:16,bandW:20,bandZ:3,bandY:3,waveFreq:0.3,waveAmp:2.5,bandScatter:2,yawOffset:0,pitchSign:1,bank:0.9,path:[[-7,-3,-40],[-5,-2.5,-31],[-3,-1.2,-18],[-1,0.3,-6],[1.5,2,5],[4,5,14]]};  // nado por camino 3D (afinable en vivo)
 try{sz();renderer.compile(scene,camera);renderer.render(scene,camera);}catch(_){}  // precompila el shader (sin tirón al primer scroll)
 let whaleBase=1.2;function whaleFit(){whaleBase=matchMedia('(max-width:760px)').matches?0.7:1.2;}
 whaleFit();
@@ -1343,8 +1343,9 @@ function setP(t){if(!ready)return;
     var fz=Math.abs(d.rest.z); if(d.u<0.6&&fz>0.85){var ft=Math.min((fz-0.85)/1.1,1);ft=ft*ft*(3-2*ft);fy+=0.24*ft*Math.sin(t*0.85+d.rest.z*0.5);} // pectorales: aleteo con rampa suave (base pegada al cuerpo, sin desgarre)
     fy=(fy+WP.glide*Math.sin(t*0.6+0.5))*swim;                   // + planeo de todo el cuerpo
     const fx=(-0.22*amp*(0.5+0.5*Math.cos(2*ph)))*swim;                       // leve avance/retroceso (porpoising)
-    const ex=ee*d.dist;
-    dum.position.set(d.rest.x+fx + d.dir.x*ex, d.rest.y+fy + d.dir.y*ex + ee*1.5, d.rest.z + d.dir.z*ex); // dispersos = nube ALTA que desciende y se arma
+    const bandX=d.axis.x*WP.bandW, bandZ=d.axis.z*WP.bandZ;                                  // esparcido ANCHO (full width) + profundidad
+    const bandY=WP.bandY + Math.sin(bandX*WP.waveFreq+t*0.25)*WP.waveAmp + d.axis.y*WP.bandScatter; // banda ONDULADA (como la línea roja)
+    dum.position.set(d.rest.x*(1-ee)+bandX*ee+fx, d.rest.y*(1-ee)+bandY*ee+fy, d.rest.z*(1-ee)+bandZ*ee); // disperso = banda ancha ondulada -> se colapsa en la ballena
     dum.quaternion.setFromAxisAngle(d.axis,d.phase+t*d.spin*0.25*(0.1+ee)+ee*Math.PI*1.4);
     const sc=d.sc*(1+ee*WP.bigDisperse);dum.scale.set(sc,sc,sc); // dispersas = partículas GRANDES 3D que flotan desde abajo; finas al unirse
     dum.updateMatrix();inst.setMatrixAt(i,dum.matrix);}
