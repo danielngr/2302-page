@@ -1251,6 +1251,7 @@ buildWhale((function(P){
   return o;                                           // desktop ~44K · móvil ~19K, superficie llena (sin anillos)
 })(WHALE_PTS));
 try{window.__W={inst:inst,mat:mat,geo:geo,D:D,scene:scene,buildWhale:buildWhale,WHALE_PTS:WHALE_PTS};}catch(_){}  // hook de afinado en vivo (densidad/brillo/tamaño)
+window.__WP={omega:1.05,k:3.1,beat:1.5,glide:0.14,sway:0.10,bob:0.12,drift:0.22,roll:0.06,bank:0.20,exitRoll:0.45,thrust:0.55};  // parámetros de movimiento (afinables en vivo)
 try{sz();renderer.compile(scene,camera);renderer.render(scene,camera);}catch(_){}  // precompila el shader (sin tirón al primer scroll)
 let whaleBase=1.2;function whaleFit(){whaleBase=matchMedia('(max-width:760px)').matches?0.7:1.2;}
 whaleFit();
@@ -1290,14 +1291,16 @@ function whaleState(s){
 }
 function setP(t){if(!ready)return;
   const {e,swim}=whaleState(S);const ee=e*e*(3-2*e);
-  const omega=1.25, k=3.1, glob=t*omega;                 // onda viajera cabeza -> cola
-  for(let i=0;i<D.length;i++){const d=D[i];const r=ee*d.dist;
-    const amp=d.amp;                                     // precalculado (constante por cristal)
-    let fy=1.35*amp*Math.sin(glob-k*d.u);                 // golpe dorso-ventral del fluke
-    if(d.comp===2) fy+=0.45*Math.sin(t*1.05+d.pecSide*0.7); // pectorales: aleteo propio
-    const glide=0.14*Math.sin(t*0.6+0.5);                 // planeo de todo el cuerpo
-    fy=(fy+glide)*swim;
-    const fx=(0.10*amp*Math.cos(glob-k*d.u))*swim;        // leve avance/retroceso (porpoising)
+  const WP=window.__WP, omega=WP.omega, k=WP.k, glob=t*omega;     // onda viajera cabeza -> cola
+  const exitP=Math.min(Math.max((S-0.74)/0.10,0),1);
+  const thrust=1+WP.thrust*Math.sin(exitP*Math.PI);              // coletazo poderoso al despegar
+  for(let i=0;i<D.length;i++){const d=D[i];
+    const amp=d.amp, ph=glob-k*d.u;                              // amp precalculado (0 en cabeza -> 1 en cola)
+    let wave=Math.sin(ph); wave*=(0.82+0.18*(wave<0?-wave:wave)); // asimetría: empuja más fuerte en el golpe
+    let fy=WP.beat*amp*thrust*wave + 0.15*amp*Math.sin(2*ph+1.0); // golpe dorso-ventral + rizo secundario (orgánico)
+    if(d.u<0.55&&(d.rest.z>1.0||d.rest.z<-1.0)) fy+=0.26*Math.sin(t*0.85+d.rest.z*0.5); // pectorales: aleteo propio
+    fy=(fy+WP.glide*Math.sin(t*0.6+0.5))*swim;                   // + planeo de todo el cuerpo
+    const fx=(0.10*amp*Math.cos(ph))*swim;                       // leve avance/retroceso (porpoising)
     const ex=ee*d.dist;
     dum.position.set(d.rest.x+fx + d.dir.x*ex, d.rest.y+fy + d.dir.y*ex + ee*7.5, d.rest.z + d.dir.z*ex); // dispersos = nube ALTA que desciende y se arma
     dum.quaternion.setFromAxisAngle(d.axis,d.phase+t*d.spin*0.25*(0.1+ee)+ee*Math.PI*1.4);
@@ -1321,22 +1324,31 @@ function loop(now){requestAnimationFrame(loop);if(!wVis)return;
   let alive=S<0.22?(S/0.22):1;                          // se mantiene viva (ya no se apaga)
   mat.emissive.lerp(_eg.copy(C_GLOW).multiplyScalar(0.85*alive),0.1);
   inst.scale.setScalar(whaleBase*(0.72+0.34*alive));
-  // CHOREO en 3 tiempos: 1) gira lento ~180° hasta encararte  2) viene hacia ti  3) muy cerca: sube y sale completamente
+  // CHOREO cinematográfica: planeo con vida -> gira y se acerca (bancando) -> despega en arco
   const _cl=(x)=>x<0?0:x>1?1:x;
+  const ease=(x)=>x*x*(3-2*x);
+  const WP=window.__WP;
   let turn=_cl((S-0.22)/0.30);                                // 0.22->0.52 : gira lento hasta voltear hacia ti
   let appr=_cl((S-0.45)/0.40);                                // 0.45->0.85 : avanza acercándose
   let exit=_cl((S-0.78)/0.22);                                // 0.78->1.0  : sube y sale ANTES de cruzar la lente
-  let turnE=turn*turn*(3-2*turn);                             // giro suave
-  let apprE=appr*appr*(3-2*appr);                             // acercamiento suave (desacelera al llegar)
-  let a=exit;                                                // 0..1 una vez que llegó
-  const exX=0.0, exZ=13.0;                         // llega cerca igual en móvil y PC
-  let py=a*a*20.0;                                            // SUBE en parábola: arranca suave y acelera (no diagonal)
-  let pz=apprE*exZ - a*3.5;                         // se aleja al subir => arco visible (parábola, no vertical)
+  let turnE=ease(turn), apprE=ease(appr);
+  let a=exit;
+  const exZ=13.0;
+  // planeo VIVO (nada en sitio): balanceo/cabeceo/deriva suaves, se desvanecen al girar/salir
+  const swimPhase=(1-turnE)*(1-exit);
+  const swayY=Math.sin(t*0.34)*WP.sway*swimPhase;            // ligero vaivén de rumbo
+  const bob=Math.sin(t*0.7+0.4)*WP.bob*swimPhase;            // sube/baja al planear
+  const driftX=Math.sin(t*0.21+1.0)*WP.drift*swimPhase;      // deriva lateral
+  // BANCA: balanceo de planeo + se inclina al entrar/salir del giro + banca al despegar
+  const roll=Math.sin(t*0.5)*WP.roll*swimPhase + Math.sin(turn*Math.PI)*WP.bank - a*WP.exitRoll;
+  let py=a*a*20.0 + bob;                                      // SUBE en parábola (arranca suave y acelera)
+  let pz=apprE*exZ - a*3.5;                                   // se aleja al subir => arco visible
   const startYaw=-Math.PI/2+Math.sin(t*0.16)*0.15;           // empieza dándote la espalda
-  const faceYaw=Math.atan2(exZ,-exX);                        // ~180° después: te encara de cabeza
-  inst.rotation.y=startYaw*(1-turnE)+faceYaw*turnE;          // gira lento hasta voltear hacia ti
-  inst.rotation.x=0.06+Math.sin(t*0.13)*0.05-a*a*0.28;       // inclina la nariz al arquear hacia arriba
-  inst.position.set(apprE*exX, py, pz);                      // llega y SUBE en arco parabólico
+  const faceYaw=Math.atan2(exZ,0);                           // ~180° después: te encara de cabeza
+  inst.rotation.y=startYaw*(1-turnE)+faceYaw*turnE + swayY;  // gira lento hasta voltear hacia ti
+  inst.rotation.x=0.06+Math.sin(t*0.13)*0.05-a*a*0.30;       // inclina la nariz al arquear hacia arriba
+  inst.rotation.z=roll;                                      // banca cinematográfica
+  inst.position.set(driftX, py, pz);                         // planea, llega y SUBE en arco
 
   setP(t);
   if(wsurf){const surf=smooth(0.66,0.99,S);const sq=Math.round(surf*120);if(sq!==lastSurf){lastSurf=sq;wsurf.style.opacity=(surf*0.72).toFixed(3);}} // ascenso a la superficie
