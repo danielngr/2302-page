@@ -1210,9 +1210,9 @@ const aqua=new THREE.PointLight(0x4fb6d6,58,90);aqua.position.set(-9,-5,3);scene
 const rim=new THREE.PointLight(0xbfe6ff,50,90);rim.position.set(-4,4,-10);scene.add(rim);
 scene.add(new THREE.AmbientLight(0x8398a4,0.34));
 
-const geo=new THREE.IcosahedronGeometry(0.04,matchMedia('(max-width:760px)').matches?0:1);
+const geo=new THREE.IcosahedronGeometry(0.055,matchMedia('(max-width:760px)').matches?0:1);
 const mat=new THREE.MeshStandardMaterial({color:0x9fd8e6,emissive:0x3597cc,emissiveIntensity:0.85,metalness:0.0,roughness:0.5,flatShading:false,envMapIntensity:0.9,side:matchMedia('(max-width:760px)').matches?THREE.FrontSide:THREE.DoubleSide});  // estilo igloo: perlas suaves mate
-const N=(matchMedia('(max-width:760px)').matches?20000:60000);
+const N=(matchMedia('(max-width:760px)').matches?24000:90000);
 const inst=new THREE.InstancedMesh(geo,mat,N);inst.count=0;scene.add(inst);
 /* ---- TRANSFORMACIÓN POR SCROLL: la ballena "cobra vida" (color + brillo), como la roca que reverdece ---- */
 const C_DORM=new THREE.Color(0x47535c), C_ALIVE=new THREE.Color(0xa4b7c2), C_WARM=new THREE.Color(0xe0ebef), C_GLOW=new THREE.Color(0x33454f);
@@ -1237,7 +1237,7 @@ function buildWhale(arr){
 }
 buildWhale((function(P){
   var MOB=matchMedia('(max-width:760px)').matches;
-  var REPS=MOB?7:24, KN=7, JIT=0.04;                 // relleno PAREJO de la superficie por interpolación (sin grumos)
+  var REPS=MOB?11:52, KN=7, JIT=0.04;                 // relleno PAREJO + densidad alta de superficie (sin grumos)
   var n=P.length/3, pts=[];
   for(var i=0;i<n;i++)pts.push([P[i*3],P[i*3+1],P[i*3+2]]);
   var NB=[];                                          // vecinos más cercanos por punto (1300 pts, una sola vez al cargar)
@@ -1252,7 +1252,7 @@ buildWhale((function(P){
       o.push(p[0]+(q[0]-p[0])*t+(Math.random()-0.5)*JIT, p[1]+(q[1]-p[1])*t+(Math.random()-0.5)*JIT, p[2]+(q[2]-p[2])*t+(Math.random()-0.5)*JIT);
     }
   }
-  return o;                                           // desktop ~32.5K · móvil ~10.4K (cabe en N, sin desbordar)
+  return o;                                           // desktop ~68.9K · móvil ~15.6K (cabe en N, sin desbordar)
 })(WHALE_PTS));
 try{sz();renderer.compile(scene,camera);renderer.render(scene,camera);}catch(_){}  // precompila el shader (sin tirón al primer scroll)
 let whaleBase=1.2;function whaleFit(){whaleBase=matchMedia('(max-width:760px)').matches?0.7:1.2;}
