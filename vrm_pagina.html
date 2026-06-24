@@ -1232,12 +1232,28 @@ function buildWhale(arr){
     D.push({rest,u,comp:0,dir,amp:smooth(0.32,1.0,Math.min(u,1.0)),dist:6+Math.random()*14,axis:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize(),spin:0.4+Math.random()*1.1,phase:Math.random()*7,sc:(MOB?0.22:0.16)+Math.random()*0.1,pecSide:rest.z>=0?1:-1});
   };
   const MOB=matchMedia('(max-width:760px)').matches;let _wi=0;
-  for(const p of pts){                                       // móvil y PC: todos los cristales base (calidad)
-    add(p);                                                // punto original + (en desktop) duplicado con jitter -> más denso
-    if(!MOB) add(p.clone().add(new THREE.Vector3((Math.random()-.5)*0.18,(Math.random()-.5)*0.18,(Math.random()-.5)*0.18))); }
+  for(const p of pts){ add(p); }                             // 1 instancia por punto: la densidad/relleno la da el densificador por interpolación (sin grumos, conteo controlado)
   inst.count=D.length;ready=true;
 }
-buildWhale((function(P){var M=matchMedia('(max-width:760px)').matches;var K=M?13:42,J=0.08,o=[];for(var i=0;i<P.length;i+=3){var x=P[i],y=P[i+1],z=P[i+2];o.push(x,y,z);for(var k=1;k<K;k++){o.push(x+(Math.random()-0.5)*J,y+(Math.random()-0.5)*J,z+(Math.random()-0.5)*J);}}return o;})(WHALE_PTS));
+buildWhale((function(P){
+  var MOB=matchMedia('(max-width:760px)').matches;
+  var REPS=MOB?7:24, KN=7, JIT=0.04;                 // relleno PAREJO de la superficie por interpolación (sin grumos)
+  var n=P.length/3, pts=[];
+  for(var i=0;i<n;i++)pts.push([P[i*3],P[i*3+1],P[i*3+2]]);
+  var NB=[];                                          // vecinos más cercanos por punto (1300 pts, una sola vez al cargar)
+  for(var i=0;i<n;i++){var d=[];for(var j=0;j<n;j++){if(j===i)continue;var dx=pts[i][0]-pts[j][0],dy=pts[i][1]-pts[j][1],dz=pts[i][2]-pts[j][2];d.push([dx*dx+dy*dy+dz*dz,j]);}d.sort(function(a,b){return a[0]-b[0];});var nb=[];for(var k=0;k<KN&&k<d.length;k++)nb.push(d[k][1]);NB.push(nb);}
+  var o=[];
+  for(var i=0;i<n;i++){
+    var p=pts[i];o.push(p[0],p[1],p[2]);             // punto base
+    var nb=NB[i];
+    for(var r=0;r<REPS;r++){                          // puntos interpolados hacia vecinos -> rellenan los huecos parejo
+      var q=pts[nb[(Math.random()*nb.length)|0]];
+      var t=0.2+Math.random()*0.6;
+      o.push(p[0]+(q[0]-p[0])*t+(Math.random()-0.5)*JIT, p[1]+(q[1]-p[1])*t+(Math.random()-0.5)*JIT, p[2]+(q[2]-p[2])*t+(Math.random()-0.5)*JIT);
+    }
+  }
+  return o;                                           // desktop ~32.5K · móvil ~10.4K (cabe en N, sin desbordar)
+})(WHALE_PTS));
 try{sz();renderer.compile(scene,camera);renderer.render(scene,camera);}catch(_){}  // precompila el shader (sin tirón al primer scroll)
 let whaleBase=1.2;function whaleFit(){whaleBase=matchMedia('(max-width:760px)').matches?0.7:1.2;}
 whaleFit();
