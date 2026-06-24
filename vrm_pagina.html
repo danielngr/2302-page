@@ -113,9 +113,9 @@ body.whale-hover .cur,body.whale-hover .curr{opacity:0!important}
 @media(max-width:760px){.coord{display:none}.tag{bottom:14vh}}
 /* SECCIONES */
 .sec{padding:15vh 4vw;position:relative}
-.stk{position:sticky;top:0;min-height:100svh;overflow:hidden;background-color:var(--bg);background-size:cover;background-position:center;border-radius:30px 30px 0 0;box-shadow:0 -30px 60px rgba(0,0,0,.45);will-change:transform}
+.stk{position:sticky;top:0;min-height:100svh;overflow:hidden;background-color:var(--bg);background-size:cover;background-position:center;border-radius:0;box-shadow:0 -12px 34px rgba(0,0,0,.32);will-change:transform}
 .stk-bg{position:absolute;inset:-9%;background-size:cover;background-position:center;z-index:-1;will-change:transform;pointer-events:none}
-@media(max-width:760px){.stk{box-shadow:0 -16px 42px rgba(0,0,0,.6)}}
+@media(max-width:760px){.stk{box-shadow:0 -10px 30px rgba(0,0,0,.4)}}
 /* ===== BANDA WORDMARK: la bahía dentro de las letras (revelado pixelado por cursor) ===== */
 .wordband{position:relative;z-index:1;height:clamp(170px,30vh,360px);overflow:hidden;background:var(--bg);cursor:crosshair}
 .wordband canvas{display:block;width:100%;height:100%}
@@ -1723,6 +1723,39 @@ loop();
     if(reveal>0&&codeEl){ codeEl.style.opacity=(0.1+0.45*reveal).toFixed(3); if(hintEl&&reveal>0.5)hintEl.style.opacity='0'; }
     renderer.render(scene,camera);
   }
+})();
+</script>
+<script>
+/* ===== SCROLL CONTINUO SITE-WIDE — profundidad entre secciones (ballenas intactas) =====
+   La sección que sale se hunde + oscurece (se va al fondo); la que entra emerge como
+   plano limpio. Reemplaza la sensación de "voltear cartas" por "capas en el espacio".
+   Excluye s-ballena (nadadora) y s-descuento (ballena de cierre + código). */
+(function(){
+  function initCont(){
+    if(!window.gsap||!window.ScrollTrigger){return setTimeout(initCont,200);}
+    var ST=window.ScrollTrigger;
+    var SKIP={'s-ballena':1,'s-descuento':1};   // las dos ballenas no se transforman
+    var secs=[].slice.call(document.querySelectorAll('[id^="s-"]')).filter(function(s){return /^s-/.test(s.id);});
+    if(secs.length<2)return;
+    function contentOf(sec){return [].slice.call(sec.children).filter(function(c){return !c.classList.contains('stk-bg')&&c.tagName!=='CANVAS';});}
+    for(var i=1;i<secs.length;i++){
+      (function(prev,cur){
+        var bg=prev.querySelector('.stk-bg');
+        var doOut=!SKIP[prev.id];
+        var outC=doOut?contentOf(prev):[];
+        var inC=SKIP[cur.id]?[]:contentOf(cur);
+        ST.create({trigger:cur,start:'top bottom',end:'top top',scrub:0.5,onUpdate:function(self){
+          var p=self.progress,e=p*p*(3-2*p),ie=1-e,k;
+          if(doOut&&bg)bg.style.filter='brightness('+(1-e*0.5)+')';
+          for(k=0;k<outC.length;k++){var o=outC[k];o.style.transform='translate3d(0,'+(-e*60)+'px,0) scale('+(1-e*0.05)+')';o.style.opacity=String(1-e*0.55);o.style.transformOrigin='50% 35%';}
+          for(k=0;k<inC.length;k++){var c=inC[k];c.style.transform='translate3d(0,'+(ie*30)+'px,0)';c.style.opacity=String(1-ie*0.45);}
+        }});
+      })(secs[i-1],secs[i]);
+    }
+    ST.refresh();
+  }
+  if(document.readyState==='complete')initCont();
+  else window.addEventListener('load',initCont);
 })();
 </script>
 </body></html>
