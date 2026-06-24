@@ -1250,8 +1250,8 @@ buildWhale((function(P){
   best.forEach(function(b){o.push(b[0]+(Math.random()-0.5)*J,b[1]+(Math.random()-0.5)*J,b[2]+(Math.random()-0.5)*J);});
   return o;                                           // desktop ~44K · móvil ~19K, superficie llena (sin anillos)
 })(WHALE_PTS));
-try{window.__W={inst:inst,mat:mat,geo:geo,D:D,scene:scene,buildWhale:buildWhale,WHALE_PTS:WHALE_PTS};}catch(_){}  // hook de afinado en vivo (densidad/brillo/tamaño)
-window.__WP={omega:1.05,k:3.1,beat:1.5,glide:0.14,sway:0.10,bob:0.12,drift:0.22,roll:0.06,bank:0.20,exitRoll:0.45,thrust:0.55};  // parámetros de movimiento (afinables en vivo)
+try{window.__W={inst:inst,mat:mat,geo:geo,D:D,scene:scene,camera:camera,renderer:renderer,buildWhale:buildWhale,WHALE_PTS:WHALE_PTS};}catch(_){}  // hook de afinado en vivo (densidad/brillo/tamaño/cámara)
+window.__WP={omega:1.0,k:3.1,beat:1.5,glide:0.14,sway:0.10,bob:0.12,drift:0.22,roll:0.06,thrust:0.6, yaw0:-1.5,yawTurn:0.5,pitch0:0.05,apprX:0.0,apprY:1.0,apprZ:7.0,exitRise:16.0,exitPitch:-0.35,exitRoll:0.5, camZ0:21,camPush:5.0,camRise:6.0,camDrift:0.4,camLook:1.0};  // movimiento + cámara (afinables en vivo)
 try{sz();renderer.compile(scene,camera);renderer.render(scene,camera);}catch(_){}  // precompila el shader (sin tirón al primer scroll)
 let whaleBase=1.2;function whaleFit(){whaleBase=matchMedia('(max-width:760px)').matches?0.7:1.2;}
 whaleFit();
@@ -1324,31 +1324,32 @@ function loop(now){requestAnimationFrame(loop);if(!wVis)return;
   let alive=S<0.22?(S/0.22):1;                          // se mantiene viva (ya no se apaga)
   mat.emissive.lerp(_eg.copy(C_GLOW).multiplyScalar(0.85*alive),0.1);
   inst.scale.setScalar(whaleBase*(0.72+0.34*alive));
-  // CHOREO cinematográfica: planeo con vida -> gira y se acerca (bancando) -> despega en arco
+  // CHOREO cinematográfica: planea en PERFIL -> se acerca a 3/4 bancando -> se eleva en arco (la cámara la sigue)
   const _cl=(x)=>x<0?0:x>1?1:x;
-  const ease=(x)=>x*x*(3-2*x);
+  const eio=(x)=>x<0.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;       // easeInOutCubic (peso cinematográfico)
   const WP=window.__WP;
-  let turn=_cl((S-0.22)/0.30);                                // 0.22->0.52 : gira lento hasta voltear hacia ti
-  let appr=_cl((S-0.45)/0.40);                                // 0.45->0.85 : avanza acercándose
-  let exit=_cl((S-0.78)/0.22);                                // 0.78->1.0  : sube y sale ANTES de cruzar la lente
-  let turnE=ease(turn), apprE=ease(appr);
-  let a=exit;
-  const exZ=13.0;
-  // planeo VIVO (nada en sitio): balanceo/cabeceo/deriva suaves, se desvanecen al girar/salir
-  const swimPhase=(1-turnE)*(1-exit);
-  const swayY=Math.sin(t*0.34)*WP.sway*swimPhase;            // ligero vaivén de rumbo
-  const bob=Math.sin(t*0.7+0.4)*WP.bob*swimPhase;            // sube/baja al planear
-  const driftX=Math.sin(t*0.21+1.0)*WP.drift*swimPhase;      // deriva lateral
-  // BANCA: balanceo de planeo + se inclina al entrar/salir del giro + banca al despegar
-  const roll=Math.sin(t*0.5)*WP.roll*swimPhase + Math.sin(turn*Math.PI)*WP.bank - a*WP.exitRoll;
-  let py=a*a*20.0 + bob;                                      // SUBE en parábola (arranca suave y acelera)
-  let pz=apprE*exZ - a*3.5;                                   // se aleja al subir => arco visible
-  const startYaw=-Math.PI/2+Math.sin(t*0.16)*0.15;           // empieza dándote la espalda
-  const faceYaw=Math.atan2(exZ,0);                           // ~180° después: te encara de cabeza
-  inst.rotation.y=startYaw*(1-turnE)+faceYaw*turnE + swayY;  // gira lento hasta voltear hacia ti
-  inst.rotation.x=0.06+Math.sin(t*0.13)*0.05-a*a*0.30;       // inclina la nariz al arquear hacia arriba
-  inst.rotation.z=roll;                                      // banca cinematográfica
-  inst.position.set(driftX, py, pz);                         // planea, llega y SUBE en arco
+  let appr=_cl((S-0.42)/0.36);                               // 0.42->0.78 : se acerca a 3/4
+  let exit=_cl((S-0.74)/0.26);                               // 0.74->1.0  : se eleva en arco y sale
+  let apprE=eio(appr), a=eio(exit);
+  const live=(1-exit);                                       // vida de planeo, se apaga al elevarse
+  const swayY=Math.sin(t*0.32)*WP.sway*live;
+  const bob=Math.sin(t*0.7+0.4)*WP.bob*live;
+  const driftX=(Math.sin(t*0.18+1.0)*WP.drift + apprE*WP.apprX)*live;
+  // PERFIL: no se voltea de frente; solo un leve giro a 3/4 al acercarse + balanceo de rumbo
+  const yaw=WP.yaw0 + apprE*WP.yawTurn + Math.sin(t*0.13)*0.08*live;
+  // BANCA: balanceo de planeo + banca pronunciada al elevarse en arco
+  const roll=Math.sin(t*0.5)*WP.roll*live + a*WP.exitRoll;
+  const py=apprE*WP.apprY + a*a*WP.exitRise + bob;           // se eleva en arco (acelera)
+  const pz=apprE*WP.apprZ;                                   // se acerca a la cámara
+  inst.rotation.y=yaw + swayY;
+  inst.rotation.x=WP.pitch0 + Math.sin(t*0.13)*0.05 + a*a*WP.exitPitch; // arquea la nariz al subir
+  inst.rotation.z=roll;
+  inst.position.set(driftX, py, pz);
+  // CÁMARA cinematográfica: dolly de acercamiento + se inclina hacia arriba siguiendo el ascenso + parallax sutil
+  const camZ=WP.camZ0 - apprE*WP.camPush;
+  const camY=a*a*WP.camRise;
+  camera.position.set(Math.sin(t*0.1)*WP.camDrift, camY*0.4, camZ);
+  camera.lookAt(0, camY*WP.camLook + py*0.12, 0);
 
   setP(t);
   if(wsurf){const surf=smooth(0.66,0.99,S);const sq=Math.round(surf*120);if(sq!==lastSurf){lastSurf=sq;wsurf.style.opacity=(surf*0.72).toFixed(3);}} // ascenso a la superficie
