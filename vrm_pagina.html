@@ -1235,7 +1235,20 @@ function buildWhale(arr){
   for(const p of pts){ add(p); }                             // 1 instancia por punto: la densidad/relleno la da el densificador por interpolación (sin grumos, conteo controlado)
   inst.count=D.length;ready=true;
 }
-buildWhale((function(P){var M=matchMedia('(max-width:760px)').matches;var K=M?13:33,n=P.length/3,pts=[],i,a,b;for(i=0;i<P.length;i+=3)pts.push([P[i],P[i+1],P[i+2]]);function nrm(u){var m=Math.hypot(u[0],u[1],u[2])||1;return[u[0]/m,u[1]/m,u[2]/m];}var o=P.slice();for(a=0;a<n;a++){var pa=pts[a],nb=[];for(b=0;b<n;b++){if(b===a)continue;var dx=pts[b][0]-pa[0],dy=pts[b][1]-pa[1],dz=pts[b][2]-pa[2];nb.push([dx*dx+dy*dy+dz*dz,b]);}nb.sort(function(u,v){return u[0]-v[0];});var R=Math.sqrt(nb[0][0])*0.95;var n1=pts[nb[0][1]],n2=pts[nb[2]?nb[2][1]:nb[1][1]];var e1=nrm([n1[0]-pa[0],n1[1]-pa[1],n1[2]-pa[2]]);var e2=[n2[0]-pa[0],n2[1]-pa[1],n2[2]-pa[2]];var dd=e1[0]*e2[0]+e1[1]*e2[1]+e1[2]*e2[2];e2=nrm([e2[0]-dd*e1[0],e2[1]-dd*e1[1],e2[2]-dd*e1[2]]);for(var k=0;k<K;k++){var ang=Math.random()*6.2832,rad=Math.sqrt(Math.random())*R;var ca=Math.cos(ang)*rad,sa=Math.sin(ang)*rad;o.push(pa[0]+e1[0]*ca+e2[0]*sa,pa[1]+e1[1]*ca+e2[1]*sa,pa[2]+e1[2]*ca+e2[2]*sa);}}return o;})(WHALE_PTS));
+buildWhale((function(P){
+  var MOB=matchMedia('(max-width:760px)').matches;
+  var CELL=MOB?0.055:0.034, M=MOB?90:140, SKIP=3, KMAX=20, J=CELL*0.5;   // relleno CRUZA-ANILLOS + rejilla: superficie pareja, sin anillos ni manchas
+  var n=P.length/3, pts=[];
+  for(var i=0;i<n;i++)pts.push([P[i*3],P[i*3+1],P[i*3+2]]);
+  var NB=[];                                          // 20 vecinos por punto (1300 pts, una sola vez al cargar)
+  for(var i=0;i<n;i++){var d=[];for(var j=0;j<n;j++){if(j===i)continue;var dx=pts[i][0]-pts[j][0],dy=pts[i][1]-pts[j][1],dz=pts[i][2]-pts[j][2];d.push([dx*dx+dy*dy+dz*dz,j]);}d.sort(function(a,b){return a[0]-b[0];});var nb=[];for(var k=0;k<KMAX&&k<d.length;k++)nb.push(d[k][1]);NB.push(nb);}
+  var best=new Map();                                 // candidatos que CRUZAN entre anillos -> rejilla deja 1 por celda
+  function consider(x,y,z){var cx=Math.floor(x/CELL),cy=Math.floor(y/CELL),cz=Math.floor(z/CELL),key=cx+'_'+cy+'_'+cz,ex=(cx+0.5)*CELL,ey=(cy+0.5)*CELL,ez=(cz+0.5)*CELL,dd=(x-ex)*(x-ex)+(y-ey)*(y-ey)+(z-ez)*(z-ez),c=best.get(key);if(!c||dd<c[3])best.set(key,[x,y,z,dd]);}
+  for(var i=0;i<n;i++){var p=pts[i];consider(p[0],p[1],p[2]);var nb=NB[i];for(var r=0;r<M;r++){var idx=SKIP+((Math.random()*(KMAX-SKIP))|0);var q=pts[nb[idx]];var t=Math.random();consider(p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t,p[2]+(q[2]-p[2])*t);}}
+  var o=[];
+  best.forEach(function(b){o.push(b[0]+(Math.random()-0.5)*J,b[1]+(Math.random()-0.5)*J,b[2]+(Math.random()-0.5)*J);});
+  return o;                                           // desktop ~44K . movil ~18.5K, superficie llena (sin anillos)
+})(WHALE_PTS));
 try{window.__W={inst:inst,mat:mat,geo:geo,D:D,scene:scene,camera:camera,renderer:renderer,buildWhale:buildWhale,WHALE_PTS:WHALE_PTS};}catch(_){}  // hook de afinado en vivo (densidad/brillo/tamaño/cámara)
 window.__WP={omega:1.0,k:3.1,beat:1.3,glide:0.12,wobble:1.0,yawOffset:0,pitchSign:1,bank:0.9,path:[[-7,-3,-40],[-5,-2.5,-31],[-3,-1.2,-18],[-1,0.3,-6],[1.5,2,5],[4,5,14]]};  // nado por camino 3D (afinable en vivo)
 try{sz();renderer.compile(scene,camera);renderer.render(scene,camera);}catch(_){}  // precompila el shader (sin tirón al primer scroll)
