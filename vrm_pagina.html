@@ -1229,7 +1229,7 @@ function buildWhale(arr){
   const add=(rest)=>{
     const u=(rest.x-minx)/span;                          // cabeza (-X) -> 0 · cola (+X) -> 1
     const dir=rest.clone().normalize().add(new THREE.Vector3((Math.random()-.5)*0.5,(Math.random()-.5)*0.5,(Math.random()-.5)*0.5)).normalize();
-    D.push({rest,u,comp:0,dir,amp:smooth(0.32,1.0,Math.min(u,1.0)),dist:6+Math.random()*14,axis:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize(),spin:0.4+Math.random()*1.1,phase:Math.random()*7,sc:(MOB?0.22:0.16)+Math.random()*0.1,pecSide:rest.z>=0?1:-1});
+    D.push({rest,u,comp:0,dir,amp:smooth(0.32,1.0,Math.min(u,1.0)),dist:3+Math.random()*5,axis:new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize(),spin:0.4+Math.random()*1.1,phase:Math.random()*7,sc:(MOB?0.22:0.16)+Math.random()*0.1,pecSide:rest.z>=0?1:-1});
   };
   const MOB=matchMedia('(max-width:760px)').matches;let _wi=0;
   for(const p of pts){ add(p); }                             // 1 instancia por punto: la densidad/relleno la da el densificador por interpolación (sin grumos, conteo controlado)
@@ -1284,9 +1284,9 @@ function setP(t){if(!ready)return;
     let fy=WP.beat*amp*wave + 0.15*amp*Math.sin(2*ph+1.0);       // golpe dorso-ventral + rizo secundario (orgánico)
     if(d.u<0.55&&(d.rest.z>1.0||d.rest.z<-1.0)) fy+=0.26*Math.sin(t*0.85+d.rest.z*0.5); // pectorales: aleteo propio
     fy=(fy+WP.glide*Math.sin(t*0.6+0.5))*swim;                   // + planeo de todo el cuerpo
-    const fx=(0.10*amp*Math.cos(ph))*swim;                       // leve avance/retroceso (porpoising)
+    const fx=(-0.22*amp*(0.5+0.5*Math.cos(2*ph)))*swim;                       // leve avance/retroceso (porpoising)
     const ex=ee*d.dist;
-    dum.position.set(d.rest.x+fx + d.dir.x*ex, d.rest.y+fy + d.dir.y*ex + ee*2.6, d.rest.z + d.dir.z*ex); // dispersos = nube ALTA que desciende y se arma
+    dum.position.set(d.rest.x+fx + d.dir.x*ex, d.rest.y+fy + d.dir.y*ex + ee*1.5, d.rest.z + d.dir.z*ex); // dispersos = nube ALTA que desciende y se arma
     dum.quaternion.setFromAxisAngle(d.axis,d.phase+t*d.spin*0.25*(0.1+ee)+ee*Math.PI*1.4);
     const sc=d.sc*(1-ee*0.5);dum.scale.set(sc,sc,sc); // dispersos = partículas finas; completos al formarse (sin disolución)
     dum.updateMatrix();inst.setMatrixAt(i,dum.matrix);}
