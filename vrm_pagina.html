@@ -100,6 +100,9 @@ body.whale-hover .cur,body.whale-hover .curr{opacity:0!important}
 #logofallback{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:18vw;color:rgba(241,236,225,.1)}
 #logofallback.mob{font-family:"Cormorant Garamond",serif;font-style:italic;font-weight:500;font-size:26vw;color:rgba(241,236,225,.18)}
 #logo3d{position:absolute;inset:0;width:100%;height:100%;z-index:3;display:block}
+  #heroLoop{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;display:none}
+  body.hero-vid-ok #heroLoop{display:block}
+  body.hero-vid-ok .herovid,body.hero-vid-ok #logo3d,body.hero-vid-ok #logofallback{display:none!important}
 .tag{position:absolute;left:4vw;bottom:8vh;z-index:4;max-width:40ch}
 .tag .eb{font-family:var(--mono);font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:rgba(241,236,225,.82)}
 .tag h1{font-family:var(--serif);font-weight:400;font-size:clamp(34px,4.6vw,64px);line-height:1.02;margin-top:14px;text-shadow:0 4px 40px rgba(0,0,0,.5)}
@@ -337,6 +340,7 @@ footer .lks{display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-
 
 <section class="hero">
   <!-- los clips del hero se crean en JS desde HERO_CLIPS (loop con crossfade) -->
+  <video id="heroLoop" muted loop playsinline preload="none" src="https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/hero_loop.mp4"></video>
   <div id="tint"></div><div id="logofallback">VRM</div><canvas id="logo3d"></canvas>
   <div class="tag"><div class="eb">Bahía de Banderas · México</div><h1>La bahía,<br><i>como debe ser</i></h1><div class="herodi">Reserva directo · hasta 15% menos que en Airbnb</div></div>
   <div class="cue"><span>Desciende</span><span class="b"></span></div>
@@ -1575,6 +1579,17 @@ window.addEventListener('load',function(){
   }
   if(document.readyState==='complete')initCont();
   else window.addEventListener('load',initCont);
+})();
+</script>
+<script>
+/* Hero loop (cristal idéntico, ligero): solo móvil. Si el video R2 carga, reemplaza WebGL+videos. Si no está subido, se queda el hero actual (no rompe nada). */
+(function(){
+  var hv=document.getElementById('heroLoop'); if(!hv)return;
+  if(!matchMedia('(pointer:coarse)').matches)return;   // solo móvil
+  var done=false;
+  hv.addEventListener('loadeddata',function(){ if(done)return; done=true; document.body.classList.add('hero-vid-ok'); var p=hv.play(); if(p&&p.catch)p.catch(function(){}); },{once:true});
+  hv.addEventListener('error',function(){},{once:true});
+  try{ hv.preload='auto'; hv.load(); }catch(e){}
 })();
 </script>
 </body></html>
