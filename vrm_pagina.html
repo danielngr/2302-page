@@ -1237,10 +1237,10 @@ function buildWhale(arr){
 function sampleWordInto(text){
   try{
     if(!text||!D.length)return;
-    const cw=1200, ch=280, cnv=document.createElement('canvas'); cnv.width=cw; cnv.height=ch;
+    const cw=1200, ch=300, cnv=document.createElement('canvas'); cnv.width=cw; cnv.height=ch;
     const ctx=cnv.getContext('2d'); ctx.fillStyle='#000'; ctx.fillRect(0,0,cw,ch); ctx.fillStyle='#fff';
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    let fs=220; const setF=()=>ctx.font='800 '+fs+'px "Space Grotesk",system-ui,sans-serif'; setF();
+    let fs=ch; const setF=()=>ctx.font='800 '+fs+'px "Space Grotesk",system-ui,sans-serif'; setF();   // arranca alto (cap-height cabe) y encoge por ancho
     while(ctx.measureText(text).width>cw*0.94&&fs>20){fs-=4;setF();}
     ctx.fillText(text,cw/2,ch/2);
     const img=ctx.getImageData(0,0,cw,ch).data, filled=[];
@@ -1307,11 +1307,11 @@ function crossRingDensify(P){
     pts=crossRingDensify(WHALE_PTS); ao=null;
   }
   buildWhale(pts);
-  sampleWordInto(window.__WORD_TEXT||'BALLENAS');   // <- la palabra que se desarma para formar la ballena (cambia window.__WORD_TEXT)
+  sampleWordInto(window.__WORD_TEXT||'VRM');   // <- la palabra que se desarma y viaja a formar la ballena (cambia window.__WORD_TEXT antes de cargar, o reasigna y recarga)
   if(ao){ var cc=new THREE.Color(), L=Math.min(D.length,ao.length); for(var i=0;i<L;i++){var a=ao[i]; cc.setRGB(a*0.88, a*0.95, Math.min(1,a*1.0+0.07)); inst.setColorAt(i,cc);} if(inst.instanceColor) inst.instanceColor.needsUpdate=true; }  // gradiente frío: lomo claro, panza azul profundo
 })();
 try{window.__W={inst:inst,mat:mat,geo:geo,D:D,scene:scene,camera:camera,renderer:renderer,buildWhale:buildWhale,WHALE_PTS:WHALE_PTS};}catch(_){}  // hook de afinado en vivo (densidad/brillo/tamaño/cámara)
-window.__WP={omega:1.0,k:3.1,beat:1.3,glide:0.12,wobble:0.8,bigDisperse:6,scatterX:22,scatterY:15,scatterZ:9,driftA:0.6,yawOffset:0,pitchSign:1,bank:0.55,wScat0:0.05,wScat1:0.26,whal0:0.40,whal1:0.55,wordW:13,path:[[0,0,-2],[-2,0.2,-5],[-4,-0.8,-8],[4,-0.6,-7],[12,0.2,-9],[20,1,-14]]};  // MORPH: PALABRA(wScat0..1) -> campo disperso -> BALLENA(whal0..1) -> nada. wordW=ancho de la palabra
+window.__WP={omega:1.0,k:3.1,beat:1.3,glide:0.12,wobble:0.8,bigDisperse:6,scatterX:22,scatterY:15,scatterZ:9,driftA:0.6,yawOffset:0,pitchSign:1,bank:0.55,wScat0:0.05,wScat1:0.26,whal0:0.40,whal1:0.55,wordW:10,path:[[0,0,-2],[-2,0.2,-5],[-4,-0.8,-8],[4,-0.6,-7],[12,0.2,-9],[20,1,-14]]};  // MORPH: PALABRA(wScat0..1) -> campo disperso -> BALLENA(whal0..1) -> nada. wordW=ancho de la palabra en pantalla
 try{sz();renderer.compile(scene,camera);renderer.render(scene,camera);}catch(_){}  // precompila el shader (sin tirón al primer scroll)
 let whaleBase=1.2;function whaleFit(){whaleBase=matchMedia('(max-width:760px)').matches?0.7:1.2;}
 whaleFit();
