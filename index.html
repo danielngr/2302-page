@@ -5121,6 +5121,10 @@
 <!-- ============================================================
      THREE.JS R158 — versión con iridescence built-in en MeshPhysicalMaterial
      ============================================================ -->
+<!-- LENIS: scroll suave controlado -->
+<style id="lenis-css">html.lenis,html.lenis body{height:auto}.lenis.lenis-smooth{scroll-behavior:auto!important}.lenis.lenis-smooth [data-lenis-prevent]{overscroll-behavior:contain}.lenis.lenis-stopped{overflow:hidden}</style>
+<script src="https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
+
 <script type="importmap">
 {
   "imports": {
@@ -6583,6 +6587,40 @@ function updateScroll() {
 window.addEventListener('scroll', updateScroll, { passive: true });
 updateScroll();
 
+// -- LENIS: scroll suave + controlado (estrategico aunque le des rapido) --
+// La pagina deja de scrollear nativo (que se va de largo en flicks) y pasa
+// a inercia controlada. La ballena lee window.scrollY -> sigue este scroll
+// suave automaticamente -> recorrido fluido.
+let lenis = null;
+try {
+  if (window.Lenis) {
+    lenis = new Lenis({
+      lerp: 0.09,
+      duration: 1.2,
+      easing: (x) => Math.min(1, 1.001 - Math.pow(2, -10 * x)),
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      smoothWheel: true,
+      syncTouch: true,
+      syncTouchLerp: 0.08,
+      touchInertiaMultiplier: 12,
+      wheelMultiplier: 1,
+      touchMultiplier: 1.0,
+      normalizeWheel: true
+    });
+    window.__lenis = lenis;
+    document.querySelectorAll('a.nav-link, a.nav-reserve').forEach((a) => {
+      a.addEventListener('click', (ev) => {
+        const id = a.getAttribute('href');
+        if (id && id.charAt(0) === '#' && id.length > 1) {
+          const el = document.querySelector(id);
+          if (el) { ev.preventDefault(); lenis.scrollTo(el, { offset: 0, duration: 1.2 }); }
+        }
+      });
+    });
+  }
+} catch (e) { lenis = null; }
+
 /* ============================================================
    ANIMATION LOOP
    ============================================================ */
@@ -6628,7 +6666,8 @@ let revealStartTime = null;
 // Bloom calmado — sin flash dramático. Solo iridiscencia natural.
 bloomPass.strength = 0.26;
 
-function animate() {
+function animate(time) {
+  if (lenis) lenis.raf(time || performance.now());
   const dt = clock.getDelta();
   const t = clock.getElapsedTime();
 
@@ -6653,7 +6692,12 @@ function animate() {
   // DESKTOP: 0.12 sigue bien porque scroll desktop no tiene momentum
   // y los cambios son más graduales (mouse wheel = stepwise).
   // ═══════════════════════════════════════════════════════════════════
-  const scrollSmoothing = isMobile ? 0.06 : 0.12;
+  // Con Lenis el scrollTarget ya llega suave (sin saltos de momentum),
+  // asi que la ballena lo sigue mas de cerca -> fluida y responsiva.
+  // Si Lenis no cargo, caemos al valor original.
+  const scrollSmoothing = lenis
+    ? (isMobile ? 0.16 : 0.20)
+    : (isMobile ? 0.06 : 0.12);
   scrollProgress += (scrollTarget - scrollProgress) * scrollSmoothing;
   window.__vrmScroll = scrollProgress;
   const sp = scrollProgress;
