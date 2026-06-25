@@ -752,7 +752,7 @@ footer{padding:64px var(--gx) 40px}
 const loader=document.getElementById('loader');function hideLoader(){loader.style.opacity=0;setTimeout(()=>loader.style.display='none',750);}
 try{
   const THREE=await import('three');const {FontLoader}=await import('three/addons/loaders/FontLoader.js');const {TextGeometry}=await import('three/addons/geometries/TextGeometry.js');const {RoomEnvironment}=await import('three/addons/environments/RoomEnvironment.js');
-  const canvas=document.getElementById('logo3d');const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!matchMedia('(max-width:760px)').matches});renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?0.85:2));renderer.setSize(canvas.clientWidth||innerWidth,canvas.clientHeight||innerHeight,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;
+  const canvas=document.getElementById('logo3d');const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!matchMedia('(max-width:760px)').matches});renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?0.7:2));renderer.setSize(canvas.clientWidth||innerWidth,canvas.clientHeight||innerHeight,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;
   const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(42,(canvas.clientWidth||innerWidth)/(canvas.clientHeight||innerHeight),0.1,100);camera.position.set(0,0,11);
   const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new RoomEnvironment(renderer),0.04).texture;
 
@@ -819,9 +819,9 @@ try{
 
   const key=new THREE.DirectionalLight(0xffffff,1.3);key.position.set(4,8,10);scene.add(key);const fill=new THREE.DirectionalLight(0xbfe3ee,0.7);fill.position.set(-6,-2,4);scene.add(fill);scene.add(new THREE.AmbientLight(0x8fb0bd,0.25));
   const _MOBH=matchMedia('(max-width:760px)').matches;
-  const mat=_MOBH
-    ? new THREE.MeshPhysicalMaterial({color:0xcfeaf5,metalness:0.1,roughness:0.12,transmission:0,clearcoat:1.0,clearcoatRoughness:0.08,envMapIntensity:1.7,iridescence:0.5,iridescenceIOR:1.3,attenuationColor:new THREE.Color(0x9fd8e6),transparent:true,opacity:0.66})  // móvil: vidrio reflectante, SIN transmission (sin doble render por frame)
-    : new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:0.06,transmission:1.0,thickness:1.8,ior:1.46,clearcoat:1.0,clearcoatRoughness:0.1,envMapIntensity:1.1,iridescence:0.32,iridescenceIOR:1.3,attenuationColor:new THREE.Color(0x9fd8e6),attenuationDistance:3.4,transparent:true});  // PC: vidrio real con refracción
+  // móvil IDÉNTICO a PC: cristal real con transmission. Es ligero porque la escena es simple (un plano + las letras),
+  // corre a DPR bajo (0.7), 24fps y se pausa fuera de pantalla.
+  const mat=new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:0.06,transmission:1.0,thickness:1.8,ior:1.46,clearcoat:1.0,clearcoatRoughness:0.1,envMapIntensity:1.1,iridescence:0.32,iridescenceIOR:1.3,attenuationColor:new THREE.Color(0x9fd8e6),attenuationDistance:3.4,transparent:true});  // PC y móvil: vidrio real con refracción
   const group=new THREE.Group();scene.add(group);let mesh=null;
   new FontLoader().load('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json',function(font){const geo=new TextGeometry('VRM',{font,size:3,height:0.9,curveSegments:26,bevelEnabled:true,bevelThickness:0.14,bevelSize:0.09,bevelSegments:10});geo.center();mesh=new THREE.Mesh(geo,mat);mesh.renderOrder=2;group.add(mesh);fit();hideLoader();var f=document.getElementById('logofallback');if(f)f.style.opacity=0;});
   function fit(){coverPlanes();if(!mesh)return;mesh.geometry.computeBoundingBox();const bb=mesh.geometry.boundingBox,w=bb.max.x-bb.min.x;const visW=2*Math.tan(camera.fov*Math.PI/360)*camera.position.z*camera.aspect;const target=visW*(innerWidth<760?0.62:0.40);group.scale.setScalar(target/w);}
