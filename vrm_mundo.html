@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VRM · un solo lienzo (prototipo)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a1420;--cream:#f1ece1;--aqua:#9fd8e6;--mono:'Space Mono',monospace;--serif:'Cormorant Garamond',Georgia,serif}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:var(--bg);color:var(--cream);font-family:var(--serif);overflow-x:hidden}
+  /* el MUNDO: un canvas fijo detrás de todo, una sola atmósfera continua */
+  #world{position:fixed;inset:0;z-index:0;display:block}
+  #grad{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(120% 80% at 50% -10%,rgba(120,170,190,.18),transparent 46%),
+               linear-gradient(180deg,rgba(10,20,32,0) 0%,rgba(8,15,24,.0) 55%,rgba(6,11,18,.55) 100%)}
+  #vig{position:fixed;inset:0;z-index:2;pointer-events:none;
+    box-shadow:inset 0 0 240px 60px rgba(4,9,16,.8)}
+  /* navegación mínima */
+  nav{position:fixed;top:0;left:0;right:0;z-index:40;display:flex;justify-content:space-between;align-items:center;
+    padding:26px clamp(20px,4vw,54px);pointer-events:none}
+  nav .bm{font-style:italic;font-weight:500;font-size:20px;letter-spacing:.02em}
+  nav .co{font-family:var(--mono);font-size:10px;letter-spacing:.28em;text-transform:uppercase;opacity:.5}
+  /* pista de scroll del prototipo: la altura crea el "descenso" */
+  #scroll{position:relative;z-index:5;height:760vh}
+  /* estaciones de contenido: flotan sobre la MISMA atmósfera, sin cortes de foto */
+  .station{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:0 7vw;opacity:0;transition:opacity .35s ease;pointer-events:none;will-change:opacity,transform}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--aqua);opacity:.85;margin-bottom:22px}
+  .h{font-size:clamp(38px,7vw,104px);line-height:1.0;font-weight:400;letter-spacing:-.01em}
+  .h i{font-style:italic}
+  .sub{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.6;margin-top:26px;max-width:520px}
+  .stats{display:flex;gap:clamp(28px,6vw,86px);margin-top:10px;flex-wrap:wrap;justify-content:center}
+  .stat .n{font-size:clamp(40px,6vw,76px);line-height:.9;font-weight:500}
+  .stat .l{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;opacity:.55;margin-top:10px}
+  .code{font-family:var(--mono);font-weight:700;font-size:clamp(34px,6vw,72px);letter-spacing:.06em;color:#d2e8f0;text-shadow:0 0 30px rgba(120,180,210,.4)}
+  .pill{display:inline-flex;gap:10px;align-items:center;margin-top:30px;padding:14px 28px;border:1px solid rgba(243,236,221,.32);
+    border-radius:999px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    background:rgba(243,236,221,.05);backdrop-filter:blur(6px);pointer-events:auto}
+  /* hint de scroll */
+  #hint{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);z-index:20;font-family:var(--mono);
+    font-size:9.5px;letter-spacing:.28em;text-transform:uppercase;opacity:.5;transition:opacity .5s}
+  #hint::after{content:'';display:block;width:1px;height:34px;margin:12px auto 0;background:linear-gradient(rgba(241,236,225,.6),transparent);animation:drop 2.1s ease-in-out infinite}
+  @keyframes drop{0%{transform:scaleY(0);transform-origin:top;opacity:0}40%{transform:scaleY(1);opacity:1}100%{transform:scaleY(1);transform-origin:bottom;opacity:0}}
+</style>
+</head>
+<body>
+  <canvas id="world"></canvas>
+  <div id="grad"></div>
+  <div id="vig"></div>
+
+  <nav><span class="bm">vrm<b>.</b></span><span class="co">Bahía de Banderas · México</span></nav>
+
+  <!-- estaciones: todas sobre el mismo océano de partículas -->
+  <section class="station" data-from="0.00" data-to="0.12">
+    <div class="eyebrow">Vacation Rental México</div>
+    <h1 class="h">La bahía,<br><i>como debe ser</i></h1>
+    <div class="sub">Un solo lugar. Una sola corriente.</div>
+  </section>
+
+  <section class="station" data-from="0.14" data-to="0.28">
+    <div class="eyebrow">01 · Por qué nosotros</div>
+    <h1 class="h">No rentamos casas.<br>Rentamos <i>la bahía.</i></h1>
+    <div class="sub">Gente real, en Vallarta. Te contestamos en español e inglés, rápido.</div>
+  </section>
+
+  <section class="station" data-from="0.30" data-to="0.44">
+    <div class="eyebrow">La confianza, en números</div>
+    <div class="stats">
+      <div class="stat"><div class="n">4.83</div><div class="l">Rating Airbnb</div></div>
+      <div class="stat"><div class="n">517</div><div class="l">Reseñas</div></div>
+      <div class="stat"><div class="n">70+</div><div class="l">Casas curadas</div></div>
+      <div class="stat"><div class="n">15%</div><div class="l">Menos que Airbnb</div></div>
+    </div>
+  </section>
+
+  <section class="station" data-from="0.48" data-to="0.66">
+    <div class="eyebrow">03 · La temporada</div>
+    <h1 class="h">Cada invierno,<br><i>regresan.</i></h1>
+    <div class="sub">Aquí entra la ballena — emerge de esta misma corriente de partículas.</div>
+  </section>
+
+  <section class="station" data-from="0.70" data-to="0.82">
+    <div class="eyebrow">Lo que dicen</div>
+    <h1 class="h" style="font-size:clamp(28px,4.6vw,62px)">“Se siente que <i>conocen</i><br>cada rincón de la bahía.”</h1>
+    <div class="sub">— 517 reseñas verificadas</div>
+  </section>
+
+  <section class="station" data-from="0.85" data-to="1.0">
+    <div class="eyebrow">06 · Tu estancia</div>
+    <h1 class="h">Reserva directo<br>con <i>nosotros.</i></h1>
+    <div class="code" style="margin-top:24px">VRM26</div>
+    <span class="pill">WhatsApp →</span>
+  </section>
+
+  <div id="hint">Desliza para descender</div>
+  <div id="scroll"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  const cv=document.getElementById('world');
+  const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:false});
+  renderer.setPixelRatio(Math.min(2,devicePixelRatio||1));
+  const scene=new THREE.Scene();
+  const DEEP=new THREE.Color(0x070d16), SURF=new THREE.Color(0x12303f);
+  scene.background=DEEP.clone();
+  scene.fog=new THREE.FogExp2(0x081019,0.0145);
+
+  const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,0.1,800);
+  camera.position.set(0,0,0);
+
+  // ===== EL MUNDO: marine snow — una sola nube continua por la que vuelas =====
+  const N=6500, TUBE=460, RAD=70;
+  const pos=new Float32Array(N*3), spd=new Float32Array(N), siz=new Float32Array(N), ph=new Float32Array(N);
+  for(let i=0;i<N;i++){
+    const r=Math.pow(Math.random(),.5)*RAD, a=Math.random()*Math.PI*2;
+    pos[i*3]=Math.cos(a)*r; pos[i*3+1]=Math.sin(a)*r*0.7; pos[i*3+2]=-Math.random()*TUBE;
+    spd[i]=0.4+Math.random()*1.2; siz[i]=0.6+Math.random()*2.6; ph[i]=Math.random()*6.28;
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('size',new THREE.BufferAttribute(siz,1));
+  // textura de punto suave (glow)
+  const tx=document.createElement('canvas');tx.width=tx.height=64;const tc=tx.getContext('2d');
+  const g=tc.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.25,'rgba(220,240,250,.65)');g.addColorStop(1,'rgba(255,255,255,0)');
+  tc.fillStyle=g;tc.fillRect(0,0,64,64);
+  const tex=new THREE.CanvasTexture(tx);
+  const mat=new THREE.ShaderMaterial({
+    uniforms:{uTex:{value:tex},uColor:{value:new THREE.Color(0xbfe0ee)},uTint:{value:new THREE.Color(0x6fa8c0)},uMix:{value:0}},
+    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    vertexShader:`attribute float size;varying float vd;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vd=-mv.z;gl_PointSize=size*(300./vd);gl_Position=projectionMatrix*mv;}`,
+    fragmentShader:`uniform sampler2D uTex;uniform vec3 uColor;uniform vec3 uTint;uniform float uMix;varying float vd;void main(){float a=texture2D(uTex,gl_PointCoord).a;float fade=smoothstep(420.,40.,vd)*smoothstep(2.,16.,vd);vec3 c=mix(uColor,uTint,uMix);gl_FragColor=vec4(c,a*fade*0.9);}`
+  });
+  const pts=new THREE.Points(geo,mat); scene.add(pts);
+
+  // rayos de luz suaves desde la superficie (atmósfera)
+  const rays=new THREE.Group();
+  const rmat=new THREE.MeshBasicMaterial({color:0x9fd8e6,transparent:true,opacity:0.05,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
+  for(let i=0;i<5;i++){const pl=new THREE.Mesh(new THREE.PlaneGeometry(8,260),rmat.clone());
+    pl.position.set((Math.random()-.5)*70,60,-40-Math.random()*200);pl.rotation.z=(Math.random()-.5)*0.5;pl.material.opacity=0.03+Math.random()*0.04;rays.add(pl);}
+  scene.add(rays);
+
+  // ===== scroll =====
+  let P=0,targetP=0;
+  const scH=()=>document.getElementById('scroll').offsetHeight-innerHeight;
+  addEventListener('scroll',()=>{targetP=Math.min(1,Math.max(0,scrollY/scH()));},{passive:true});
+
+  // estaciones
+  const stations=[...document.querySelectorAll('.station')].map(s=>({el:s,from:+s.dataset.from,to:+s.dataset.to}));
+  const hint=document.getElementById('hint');
+  function paintStations(p){
+    stations.forEach(s=>{
+      const mid=(s.from+s.to)/2, half=(s.to-s.from)/2;
+      let o=1-Math.min(1,Math.abs(p-mid)/(half*1.25));
+      o=Math.max(0,o); s.el.style.opacity=o.toFixed(3);
+      s.el.style.transform='translateY('+((p-mid)*40).toFixed(1)+'px)';
+    });
+    hint.style.opacity=p<0.04?'0.5':'0';
+  }
+
+  function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+  addEventListener('resize',resize);resize();
+
+  const clock=new THREE.Clock();
+  function loop(){
+    requestAnimationFrame(loop);
+    P+=(targetP-P)*0.06;
+    const t=clock.getElapsedTime();
+    // DESCENSO: la cámara avanza por el tubo según el scroll -> volamos por el mundo
+    camera.position.z = -P*(TUBE-120);
+    camera.position.y = Math.sin(t*0.15)*1.2;          // deriva orgánica
+    camera.rotation.z = Math.sin(t*0.08)*0.01;
+
+    // reciclar partículas que quedan detrás -> nube infinita
+    const cz=camera.position.z;
+    const arr=geo.attributes.position.array;
+    for(let i=0;i<N;i++){
+      let z=arr[i*3+2];
+      arr[i*3+1]+=Math.sin(t*0.3+ph[i])*0.004;          // flotar
+      arr[i*3]  +=Math.cos(t*0.2+ph[i])*0.004;
+      if(z>cz+18){                                       // detrás de la cámara
+        const r=Math.pow(Math.random(),.5)*RAD,a=Math.random()*Math.PI*2;
+        arr[i*3]=Math.cos(a)*r; arr[i*3+1]=Math.sin(a)*r*0.7; arr[i*3+2]=cz-TUBE+Math.random()*40;
+      }
+    }
+    geo.attributes.position.needsUpdate=true;
+
+    // atmósfera: más profundo = más oscuro y azul; momento ballena (~0.57) = luminoso
+    scene.background.copy(DEEP).lerp(SURF,(1-P)*0.6);
+    scene.fog.density=0.0125+P*0.006;
+    const whale=Math.max(0,1-Math.abs(P-0.57)/0.12);
+    mat.uniforms.uMix.value=0.15+P*0.5;
+    mat.uniforms.uColor.value.setHex(0xbfe0ee).lerp(new THREE.Color(0xffffff),whale*0.5);
+    rays.position.z=cz; rays.children.forEach(r=>r.material.opacity=(0.02+0.04*Math.random()*0)+0.03*(1-P)+whale*0.05);
+
+    paintStations(P);
+    renderer.render(scene,camera);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>
