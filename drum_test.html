@@ -3,12 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>VRM · Drum — aikawa cylinder (v3)</title>
-
-<!-- Boska (display serif) + Satoshi (body) — mismo stack que index -->
+<title>VRM · Drum — aikawa cylinder (v4)</title>
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link href="https://api.fontshare.com/v2/css?f%5B%5D=boska@400i,500i,700,500&f%5B%5D=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-
 <style>
   :root{
     --abyss:#0A1428; --marine:#1A2E48; --mist:#E8E4DA; --sand:#C5BBA8;
@@ -17,451 +14,352 @@
     --font-display:'Boska','Times New Roman',serif;
     --font-body:'Satoshi',system-ui,-apple-system,sans-serif;
     --ease:cubic-bezier(.22,1,.36,1);
+    --ui:#E8E4DA;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{height:100%;overflow:hidden;background:#070d1c}
+  html,body{height:100%;overflow:hidden}
   body{
-    font-family:var(--font-body);
-    color:var(--mist);
-    /* gradiente marino, derivado del deep-ocean shader del index */
-    background:
-      radial-gradient(120% 90% at 50% -10%, #16273f 0%, #0c1730 38%, #070d1c 78%);
-    -webkit-font-smoothing:antialiased;
+    font-family:var(--font-body); color:var(--ui);
+    background:radial-gradient(120% 90% at 50% -10%, #16273f 0%, #0c1730 38%, #070d1c 78%);
+    -webkit-font-smoothing:antialiased; transition:background .5s var(--ease);
   }
+  body.light{ --ui:#14110d; background:radial-gradient(120% 90% at 50% 0%, #ffffff 0%, #f4f1ea 55%, #ece7dd 100%); }
 
-  /* ── Lienzo WebGL ───────────────────────────────────────── */
-  #gl{position:fixed;inset:0;width:100%;height:100%;display:block;
-      touch-action:none;cursor:grab}
+  #gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
   #gl.grabbing{cursor:grabbing}
 
-  /* grano sutil sobre el canvas */
-  .grain{position:fixed;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;z-index:3;
+  .grain{position:fixed;inset:0;pointer-events:none;opacity:.04;mix-blend-mode:overlay;z-index:3;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
-  /* ── Chrome / overlay ───────────────────────────────────── */
   .ui{position:fixed;inset:0;pointer-events:none;z-index:4}
+  .eyebrow-top{position:absolute;top:30px;left:36px;font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--ui);opacity:.62;font-weight:500}
+  .wordmark{position:absolute;top:24px;right:38px;font-family:var(--font-display);font-style:italic;font-weight:500;font-size:24px;color:var(--ui);letter-spacing:.01em}
 
-  .eyebrow-top{
-    position:absolute;top:30px;left:36px;
-    font-size:11px;letter-spacing:.34em;text-transform:uppercase;
-    color:var(--whisper);font-weight:500;
+  /* pill de navegación estilo aikawa */
+  .pill{
+    position:absolute;left:50%;bottom:40px;transform:translateX(-50%);
+    display:flex;align-items:center;gap:4px;pointer-events:auto;
+    background:rgba(12,20,38,.62);border:1px solid var(--rule);border-radius:999px;
+    padding:7px 9px 7px 16px;backdrop-filter:blur(14px);
+    box-shadow:0 12px 40px rgba(0,0,0,.32);
   }
-  .wordmark{
-    position:absolute;top:24px;right:38px;
-    font-family:var(--font-display);font-style:italic;font-weight:500;
-    font-size:24px;color:var(--mist);letter-spacing:.01em;
+  body.light .pill{ background:rgba(255,255,255,.62);border-color:rgba(20,17,13,.1);box-shadow:0 12px 40px rgba(120,110,95,.18) }
+  .pill-label{display:flex;flex-direction:column;line-height:1.15;margin-right:12px;min-width:150px}
+  .pill-eyebrow{font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-soft);font-weight:600}
+  .pill-title{font-family:var(--font-display);font-style:italic;font-size:16px;color:var(--ui)}
+  .pill-btn{
+    width:34px;height:34px;border-radius:50%;border:1px solid var(--rule);
+    background:transparent;color:var(--ui);display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:.25s var(--ease);pointer-events:auto
   }
+  .pill-btn:hover{background:rgba(232,228,218,.12)}
+  body.light .pill-btn{border-color:rgba(20,17,13,.12)} body.light .pill-btn:hover{background:rgba(20,17,13,.06)}
+  .pill-btn svg{width:14px;height:14px}
+  .pill-price{font-family:var(--font-body);font-weight:700;font-size:12px;color:var(--gold);margin-left:10px;margin-right:4px}
 
-  /* caption inferior — refleja la tarjeta frontal */
-  .caption{
-    position:absolute;left:0;right:0;bottom:46px;
-    display:flex;flex-direction:column;align-items:center;text-align:center;
-    transition:opacity .4s var(--ease);
-  }
-  .cap-eyebrow{
-    font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;
-    color:var(--gold-soft);font-weight:500;margin-bottom:10px;
-  }
-  .cap-title{
-    font-family:var(--font-display);font-style:italic;font-weight:400;
-    font-size:clamp(26px,4vw,46px);line-height:1.05;color:var(--mist);
-    margin-bottom:14px;
-  }
-  .cap-meta{
-    display:flex;align-items:center;gap:18px;
-    font-size:12px;letter-spacing:.04em;color:var(--whisper);
-  }
-  .cap-price{color:var(--gold);font-weight:700}
-  .cap-dot{width:3px;height:3px;border-radius:50%;background:var(--rule)}
+  .counter{position:absolute;bottom:46px;right:42px;font-family:var(--font-display);font-style:italic;font-size:15px;color:var(--ui);opacity:.55;letter-spacing:.05em}
+  .counter b{color:var(--ui);opacity:1;font-style:normal;font-weight:700;font-family:var(--font-body);font-size:13px}
+  .hint{position:absolute;bottom:48px;left:42px;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ui);opacity:.5;font-weight:500}
 
-  /* contador */
-  .counter{
-    position:absolute;bottom:48px;right:42px;
-    font-family:var(--font-display);font-style:italic;font-size:15px;
-    color:var(--whisper);letter-spacing:.05em;
-  }
-  .counter b{color:var(--mist);font-style:normal;font-weight:700;
-    font-family:var(--font-body);font-size:13px}
-
-  /* hint de arrastre */
-  .hint{
-    position:absolute;bottom:50px;left:42px;
-    font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;
-    color:var(--whisper);font-weight:500;display:flex;align-items:center;gap:10px;
-    opacity:.8;animation:hintPulse 3.4s var(--ease) infinite;
-  }
-  .hint svg{width:30px;height:8px;opacity:.6}
-  @keyframes hintPulse{0%,100%{opacity:.45}50%{opacity:.85}}
-
-  /* loader */
-  .loader{position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;
-    background:#070d1c;transition:opacity .8s var(--ease)}
+  .loader{position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:#070d1c;transition:opacity .8s var(--ease)}
   .loader.hide{opacity:0;pointer-events:none}
-  .loader .dot{
-    font-family:var(--font-display);font-style:italic;font-size:30px;color:var(--mist);
-    letter-spacing:.02em;opacity:.85;animation:breathe 2s var(--ease) infinite}
+  .loader .dot{font-family:var(--font-display);font-style:italic;font-size:30px;color:#E8E4DA;opacity:.85;animation:breathe 2s var(--ease) infinite}
   @keyframes breathe{0%,100%{opacity:.4}50%{opacity:.9}}
 
-  /* panel tuner (oculto por defecto, tecla T) */
-  .tuner{
-    position:fixed;top:64px;right:18px;z-index:8;
-    background:rgba(10,20,40,.82);border:1px solid var(--rule);border-radius:10px;
-    padding:14px 16px;font-size:11px;line-height:1.9;color:var(--whisper);
-    backdrop-filter:blur(8px);display:none;min-width:180px;
-  }
+  .tuner{position:fixed;top:64px;right:18px;z-index:8;background:rgba(10,20,40,.85);border:1px solid var(--rule);border-radius:10px;padding:14px 16px;font-size:11px;line-height:1.9;color:#cfc8bb;backdrop-filter:blur(8px);display:none;min-width:200px}
   .tuner.show{display:block}
-  .tuner b{color:var(--gold-soft);font-weight:700}
-  .tuner kbd{background:rgba(232,228,218,.12);border-radius:3px;padding:1px 5px;
-    font-family:var(--font-body);color:var(--mist);font-size:10px}
+  .tuner b{color:#C8A87C;font-weight:700}
+  .tuner kbd{background:rgba(232,228,218,.12);border-radius:3px;padding:1px 5px;color:#E8E4DA;font-size:10px}
 
   @media(max-width:760px){
-    .eyebrow-top{top:22px;left:20px;font-size:9.5px;letter-spacing:.26em}
-    .wordmark{top:18px;right:20px;font-size:20px}
-    .hint{display:none}
-    .counter{right:20px;bottom:30px}
-    .caption{bottom:30px}
+    .eyebrow-top{top:20px;left:18px;font-size:9px} .wordmark{top:16px;right:18px;font-size:19px}
+    .hint{display:none} .counter{right:18px;bottom:96px} .pill-label{min-width:110px}
   }
 </style>
 </head>
 <body>
 
-  <canvas id="gl"></canvas>
-  <div class="grain"></div>
-
-  <div class="loader" id="loader"><div class="dot">vrm.</div></div>
-
-  <div class="ui">
-    <div class="eyebrow-top">Estancias seleccionadas</div>
-    <div class="wordmark">vrm.</div>
-
-    <div class="caption" id="caption">
-      <div class="cap-eyebrow" id="capEyebrow">—</div>
-      <h2 class="cap-title" id="capTitle">—</h2>
-      <div class="cap-meta">
-        <span class="cap-price"><span id="capPrice">—</span> <span style="color:var(--whisper);font-weight:400">USD · noche</span></span>
-        <span class="cap-dot"></span>
-        <span id="capGuests">—</span>
-      </div>
-    </div>
-
-    <div class="hint">
-      Arrastra
-      <svg viewBox="0 0 30 8"><path d="M1 4h24m0 0l-4-3m4 3l-4 3" stroke="currentColor" fill="none" stroke-width="1"/></svg>
-    </div>
-    <div class="counter"><b id="counterNow">01</b> / <span id="counterTot">08</span></div>
-  </div>
-
-  <div class="tuner" id="tuner">
-    <div><b>TUNER</b> &nbsp; <kbd>T</kbd> ocultar</div>
-    <div>radio &nbsp; <kbd>[</kbd> <kbd>]</kbd> &nbsp; <b id="tRad">7.0</b></div>
-    <div>spacing <kbd>-</kbd> <kbd>=</kbd> &nbsp; <b id="tSpc">4.0</b></div>
-    <div>cámara &nbsp; <kbd>;</kbd> <kbd>'</kbd> &nbsp; <b id="tCam">9.2</b></div>
-    <div>curva &nbsp;&nbsp; <kbd>C</kbd> &nbsp;&nbsp;&nbsp; <b id="tCrv">1.0</b></div>
-    <div style="margin-top:6px;opacity:.6">copia estos valores al deploy</div>
-  </div>
-
-<script type="importmap">
-{ "imports": {
-  "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
-  "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
-}}
+<script>
+/* Watchdog clásico — siempre corre, incluso si el módulo falla */
+window.__drumOK = false;
+window.__showErr = function(m){
+  if(document.getElementById('__err')) return;
+  var o=document.createElement('div'); o.id='__err';
+  o.style.cssText='position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;padding:34px;text-align:center;font:13px/1.7 monospace;color:#D97757;background:#070d1c;white-space:pre-wrap';
+  o.textContent='\u26A0  '+m; document.body.appendChild(o);
+  var l=document.getElementById('loader'); if(l) l.classList.add('hide');
+  console.error('[drum]', m);
+};
+addEventListener('error', e=>window.__showErr('JS: '+(e.message||e.filename||'error')));
+addEventListener('unhandledrejection', e=>window.__showErr('Promesa: '+((e.reason&&e.reason.message)||e.reason)));
+setTimeout(()=>{ if(!window.__drumOK) window.__showErr('El motor 3D no arrancó en 6s.\nProbable bloqueo de red al CDN o módulos deshabilitados.\nAbre la consola (F12) para el detalle.'); }, 6000);
 </script>
 
+<canvas id="gl"></canvas>
+<div class="grain"></div>
+<div class="loader" id="loader"><div class="dot">vrm.</div></div>
+
+<div class="ui">
+  <div class="eyebrow-top">Estancias seleccionadas</div>
+  <div class="wordmark">vrm.</div>
+
+  <div class="pill">
+    <div class="pill-label">
+      <span class="pill-eyebrow" id="pEyebrow">—</span>
+      <span class="pill-title" id="pTitle">—</span>
+    </div>
+    <span class="pill-price" id="pPrice">—</span>
+    <button class="pill-btn" id="prev" aria-label="anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="pill-btn" id="next" aria-label="siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+
+  <div class="hint">Arrastra · ← →</div>
+  <div class="counter"><b id="cNow">01</b> / <span id="cTot">08</span></div>
+</div>
+
+<div class="tuner" id="tuner">
+  <div><b>TUNER</b> &nbsp; <kbd>T</kbd> ocultar &nbsp; <kbd>B</kbd> fondo</div>
+  <div>radio &nbsp;&nbsp; <kbd>[</kbd> <kbd>]</kbd> &nbsp; <b id="tRad">4.3</b></div>
+  <div>ancho &nbsp; <kbd>,</kbd> <kbd>.</kbd> &nbsp; <b id="tW">6.4</b></div>
+  <div>cámara &nbsp; <kbd>;</kbd> <kbd>'</kbd> &nbsp; <b id="tCam">6.6</b></div>
+  <div>fov &nbsp;&nbsp;&nbsp; <kbd>9</kbd> <kbd>0</kbd> &nbsp; <b id="tFov">38</b></div>
+  <div>cromático <kbd>k</kbd> <kbd>l</kbd> <b id="tCa">1.0</b></div>
+  <div>curva &nbsp; <kbd>C</kbd> &nbsp;&nbsp; <b id="tCrv">1.0</b></div>
+</div>
+
 <script type="module">
-import * as THREE from 'three';
+/* import dinámico con fallback de CDN — robusto en file:// y sin import map */
+let THREE;
+try { THREE = await import('https://unpkg.com/three@0.158.0/build/three.module.js'); }
+catch(e1){
+  try { THREE = await import('https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js'); }
+  catch(e2){ window.__showErr('No se pudo cargar Three.js desde ningún CDN.'); throw e2; }
+}
+
+const $ = id => document.getElementById(id);
 
 /* ════════════════════════════════════════════════════════════
-   VRM · DRUM — cilindro de eje VERTICAL (réplica aikawakenichi)
-   La curvatura exacta sale de su vertex shader:
-     theta  = x / radius        ← el ángulo depende de X
-     radial = radius + z
-     bent   = (sin(theta)*radial, y, cos(theta)*radial - radius)
-   El strip de tarjetas vive en layout plano y se desliza (offset)
-   a través de ese doblez fijo → navegar = girar el tambor.
+   VRM · DRUM v4 — réplica aikawakenichi
+   Una imagen dominante envuelta sobre cilindro de eje vertical:
+     theta = x/radius ; bent = (sin θ·r, y, cos θ·r − R)
+   Strip de imágenes en layout plano → offset desliza/gira el tambor.
    ════════════════════════════════════════════════════════════ */
 
-/* ── Datos: estancias reales (promovidas al carrusel editorial) ── */
 const ESTANCIAS = [
-  { id:'2302', img:'https://i.imgur.com/e8ObYP6.jpeg',  eyebrow:'01 · La Cruz de Huanacaxtle',     title:'Vallarta Gardens 2302', price:'$300', guests:'6 huéspedes · 2 rec' },
-  { id:'6S',   img:'https://i.imgur.com/HtlrbEg.jpeg',  eyebrow:'02 · Nuevo Vallarta · Flamingos', title:'Marítima 6S',           price:'$190', guests:'8 huéspedes · 3 rec' },
-  { id:'211',  img:'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/a2cbb607-d8f6-476d-b001-46d7baf3104c.jpeg?im_w=720', eyebrow:'03 · Punta de Mita · Riviera Nayarit', title:'Bolongo 211', price:'$220', guests:'7 huéspedes · 3 rec' },
-  { id:'PHN',  img:'https://i.imgur.com/xhooPKT.jpeg',  eyebrow:'04 · Nuevo Vallarta · Flamingos', title:'Marítima Penthouse',    price:'$380', guests:'12 huéspedes · 6 rec' },
-  { id:'G13',  img:'https://i.imgur.com/ThY3A8L.jpeg',  eyebrow:'07 · Punta de Mita · Riviera Nayarit', title:'Bolongo G13',       price:'$280', guests:'10 huéspedes · 3 rec' },
-  { id:'9S',   img:'https://i.imgur.com/sgXZxMP.jpeg',  eyebrow:'08 · Nuevo Vallarta · Flamingos', title:'Marítima 9S',           price:'$215', guests:'8 huéspedes · 3 rec' },
-  { id:'3N',   img:'https://a0.muscache.com/im/pictures/hosting/Hosting-1483418374242300943/original/5bdb38b9-52f2-4a2d-8e95-43b8fd972de7.jpeg?im_w=720', eyebrow:'09 · Punta de Mita · Riviera Nayarit', title:'Bolongo 3N', price:'$185', guests:'4 huéspedes · 2 rec' },
-  { id:'3004', img:'https://i.imgur.com/JV7Bscs.jpeg',  eyebrow:'10 · La Cruz de Huanacaxtle',     title:'Vallarta Gardens 3004', price:'$250', guests:'6 huéspedes · 2 rec' },
+  { id:'2302', img:'https://i.imgur.com/e8ObYP6.jpeg',  eyebrow:'01 · La Cruz de Huanacaxtle',     title:'Vallarta Gardens 2302', price:'$300', guests:'6 huéspedes' },
+  { id:'6S',   img:'https://i.imgur.com/HtlrbEg.jpeg',  eyebrow:'02 · Nuevo Vallarta · Flamingos', title:'Marítima 6S',           price:'$190', guests:'8 huéspedes' },
+  { id:'211',  img:'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/a2cbb607-d8f6-476d-b001-46d7baf3104c.jpeg?im_w=1200', eyebrow:'03 · Punta de Mita', title:'Bolongo 211', price:'$220', guests:'7 huéspedes' },
+  { id:'PHN',  img:'https://i.imgur.com/xhooPKT.jpeg',  eyebrow:'04 · Nuevo Vallarta · Flamingos', title:'Marítima Penthouse',    price:'$380', guests:'12 huéspedes' },
+  { id:'G13',  img:'https://i.imgur.com/ThY3A8L.jpeg',  eyebrow:'07 · Punta de Mita', title:'Bolongo G13',       price:'$280', guests:'10 huéspedes' },
+  { id:'9S',   img:'https://i.imgur.com/sgXZxMP.jpeg',  eyebrow:'08 · Nuevo Vallarta · Flamingos', title:'Marítima 9S',           price:'$215', guests:'8 huéspedes' },
+  { id:'3N',   img:'https://a0.muscache.com/im/pictures/hosting/Hosting-1483418374242300943/original/5bdb38b9-52f2-4a2d-8e95-43b8fd972de7.jpeg?im_w=1200', eyebrow:'09 · Punta de Mita', title:'Bolongo 3N', price:'$185', guests:'4 huéspedes' },
+  { id:'3004', img:'https://i.imgur.com/JV7Bscs.jpeg',  eyebrow:'10 · La Cruz de Huanacaxtle',     title:'Vallarta Gardens 3004', price:'$250', guests:'6 huéspedes' },
 ];
 const N = ESTANCIAS.length;
 
-/* ── Parámetros del tambor (todos tuneables en vivo) ── */
-const P = {
-  radius : 7.0,   // radio del cilindro
-  spacing: 4.0,   // separación de centros en espacio plano (gap = spacing - cardW)
-  cardW  : 3.5,
-  cardH  : 2.25,
-  camZ   : 9.2,
-  fov    : 32,
-  curve  : 1.0,   // 1 = totalmente doblado (tambor), 0 = plano
-};
-const SEG = 60;             // subdivisiones horizontales (curva suave)
-const TOTAL = N * P.spacing;
+/* Parámetros aikawa-like (tuneables, tecla T) */
+const P = { radius:4.3, cardW:6.4, cardH:3.7, camZ:6.6, fov:38, curve:1.0, ca:1.0 };
+const SEG = 120;
+let TOTAL = N * P.cardW;   // spacing = cardW (contiguo, sin huecos)
 const REFLECT_BASE = P.cardH;
 
-/* ── Three básico ── */
-const canvas = document.getElementById('gl');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+/* Three */
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas:$('gl'), antialias:true, alpha:true }); }
+catch(e){ window.__showErr('No se pudo crear WebGL: '+e.message); throw e; }
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.setSize(innerWidth, innerHeight);
-renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(P.fov, innerWidth/innerHeight, 0.1, 100);
-camera.position.set(0, 0, P.camZ);
-camera.lookAt(0, -0.12, 0);
+function placeCam(){ camera.fov=P.fov; camera.position.set(0,0,P.camZ); camera.lookAt(0,-0.05,0); camera.updateProjectionMatrix(); }
+placeCam();
 
-/* ── Shaders del tambor ── */
+/* Placeholder marino con id (siempre visible) */
+function placeholder(label){
+  const c=document.createElement('canvas'); c.width=640; c.height=400;
+  const g=c.getContext('2d');
+  const grd=g.createLinearGradient(0,0,0,400); grd.addColorStop(0,'#27415f'); grd.addColorStop(1,'#0f2038');
+  g.fillStyle=grd; g.fillRect(0,0,640,400);
+  g.fillStyle='rgba(200,168,124,.9)'; g.font='italic 52px Boska, serif'; g.textAlign='center';
+  g.fillText(label,320,214);
+  g.fillStyle='rgba(232,228,218,.4)'; g.font='600 15px Satoshi, sans-serif'; g.fillText('cargando…',320,256);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
+}
+
+/* Shaders */
 const VERT = `
-  uniform float uRadius;
-  uniform float uCardX;       // centro de la tarjeta en espacio plano (offset ya plegado)
-  uniform float uCurve;       // 0 plano .. 1 doblado
-  uniform float uReflect;     // 0 normal, 1 reflejo (espejo en piso)
-  uniform float uReflectBase;
-  varying vec2  vUv;
-  varying float vShade;       // 1 al frente, ->0 a los lados
-  varying float vReflect;
+  uniform float uRadius, uCardX, uCurve, uReflect, uReflectBase;
+  varying vec2 vUv; varying float vShade, vReflect;
   void main(){
     vUv = uv;
     vec3 p = position;
     float flatX  = p.x + uCardX;
     float theta  = flatX / uRadius;
     float radial = uRadius + p.z;
-    // ← fórmula exacta de aikawa: eje vertical
-    vec3 bent = vec3(sin(theta)*radial, p.y, cos(theta)*radial - uRadius);
-    vec3 flat = vec3(flatX, p.y, p.z);
-    vec3 pos  = mix(flat, bent, uCurve);
-    if (uReflect > 0.5){ pos.y = -uReflectBase - pos.y; }   // espejo continuo en y=-H/2
+    vec3 bent   = vec3(sin(theta)*radial, p.y, cos(theta)*radial - uRadius);
+    vec3 planar = vec3(flatX, p.y, p.z);
+    vec3 pos    = mix(planar, bent, uCurve);
+    if (uReflect > 0.5){ pos.y = -uReflectBase - pos.y; }
     vShade   = clamp(cos(theta), 0.0, 1.0);
     vReflect = uReflect;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }
 `;
 const FRAG = `
+  precision highp float;
   uniform sampler2D uTex;
-  uniform vec2  uTexAspect;
-  uniform vec2  uCardSize;
-  uniform float uActive;      // 0..1 realce de la tarjeta frontal
-  varying vec2  vUv;
-  varying float vShade;
-  varying float vReflect;
+  uniform vec2  uTexAspect, uCardSize;
+  uniform float uActive, uReflect, uCA;
+  varying vec2  vUv; varying float vShade, vReflect;
 
   vec2 coverUv(vec2 uv){
-    float cardA = uCardSize.x / uCardSize.y;
-    float imgA  = uTexAspect.x / uTexAspect.y;
+    float cardA = uCardSize.x/uCardSize.y;
+    float imgA  = uTexAspect.x/uTexAspect.y;
     vec2 s = vec2(1.0);
-    if (cardA > imgA) s.y = imgA / cardA; else s.x = cardA / imgA;
-    return (uv - 0.5) * s + 0.5;
+    if (cardA > imgA) s.y = imgA/cardA; else s.x = cardA/imgA;
+    return clamp((uv-0.5)*s + 0.5, 0.001, 0.999);
   }
   void main(){
-    vec2 uv = coverUv(vUv);
-    vec3 col = texture2D(uTex, clamp(uv, 0.001, 0.999)).rgb;
+    float edge = 1.0 - vShade;                 // 0 al frente, ->1 donde la superficie gira
 
-    // borde oscuro suave (marco) — funde contra el fondo marino, sin transparencia
-    float ex = smoothstep(0.0,0.045,vUv.x) * smoothstep(1.0,0.955,vUv.x);
-    float ey = smoothstep(0.0,0.06, vUv.y) * smoothstep(1.0,0.94, vUv.y);
-    float frame = ex * ey;
-    col *= mix(0.0, 1.0, frame);
+    // aberración cromática: separa R/B horizontalmente, más fuerte en los bordes que giran
+    float ca = (0.0012 + edge*edge*0.020) * uCA;
+    vec3 col;
+    col.r = texture2D(uTex, coverUv(vUv + vec2(ca,0.0))).r;
+    col.g = texture2D(uTex, coverUv(vUv)).g;
+    col.b = texture2D(uTex, coverUv(vUv - vec2(ca,0.0))).b;
 
-    // oscurecer + desaturar tarjetas que receden a los lados (profundidad)
-    float shade = mix(0.30, 1.0, vShade);
-    float luma  = dot(col, vec3(0.2126,0.7152,0.0722));
-    col = mix(vec3(luma), col, mix(0.78, 1.0, vShade));
-    col *= shade;
+    // brillo: centro limpio, leve caída solo en el giro fuerte
+    col *= mix(0.80, 1.0, vShade);
+    col *= mix(0.985, 1.03, uActive*vShade);
 
-    // brillo sutil tipo vidrio en la parte alta de la frontal
-    col += vec3(0.05) * smoothstep(0.55,1.0,vUv.y) * vShade * uActive;
-    // realce de la frontal
-    col *= mix(0.92, 1.05, uActive);
+    // rim iridiscente (rosa->cyan) que aparece al girar
+    vec3 iri = mix(vec3(0.98,0.80,0.90), vec3(0.74,0.92,1.0), vUv.y);
+    float rim = smoothstep(0.40, 1.0, edge);
+    col += iri * rim * 0.16;
 
-    float alpha = 1.0;
+    // feather muy sutil en bordes para que no corte duro
+    float fx = smoothstep(0.0,0.010,vUv.x)*smoothstep(1.0,0.990,vUv.x);
+    float fy = smoothstep(0.0,0.012,vUv.y)*smoothstep(1.0,0.988,vUv.y);
+    float a  = fx*fy;
+
     if (vReflect > 0.5){
-      // reflejo: más visible junto a la costura (vUv.y bajo), funde hacia abajo
-      alpha = (1.0 - vUv.y) * 0.26 * vShade;
-      col  *= 0.62;
+      a   *= (1.0 - vUv.y) * 0.36 * mix(0.4,1.0,vShade);   // reflejo: fuerte junto a costura, funde abajo
+      col *= 0.74;
+      col += iri * rim * 0.10;
     }
-    gl_FragColor = vec4(col, alpha);
-    #include <colorspace_fragment>
+    gl_FragColor = vec4(col, a);
   }
 `;
 
-/* ── Construir tarjetas (mesh real + mesh reflejo) ── */
 const geo = new THREE.PlaneGeometry(P.cardW, P.cardH, SEG, 1);
 const cards = [];
+function uniforms(tex, reflect){
+  return {
+    uRadius:{value:P.radius}, uCardX:{value:0}, uCurve:{value:P.curve},
+    uReflect:{value:reflect}, uReflectBase:{value:REFLECT_BASE}, uCA:{value:P.ca},
+    uTex:{value:tex}, uTexAspect:{value:new THREE.Vector2(640,400)},
+    uCardSize:{value:new THREE.Vector2(P.cardW,P.cardH)}, uActive:{value:0},
+  };
+}
+let loaded=0;
+ESTANCIAS.forEach((data,i)=>{
+  const tex=placeholder(data.id);
+  const main=new THREE.Mesh(geo,new THREE.ShaderMaterial({vertexShader:VERT,fragmentShader:FRAG,uniforms:uniforms(tex,0),transparent:true,side:THREE.DoubleSide}));
+  main.renderOrder=1;
+  const ru=uniforms(tex,1);
+  const refl=new THREE.Mesh(geo,new THREE.ShaderMaterial({vertexShader:VERT,fragmentShader:FRAG,uniforms:ru,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  refl.renderOrder=0;
+  scene.add(main,refl);
+  cards.push({data,main,refl,i});
 
-const loadingMgr = new THREE.LoadingManager();
-const texLoader  = new THREE.TextureLoader(loadingMgr);
-
-ESTANCIAS.forEach((data, i) => {
-  const tex = texLoader.load(data.img, t => {
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    const w = t.image?.naturalWidth || t.image?.width || 3;
-    const h = t.image?.naturalHeight || t.image?.height || 2;
-    main.material.uniforms.uTexAspect.value.set(w, h);
-    refl.material.uniforms.uTexAspect.value.set(w, h);
-  });
-  tex.colorSpace = THREE.SRGBColorSpace;
-
-  const baseUniforms = () => ({
-    uRadius     : { value: P.radius },
-    uCardX      : { value: i * P.spacing },
-    uCurve      : { value: P.curve },
-    uReflectBase: { value: REFLECT_BASE },
-    uTex        : { value: tex },
-    uTexAspect  : { value: new THREE.Vector2(3,2) },
-    uCardSize   : { value: new THREE.Vector2(P.cardW, P.cardH) },
-    uActive     : { value: 0 },
-    uReflect    : { value: 0 },
-  });
-
-  const main = new THREE.Mesh(geo, new THREE.ShaderMaterial({
-    vertexShader:VERT, fragmentShader:FRAG, uniforms:baseUniforms(),
-    transparent:false, side:THREE.DoubleSide,
-  }));
-  main.renderOrder = 1;
-
-  const ru = baseUniforms(); ru.uReflect.value = 1;
-  const refl = new THREE.Mesh(geo, new THREE.ShaderMaterial({
-    vertexShader:VERT, fragmentShader:FRAG, uniforms:ru,
-    transparent:true, depthWrite:false, side:THREE.DoubleSide,
-    blending:THREE.NormalBlending,
-  }));
-  refl.renderOrder = 0;
-
-  scene.add(main, refl);
-  cards.push({ data, main, refl, i });
+  const im=new Image();
+  im.onload=()=>{
+    const t=new THREE.Texture(im); t.colorSpace=THREE.SRGBColorSpace;
+    t.minFilter=THREE.LinearMipmapLinearFilter; t.magFilter=THREE.LinearFilter;
+    t.anisotropy=renderer.capabilities.getMaxAnisotropy(); t.needsUpdate=true;
+    const w=im.naturalWidth||640,h=im.naturalHeight||400;
+    main.material.uniforms.uTex.value=t; refl.material.uniforms.uTex.value=t;
+    main.material.uniforms.uTexAspect.value.set(w,h); refl.material.uniforms.uTexAspect.value.set(w,h);
+    if(++loaded>=N) $('loader').classList.add('hide');
+  };
+  im.onerror=()=>{ if(++loaded>=N) $('loader').classList.add('hide'); };
+  im.src=data.img;
 });
 
-/* ── Interacción: arrastre + rueda + inercia + snap ── */
-let offset = 0, vel = 0, dragging = false, lastX = 0, lastInput = 0, frontIdx = 0;
+/* Interacción — basada en targetOffset (soporta drag, rueda, flechas) */
+const canvas=$('gl');
+let offset=0, target=0, dragging=false, lastX=0, lastInput=0, frontIdx=0;
+const SPACING=()=>P.cardW;
+function down(e){ dragging=true; lastX=e.clientX??e.touches?.[0]?.clientX??0; lastInput=performance.now(); canvas.classList.add('grabbing'); }
+function move(e){ if(!dragging)return; const x=e.clientX??e.touches?.[0]?.clientX??0; const dx=x-lastX; lastX=x; offset+=-dx*0.011; target=offset; lastInput=performance.now(); }
+function up(){ if(!dragging)return; dragging=false; canvas.classList.remove('grabbing'); target=Math.round(offset/SPACING())*SPACING(); }
+canvas.addEventListener('pointerdown',down); addEventListener('pointermove',move); addEventListener('pointerup',up);
+canvas.addEventListener('wheel',e=>{ e.preventDefault(); target+=(Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY)*0.004; lastInput=performance.now(); },{passive:false});
+function goTo(dir){ target=Math.round(offset/SPACING())*SPACING()+dir*SPACING(); lastInput=performance.now(); }
+$('prev').onclick=()=>goTo(-1); $('next').onclick=()=>goTo(1);
+addEventListener('keydown',e=>{ if(e.key==='ArrowLeft')goTo(-1); else if(e.key==='ArrowRight')goTo(1); });
 
-function onDown(e){
-  dragging = true; vel = 0; lastX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
-  canvas.classList.add('grabbing'); lastInput = performance.now();
-}
-function onMove(e){
-  if(!dragging) return;
-  const x = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
-  const dx = x - lastX; lastX = x;
-  const d = -dx * 0.012;          // arrastrar a la derecha → el contenido sigue al dedo
-  offset += d; vel = d; lastInput = performance.now();
-}
-function onUp(){ dragging = false; canvas.classList.remove('grabbing'); lastInput = performance.now(); }
-
-canvas.addEventListener('pointerdown', onDown);
-window.addEventListener('pointermove', onMove);
-window.addEventListener('pointerup', onUp);
-canvas.addEventListener('wheel', e => {
-  e.preventDefault();
-  const d = (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * 0.0016;
-  offset += d; vel = d * 0.55; lastInput = performance.now();
-}, { passive:false });
-
-/* ── Loop ── */
-const tmp = new THREE.Vector2();
-function update(){
-  // física offset
+/* Loop */
+function loop(){
   if(!dragging){
-    offset += vel; vel *= 0.92;
-    if(Math.abs(vel) < 0.0009){
-      vel = 0;
-      const snap = Math.round(offset / P.spacing) * P.spacing;   // encuadra una tarjeta
-      offset += (snap - offset) * 0.12;
+    // snap de la rueda tras inactividad
+    if(performance.now()-lastInput>220) target=Math.round(target/SPACING())*SPACING();
+    offset += (target-offset)*0.10;
+  }
+  frontIdx=((Math.round(offset/SPACING())%N)+N)%N;
+  TOTAL=N*P.cardW;
+  for(const c of cards){
+    let x=c.i*P.cardW-offset; x=((x%TOTAL)+TOTAL)%TOTAL; if(x>TOTAL/2)x-=TOTAL;
+    const vis=Math.abs(x/P.radius)<1.85;
+    for(const m of [c.main,c.refl]){
+      m.visible=vis; const u=m.material.uniforms;
+      u.uCardX.value=x; u.uRadius.value=P.radius; u.uCurve.value=P.curve; u.uCA.value=P.ca;
+      u.uReflectBase.value=P.cardH; u.uCardSize.value.set(P.cardW,P.cardH);
+      u.uActive.value += ((c.i===frontIdx?1:0)-u.uActive.value)*0.12;
     }
   }
-
-  // tarjeta frontal = múltiplo de spacing más cercano
-  frontIdx = ((Math.round(offset / P.spacing) % N) + N) % N;
-
-  cards.forEach(c => {
-    // x efectivo envuelto al rango [-TOTAL/2, TOTAL/2] → tambor infinito
-    let x = c.i * P.spacing - offset;
-    x = ((x % TOTAL) + TOTAL) % TOTAL;
-    if (x > TOTAL/2) x -= TOTAL;
-    const theta = x / P.radius;
-    const vis = Math.abs(theta) < 1.65;            // culling de la cara trasera
-
-    [c.main, c.refl].forEach(m => {
-      m.visible = vis;
-      const u = m.material.uniforms;
-      u.uCardX.value  = x;
-      u.uRadius.value = P.radius;
-      u.uCurve.value  = P.curve;
-      u.uCardSize.value.set(P.cardW, P.cardH);
-      const target = (c.i === frontIdx) ? 1 : 0;
-      u.uActive.value += (target - u.uActive.value) * 0.12;
-    });
-  });
-
-  renderer.render(scene, camera);
-  syncCaption();
-  requestAnimationFrame(update);
+  renderer.render(scene,camera); caption(); requestAnimationFrame(loop);
 }
 
-/* ── Caption / contador ── */
-let capId = -1;
-const $ = id => document.getElementById(id);
-function syncCaption(){
-  if(frontIdx === capId) return;
-  capId = frontIdx;
-  const d = ESTANCIAS[frontIdx];
-  $('capEyebrow').textContent = d.eyebrow;
-  $('capTitle').textContent   = d.title;
-  $('capPrice').textContent   = d.price;
-  $('capGuests').textContent  = d.guests;
-  $('counterNow').textContent = String(frontIdx+1).padStart(2,'0');
-  const cap = $('caption');
-  cap.style.opacity = '0';
-  requestAnimationFrame(()=>{ cap.style.opacity = '1'; });
+/* Caption / pill */
+let capId=-1;
+function caption(){
+  if(frontIdx===capId)return; capId=frontIdx;
+  const d=ESTANCIAS[frontIdx];
+  $('pEyebrow').textContent=d.eyebrow; $('pTitle').textContent=d.title;
+  $('pPrice').textContent=d.price; $('cNow').textContent=String(frontIdx+1).padStart(2,'0');
 }
-$('counterTot').textContent = String(N).padStart(2,'0');
+$('cTot').textContent=String(N).padStart(2,'0');
 
-/* ── Tuner en vivo (tecla T) ── */
-const tuner = $('tuner');
-function tunerSync(){
-  $('tRad').textContent = P.radius.toFixed(1);
-  $('tSpc').textContent = P.spacing.toFixed(1);
-  $('tCam').textContent = P.camZ.toFixed(1);
-  $('tCrv').textContent = P.curve.toFixed(2);
-}
-addEventListener('keydown', e => {
-  const k = e.key;
-  if(k==='t'||k==='T'){ tuner.classList.toggle('show'); }
-  else if(k==='['){ P.radius = Math.max(2, P.radius-0.25); }
-  else if(k===']'){ P.radius += 0.25; }
-  else if(k==='-'){ P.spacing = Math.max(P.cardW, P.spacing-0.1); }
-  else if(k==='='){ P.spacing += 0.1; }
-  else if(k===';'){ P.camZ = Math.max(3, P.camZ-0.2); camera.position.z=P.camZ; }
-  else if(k==="'"){ P.camZ += 0.2; camera.position.z=P.camZ; }
-  else if(k==='c'||k==='C'){ P.curve = P.curve > 0.5 ? 0 : 1; }
+/* Tuner + toggle de fondo */
+function tsync(){ $('tRad').textContent=P.radius.toFixed(1); $('tW').textContent=P.cardW.toFixed(1); $('tCam').textContent=P.camZ.toFixed(1); $('tFov').textContent=P.fov.toFixed(0); $('tCa').textContent=P.ca.toFixed(1); $('tCrv').textContent=P.curve.toFixed(2); }
+addEventListener('keydown',e=>{
+  const k=e.key; let rebuild=false;
+  if(k==='t'||k==='T') $('tuner').classList.toggle('show');
+  else if(k==='b'||k==='B') document.body.classList.toggle('light');
+  else if(k==='[') P.radius=Math.max(1.5,P.radius-0.2);
+  else if(k===']') P.radius+=0.2;
+  else if(k===',') { P.cardW=Math.max(2,P.cardW-0.3); rebuild=true; }
+  else if(k==='.') { P.cardW+=0.3; rebuild=true; }
+  else if(k===';'){ P.camZ=Math.max(2.5,P.camZ-0.2); placeCam(); }
+  else if(k==="'"){ P.camZ+=0.2; placeCam(); }
+  else if(k==='9'){ P.fov=Math.max(15,P.fov-1); placeCam(); }
+  else if(k==='0'){ P.fov+=1; placeCam(); }
+  else if(k==='k') P.ca=Math.max(0,P.ca-0.2);
+  else if(k==='l') P.ca+=0.2;
+  else if(k==='c'||k==='C') P.curve=P.curve>0.5?0:1;
   else return;
-  tunerSync();
+  if(rebuild){ const g2=new THREE.PlaneGeometry(P.cardW,P.cardH,SEG,1); for(const c of cards){c.main.geometry=g2;c.refl.geometry=g2;} }
+  tsync();
 });
+tsync();
 
-/* ── Resize ── */
-addEventListener('resize', () => {
-  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
-
-/* ── Arranque ── */
-loadingMgr.onLoad = () => {
-  $('loader').classList.add('hide');
-  tunerSync();
-};
-// fallback si alguna imagen tarda/falla: quita loader igual a los 2.5s
-setTimeout(()=>$('loader').classList.add('hide'), 2500);
-
-update();
+addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+setTimeout(()=>$('loader').classList.add('hide'),3000);
+window.__drumOK=true;
+loop();
 </script>
 </body>
 </html>
