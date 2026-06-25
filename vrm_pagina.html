@@ -383,7 +383,7 @@ footer .lks{display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-
       <p class="lead reveal" style="margin-top:16px">La bahía <i>entera</i>.</p>
       <div class="gal-hint reveal">Pasa el cursor para abrir · desliza para ver más</div>
     </div>
-    <div class="gal-stage" id="galStage">
+    <div class="gal-stage" id="galStage" data-lenis-prevent>
       <div class="gal-ring" id="galRing">
         <a class="gcard" data-cur="lg" href="vrm_property.html?id=PHN" style="--img:url('https://i.imgur.com/xhooPKT.jpeg')">
           <div class="gcard-img"></div><div class="gcard-scrim"></div>
@@ -550,7 +550,7 @@ footer .lks{display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-
     </div>
     <div class="dsc-stage">
       <div class="dsc-code" id="dscReveal"><b class="dsc-v" id="dscCode">VRM26</b></div>
-      <canvas id="wgl2" class="dsc-canvas" aria-label="Ballena de cristales interactiva"></canvas>
+      <canvas id="wgl2" class="dsc-canvas" data-lenis-prevent aria-label="Ballena de cristales interactiva"></canvas>
     </div>
   </section>
 
@@ -794,7 +794,7 @@ try{
   function heroResize(){var w=canvas.clientWidth||innerWidth,h=canvas.clientHeight||innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);fit();}
   addEventListener('resize',heroResize);heroResize();
   const clock=new THREE.Clock();
-  let heroLast=0,heroAway=false;function loop(now){requestAnimationFrame(loop);if(coarse&&now-heroLast<55)return;heroLast=now||0;updateFade(performance.now()/1000);if(window.scrollY>innerHeight*1.15){if(!heroAway){heroAway=true;clipEls.forEach(v=>{try{v.pause()}catch(_){}})}clock.getDelta();return;}if(heroAway){heroAway=false;clipEls.forEach(v=>{try{v.play().catch(()=>{})}catch(_){}})}const t=clock.elapsedTime;cx+=(mx-cx)*0.05;cy+=(my-cy)*0.05;group.rotation.y=coarse?Math.sin(t*0.28)*0.26:(Math.sin(t*0.3)*0.26+cx*0.6);group.rotation.x=coarse?Math.sin(t*0.5)*0.06:(Math.sin(t*0.22)*0.05-cy*0.4);group.position.y=Math.sin(t*0.7)*0.12;renderer.render(scene,camera);}
+  let heroLast=0,heroAway=false,frozen=false,heroStart=0;function loop(now){if(coarse&&frozen)return;requestAnimationFrame(loop);if(coarse&&now-heroLast<55)return;heroLast=now||0;if(!heroStart)heroStart=now;updateFade(performance.now()/1000);if(window.scrollY>innerHeight*1.15){if(!heroAway){heroAway=true;clipEls.forEach(v=>{try{v.pause()}catch(_){}})}clock.getDelta();return;}if(heroAway){heroAway=false;clipEls.forEach(v=>{try{v.play().catch(()=>{})}catch(_){}})}const t=clock.elapsedTime;cx+=(mx-cx)*0.05;cy+=(my-cy)*0.05;group.rotation.y=coarse?0.06:(Math.sin(t*0.3)*0.26+cx*0.6);group.rotation.x=coarse?0:(Math.sin(t*0.22)*0.05-cy*0.4);group.position.y=coarse?0:Math.sin(t*0.7)*0.12;renderer.render(scene,camera);if(coarse&&!frozen&&((now-heroStart>3000&&clips.some(c=>c.ready))||now-heroStart>6000)){frozen=true;clipEls.forEach(v=>{try{v.pause()}catch(_){}});}}
   loop();setTimeout(hideLoader,4000);
 }catch(err){console.warn('Logo 3D:',err);hideLoader();}
 </script>
@@ -825,17 +825,19 @@ window.addEventListener('load',function(){
   gsap.registerPlugin(ScrollTrigger);
   try{ScrollTrigger.config({ignoreMobileResize:true});}catch(_){}
   var lenis=null;
-  try{if(window.Lenis && !matchMedia('(pointer:coarse)').matches){
+  try{if(window.Lenis){
     lenis=new Lenis({
-      lerp:0.075,                     // más planeo/inercia -> el scroll "flota" (sensación produx)
-      duration:1.35,
+      lerp:0.085,                     // planeo/inercia -> el scroll "flota" (estilo izanami)
+      duration:1.25,
       easing:function(t){return Math.min(1,1.001-Math.pow(2,-10*t));}, // easeOutExpo (clics de nav)
       orientation:'vertical',
       gestureOrientation:'vertical',  // gestos horizontales (carrusel) NO mueven la página
       smoothWheel:true,
-      syncTouch:false,                // móvil = scroll NATIVO, idéntico a Zorge9 (y más estable con el 3D)
+      syncTouch:true,                 // MÓVIL: scroll suave flotante (como izanami)
+      syncTouchLerp:0.08,             // inercia del dedo en móvil
+      touchInertiaMultiplier:28,      // cuánto "vuela" tras soltar el dedo
       wheelMultiplier:1,
-      touchMultiplier:2,
+      touchMultiplier:1.5,
       normalizeWheel:true
     });
     lenis.on('scroll',ScrollTrigger.update);
