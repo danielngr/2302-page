@@ -360,6 +360,24 @@ footer .lks{display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-
     </div>
   </section>
 
+<style id="gal-cover-css">
+  body.gal-cover .gal-stage{perspective:1700px;scroll-snap-type:x mandatory;cursor:grab}
+  body.gal-cover .gal-stage.grabbing{cursor:grabbing}
+  body.gal-cover .gal-ring{transform-style:preserve-3d;align-items:center;gap:clamp(16px,2.2vw,34px);padding:0 calc(50% - clamp(135px,16vw,210px))}
+  body.gal-cover .gcard,body.gal-cover .gcard.is-open{width:clamp(270px,32vw,420px)!important;height:88%!important;scroll-snap-align:center;transition:none!important;backface-visibility:hidden;transform-origin:center center}
+  body.gal-cover .gcard .gc-info,body.gal-cover .gcard .gc-tag{opacity:1!important;transform:none!important}
+  body.gal-cover .gcard-end{width:clamp(270px,32vw,420px)!important;height:88%!important}
+  body.gal-cover .gc-focus{box-shadow:0 50px 110px -30px rgba(0,0,0,.7),0 0 0 1px rgba(159,216,230,.22)}
+  @media(pointer:fine){
+    body.gal-cover .gal-ring:hover .gcard:not(:hover):not(.gcard-end),
+    body.gal-cover .gal-ring:hover .gcard:hover{width:clamp(270px,32vw,420px)!important}
+    body.gal-cover .gcard:hover .gcard-img{transform:none}
+  }
+  @media(max-width:760px){
+    body.gal-cover .gcard,body.gal-cover .gcard.is-open,body.gal-cover .gcard-end{width:76vw!important}
+    body.gal-cover .gal-ring{padding:0 12vw;gap:18px}
+  }
+</style>
   <section id="s-galeria" class="gal" data-bg="https://i.imgur.com/ThY3A8L.jpeg">
     <div class="gal-head">
       <div class="snum reveal">Todas las casas</div>
@@ -550,7 +568,7 @@ footer .lks{display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-
 
   <div class="wordband" id="wordband"><canvas id="wbCanvas"></canvas></div>
 
-  <section id="s-contacto" class="sec contact" data-bg="https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/a2cbb607-d8f6-476d-b001-46d7baf3104c.jpeg">
+  <section id="s-contacto" class="sec contact" data-bg="https://i.imgur.com/dtkk9gt.jpeg">
     <div class="snum reveal" style="text-align:center">06 / Tu estancia</div>
     <h2 class="big" data-par="38" data-split style="margin-top:24px">Reserva directo con <i>nosotros</i></h2>
     <div class="cbtns reveal">
@@ -1053,38 +1071,57 @@ window.addEventListener('load',function(){
     }).catch(function(){clearTimeout(to);}); // si falla: se quedan los textos estáticos
   })();
 
-  /* ---- GALERÍA: acordeón horizontal (hover abre en desktop · swipe en móvil) ---- */
+  /* ---- GALERÍA: carrusel COVERFLOW con GSAP (centro grande/brillante, laterales 3D, snap, momentum) ---- */
   (function setupGallery(){
-    var ring=document.getElementById('galRing'); if(!ring)return;
-    var first=ring.querySelector('.gcard:not(.gcard-end)');
-    if(first)first.classList.add('is-open');   // primera casa abierta por defecto (desktop)
-    // MÓVIL: carrusel coverflow — la card del centro se agranda y enfoca, las demás se encogen
-    if(matchMedia('(pointer:coarse)').matches){
-      var stage=document.getElementById('galStage');
-      var cards=[].slice.call(ring.querySelectorAll('.gcard'));
-      var houses=cards.filter(function(c){return !c.classList.contains('gcard-end');});
-      var foot=document.querySelector('.gal-foot'); if(foot)foot.style.display='flex';
-      var elCur=document.getElementById('galCur'), elTot=document.getElementById('galTot');
-      if(elTot)elTot.textContent=('0'+houses.length).slice(-2);
-      var hint=document.querySelector('.gal-hint'); if(hint)hint.textContent='Desliza para ver las casas →';
-      var idx=0;
-      function focus(){
-        var mid=stage.scrollLeft+stage.clientWidth/2, best=null, bd=1e9, bi=0;
-        cards.forEach(function(c,i){var cc=c.offsetLeft+c.offsetWidth/2, d=Math.abs(cc-mid); if(d<bd){bd=d;best=c;bi=i;}});
-        cards.forEach(function(c){c.classList.toggle('gc-focus',c===best);});
-        idx=bi; var hi=houses.indexOf(best);
-        if(elCur&&hi>=0)elCur.textContent=('0'+(hi+1)).slice(-2);
+    var stage=document.getElementById('galStage');
+    var ring=document.getElementById('galRing');
+    if(!stage||!ring||!window.gsap)return;
+    var cards=[].slice.call(ring.querySelectorAll('.gcard'));
+    var houses=cards.filter(function(c){return !c.classList.contains('gcard-end');});
+    if(!cards.length)return;
+    document.body.classList.add('gal-cover');                 // activa el CSS del coverflow
+    var foot=document.querySelector('.gal-foot'); if(foot)foot.style.display='flex';
+    var elCur=document.getElementById('galCur'), elTot=document.getElementById('galTot');
+    if(elTot)elTot.textContent=('0'+houses.length).slice(-2);
+    var hint=document.querySelector('.gal-hint'); if(hint)hint.textContent='Arrastra o desliza para ver las casas';
+    var idx=0;
+
+    function update(){
+      var mid=stage.scrollLeft+stage.clientWidth/2, best=0, bd=1e9;
+      for(var i=0;i<cards.length;i++){
+        var c=cards[i], cc=c.offsetLeft+c.offsetWidth/2;
+        var d=(cc-mid)/(c.offsetWidth*0.95);                  // distancia normalizada al centro
+        var ad=Math.min(1.7,Math.abs(d));
+        gsap.set(c,{rotationY:d*-24,scale:1-ad*0.15,z:-ad*170,opacity:1-ad*0.4,zIndex:Math.round(100-ad*20)});
+        var img=c.querySelector('.gcard-img'); if(img)img.style.filter='brightness('+(1-ad*0.30).toFixed(2)+') saturate('+(1+(1-Math.min(1,ad))*0.12).toFixed(2)+')';
+        c.classList.toggle('gc-focus',ad<0.5);
+        var da=Math.abs(cc-mid); if(da<bd){bd=da;best=i;}
       }
-      function go(dir){var n=Math.min(cards.length-1,Math.max(0,idx+dir));var c=cards[n];stage.scrollTo({left:c.offsetLeft+c.offsetWidth/2-stage.clientWidth/2,behavior:'smooth'});}
-      var pv=document.getElementById('galPrev'), nx=document.getElementById('galNext');
-      if(pv)pv.addEventListener('click',function(){go(-1);});
-      if(nx)nx.addEventListener('click',function(){go(1);});
-      var tk=false;
-      stage.addEventListener('scroll',function(){if(!tk){tk=true;requestAnimationFrame(function(){focus();tk=false;});}},{passive:true});
-      addEventListener('resize',focus); setTimeout(focus,250);
-      /* empujón-hint una sola vez: invita a deslizar */
-      setTimeout(function(){var x=stage.scrollLeft;stage.scrollTo({left:x+Math.min(80,stage.clientWidth*0.18),behavior:'smooth'});setTimeout(function(){stage.scrollTo({left:x,behavior:'smooth'});},560);},1100);
+      idx=best; var hi=houses.indexOf(cards[best]);
+      if(elCur&&hi>=0)elCur.textContent=('0'+(hi+1)).slice(-2);
     }
+    var tk=false;
+    stage.addEventListener('scroll',function(){if(!tk){tk=true;requestAnimationFrame(function(){update();tk=false;});}},{passive:true});
+    addEventListener('resize',function(){requestAnimationFrame(update);});
+
+    function go(dir){var n=Math.min(cards.length-1,Math.max(0,idx+dir));var c=cards[n];
+      stage.scrollTo({left:c.offsetLeft+c.offsetWidth/2-stage.clientWidth/2,behavior:'smooth'});}
+    var pv=document.getElementById('galPrev'), nx=document.getElementById('galNext');
+    if(pv)pv.addEventListener('click',function(){go(-1);});
+    if(nx)nx.addEventListener('click',function(){go(1);});
+
+    /* arrastre con puntero (desktop) = scroll horizontal */
+    var down=false,sx=0,sl=0;
+    stage.addEventListener('pointerdown',function(e){if(e.pointerType!=='touch'){down=true;sx=e.clientX;sl=stage.scrollLeft;stage.classList.add('grabbing');}});
+    addEventListener('pointermove',function(e){if(down){stage.scrollLeft=sl-(e.clientX-sx);}});
+    addEventListener('pointerup',function(){if(down){down=false;stage.classList.remove('grabbing');}});
+
+    /* centrar la primera casa y pintar + empujón-hint */
+    requestAnimationFrame(function(){
+      var c=cards[0]; stage.scrollLeft=c.offsetLeft+c.offsetWidth/2-stage.clientWidth/2;
+      update();
+      setTimeout(function(){var x=stage.scrollLeft;stage.scrollTo({left:x+Math.min(120,stage.clientWidth*0.2),behavior:'smooth'});setTimeout(function(){stage.scrollTo({left:x,behavior:'smooth'});},620);},1000);
+    });
   })();
 
   /* ---- RESEÑAS: foco en la tarjeta central + ecualizador de avance ---- */
@@ -1247,7 +1284,7 @@ function crossRingDensify(P){
 }
 (async function(){
   var FLIPX=false;                                           // si la cola late del lado equivocado: poner true
-  var COUNT=matchMedia('(max-width:760px)').matches?18000:44000;
+  var COUNT=matchMedia('(max-width:760px)').matches?13000:44000;
   var pts=null, ao=null;
   try{
     var GL=await import('three/addons/loaders/GLTFLoader.js');
@@ -1406,12 +1443,12 @@ loop();
 
   /* ====== TUNABLES ====== */
   const GLB='https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/ballena.glb';
-  const SIM   = MOB ? 256 : 448;     // rejilla GPGPU: la física corre en GPU (texturas pos/vel)
+  const SIM   = MOB ? 160 : 448;     // rejilla GPGPU: la física corre en GPU (texturas pos/vel)
   const NPTS  = SIM*SIM;             // 65.536 móvil / 200.704 desktop
   const THETA = 5.5;                  // pose (tu valor en vivo)
   const FLIPY = false;                // si la cabeza queda arriba, ponlo true
   const FILL  = MOB ? 0.92 : 0.9;     // cuánto del alto llena (presencia)
-  let PSIZE = 3.6;                   // punto más grande = se lee DENSO/sólido (como el pingüino) (probado GPU)
+  let PSIZE = MOB?4.8:3.6;           // punto más grande = se lee DENSO/sólido (en móvil compensa menos partículas)
   // FÍSICA estilo igloo (modelo fluido): velocidad + fricción para volar, y regreso por ease (sin rebote).
   let RETURN=0.14;      // regreso lento: el HUECO aguanta mientras circulas, reforma orgánico al soltar (GPU)
   let CURL=0.5;         // remolino al volar (swirl fluido) (probado en vivo GPU)
@@ -1520,7 +1557,7 @@ loop();
     try{
       THREE=await import('three');
       renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:false,powerPreference:'low-power'});
-      renderer.setPixelRatio(Math.min(devicePixelRatio,MOB?1.6:2));
+      renderer.setPixelRatio(Math.min(devicePixelRatio,MOB?1.2:1.75));
       renderer.outputColorSpace=THREE.SRGBColorSpace;
       scene=new THREE.Scene();
       camera=new THREE.PerspectiveCamera(42,(canvas.clientWidth||1)/Math.max(1,canvas.clientHeight||1),0.1,100);
