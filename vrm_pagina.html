@@ -1007,6 +1007,42 @@ window.addEventListener('load',function(){
   var firstBg=document.querySelector('[data-bg]'); if(firstBg) setBg(firstBg.getAttribute('data-bg'));
   gsap.to('#bg',{yPercent:6,ease:'none',scrollTrigger:{trigger:'main',start:'top top',end:'bottom bottom',scrub:true}});
 
+  /* ---- HERO EXIT: "atravesar el cristal y hundirte" — el logo VRM crece y te atraviesa, la bahía se hunde en sombra, sin costura (ligero: solo transforms/opacity/filter) ---- */
+  (function(){
+    var hero=document.querySelector('.hero'); if(!hero) return;
+    var logo=document.getElementById('logo3d');
+    var vids=[].slice.call(hero.querySelectorAll('.herovid'));
+    var texts=[].slice.call(hero.querySelectorAll('.tag,.cue,.coord'));
+    var MOB=matchMedia('(max-width:760px)').matches;
+    var veil=document.createElement('div'); veil.id='heroVeil';
+    veil.style.cssText='position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;background:radial-gradient(140% 120% at 50% 46%,#0a1620,#04080e)';
+    hero.appendChild(veil);
+    function sm(a,b,x){x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x);}
+    var LS=MOB?1.35:1.9;                       // cuánto crece el logo al atravesarlo (menos en móvil)
+    function apply(p){
+      var e=p*p*(3-2*p);
+      if(logo){
+        logo.style.setProperty('opacity',(1-sm(0.32,0.74,p)).toFixed(3),'important');   // se mantiene visible mientras crece, luego se disuelve
+        logo.style.transformOrigin='50% 42%';
+        logo.style.transform='scale('+(1+e*LS).toFixed(3)+') translateY('+(-e*30).toFixed(0)+'px)';
+        logo.style.filter='blur('+(sm(0.42,0.92,p)*4).toFixed(1)+'px)';
+      }
+      for(var i=0;i<vids.length;i++){
+        vids[i].style.transform='scale('+(1+e*0.14).toFixed(3)+')';                      // push-in cinematográfico
+        vids[i].style.filter='brightness('+(1-sm(0.1,0.92,p)*0.84).toFixed(2)+')';        // se hunde en sombra
+      }
+      veil.style.opacity=sm(0.2,0.95,p).toFixed(2);                                       // disuelve la costura a oscuridad
+      for(var j=0;j<texts.length;j++){
+        texts[j].style.transform='translateY('+(-e*34).toFixed(0)+'px)';
+        texts[j].style.opacity=String(Math.max(0,1-sm(0,0.42,p)));
+      }
+    }
+    ScrollTrigger.create({ trigger:hero, start:'top top', end:'bottom top', scrub:true,
+      onUpdate:function(self){ apply(self.progress); },
+      onRefresh:function(self){ apply(self.progress); } });
+    apply(0);
+  })();
+
   /* ---- navegación numerada estilo Fame: sección activa + click-scroll + progreso ---- */
   (function(){
     var nav=document.getElementById('fnav'); if(!nav)return;
