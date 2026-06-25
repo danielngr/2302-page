@@ -2,379 +2,466 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VRM · Drum — prototipo</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VRM · Drum — aikawa cylinder (v3)</title>
+
+<!-- Boska (display serif) + Satoshi (body) — mismo stack que index -->
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f%5B%5D=boska@400i,500i,700,500&f%5B%5D=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+
 <style>
   :root{
-    --navy-0:#081320;        /* fondo profundo */
-    --navy-1:#0c1d31;
-    --navy-2:#13314f;
-    --cream:#ece4d4;         /* serif crema */
-    --cream-dim:rgba(236,228,212,.55);
-    --gold:#c9a24b;          /* acento dorado */
-    --line:rgba(236,228,212,.16);
+    --abyss:#0A1428; --marine:#1A2E48; --mist:#E8E4DA; --sand:#C5BBA8;
+    --stone:#3A4A60; --coral:#D97757; --cyan:#4A8FB5; --gold:#B89668; --gold-soft:#C8A87C;
+    --whisper:rgba(232,228,218,.58); --rule:rgba(232,228,218,.10);
+    --font-display:'Boska','Times New Roman',serif;
+    --font-body:'Satoshi',system-ui,-apple-system,sans-serif;
+    --ease:cubic-bezier(.22,1,.36,1);
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{height:100%;background:var(--navy-0);overflow:hidden}
+  html,body{height:100%;overflow:hidden;background:#070d1c}
   body{
-    font-family:"Inter",-apple-system,sans-serif;
-    color:var(--cream);
+    font-family:var(--font-body);
+    color:var(--mist);
+    /* gradiente marino, derivado del deep-ocean shader del index */
     background:
-      radial-gradient(120% 90% at 50% 8%, #102740 0%, var(--navy-0) 60%, #05101b 100%);
+      radial-gradient(120% 90% at 50% -10%, #16273f 0%, #0c1730 38%, #070d1c 78%);
     -webkit-font-smoothing:antialiased;
-    position:relative;
   }
 
-  /* ── etiqueta superior ── */
-  .topbar{
-    position:fixed;top:0;left:0;right:0;z-index:30;
-    display:flex;justify-content:space-between;align-items:center;
-    padding:26px 40px;
-    font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--cream-dim);
-  }
-  .topbar .brand{font-family:"Fraunces";font-style:italic;font-size:20px;letter-spacing:.04em;color:var(--cream);text-transform:none}
+  /* ── Lienzo WebGL ───────────────────────────────────────── */
+  #gl{position:fixed;inset:0;width:100%;height:100%;display:block;
+      touch-action:none;cursor:grab}
+  #gl.grabbing{cursor:grabbing}
 
-  /* ── palabra gigante de fondo ── */
-  .ghost{
-    position:fixed;top:50%;left:50%;transform:translate(-50%,-58%);
-    font-family:"Fraunces";font-weight:300;
-    font-size:clamp(80px,17vw,260px);line-height:.9;letter-spacing:.02em;
-    color:rgba(236,228,212,.05);white-space:nowrap;z-index:1;pointer-events:none;user-select:none;
-  }
+  /* grano sutil sobre el canvas */
+  .grain{position:fixed;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;z-index:3;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
-  /* ── escenario del drum ── */
-  #stage{position:fixed;inset:0;z-index:10}
-  #drum{display:block;width:100%;height:100%}
+  /* ── Chrome / overlay ───────────────────────────────────── */
+  .ui{position:fixed;inset:0;pointer-events:none;z-index:4}
 
-  /* nombre serif sobre el drum */
-  .slide-name{
-    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-    z-index:12;pointer-events:none;text-align:center;width:min(90vw,1100px);
-    mix-blend-mode:screen;
+  .eyebrow-top{
+    position:absolute;top:30px;left:36px;
+    font-size:11px;letter-spacing:.34em;text-transform:uppercase;
+    color:var(--whisper);font-weight:500;
   }
-  .slide-name .nm{
-    font-family:"Fraunces";font-weight:400;font-style:italic;
-    font-size:clamp(34px,5.5vw,86px);line-height:1;color:rgba(236,228,212,.92);
-    text-shadow:0 8px 40px rgba(0,0,0,.5);
-    transition:opacity .5s ease;
+  .wordmark{
+    position:absolute;top:24px;right:38px;
+    font-family:var(--font-display);font-style:italic;font-weight:500;
+    font-size:24px;color:var(--mist);letter-spacing:.01em;
   }
 
-  /* ── pill de control ── */
-  .pill{
-    position:fixed;left:50%;bottom:38px;transform:translateX(-50%);z-index:30;
-    display:flex;align-items:center;gap:22px;
-    padding:14px 16px 14px 14px;
-    background:rgba(10,22,37,.66);
-    border:1px solid var(--line);
-    border-radius:100px;
-    backdrop-filter:blur(18px) saturate(1.1);
-    -webkit-backdrop-filter:blur(18px) saturate(1.1);
-    box-shadow:0 24px 60px -20px rgba(0,0,0,.7);
-    max-width:calc(100vw - 36px);
+  /* caption inferior — refleja la tarjeta frontal */
+  .caption{
+    position:absolute;left:0;right:0;bottom:46px;
+    display:flex;flex-direction:column;align-items:center;text-align:center;
+    transition:opacity .4s var(--ease);
   }
-  .pill-thumb{
-    width:54px;height:54px;border-radius:50%;object-fit:cover;flex:none;
-    border:1px solid var(--line);
+  .cap-eyebrow{
+    font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;
+    color:var(--gold-soft);font-weight:500;margin-bottom:10px;
   }
-  .pill-meta{display:flex;flex-direction:column;gap:3px;min-width:0}
-  .pill-counter{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold)}
-  .pill-loc{font-size:13px;color:var(--cream-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw}
-  .pill-price{font-family:"Fraunces";font-size:17px;color:var(--cream)}
-  .pill-price b{font-weight:500}
-  .pill-price span{font-size:11px;color:var(--cream-dim);font-family:"Inter";letter-spacing:.05em}
+  .cap-title{
+    font-family:var(--font-display);font-style:italic;font-weight:400;
+    font-size:clamp(26px,4vw,46px);line-height:1.05;color:var(--mist);
+    margin-bottom:14px;
+  }
+  .cap-meta{
+    display:flex;align-items:center;gap:18px;
+    font-size:12px;letter-spacing:.04em;color:var(--whisper);
+  }
+  .cap-price{color:var(--gold);font-weight:700}
+  .cap-dot{width:3px;height:3px;border-radius:50%;background:var(--rule)}
 
-  .pill-arrows{display:flex;gap:6px;margin-left:4px}
-  .pill-arrows button{
-    width:40px;height:40px;border-radius:50%;border:1px solid var(--line);
-    background:transparent;color:var(--cream);cursor:pointer;
-    display:flex;align-items:center;justify-content:center;
-    transition:background .25s,border-color .25s,transform .2s;
+  /* contador */
+  .counter{
+    position:absolute;bottom:48px;right:42px;
+    font-family:var(--font-display);font-style:italic;font-size:15px;
+    color:var(--whisper);letter-spacing:.05em;
   }
-  .pill-arrows button:hover{background:rgba(236,228,212,.08);border-color:var(--cream-dim)}
-  .pill-arrows button:active{transform:scale(.92)}
+  .counter b{color:var(--mist);font-style:normal;font-weight:700;
+    font-family:var(--font-body);font-size:13px}
 
-  .pill-reserve{
-    display:flex;align-items:center;gap:9px;
-    padding:13px 22px;border-radius:100px;
-    background:var(--gold);color:#1a1206;
-    font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
-    text-decoration:none;white-space:nowrap;flex:none;
-    transition:transform .25s ease, box-shadow .25s ease, background .25s;
-  }
-  .pill-reserve:hover{transform:translateY(-2px);box-shadow:0 14px 30px -10px rgba(201,162,75,.6);background:#d9b15c}
-
-  /* hint */
+  /* hint de arrastre */
   .hint{
-    position:fixed;left:50%;bottom:112px;transform:translateX(-50%);z-index:20;
-    font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:rgba(236,228,212,.3);
-    pointer-events:none;transition:opacity .6s;
+    position:absolute;bottom:50px;left:42px;
+    font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;
+    color:var(--whisper);font-weight:500;display:flex;align-items:center;gap:10px;
+    opacity:.8;animation:hintPulse 3.4s var(--ease) infinite;
   }
+  .hint svg{width:30px;height:8px;opacity:.6}
+  @keyframes hintPulse{0%,100%{opacity:.45}50%{opacity:.85}}
 
   /* loader */
-  .ld{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
-     background:var(--navy-0);transition:opacity .8s ease}
-  .ld.gone{opacity:0;pointer-events:none}
-  .ld .ring{width:64px;height:64px;border-radius:50%;border:1px solid var(--line);border-top-color:var(--gold);animation:spin 1s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
+  .loader{position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;
+    background:#070d1c;transition:opacity .8s var(--ease)}
+  .loader.hide{opacity:0;pointer-events:none}
+  .loader .dot{
+    font-family:var(--font-display);font-style:italic;font-size:30px;color:var(--mist);
+    letter-spacing:.02em;opacity:.85;animation:breathe 2s var(--ease) infinite}
+  @keyframes breathe{0%,100%{opacity:.4}50%{opacity:.9}}
 
-  @media (max-width:760px){
-    .topbar{padding:18px 20px}
-    .pill{gap:12px;padding:10px 10px 10px 10px;bottom:24px}
-    .pill-loc{display:none}
-    .pill-arrows{display:none}
-    .pill-reserve{padding:11px 16px}
+  /* panel tuner (oculto por defecto, tecla T) */
+  .tuner{
+    position:fixed;top:64px;right:18px;z-index:8;
+    background:rgba(10,20,40,.82);border:1px solid var(--rule);border-radius:10px;
+    padding:14px 16px;font-size:11px;line-height:1.9;color:var(--whisper);
+    backdrop-filter:blur(8px);display:none;min-width:180px;
   }
-  @media (prefers-reduced-motion:reduce){ .ld .ring{animation:none} }
+  .tuner.show{display:block}
+  .tuner b{color:var(--gold-soft);font-weight:700}
+  .tuner kbd{background:rgba(232,228,218,.12);border-radius:3px;padding:1px 5px;
+    font-family:var(--font-body);color:var(--mist);font-size:10px}
+
+  @media(max-width:760px){
+    .eyebrow-top{top:22px;left:20px;font-size:9.5px;letter-spacing:.26em}
+    .wordmark{top:18px;right:20px;font-size:20px}
+    .hint{display:none}
+    .counter{right:20px;bottom:30px}
+    .caption{bottom:30px}
+  }
 </style>
 </head>
 <body>
-  <div class="ld" id="ld"><div class="ring"></div></div>
 
-  <div class="topbar">
-    <div style="letter-spacing:.3em">Estancias seleccionadas</div>
-    <div class="brand">vrm.</div>
+  <canvas id="gl"></canvas>
+  <div class="grain"></div>
+
+  <div class="loader" id="loader"><div class="dot">vrm.</div></div>
+
+  <div class="ui">
+    <div class="eyebrow-top">Estancias seleccionadas</div>
+    <div class="wordmark">vrm.</div>
+
+    <div class="caption" id="caption">
+      <div class="cap-eyebrow" id="capEyebrow">—</div>
+      <h2 class="cap-title" id="capTitle">—</h2>
+      <div class="cap-meta">
+        <span class="cap-price"><span id="capPrice">—</span> <span style="color:var(--whisper);font-weight:400">USD · noche</span></span>
+        <span class="cap-dot"></span>
+        <span id="capGuests">—</span>
+      </div>
+    </div>
+
+    <div class="hint">
+      Arrastra
+      <svg viewBox="0 0 30 8"><path d="M1 4h24m0 0l-4-3m4 3l-4 3" stroke="currentColor" fill="none" stroke-width="1"/></svg>
+    </div>
+    <div class="counter"><b id="counterNow">01</b> / <span id="counterTot">08</span></div>
   </div>
 
-  <div class="ghost" id="ghost">Bahía</div>
-
-  <div id="stage"><canvas id="drum"></canvas></div>
-
-  <div class="slide-name"><div class="nm" id="slideName">Vallarta Gardens 2302</div></div>
-
-  <div class="hint" id="hint">Arrastra · scroll · ← →</div>
-
-  <div class="pill">
-    <img class="pill-thumb" id="pThumb" alt="">
-    <div class="pill-meta">
-      <div class="pill-counter" id="pCounter">01 / 10</div>
-      <div class="pill-loc" id="pLoc">La Cruz de Huanacaxtle</div>
-    </div>
-    <div class="pill-price"><b id="pPrice">$300</b> <span>USD/noche</span></div>
-    <div class="pill-arrows">
-      <button id="prev" aria-label="Anterior"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>
-      <button id="next" aria-label="Siguiente"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
-    </div>
-    <a class="pill-reserve" id="pReserve" href="#">Reservar
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-    </a>
+  <div class="tuner" id="tuner">
+    <div><b>TUNER</b> &nbsp; <kbd>T</kbd> ocultar</div>
+    <div>radio &nbsp; <kbd>[</kbd> <kbd>]</kbd> &nbsp; <b id="tRad">7.0</b></div>
+    <div>spacing <kbd>-</kbd> <kbd>=</kbd> &nbsp; <b id="tSpc">4.0</b></div>
+    <div>cámara &nbsp; <kbd>;</kbd> <kbd>'</kbd> &nbsp; <b id="tCam">9.2</b></div>
+    <div>curva &nbsp;&nbsp; <kbd>C</kbd> &nbsp;&nbsp;&nbsp; <b id="tCrv">1.0</b></div>
+    <div style="margin-top:6px;opacity:.6">copia estos valores al deploy</div>
   </div>
 
-<script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
-<script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+}}
+</script>
 
-const PROPS = [
-  {id:'2302', name:'Vallarta Gardens 2302', loc:'La Cruz de Huanacaxtle',          price:300, img:'https://i.imgur.com/e8ObYP6.jpeg'},
-  {id:'6S',   name:'Marítima 6S',            loc:'Nuevo Vallarta · Flamingos',       price:190, img:'https://i.imgur.com/HtlrbEg.jpeg'},
-  {id:'211',  name:'Bolongo 211',            loc:'Punta de Mita · Riviera Nayarit',  price:220, img:'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/a2cbb607-d8f6-476d-b001-46d7baf3104c.jpeg?im_w=720'},
-  {id:'PHN',  name:'Marítima Penthouse',     loc:'Nuevo Vallarta · Flamingos',       price:380, img:'https://i.imgur.com/xhooPKT.jpeg'},
-  {id:'2403', name:'Vallarta Gardens 2403',  loc:'La Cruz de Huanacaxtle',           price:300, img:'https://i.imgur.com/RV3b2sb.jpeg'},
-  {id:'L05',  name:'Bolongo L05',            loc:'Punta de Mita · Riviera Nayarit',  price:295, img:'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/d4b94467-3074-4e98-a72c-e22aabce372b.jpeg?im_w=720'},
-  {id:'G13',  name:'Bolongo G13',            loc:'Punta de Mita · Riviera Nayarit',  price:280, img:'https://i.imgur.com/ThY3A8L.jpeg'},
-  {id:'9S',   name:'Marítima 9S',            loc:'Nuevo Vallarta · Flamingos',       price:215, img:'https://i.imgur.com/sgXZxMP.jpeg'},
-  {id:'3N',   name:'Bolongo 3N',             loc:'Punta de Mita · Riviera Nayarit',  price:185, img:'https://a0.muscache.com/im/pictures/hosting/Hosting-1483418374242300943/original/5bdb38b9-52f2-4a2d-8e95-43b8fd972de7.jpeg?im_w=720'},
-  {id:'3004', name:'Vallarta Gardens 3004',  loc:'La Cruz de Huanacaxtle',           price:250, img:'https://i.imgur.com/JV7Bscs.jpeg'},
+<script type="module">
+import * as THREE from 'three';
+
+/* ════════════════════════════════════════════════════════════
+   VRM · DRUM — cilindro de eje VERTICAL (réplica aikawakenichi)
+   La curvatura exacta sale de su vertex shader:
+     theta  = x / radius        ← el ángulo depende de X
+     radial = radius + z
+     bent   = (sin(theta)*radial, y, cos(theta)*radial - radius)
+   El strip de tarjetas vive en layout plano y se desliza (offset)
+   a través de ese doblez fijo → navegar = girar el tambor.
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Datos: estancias reales (promovidas al carrusel editorial) ── */
+const ESTANCIAS = [
+  { id:'2302', img:'https://i.imgur.com/e8ObYP6.jpeg',  eyebrow:'01 · La Cruz de Huanacaxtle',     title:'Vallarta Gardens 2302', price:'$300', guests:'6 huéspedes · 2 rec' },
+  { id:'6S',   img:'https://i.imgur.com/HtlrbEg.jpeg',  eyebrow:'02 · Nuevo Vallarta · Flamingos', title:'Marítima 6S',           price:'$190', guests:'8 huéspedes · 3 rec' },
+  { id:'211',  img:'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/a2cbb607-d8f6-476d-b001-46d7baf3104c.jpeg?im_w=720', eyebrow:'03 · Punta de Mita · Riviera Nayarit', title:'Bolongo 211', price:'$220', guests:'7 huéspedes · 3 rec' },
+  { id:'PHN',  img:'https://i.imgur.com/xhooPKT.jpeg',  eyebrow:'04 · Nuevo Vallarta · Flamingos', title:'Marítima Penthouse',    price:'$380', guests:'12 huéspedes · 6 rec' },
+  { id:'G13',  img:'https://i.imgur.com/ThY3A8L.jpeg',  eyebrow:'07 · Punta de Mita · Riviera Nayarit', title:'Bolongo G13',       price:'$280', guests:'10 huéspedes · 3 rec' },
+  { id:'9S',   img:'https://i.imgur.com/sgXZxMP.jpeg',  eyebrow:'08 · Nuevo Vallarta · Flamingos', title:'Marítima 9S',           price:'$215', guests:'8 huéspedes · 3 rec' },
+  { id:'3N',   img:'https://a0.muscache.com/im/pictures/hosting/Hosting-1483418374242300943/original/5bdb38b9-52f2-4a2d-8e95-43b8fd972de7.jpeg?im_w=720', eyebrow:'09 · Punta de Mita · Riviera Nayarit', title:'Bolongo 3N', price:'$185', guests:'4 huéspedes · 2 rec' },
+  { id:'3004', img:'https://i.imgur.com/JV7Bscs.jpeg',  eyebrow:'10 · La Cruz de Huanacaxtle',     title:'Vallarta Gardens 3004', price:'$250', guests:'6 huéspedes · 2 rec' },
 ];
+const N = ESTANCIAS.length;
 
-const PW = 3.45, PH = 2.16;     // tamaño del panel (≈16:10)
-const GAP = 0.55;               // separación
-const SPACING = PW + GAP;
+/* ── Parámetros del tambor (todos tuneables en vivo) ── */
+const P = {
+  radius : 7.0,   // radio del cilindro
+  spacing: 4.0,   // separación de centros en espacio plano (gap = spacing - cardW)
+  cardW  : 3.5,
+  cardH  : 2.25,
+  camZ   : 9.2,
+  fov    : 32,
+  curve  : 1.0,   // 1 = totalmente doblado (tambor), 0 = plano
+};
+const SEG = 60;             // subdivisiones horizontales (curva suave)
+const TOTAL = N * P.spacing;
+const REFLECT_BASE = P.cardH;
 
-const canvas = document.getElementById('drum');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, powerPreference:'high-performance' });
+/* ── Three básico ── */
+const canvas = document.getElementById('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setClearColor(0x000000, 0);
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
-camera.position.set(0, 0, 5.4);
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(P.fov, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 0, P.camZ);
+camera.lookAt(0, -0.12, 0);
 
-// pérdida de contexto: no crashear
-canvas.addEventListener('webglcontextlost', (e)=>{ e.preventDefault(); }, false);
-
+/* ── Shaders del tambor ── */
 const VERT = `
-  varying vec2 vUv;
-  uniform float uCurveX;
-  uniform float uCurveY;
+  uniform float uRadius;
+  uniform float uCardX;       // centro de la tarjeta en espacio plano (offset ya plegado)
+  uniform float uCurve;       // 0 plano .. 1 doblado
+  uniform float uReflect;     // 0 normal, 1 reflejo (espejo en piso)
+  uniform float uReflectBase;
+  varying vec2  vUv;
+  varying float vShade;       // 1 al frente, ->0 a los lados
+  varying float vReflect;
   void main(){
     vUv = uv;
     vec3 p = position;
-    float ax = uv.x - 0.5;
-    float ay = uv.y - 0.5;
-    p.z -= (ax*ax) * uCurveX;   // barril horizontal (bordes laterales retroceden)
-    p.z -= (ay*ay) * uCurveY;   // barril vertical (arco arriba/abajo, el look de tambor)
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(p,1.0);
+    float flatX  = p.x + uCardX;
+    float theta  = flatX / uRadius;
+    float radial = uRadius + p.z;
+    // ← fórmula exacta de aikawa: eje vertical
+    vec3 bent = vec3(sin(theta)*radial, p.y, cos(theta)*radial - uRadius);
+    vec3 flat = vec3(flatX, p.y, p.z);
+    vec3 pos  = mix(flat, bent, uCurve);
+    if (uReflect > 0.5){ pos.y = -uReflectBase - pos.y; }   // espejo continuo en y=-H/2
+    vShade   = clamp(cos(theta), 0.0, 1.0);
+    vReflect = uReflect;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }
 `;
 const FRAG = `
-  precision highp float;
-  varying vec2 vUv;
   uniform sampler2D uTex;
-  uniform vec2  uRep;
-  uniform vec2  uOff;
-  uniform float uAberr;     // aberración (por velocidad)
-  uniform float uOpacity;
-  uniform float uReflect;   // 1 = reflejo
-  uniform float uHasTex;
+  uniform vec2  uTexAspect;
+  uniform vec2  uCardSize;
+  uniform float uActive;      // 0..1 realce de la tarjeta frontal
+  varying vec2  vUv;
+  varying float vShade;
+  varying float vReflect;
+
+  vec2 coverUv(vec2 uv){
+    float cardA = uCardSize.x / uCardSize.y;
+    float imgA  = uTexAspect.x / uTexAspect.y;
+    vec2 s = vec2(1.0);
+    if (cardA > imgA) s.y = imgA / cardA; else s.x = cardA / imgA;
+    return (uv - 0.5) * s + 0.5;
+  }
   void main(){
-    vec2 uv = vUv * uRep + uOff;
-    float a = uAberr;
-    vec3 col;
-    if(uHasTex > 0.5){
-      float r = texture2D(uTex, uv + vec2(a, 0.0)).r;
-      float g = texture2D(uTex, uv).g;
-      float b = texture2D(uTex, uv - vec2(a, 0.0)).b;
-      col = vec3(r,g,b);
-    } else {
-      col = vec3(0.06,0.13,0.22);
-    }
-    // vignette sutil en bordes
-    float vx = smoothstep(0.0,0.18,vUv.x)*smoothstep(1.0,0.82,vUv.x);
-    float vy = smoothstep(0.0,0.14,vUv.y)*smoothstep(1.0,0.86,vUv.y);
-    col *= mix(0.80, 1.0, vx*vy);
-    float alpha = uOpacity;
-    if(uReflect > 0.5){
-      // el reflejo se desvanece alejándose de la imagen (parte superior del reflejo = contacto)
-      alpha *= smoothstep(0.0, 0.85, vUv.y) * 0.32;
+    vec2 uv = coverUv(vUv);
+    vec3 col = texture2D(uTex, clamp(uv, 0.001, 0.999)).rgb;
+
+    // borde oscuro suave (marco) — funde contra el fondo marino, sin transparencia
+    float ex = smoothstep(0.0,0.045,vUv.x) * smoothstep(1.0,0.955,vUv.x);
+    float ey = smoothstep(0.0,0.06, vUv.y) * smoothstep(1.0,0.94, vUv.y);
+    float frame = ex * ey;
+    col *= mix(0.0, 1.0, frame);
+
+    // oscurecer + desaturar tarjetas que receden a los lados (profundidad)
+    float shade = mix(0.30, 1.0, vShade);
+    float luma  = dot(col, vec3(0.2126,0.7152,0.0722));
+    col = mix(vec3(luma), col, mix(0.78, 1.0, vShade));
+    col *= shade;
+
+    // brillo sutil tipo vidrio en la parte alta de la frontal
+    col += vec3(0.05) * smoothstep(0.55,1.0,vUv.y) * vShade * uActive;
+    // realce de la frontal
+    col *= mix(0.92, 1.05, uActive);
+
+    float alpha = 1.0;
+    if (vReflect > 0.5){
+      // reflejo: más visible junto a la costura (vUv.y bajo), funde hacia abajo
+      alpha = (1.0 - vUv.y) * 0.26 * vShade;
+      col  *= 0.62;
     }
     gl_FragColor = vec4(col, alpha);
+    #include <colorspace_fragment>
   }
 `;
 
-const geo = new THREE.PlaneGeometry(PW, PH, 60, 40);
-const loader = new THREE.TextureLoader();
-loader.crossOrigin = 'anonymous';
-// proxy con headers CORS correctos (imgur/muscache no siempre los mandan → WebGL los rechaza)
-const PX = (u) => 'https://images.weserv.nl/?url=' + encodeURIComponent(u.replace(/^https?:\/\//,'')) + '&output=jpg&q=88';
+/* ── Construir tarjetas (mesh real + mesh reflejo) ── */
+const geo = new THREE.PlaneGeometry(P.cardW, P.cardH, SEG, 1);
+const cards = [];
 
-const slides = [];
-let loaded = 0;
+const loadingMgr = new THREE.LoadingManager();
+const texLoader  = new THREE.TextureLoader(loadingMgr);
 
-PROPS.forEach((prop, i) => {
-  const mkMat = (reflect) => new THREE.ShaderMaterial({
-    uniforms:{
-      uTex:{value:null}, uRep:{value:new THREE.Vector2(1,1)}, uOff:{value:new THREE.Vector2(0,0)},
-      uAberr:{value:0}, uOpacity:{value:1}, uReflect:{value:reflect?1:0}, uHasTex:{value:0},
-      uCurveX:{value:0.55}, uCurveY:{value:1.15}
-    },
-    vertexShader:VERT, fragmentShader:FRAG, transparent:true, depthTest:false
+ESTANCIAS.forEach((data, i) => {
+  const tex = texLoader.load(data.img, t => {
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const w = t.image?.naturalWidth || t.image?.width || 3;
+    const h = t.image?.naturalHeight || t.image?.height || 2;
+    main.material.uniforms.uTexAspect.value.set(w, h);
+    refl.material.uniforms.uTexAspect.value.set(w, h);
   });
-  const mat = mkMat(false);
-  const rmat = mkMat(true);
+  tex.colorSpace = THREE.SRGBColorSpace;
 
-  const mesh = new THREE.Mesh(geo, mat);
-  const refl = new THREE.Mesh(geo, rmat);
-  refl.scale.y = -1;
-  refl.position.y = -(PH + 0.16);
-  mesh.renderOrder = 2; refl.renderOrder = 1;
-  scene.add(refl); scene.add(mesh);
-  slides.push({ mesh, refl, mat, rmat });
+  const baseUniforms = () => ({
+    uRadius     : { value: P.radius },
+    uCardX      : { value: i * P.spacing },
+    uCurve      : { value: P.curve },
+    uReflectBase: { value: REFLECT_BASE },
+    uTex        : { value: tex },
+    uTexAspect  : { value: new THREE.Vector2(3,2) },
+    uCardSize   : { value: new THREE.Vector2(P.cardW, P.cardH) },
+    uActive     : { value: 0 },
+    uReflect    : { value: 0 },
+  });
 
-  loader.load(PX(prop.img), (tex)=>{
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const ia = tex.image.width / tex.image.height, pa = PW/PH;
-    const rep = new THREE.Vector2(1,1), off = new THREE.Vector2(0,0);
-    if(ia > pa){ rep.x = pa/ia; off.x = (1-rep.x)/2; }
-    else { rep.y = ia/pa; off.y = (1-rep.y)/2; }
-    [mat,rmat].forEach(m=>{ m.uniforms.uTex.value = tex; m.uniforms.uRep.value = rep; m.uniforms.uOff.value = off; m.uniforms.uHasTex.value = 1; });
-    loaded++;
-    if(loaded >= Math.min(3, PROPS.length)) hideLoader();
-  }, undefined, ()=>{ loaded++; if(loaded >= Math.min(3, PROPS.length)) hideLoader(); });
+  const main = new THREE.Mesh(geo, new THREE.ShaderMaterial({
+    vertexShader:VERT, fragmentShader:FRAG, uniforms:baseUniforms(),
+    transparent:false, side:THREE.DoubleSide,
+  }));
+  main.renderOrder = 1;
+
+  const ru = baseUniforms(); ru.uReflect.value = 1;
+  const refl = new THREE.Mesh(geo, new THREE.ShaderMaterial({
+    vertexShader:VERT, fragmentShader:FRAG, uniforms:ru,
+    transparent:true, depthWrite:false, side:THREE.DoubleSide,
+    blending:THREE.NormalBlending,
+  }));
+  refl.renderOrder = 0;
+
+  scene.add(main, refl);
+  cards.push({ data, main, refl, i });
 });
 
-// ── navegación / inercia ──
-let current = 0, target = 0, prev = 0;
-const N = PROPS.length;
-const clampT = (v)=> Math.max(0, Math.min(N-1, v));
+/* ── Interacción: arrastre + rueda + inercia + snap ── */
+let offset = 0, vel = 0, dragging = false, lastX = 0, lastInput = 0, frontIdx = 0;
 
-function go(d){ target = clampT(Math.round(target) + d); }
+function onDown(e){
+  dragging = true; vel = 0; lastX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+  canvas.classList.add('grabbing'); lastInput = performance.now();
+}
+function onMove(e){
+  if(!dragging) return;
+  const x = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+  const dx = x - lastX; lastX = x;
+  const d = -dx * 0.012;          // arrastrar a la derecha → el contenido sigue al dedo
+  offset += d; vel = d; lastInput = performance.now();
+}
+function onUp(){ dragging = false; canvas.classList.remove('grabbing'); lastInput = performance.now(); }
 
-// wheel
-let wheelLock = false;
-window.addEventListener('wheel', (e)=>{
+canvas.addEventListener('pointerdown', onDown);
+window.addEventListener('pointermove', onMove);
+window.addEventListener('pointerup', onUp);
+canvas.addEventListener('wheel', e => {
   e.preventDefault();
-  if(wheelLock) return;
-  if(Math.abs(e.deltaY) < 6 && Math.abs(e.deltaX) < 6) return;
-  go((e.deltaY + e.deltaX) > 0 ? 1 : -1);
-  wheelLock = true; setTimeout(()=>wheelLock=false, 260);
+  const d = (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * 0.0016;
+  offset += d; vel = d * 0.55; lastInput = performance.now();
 }, { passive:false });
 
-// drag
-let dragging=false, startX=0, startTarget=0;
-const onDown=(x)=>{ dragging=true; startX=x; startTarget=target; document.getElementById('hint').style.opacity='0'; };
-const onMove=(x)=>{ if(!dragging) return; const dx=(x-startX)/ (window.innerWidth*0.42); target = clampT(startTarget - dx); };
-const onUp=()=>{ if(!dragging) return; dragging=false; target = clampT(Math.round(target)); };
-canvas.addEventListener('pointerdown',(e)=>onDown(e.clientX));
-window.addEventListener('pointermove',(e)=>onMove(e.clientX));
-window.addEventListener('pointerup',onUp);
-canvas.style.cursor='grab';
-canvas.addEventListener('pointerdown',()=>canvas.style.cursor='grabbing');
-window.addEventListener('pointerup',()=>canvas.style.cursor='grab');
+/* ── Loop ── */
+const tmp = new THREE.Vector2();
+function update(){
+  // física offset
+  if(!dragging){
+    offset += vel; vel *= 0.92;
+    if(Math.abs(vel) < 0.0009){
+      vel = 0;
+      const snap = Math.round(offset / P.spacing) * P.spacing;   // encuadra una tarjeta
+      offset += (snap - offset) * 0.12;
+    }
+  }
 
-// teclado + flechas
-document.getElementById('next').addEventListener('click',()=>go(1));
-document.getElementById('prev').addEventListener('click',()=>go(-1));
-window.addEventListener('keydown',(e)=>{ if(e.key==='ArrowRight')go(1); if(e.key==='ArrowLeft')go(-1); });
+  // tarjeta frontal = múltiplo de spacing más cercano
+  frontIdx = ((Math.round(offset / P.spacing) % N) + N) % N;
 
-// ── UI sync ──
-const $name=document.getElementById('slideName'), $thumb=document.getElementById('pThumb'),
-      $counter=document.getElementById('pCounter'), $loc=document.getElementById('pLoc'),
-      $price=document.getElementById('pPrice'), $reserve=document.getElementById('pReserve'),
-      $ghost=document.getElementById('ghost');
-let lastIdx=-1;
-function syncUI(idx){
-  if(idx===lastIdx) return; lastIdx=idx;
-  const p=PROPS[idx];
-  $name.textContent=p.name;
-  $thumb.src=p.img; $counter.textContent=String(idx+1).padStart(2,'0')+' / '+String(N).padStart(2,'0');
-  $loc.textContent=p.loc; $price.textContent='$'+p.price;
-  $reserve.href='vrm_property.html?id='+p.id;
-  $ghost.textContent = p.loc.split(' · ')[0].split(' ')[0]==='La' ? 'La Cruz' : p.loc.split(' · ')[0];
-}
+  cards.forEach(c => {
+    // x efectivo envuelto al rango [-TOTAL/2, TOTAL/2] → tambor infinito
+    let x = c.i * P.spacing - offset;
+    x = ((x % TOTAL) + TOTAL) % TOTAL;
+    if (x > TOTAL/2) x -= TOTAL;
+    const theta = x / P.radius;
+    const vis = Math.abs(theta) < 1.65;            // culling de la cara trasera
 
-function hideLoader(){ const l=document.getElementById('ld'); if(!l)return; l.classList.add('gone'); setTimeout(()=>l.remove(),800); }
-setTimeout(hideLoader, 4000); // failsafe
-
-// ── resize ──
-function resize(){
-  const w=window.innerWidth, h=window.innerHeight;
-  renderer.setSize(w,h,false);
-  camera.aspect=w/h; camera.updateProjectionMatrix();
-  // en pantallas angostas, alejar la cámara para que quepa el panel
-  camera.position.z = w < 760 ? 6.6 : 5.4;
-}
-window.addEventListener('resize', resize); resize();
-
-// ── loop ──
-const reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
-function tick(){
-  current += (target - current) * (reduce ? 0.4 : 0.09);
-  const vel = current - prev; prev = current;
-  const aberr = Math.min(Math.abs(vel) * 0.10, 0.045);
-
-  slides.forEach((s, i)=>{
-    const x = (i - current) * SPACING;
-    s.mesh.position.x = x; s.refl.position.x = x;
-    const dist = Math.abs(i - current);
-    const op = Math.max(0, 1 - Math.max(0, dist-0.5)*1.15);  // se desvanecen los lejanos
-    s.mat.uniforms.uOpacity.value = op;
-    s.rmat.uniforms.uOpacity.value = op;
-    s.mat.uniforms.uAberr.value = aberr;
-    s.rmat.uniforms.uAberr.value = aberr*0.6;
-    const vis = dist < 1.8;
-    s.mesh.visible = vis; s.refl.visible = vis;
+    [c.main, c.refl].forEach(m => {
+      m.visible = vis;
+      const u = m.material.uniforms;
+      u.uCardX.value  = x;
+      u.uRadius.value = P.radius;
+      u.uCurve.value  = P.curve;
+      u.uCardSize.value.set(P.cardW, P.cardH);
+      const target = (c.i === frontIdx) ? 1 : 0;
+      u.uActive.value += (target - u.uActive.value) * 0.12;
+    });
   });
 
-  // nombre se atenúa durante el movimiento
-  $name.style.opacity = String(Math.max(0.15, 1 - Math.abs(vel)*9));
-
-  syncUI(clampT(Math.round(current)));
   renderer.render(scene, camera);
-  requestAnimationFrame(tick);
+  syncCaption();
+  requestAnimationFrame(update);
 }
-tick();
+
+/* ── Caption / contador ── */
+let capId = -1;
+const $ = id => document.getElementById(id);
+function syncCaption(){
+  if(frontIdx === capId) return;
+  capId = frontIdx;
+  const d = ESTANCIAS[frontIdx];
+  $('capEyebrow').textContent = d.eyebrow;
+  $('capTitle').textContent   = d.title;
+  $('capPrice').textContent   = d.price;
+  $('capGuests').textContent  = d.guests;
+  $('counterNow').textContent = String(frontIdx+1).padStart(2,'0');
+  const cap = $('caption');
+  cap.style.opacity = '0';
+  requestAnimationFrame(()=>{ cap.style.opacity = '1'; });
+}
+$('counterTot').textContent = String(N).padStart(2,'0');
+
+/* ── Tuner en vivo (tecla T) ── */
+const tuner = $('tuner');
+function tunerSync(){
+  $('tRad').textContent = P.radius.toFixed(1);
+  $('tSpc').textContent = P.spacing.toFixed(1);
+  $('tCam').textContent = P.camZ.toFixed(1);
+  $('tCrv').textContent = P.curve.toFixed(2);
+}
+addEventListener('keydown', e => {
+  const k = e.key;
+  if(k==='t'||k==='T'){ tuner.classList.toggle('show'); }
+  else if(k==='['){ P.radius = Math.max(2, P.radius-0.25); }
+  else if(k===']'){ P.radius += 0.25; }
+  else if(k==='-'){ P.spacing = Math.max(P.cardW, P.spacing-0.1); }
+  else if(k==='='){ P.spacing += 0.1; }
+  else if(k===';'){ P.camZ = Math.max(3, P.camZ-0.2); camera.position.z=P.camZ; }
+  else if(k==="'"){ P.camZ += 0.2; camera.position.z=P.camZ; }
+  else if(k==='c'||k==='C'){ P.curve = P.curve > 0.5 ? 0 : 1; }
+  else return;
+  tunerSync();
+});
+
+/* ── Resize ── */
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ── Arranque ── */
+loadingMgr.onLoad = () => {
+  $('loader').classList.add('hide');
+  tunerSync();
+};
+// fallback si alguna imagen tarda/falla: quita loader igual a los 2.5s
+setTimeout(()=>$('loader').classList.add('hide'), 2500);
+
+update();
 </script>
 </body>
 </html>
