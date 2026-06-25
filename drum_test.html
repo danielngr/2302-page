@@ -246,6 +246,8 @@ const FRAG = `
 const geo = new THREE.PlaneGeometry(PW, PH, 60, 40);
 const loader = new THREE.TextureLoader();
 loader.crossOrigin = 'anonymous';
+// proxy con headers CORS correctos (imgur/muscache no siempre los mandan → WebGL los rechaza)
+const PX = (u) => 'https://images.weserv.nl/?url=' + encodeURIComponent(u.replace(/^https?:\/\//,'')) + '&output=jpg&q=88';
 
 const slides = [];
 let loaded = 0;
@@ -270,7 +272,7 @@ PROPS.forEach((prop, i) => {
   scene.add(refl); scene.add(mesh);
   slides.push({ mesh, refl, mat, rmat });
 
-  loader.load(prop.img, (tex)=>{
+  loader.load(PX(prop.img), (tex)=>{
     tex.colorSpace = THREE.SRGBColorSpace;
     const ia = tex.image.width / tex.image.height, pa = PW/PH;
     const rep = new THREE.Vector2(1,1), off = new THREE.Vector2(0,0);
@@ -325,14 +327,14 @@ let lastIdx=-1;
 function syncUI(idx){
   if(idx===lastIdx) return; lastIdx=idx;
   const p=PROPS[idx];
-  $name.querySelector('.nm').textContent=p.name;
+  $name.textContent=p.name;
   $thumb.src=p.img; $counter.textContent=String(idx+1).padStart(2,'0')+' / '+String(N).padStart(2,'0');
   $loc.textContent=p.loc; $price.textContent='$'+p.price;
   $reserve.href='vrm_property.html?id='+p.id;
   $ghost.textContent = p.loc.split(' · ')[0].split(' ')[0]==='La' ? 'La Cruz' : p.loc.split(' · ')[0];
 }
 
-function hideLoader(){ const l=document.getElementById('ld'); l.classList.add('gone'); setTimeout(()=>l.remove(),800); }
+function hideLoader(){ const l=document.getElementById('ld'); if(!l)return; l.classList.add('gone'); setTimeout(()=>l.remove(),800); }
 setTimeout(hideLoader, 4000); // failsafe
 
 // ── resize ──
@@ -366,7 +368,7 @@ function tick(){
   });
 
   // nombre se atenúa durante el movimiento
-  $name.querySelector('.nm').style.opacity = String(Math.max(0.15, 1 - Math.abs(vel)*9));
+  $name.style.opacity = String(Math.max(0.15, 1 - Math.abs(vel)*9));
 
   syncUI(clampT(Math.round(current)));
   renderer.render(scene, camera);
