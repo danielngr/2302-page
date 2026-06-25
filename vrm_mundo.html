@@ -3,203 +3,383 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VRM · un solo lienzo (prototipo)</title>
+<title>VRM · La bahía, como debe ser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#0a1420;--cream:#f1ece1;--aqua:#9fd8e6;--mono:'Space Mono',monospace;--serif:'Cormorant Garamond',Georgia,serif}
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{background:var(--bg);color:var(--cream);font-family:var(--serif);overflow-x:hidden}
-  /* el MUNDO: un canvas fijo detrás de todo, una sola atmósfera continua */
+  html{scroll-behavior:auto}
+  body{background:var(--bg);color:var(--cream);font-family:var(--serif);overflow-x:hidden}
+  ::selection{background:rgba(159,216,230,.25)}
+
+  /* ===== EL MUNDO: un solo canvas fijo detrás de todo ===== */
   #world{position:fixed;inset:0;z-index:0;display:block}
   #grad{position:fixed;inset:0;z-index:1;pointer-events:none;
-    background:radial-gradient(120% 80% at 50% -10%,rgba(120,170,190,.18),transparent 46%),
-               linear-gradient(180deg,rgba(10,20,32,0) 0%,rgba(8,15,24,.0) 55%,rgba(6,11,18,.55) 100%)}
-  #vig{position:fixed;inset:0;z-index:2;pointer-events:none;
-    box-shadow:inset 0 0 240px 60px rgba(4,9,16,.8)}
-  /* navegación mínima */
-  nav{position:fixed;top:0;left:0;right:0;z-index:40;display:flex;justify-content:space-between;align-items:center;
-    padding:26px clamp(20px,4vw,54px);pointer-events:none}
-  nav .bm{font-style:italic;font-weight:500;font-size:20px;letter-spacing:.02em}
-  nav .co{font-family:var(--mono);font-size:10px;letter-spacing:.28em;text-transform:uppercase;opacity:.5}
-  /* pista de scroll del prototipo: la altura crea el "descenso" */
-  #scroll{position:relative;z-index:5;height:760vh}
-  /* estaciones de contenido: flotan sobre la MISMA atmósfera, sin cortes de foto */
+    background:radial-gradient(120% 80% at 50% -12%,rgba(120,170,190,.16),transparent 46%),
+               linear-gradient(180deg,rgba(10,20,32,0) 0%,rgba(8,15,24,0) 55%,rgba(6,11,18,.6) 100%)}
+  #vig{position:fixed;inset:0;z-index:2;pointer-events:none;box-shadow:inset 0 0 260px 70px rgba(4,9,16,.82)}
+
+  /* loader */
+  #loader{position:fixed;inset:0;z-index:120;background:var(--bg);display:flex;align-items:center;justify-content:center;transition:opacity .8s ease}
+  #loader .lk{font-family:var(--mono);font-size:10px;letter-spacing:.4em;text-transform:uppercase;opacity:.5;animation:pulse 1.8s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.25}50%{opacity:.7}}
+
+  /* nav */
+  nav{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;justify-content:space-between;align-items:center;
+    padding:24px clamp(20px,4vw,54px)}
+  nav .bm{font-style:italic;font-weight:500;font-size:21px;letter-spacing:.02em}
+  .bkpill{display:inline-flex;align-items:center;gap:10px;padding:10px 18px;border:1px solid rgba(243,236,221,.28);
+    border-radius:999px;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+    background:rgba(243,236,221,.06);backdrop-filter:blur(8px);color:var(--cream);cursor:pointer;transition:.3s}
+  .bkpill:hover{background:rgba(243,236,221,.12);border-color:rgba(243,236,221,.5)}
+  .bkpill svg{width:15px;height:15px;opacity:.8}
+
+  /* índice lateral */
+  .fnav{position:fixed;right:clamp(16px,2.5vw,40px);top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;gap:13px;pointer-events:none}
+  .fnav a{display:flex;align-items:center;gap:9px;justify-content:flex-end;font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:rgba(244,240,232,.42);text-decoration:none;transition:color .4s,letter-spacing .4s;text-shadow:0 1px 10px rgba(0,0,0,.6)}
+  .fnav a i{font-style:normal;font-size:8.5px;opacity:.6}
+  .fnav a .dot{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.55}
+  .fnav a.on{color:#fff;letter-spacing:.21em}
+  .fnav a.on .dot{opacity:1;box-shadow:0 0 10px var(--aqua)}
+
+  /* ===== estaciones de contenido ===== */
+  #scroll{position:relative;z-index:5}
   .station{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    text-align:center;padding:0 7vw;opacity:0;transition:opacity .35s ease;pointer-events:none;will-change:opacity,transform}
+    text-align:center;padding:0 7vw;opacity:0;pointer-events:none;will-change:opacity,transform}
   .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--aqua);opacity:.85;margin-bottom:22px}
-  .h{font-size:clamp(38px,7vw,104px);line-height:1.0;font-weight:400;letter-spacing:-.01em}
+  .h{font-size:clamp(38px,7vw,108px);line-height:1.0;font-weight:400;letter-spacing:-.012em}
   .h i{font-style:italic}
-  .sub{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.6;margin-top:26px;max-width:520px}
-  .stats{display:flex;gap:clamp(28px,6vw,86px);margin-top:10px;flex-wrap:wrap;justify-content:center}
-  .stat .n{font-size:clamp(40px,6vw,76px);line-height:.9;font-weight:500}
-  .stat .l{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;opacity:.55;margin-top:10px}
-  .code{font-family:var(--mono);font-weight:700;font-size:clamp(34px,6vw,72px);letter-spacing:.06em;color:#d2e8f0;text-shadow:0 0 30px rgba(120,180,210,.4)}
-  .pill{display:inline-flex;gap:10px;align-items:center;margin-top:30px;padding:14px 28px;border:1px solid rgba(243,236,221,.32);
-    border-radius:999px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
-    background:rgba(243,236,221,.05);backdrop-filter:blur(6px);pointer-events:auto}
-  /* hint de scroll */
-  #hint{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);z-index:20;font-family:var(--mono);
+  .sub{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.62;margin-top:26px;max-width:540px;line-height:1.9}
+  .stats{display:flex;gap:clamp(26px,6vw,88px);flex-wrap:wrap;justify-content:center}
+  .stat .n{font-size:clamp(42px,6.4vw,82px);line-height:.9;font-weight:500}
+  .stat .l{font-family:var(--mono);font-size:9.5px;letter-spacing:.17em;text-transform:uppercase;opacity:.55;margin-top:12px}
+  .code{font-family:var(--mono);font-weight:700;font-size:clamp(36px,6.4vw,76px);letter-spacing:.08em;color:#d2e8f0;text-shadow:0 0 34px rgba(120,180,210,.45);margin-top:22px}
+  .cbtns{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:32px;pointer-events:auto}
+  .cbtn{display:inline-flex;gap:9px;align-items:center;padding:13px 26px;border:1px solid rgba(243,236,221,.3);
+    border-radius:999px;font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--cream);text-decoration:none;
+    background:rgba(243,236,221,.05);backdrop-filter:blur(6px);transition:.3s;cursor:pointer}
+  .cbtn:hover{background:rgba(243,236,221,.13);transform:translateY(-2px)}
+  .cbtn.solid{background:var(--cream);color:#0c1822;border-color:var(--cream)}
+  .cbtn.solid:hover{background:#fff}
+
+  /* ===== casas: ventanas flotantes dentro del mundo ===== */
+  #casas{position:fixed;inset:0;z-index:9;pointer-events:none;opacity:0}
+  .frame{position:absolute;border-radius:4px;overflow:hidden;will-change:transform,opacity;
+    box-shadow:0 40px 90px rgba(0,0,0,.6);border:1px solid rgba(243,236,221,.12)}
+  .frame img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.92) brightness(.92)}
+  .frame .cap{position:absolute;left:12px;bottom:10px;right:12px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+    color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.8);display:flex;justify-content:space-between}
+  .f1{width:clamp(180px,20vw,300px);height:clamp(240px,27vw,400px);left:11vw;top:24vh}
+  .f2{width:clamp(150px,16vw,240px);height:clamp(190px,21vw,300px);right:13vw;top:18vh}
+  .f3{width:clamp(160px,17vw,260px);height:clamp(210px,23vw,330px);right:18vw;bottom:14vh}
+  .f4{width:clamp(140px,14vw,210px);height:clamp(180px,19vw,270px);left:17vw;bottom:16vh}
+
+  #hint{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:20;font-family:var(--mono);
     font-size:9.5px;letter-spacing:.28em;text-transform:uppercase;opacity:.5;transition:opacity .5s}
-  #hint::after{content:'';display:block;width:1px;height:34px;margin:12px auto 0;background:linear-gradient(rgba(241,236,225,.6),transparent);animation:drop 2.1s ease-in-out infinite}
+  #hint::after{content:'';display:block;width:1px;height:32px;margin:11px auto 0;background:linear-gradient(rgba(241,236,225,.6),transparent);animation:drop 2.1s ease-in-out infinite}
   @keyframes drop{0%{transform:scaleY(0);transform-origin:top;opacity:0}40%{transform:scaleY(1);opacity:1}100%{transform:scaleY(1);transform-origin:bottom;opacity:0}}
+
+  .grain{position:fixed;inset:0;z-index:3;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 </style>
 </head>
 <body>
+  <div id="loader"><div class="lk">VRM · entrando a la corriente</div></div>
+
   <canvas id="world"></canvas>
   <div id="grad"></div>
   <div id="vig"></div>
+  <div class="grain"></div>
 
-  <nav><span class="bm">vrm<b>.</b></span><span class="co">Bahía de Banderas · México</span></nav>
+  <nav>
+    <span class="bm">vrm<b>.</b></span>
+    <button class="bkpill"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M3 9.5h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Selecciona fechas</button>
+  </nav>
 
-  <!-- estaciones: todas sobre el mismo océano de partículas -->
-  <section class="station" data-from="0.00" data-to="0.12">
-    <div class="eyebrow">Vacation Rental México</div>
-    <h1 class="h">La bahía,<br><i>como debe ser</i></h1>
+  <nav class="fnav" id="fnav" aria-hidden="true">
+    <a data-p="0.04"><i>01</i>La bahía<span class="dot"></span></a>
+    <a data-p="0.20"><i>02</i>Por qué VRM<span class="dot"></span></a>
+    <a data-p="0.36"><i>03</i>Confianza<span class="dot"></span></a>
+    <a data-p="0.52"><i>04</i>Las casas<span class="dot"></span></a>
+    <a data-p="0.68"><i>05</i>La temporada<span class="dot"></span></a>
+    <a data-p="0.84"><i>06</i>Reseñas<span class="dot"></span></a>
+    <a data-p="0.96"><i>07</i>Tu estancia<span class="dot"></span></a>
+  </nav>
+
+  <!-- ===== estaciones ===== -->
+  <section class="station" data-from="0.00" data-to="0.13">
+    <div class="eyebrow">Vacation Rental México · Bahía de Banderas</div>
+    <h1 class="h" data-split>La bahía,<br><i>como debe ser.</i></h1>
     <div class="sub">Un solo lugar. Una sola corriente.</div>
   </section>
 
-  <section class="station" data-from="0.14" data-to="0.28">
+  <section class="station" data-from="0.15" data-to="0.29">
     <div class="eyebrow">01 · Por qué nosotros</div>
-    <h1 class="h">No rentamos casas.<br>Rentamos <i>la bahía.</i></h1>
-    <div class="sub">Gente real, en Vallarta. Te contestamos en español e inglés, rápido.</div>
+    <h1 class="h" data-split>No rentamos casas.<br>Rentamos <i>la bahía.</i></h1>
+    <div class="sub">Reservas directo, sin intermediarios. Gente real en Vallarta — te contestamos en español e inglés.</div>
   </section>
 
-  <section class="station" data-from="0.30" data-to="0.44">
+  <section class="station" data-from="0.31" data-to="0.43">
     <div class="eyebrow">La confianza, en números</div>
     <div class="stats">
-      <div class="stat"><div class="n">4.83</div><div class="l">Rating Airbnb</div></div>
-      <div class="stat"><div class="n">517</div><div class="l">Reseñas</div></div>
-      <div class="stat"><div class="n">70+</div><div class="l">Casas curadas</div></div>
-      <div class="stat"><div class="n">15%</div><div class="l">Menos que Airbnb</div></div>
+      <div class="stat"><div class="n" data-count="4.83" data-dec="2">0</div><div class="l">Rating Airbnb</div></div>
+      <div class="stat"><div class="n" data-count="517">0</div><div class="l">Reseñas verificadas</div></div>
+      <div class="stat"><div class="n" data-count="70" data-suf="+">0</div><div class="l">Casas curadas</div></div>
+      <div class="stat"><div class="n" data-count="15" data-suf="%">0</div><div class="l">Menos que Airbnb</div></div>
     </div>
   </section>
 
-  <section class="station" data-from="0.48" data-to="0.66">
-    <div class="eyebrow">03 · La temporada</div>
-    <h1 class="h">Cada invierno,<br><i>regresan.</i></h1>
-    <div class="sub">Aquí entra la ballena — emerge de esta misma corriente de partículas.</div>
+  <section class="station" data-from="0.46" data-to="0.60">
+    <div class="eyebrow">04 · Las casas</div>
+    <h1 class="h" data-split>Toda la bahía,<br><i>curada a mano.</i></h1>
+    <div class="sub">Más de 70 propiedades. Cada una elegida, no listada.</div>
   </section>
 
-  <section class="station" data-from="0.70" data-to="0.82">
+  <section class="station" data-from="0.63" data-to="0.79">
+    <div class="eyebrow">05 · La temporada</div>
+    <h1 class="h" data-split>Cada invierno,<br><i>regresan.</i></h1>
+    <div class="sub">Diciembre a marzo · la ballena jorobada en Bahía de Banderas.</div>
+  </section>
+
+  <section class="station" data-from="0.81" data-to="0.91">
     <div class="eyebrow">Lo que dicen</div>
-    <h1 class="h" style="font-size:clamp(28px,4.6vw,62px)">“Se siente que <i>conocen</i><br>cada rincón de la bahía.”</h1>
-    <div class="sub">— 517 reseñas verificadas</div>
+    <h1 class="h" data-split style="font-size:clamp(28px,4.4vw,60px)">“Se siente que <i>conocen</i><br>cada rincón de la bahía.”</h1>
+    <div class="sub">— de 517 reseñas verificadas</div>
   </section>
 
-  <section class="station" data-from="0.85" data-to="1.0">
-    <div class="eyebrow">06 · Tu estancia</div>
-    <h1 class="h">Reserva directo<br>con <i>nosotros.</i></h1>
-    <div class="code" style="margin-top:24px">VRM26</div>
-    <span class="pill">WhatsApp →</span>
+  <section class="station" data-from="0.93" data-to="1.0">
+    <div class="eyebrow">07 · Tu estancia · Un regalo</div>
+    <h1 class="h" data-split>Reserva directo<br>con <i>nosotros.</i></h1>
+    <div class="code">VRM26</div>
+    <div class="cbtns">
+      <a class="cbtn solid">WhatsApp →</a>
+      <a class="cbtn">Instagram</a>
+      <a class="cbtn">Ver todas las casas</a>
+    </div>
   </section>
+
+  <!-- ===== casas flotantes ===== -->
+  <div id="casas">
+    <div class="frame f1"><img src="https://i.imgur.com/dtkk9gt.jpeg" alt=""><div class="cap"><span>Marítima Penthouse</span><span>$500</span></div></div>
+    <div class="frame f2"><img src="https://i.imgur.com/RV3b2sb.jpeg" alt=""><div class="cap"><span>Bahía</span><span>→</span></div></div>
+    <div class="frame f3"><img src="https://i.imgur.com/sgXZxMP.jpeg" alt=""><div class="cap"><span>Península</span><span>→</span></div></div>
+    <div class="frame f4"><img src="https://i.imgur.com/ThY3A8L.jpeg" alt=""><div class="cap"><span>Flamingos</span><span>→</span></div></div>
+  </div>
 
   <div id="hint">Desliza para descender</div>
-  <div id="scroll"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-(function(){
-  const cv=document.getElementById('world');
-  const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:false});
-  renderer.setPixelRatio(Math.min(2,devicePixelRatio||1));
-  const scene=new THREE.Scene();
-  const DEEP=new THREE.Color(0x070d16), SURF=new THREE.Color(0x12303f);
-  scene.background=DEEP.clone();
-  scene.fog=new THREE.FogExp2(0x081019,0.0145);
+  <!-- la altura de esta pista crea el descenso -->
+  <div id="scroll" style="height:1000vh"></div>
 
-  const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,0.1,800);
-  camera.position.set(0,0,0);
+<!-- ===== THREE: el mundo (océano) + la ballena real (GLB) ===== -->
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
 
-  // ===== EL MUNDO: marine snow — una sola nube continua por la que vuelas =====
-  const N=6500, TUBE=460, RAD=70;
-  const pos=new Float32Array(N*3), spd=new Float32Array(N), siz=new Float32Array(N), ph=new Float32Array(N);
-  for(let i=0;i<N;i++){
-    const r=Math.pow(Math.random(),.5)*RAD, a=Math.random()*Math.PI*2;
-    pos[i*3]=Math.cos(a)*r; pos[i*3+1]=Math.sin(a)*r*0.7; pos[i*3+2]=-Math.random()*TUBE;
-    spd[i]=0.4+Math.random()*1.2; siz[i]=0.6+Math.random()*2.6; ph[i]=Math.random()*6.28;
+const WHALE_URL='https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/ballena.glb';
+const cv=document.getElementById('world');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:false});
+renderer.setPixelRatio(Math.min(2,devicePixelRatio||1));
+const scene=new THREE.Scene();
+const DEEP=new THREE.Color(0x070d16), SURF=new THREE.Color(0x123040);
+scene.background=DEEP.clone();
+scene.fog=new THREE.FogExp2(0x081019,0.013);
+const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,0.1,1200);
+
+const TUBE=520, RAD=74, CAMZ=()=>-(window.__P||0)*(TUBE-150);
+
+/* textura de punto suave */
+function dot(){const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');
+  const g=x.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.25,'rgba(220,240,250,.6)');g.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=g;x.fillRect(0,0,64,64);return new THREE.CanvasTexture(c);}
+const TEX=dot();
+
+function pointMat(color,tint){return new THREE.ShaderMaterial({
+  uniforms:{uTex:{value:TEX},uColor:{value:new THREE.Color(color)},uTint:{value:new THREE.Color(tint)},uMix:{value:0},uOpacity:{value:1}},
+  transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+  vertexShader:`attribute float size;varying float vd;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vd=-mv.z;gl_PointSize=size*(300./max(vd,1.));gl_Position=projectionMatrix*mv;}`,
+  fragmentShader:`uniform sampler2D uTex;uniform vec3 uColor;uniform vec3 uTint;uniform float uMix;uniform float uOpacity;varying float vd;void main(){float a=texture2D(uTex,gl_PointCoord).a;float fade=smoothstep(560.,40.,vd)*smoothstep(2.,18.,vd);vec3 c=mix(uColor,uTint,uMix);gl_FragColor=vec4(c,a*fade*uOpacity);}`
+});}
+
+/* ===== OCÉANO: nube continua reciclada alrededor de la cámara ===== */
+const N=6000;
+const opos=new Float32Array(N*3), osize=new Float32Array(N), oph=new Float32Array(N);
+for(let i=0;i<N;i++){const r=Math.pow(Math.random(),.5)*RAD,a=Math.random()*6.283;
+  opos[i*3]=Math.cos(a)*r;opos[i*3+1]=Math.sin(a)*r*0.72;opos[i*3+2]=-Math.random()*TUBE;
+  osize[i]=0.5+Math.random()*2.4;oph[i]=Math.random()*6.283;}
+const ogeo=new THREE.BufferGeometry();
+ogeo.setAttribute('position',new THREE.BufferAttribute(opos,3));
+ogeo.setAttribute('size',new THREE.BufferAttribute(osize,1));
+const omat=pointMat(0xbfe0ee,0x6fa8c0);
+scene.add(new THREE.Points(ogeo,omat));
+
+/* ===== BALLENA: partículas que viven cerca de whaleZ y forman el GLB ===== */
+const M=38000;
+const WHALE_P=0.71;
+const whaleZ=-(WHALE_P)*(TUBE-150)-46;
+const wpos=new Float32Array(M*3);
+const wscatter=new Float32Array(M*3);
+const wtarget=new Float32Array(M*3);
+const wsize=new Float32Array(M), wph=new Float32Array(M);
+for(let i=0;i<M;i++){
+  const r=Math.pow(Math.random(),.5)*54,a=Math.random()*6.283;
+  const sx=Math.cos(a)*r, sy=Math.sin(a)*r*0.6+(Math.random()-.5)*20, sz=whaleZ+(Math.random()-.5)*150;
+  wscatter[i*3]=sx;wscatter[i*3+1]=sy;wscatter[i*3+2]=sz;
+  wpos[i*3]=sx;wpos[i*3+1]=sy;wpos[i*3+2]=sz;
+  wtarget[i*3]=sx;wtarget[i*3+1]=sy;wtarget[i*3+2]=sz;
+  wsize[i]=0.45+Math.random()*1.7;wph[i]=Math.random()*6.283;
+}
+const wgeo=new THREE.BufferGeometry();
+wgeo.setAttribute('position',new THREE.BufferAttribute(wpos,3));
+wgeo.setAttribute('size',new THREE.BufferAttribute(wsize,1));
+const wmat=pointMat(0xdff0f8,0x86b9d0);
+const whalePts=new THREE.Points(wgeo,wmat);
+whalePts.frustumCulled=false;
+scene.add(whalePts);
+
+let whaleReady=false;
+new GLTFLoader().load(WHALE_URL,(gltf)=>{
+  let mesh=null; gltf.scene.updateMatrixWorld(true);
+  gltf.scene.traverse(o=>{ if(o.isMesh && !mesh) mesh=o; });
+  if(!mesh){console.warn('GLB sin mesh');return;}
+  const sampler=new MeshSurfaceSampler(mesh).build();
+  const tmp=new THREE.Vector3();
+  const box=new THREE.Box3().setFromObject(mesh);
+  const ctr=box.getCenter(new THREE.Vector3());
+  const span=Math.max(box.max.x-box.min.x,box.max.y-box.min.y,box.max.z-box.min.z)||1;
+  const SCALE=70/span;
+  for(let i=0;i<M;i++){
+    sampler.sample(tmp); tmp.applyMatrix4(mesh.matrixWorld);
+    wtarget[i*3]   = (tmp.x-ctr.x)*SCALE;
+    wtarget[i*3+1] = (tmp.y-ctr.y)*SCALE;
+    wtarget[i*3+2] = whaleZ + (tmp.z-ctr.z)*SCALE;
   }
-  const geo=new THREE.BufferGeometry();
-  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
-  geo.setAttribute('size',new THREE.BufferAttribute(siz,1));
-  // textura de punto suave (glow)
-  const tx=document.createElement('canvas');tx.width=tx.height=64;const tc=tx.getContext('2d');
-  const g=tc.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.25,'rgba(220,240,250,.65)');g.addColorStop(1,'rgba(255,255,255,0)');
-  tc.fillStyle=g;tc.fillRect(0,0,64,64);
-  const tex=new THREE.CanvasTexture(tx);
-  const mat=new THREE.ShaderMaterial({
-    uniforms:{uTex:{value:tex},uColor:{value:new THREE.Color(0xbfe0ee)},uTint:{value:new THREE.Color(0x6fa8c0)},uMix:{value:0}},
-    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
-    vertexShader:`attribute float size;varying float vd;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vd=-mv.z;gl_PointSize=size*(300./vd);gl_Position=projectionMatrix*mv;}`,
-    fragmentShader:`uniform sampler2D uTex;uniform vec3 uColor;uniform vec3 uTint;uniform float uMix;varying float vd;void main(){float a=texture2D(uTex,gl_PointCoord).a;float fade=smoothstep(420.,40.,vd)*smoothstep(2.,16.,vd);vec3 c=mix(uColor,uTint,uMix);gl_FragColor=vec4(c,a*fade*0.9);}`
-  });
-  const pts=new THREE.Points(geo,mat); scene.add(pts);
+  whaleReady=true;
+  console.log('VRM whale GLB listo');
+},undefined,(e)=>{console.warn('GLB error',e);});
 
-  // rayos de luz suaves desde la superficie (atmósfera)
-  const rays=new THREE.Group();
-  const rmat=new THREE.MeshBasicMaterial({color:0x9fd8e6,transparent:true,opacity:0.05,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
-  for(let i=0;i<5;i++){const pl=new THREE.Mesh(new THREE.PlaneGeometry(8,260),rmat.clone());
-    pl.position.set((Math.random()-.5)*70,60,-40-Math.random()*200);pl.rotation.z=(Math.random()-.5)*0.5;pl.material.opacity=0.03+Math.random()*0.04;rays.add(pl);}
-  scene.add(rays);
+/* rayos de luz desde la superficie */
+const rays=new THREE.Group();
+for(let i=0;i<6;i++){const m=new THREE.MeshBasicMaterial({color:0x9fd8e6,transparent:true,opacity:.03,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
+  const pl=new THREE.Mesh(new THREE.PlaneGeometry(7,300),m);
+  pl.position.set((Math.random()-.5)*80,70,-40-Math.random()*240);pl.rotation.z=(Math.random()-.5)*0.5;rays.add(pl);}
+scene.add(rays);
 
-  // ===== scroll =====
-  let P=0,targetP=0;
-  const scH=()=>document.getElementById('scroll').offsetHeight-innerHeight;
-  addEventListener('scroll',()=>{targetP=Math.min(1,Math.max(0,scrollY/scH()));},{passive:true});
+function smooth(e0,e1,x){x=Math.min(1,Math.max(0,(x-e0)/(e1-e0)));return x*x*(3-2*x);}
+function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
 
-  // estaciones
-  const stations=[...document.querySelectorAll('.station')].map(s=>({el:s,from:+s.dataset.from,to:+s.dataset.to}));
+const clock=new THREE.Clock();
+function loop(){
+  requestAnimationFrame(loop);
+  const t=clock.getElapsedTime();
+  const P=window.__P||0;
+  camera.position.z=CAMZ();
+  camera.position.y=Math.sin(t*0.14)*1.3;
+  camera.rotation.z=Math.sin(t*0.07)*0.008;
+  const cz=camera.position.z;
+
+  const oa=ogeo.attributes.position.array;
+  for(let i=0;i<N;i++){
+    oa[i*3+1]+=Math.sin(t*0.3+oph[i])*0.004; oa[i*3]+=Math.cos(t*0.2+oph[i])*0.004;
+    if(oa[i*3+2]>cz+18){const r=Math.pow(Math.random(),.5)*RAD,a=Math.random()*6.283;
+      oa[i*3]=Math.cos(a)*r;oa[i*3+1]=Math.sin(a)*r*0.72;oa[i*3+2]=cz-TUBE+Math.random()*40;}
+  }
+  ogeo.attributes.position.needsUpdate=true;
+
+  const amt=whaleReady?smooth(150,46,Math.abs(cz-whaleZ)):0;
+  const wa=wgeo.attributes.position.array;
+  const sw=Math.sin(t*0.25)*0.06;
+  for(let i=0;i<M;i++){
+    const k=amt;
+    let tx=wtarget[i*3], ty=wtarget[i*3+1], tz=wtarget[i*3+2];
+    if(k>0.001){const dx=tx, dz=tz-whaleZ; tx=dx*Math.cos(sw)-dz*Math.sin(sw); tz=whaleZ+dx*Math.sin(sw)+dz*Math.cos(sw);}
+    const hx=wscatter[i*3]+Math.sin(t*0.4+wph[i])*1.2;
+    const hy=wscatter[i*3+1]+Math.cos(t*0.3+wph[i])*1.2;
+    const hz=wscatter[i*3+2];
+    wa[i*3]  +=((hx*(1-k)+tx*k)-wa[i*3])*0.12;
+    wa[i*3+1]+=((hy*(1-k)+ty*k)-wa[i*3+1])*0.12;
+    wa[i*3+2]+=((hz*(1-k)+tz*k)-wa[i*3+2])*0.12;
+  }
+  wgeo.attributes.position.needsUpdate=true;
+  wmat.uniforms.uOpacity.value=0.35+amt*0.65;
+  wmat.uniforms.uColor.value.setHex(0xdff0f8).lerp(new THREE.Color(0xffffff),amt*0.4);
+
+  scene.background.copy(DEEP).lerp(SURF,(1-P)*0.55);
+  scene.fog.density=0.011+P*0.006;
+  omat.uniforms.uMix.value=0.15+P*0.5;
+  rays.position.z=cz; rays.children.forEach(r=>r.material.opacity=0.025*(1-P)+amt*0.04);
+
+  renderer.render(scene,camera);
+}
+loop();
+
+window.__worldReady=true;
+</script>
+
+<!-- ===== GSAP: Lenis + ScrollTrigger + SplitText ===== -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
+<script>
+window.addEventListener('load',function(){
+  gsap.registerPlugin(ScrollTrigger);
+
+  const lenis=new Lenis({lerp:0.085,wheelMultiplier:0.9});
+  lenis.on('scroll',ScrollTrigger.update);
+  gsap.ticker.add(t=>lenis.raf(t*1000));
+  gsap.ticker.lagSmoothing(0);
+
+  const track=document.getElementById('scroll');
+  const maxScroll=()=>track.offsetHeight-innerHeight;
+  function setP(){window.__P=Math.min(1,Math.max(0,scrollY/maxScroll()));}
+  setP(); lenis.on('scroll',setP); addEventListener('resize',setP);
+
+  const stations=[...document.querySelectorAll('.station')].map(s=>({el:s,from:+s.dataset.from,to:+s.dataset.to,split:null,shown:false}));
+  stations.forEach(s=>{const h=s.el.querySelector('[data-split]');if(h){s.split=new SplitText(h,{type:'chars,words'});gsap.set(s.split.chars,{opacity:0,yPercent:120});}});
+
   const hint=document.getElementById('hint');
-  function paintStations(p){
+  const casas=document.getElementById('casas');
+  const frames=[...document.querySelectorAll('.frame')];
+  const fnavA=[...document.querySelectorAll('.fnav a')];
+
+  function countUp(el){
+    const to=+el.dataset.count, dec=+(el.dataset.dec||0), suf=el.dataset.suf||'';
+    const o={v:0}; gsap.to(o,{v:to,duration:1.4,ease:'power2.out',onUpdate:()=>{el.textContent=o.v.toFixed(dec)+suf;}});
+  }
+
+  function paint(){
+    const p=window.__P||0;
     stations.forEach(s=>{
       const mid=(s.from+s.to)/2, half=(s.to-s.from)/2;
-      let o=1-Math.min(1,Math.abs(p-mid)/(half*1.25));
-      o=Math.max(0,o); s.el.style.opacity=o.toFixed(3);
-      s.el.style.transform='translateY('+((p-mid)*40).toFixed(1)+'px)';
-    });
-    hint.style.opacity=p<0.04?'0.5':'0';
-  }
-
-  function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
-  addEventListener('resize',resize);resize();
-
-  const clock=new THREE.Clock();
-  function loop(){
-    requestAnimationFrame(loop);
-    P+=(targetP-P)*0.06;
-    const t=clock.getElapsedTime();
-    // DESCENSO: la cámara avanza por el tubo según el scroll -> volamos por el mundo
-    camera.position.z = -P*(TUBE-120);
-    camera.position.y = Math.sin(t*0.15)*1.2;          // deriva orgánica
-    camera.rotation.z = Math.sin(t*0.08)*0.01;
-
-    // reciclar partículas que quedan detrás -> nube infinita
-    const cz=camera.position.z;
-    const arr=geo.attributes.position.array;
-    for(let i=0;i<N;i++){
-      let z=arr[i*3+2];
-      arr[i*3+1]+=Math.sin(t*0.3+ph[i])*0.004;          // flotar
-      arr[i*3]  +=Math.cos(t*0.2+ph[i])*0.004;
-      if(z>cz+18){                                       // detrás de la cámara
-        const r=Math.pow(Math.random(),.5)*RAD,a=Math.random()*Math.PI*2;
-        arr[i*3]=Math.cos(a)*r; arr[i*3+1]=Math.sin(a)*r*0.7; arr[i*3+2]=cz-TUBE+Math.random()*40;
+      let o=1-Math.min(1,Math.abs(p-mid)/(half*1.3)); o=Math.max(0,o);
+      s.el.style.opacity=o.toFixed(3);
+      s.el.style.transform='translateY('+((p-mid)*42).toFixed(1)+'px)';
+      if(o>0.18 && !s.shown && s.split){s.shown=true;
+        gsap.to(s.split.chars,{opacity:1,yPercent:0,duration:0.9,ease:'power3.out',stagger:0.014});
+        s.el.querySelectorAll('.sub,.eyebrow,.cbtns,.code').forEach((q,i)=>gsap.fromTo(q,{opacity:0,y:18},{opacity:1,y:0,duration:.8,delay:.25+i*.08,ease:'power2.out'}));
+        s.el.querySelectorAll('[data-count]').forEach(countUp);
       }
-    }
-    geo.attributes.position.needsUpdate=true;
-
-    // atmósfera: más profundo = más oscuro y azul; momento ballena (~0.57) = luminoso
-    scene.background.copy(DEEP).lerp(SURF,(1-P)*0.6);
-    scene.fog.density=0.0125+P*0.006;
-    const whale=Math.max(0,1-Math.abs(P-0.57)/0.12);
-    mat.uniforms.uMix.value=0.15+P*0.5;
-    mat.uniforms.uColor.value.setHex(0xbfe0ee).lerp(new THREE.Color(0xffffff),whale*0.5);
-    rays.position.z=cz; rays.children.forEach(r=>r.material.opacity=(0.02+0.04*Math.random()*0)+0.03*(1-P)+whale*0.05);
-
-    paintStations(P);
-    renderer.render(scene,camera);
+      if(o<0.05) s.shown=false;
+    });
+    const cvis=1-Math.min(1,Math.abs(p-0.53)/0.10); casas.style.opacity=Math.max(0,cvis).toFixed(3);
+    frames.forEach((f,i)=>{const dir=i%2?1:-1;f.style.transform='translateY('+((p-0.53)*(160+i*40)*dir).toFixed(1)+'px) scale('+(0.9+cvis*0.1).toFixed(3)+')';});
+    hint.style.opacity=p<0.04?'0.5':'0';
+    let best=0,bd=9;fnavA.forEach((a,i)=>{const d=Math.abs(p-+a.dataset.p);if(d<bd){bd=d;best=i;}});
+    fnavA.forEach((a,i)=>a.classList.toggle('on',i===best));
   }
-  loop();
-})();
+  gsap.ticker.add(paint);
+
+  const loader=document.getElementById('loader');
+  function hide(){loader.style.opacity=0;setTimeout(()=>loader.style.display='none',800);}
+  let waited=0;const iv=setInterval(()=>{waited+=120;if(window.__worldReady||waited>4500){clearInterval(iv);hide();}},120);
+
+  ScrollTrigger.refresh();
+});
 </script>
 </body>
 </html>
