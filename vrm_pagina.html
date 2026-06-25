@@ -715,7 +715,8 @@ footer{padding:64px var(--gx) 40px}
 const loader=document.getElementById('loader');function hideLoader(){loader.style.opacity=0;setTimeout(()=>loader.style.display='none',750);}
 try{
   const THREE=await import('three');const {FontLoader}=await import('three/addons/loaders/FontLoader.js');const {TextGeometry}=await import('three/addons/geometries/TextGeometry.js');const {RoomEnvironment}=await import('three/addons/environments/RoomEnvironment.js');
-  const canvas=document.getElementById('logo3d');const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!matchMedia('(max-width:760px)').matches});renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?0.6:2));renderer.setSize(canvas.clientWidth||innerWidth,canvas.clientHeight||innerHeight,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;
+  const canvas=document.getElementById('logo3d');const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!matchMedia('(max-width:760px)').matches});
+  canvas.addEventListener('webglcontextlost',function(ev){ev.preventDefault();},false); // anti-crash: no mata la página si se pierde el contextorenderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?0.6:2));renderer.setSize(canvas.clientWidth||innerWidth,canvas.clientHeight||innerHeight,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;
   const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(42,(canvas.clientWidth||innerWidth)/(canvas.clientHeight||innerHeight),0.1,100);camera.position.set(0,0,11);
   const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new RoomEnvironment(renderer),0.04).texture;
 
@@ -1351,6 +1352,7 @@ window.addEventListener('load',function(){
     try{
       THREE=await import('three');
       renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:false,powerPreference:'low-power'});
+      canvas.addEventListener('webglcontextlost',function(ev){ev.preventDefault();vis=false;},false); // anti-crash
       renderer.setPixelRatio(Math.min(devicePixelRatio,MOB?1.2:1.75));
       renderer.outputColorSpace=THREE.SRGBColorSpace;
       scene=new THREE.Scene();
@@ -1550,6 +1552,7 @@ window.addEventListener('load',function(){
   function initCont(){
     if(!window.gsap||!window.ScrollTrigger){return setTimeout(initCont,200);}
     var ST=window.ScrollTrigger;
+    var _MOB=matchMedia('(max-width:760px)').matches;   // en móvil saltamos el repaint pesado
     var SKIP={'s-ballena':1,'s-descuento':1};   // las dos ballenas no se transforman
     var secs=[].slice.call(document.querySelectorAll('[id^="s-"]')).filter(function(s){return /^s-/.test(s.id);});
     if(secs.length<2)return;
@@ -1562,7 +1565,7 @@ window.addEventListener('load',function(){
         var inC=SKIP[cur.id]?[]:contentOf(cur);
         ST.create({trigger:cur,start:'top bottom',end:'top top',scrub:0.5,onUpdate:function(self){
           var p=self.progress,e=p*p*(3-2*p),ie=1-e,k;
-          if(doOut&&bg)bg.style.filter='brightness('+(1-e*0.5)+')';
+          if(doOut&&bg&&!_MOB)bg.style.filter='brightness('+(1-e*0.5)+')';
           for(k=0;k<outC.length;k++){var o=outC[k];o.style.transform='translate3d(0,'+(-e*60)+'px,0) scale('+(1-e*0.05)+')';o.style.opacity=String(1-e*0.55);o.style.transformOrigin='50% 35%';}
           for(k=0;k<inC.length;k++){var c=inC[k];c.style.transform='translate3d(0,'+(ie*30)+'px,0)';c.style.opacity=String(1-ie*0.45);}
         }});
