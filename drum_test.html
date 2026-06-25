@@ -263,6 +263,27 @@ function uniforms(tex, reflect){
     uCardSize:{value:new THREE.Vector2(P.cardW,P.cardH)}, uActive:{value:0},
   };
 }
+/* Carga de texturas con CORS garantizado.
+   WebGL exige CORS para subir imágenes; imgur no lo trae → las ruteamos por
+   un proxy que añade Access-Control-Allow-Origin. Fallback directo por si el
+   host sí lo manda (p.ej. muscache). */
+function loadTexture(url, onTex, onFail){
+  const proxied = 'https://images.weserv.nl/?url='+encodeURIComponent(url)+'&w=1400&output=jpg&q=88';
+  function mkTex(im){
+    const t=new THREE.Texture(im); t.colorSpace=THREE.SRGBColorSpace;
+    t.minFilter=THREE.LinearMipmapLinearFilter; t.magFilter=THREE.LinearFilter;
+    t.anisotropy=renderer.capabilities.getMaxAnisotropy(); t.generateMipmaps=true; t.needsUpdate=true;
+    onTex(t, im.naturalWidth||1400, im.naturalHeight||900);
+  }
+  function attempt(src, last){
+    const im=new Image(); im.crossOrigin='anonymous';
+    im.onload=()=>mkTex(im);
+    im.onerror=()=>{ if(last){ console.warn('[drum] imagen falló:', url); onFail(); } else attempt(url, true); };
+    im.src=src;
+  }
+  attempt(proxied, false);   // 1) proxy weserv (CORS)   2) directo
+}
+
 let loaded=0;
 ESTANCIAS.forEach((data,i)=>{
   const tex=placeholder(data.id);
@@ -274,18 +295,11 @@ ESTANCIAS.forEach((data,i)=>{
   scene.add(main,refl);
   cards.push({data,main,refl,i});
 
-  const im=new Image();
-  im.onload=()=>{
-    const t=new THREE.Texture(im); t.colorSpace=THREE.SRGBColorSpace;
-    t.minFilter=THREE.LinearMipmapLinearFilter; t.magFilter=THREE.LinearFilter;
-    t.anisotropy=renderer.capabilities.getMaxAnisotropy(); t.needsUpdate=true;
-    const w=im.naturalWidth||640,h=im.naturalHeight||400;
+  loadTexture(data.img, (t,w,h)=>{
     main.material.uniforms.uTex.value=t; refl.material.uniforms.uTex.value=t;
     main.material.uniforms.uTexAspect.value.set(w,h); refl.material.uniforms.uTexAspect.value.set(w,h);
     if(++loaded>=N) $('loader').classList.add('hide');
-  };
-  im.onerror=()=>{ if(++loaded>=N) $('loader').classList.add('hide'); };
-  im.src=data.img;
+  }, ()=>{ if(++loaded>=N) $('loader').classList.add('hide'); });
 });
 
 /* Interacción — basada en targetOffset (soporta drag, rueda, flechas) */
