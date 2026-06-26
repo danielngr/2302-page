@@ -585,6 +585,7 @@ ESTANCIAS.forEach((data,i)=>{
 const canvas=$('gl');
 let offset=0, target=0, dragging=false, lastX=0, lastInput=0, frontIdx=0, downX=0, downY=0, downT=0, moved=0, axis=null;
 let rtOffset=1e9, rtRotY=999, rtRotX=999;   // estado del render target (para no re-renderizar PASE 1 si nada cambió)
+let dVisible=true, scrollFreezeUntil=0, lastFrame=0;   // visibilidad + congelado durante scroll (libera GPU)
 const SPACING=()=>P.cardW+P.gap;
 function down(e){ dragging=true; axis=null; const x=e.clientX??e.touches?.[0]?.clientX??0, y=e.clientY??e.touches?.[0]?.clientY??0; lastX=x; downX=x; downY=y; downT=performance.now(); moved=0; lastInput=performance.now(); canvas.classList.add('grabbing'); }
 function move(e){
@@ -594,7 +595,7 @@ function move(e){
     const adx=Math.abs(x-downX), ady=Math.abs(y-downY);
     if(adx<7 && ady<7) return;                       // umbral: esperar movimiento claro
     axis = adx>ady ? 'x' : 'y';
-    if(axis==='y'){ dragging=false; canvas.classList.remove('grabbing'); return; }  // VERTICAL → soltar, la página scrollea
+    if(axis==='y'){ dragging=false; canvas.classList.remove('grabbing'); scrollFreezeUntil=performance.now()+260; return; }  // VERTICAL → soltar + congelar, la página scrollea
     lastX=x;                                         // HORIZONTAL → arrancar giro desde aquí
   }
   if(axis==='x'){
@@ -611,6 +612,12 @@ function up(e){ if(!dragging){ axis=null; return; } dragging=false; axis=null; c
   } }   // TAP → abrir depa
 }
 canvas.addEventListener('pointerdown',down); addEventListener('pointermove',move,{passive:false}); addEventListener('pointerup',up); addEventListener('pointercancel',up);
+// El parent (index) avisa cuándo se está scrolleando o el drum sale de pantalla → congelamos para no pelear con el scroll
+addEventListener('message', function(e){
+  if(!e||!e.data) return;
+  if('vrmDrumVisible' in e.data) dVisible = !!e.data.vrmDrumVisible;
+  if('vrmDrumScroll'  in e.data) scrollFreezeUntil = performance.now()+220;
+});
 canvas.addEventListener('wheel',e=>{
   if(Math.abs(e.deltaX) > Math.abs(e.deltaY)){       // trackpad horizontal → gira el drum
     e.preventDefault(); target+=e.deltaX*0.004; lastInput=performance.now();
@@ -625,7 +632,13 @@ addEventListener('keydown',e=>{ if(e.key==='ArrowLeft')goTo(-1); else if(e.key==
 
 /* Loop */
 function loop(){
-  const nowSec=performance.now()/1000;
+  requestAnimationFrame(loop);                                   // agendar el siguiente SIEMPRE
+  const now=performance.now();
+  if(!dVisible || now < scrollFreezeUntil) return;               // congelado (scroll / fuera de vista) → cero render, GPU libre
+  const idle = !dragging && Math.abs(target-offset)<0.0008 && (now-lastInput)>320;
+  if(idle && (now-lastFrame)<32) return;                         // en reposo → ~30fps (el agua es sutil, imperceptible)
+  lastFrame=now;
+  const nowSec=now/1000;
   if(!dragging){
     // snap de la rueda tras inactividad
     if(performance.now()-lastInput>220) target=Math.round(target/SPACING())*SPACING();
@@ -653,7 +666,7 @@ function loop(){
   pmx += (tmx-pmx)*0.06; pmy += (tmy-pmy)*0.06;
   world.rotation.y = pmx*0.10;
   world.rotation.x = -pmy*0.06;
-  uTime += clock.getDelta();
+  uTime += Math.min(clock.getDelta(), 0.05);   // cap: sin salto del agua al reanudar
 
   // PASE 1 — solo las fotos → render target. Si la escena está quieta (sin girar ni parallax),
   // reusamos el RT del frame anterior en vez de re-renderizarlo (mitad de costo en reposo, invisible).
@@ -679,7 +692,7 @@ function loop(){
   renderer.setRenderTarget(null);
   renderer.render(scene, camera);
 
-  caption(); requestAnimationFrame(loop);
+  caption();
 }
 
 /* Caption / pill */

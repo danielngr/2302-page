@@ -4436,7 +4436,7 @@
       @media (max-width:640px){ .vrm-drum-embed{ padding:0 8px; } .vrm-drum-embed iframe{ height:62vh; min-height:360px; border-radius:12px; } }
     </style>
     <div class="vrm-drum-embed">
-      <iframe src="drum_integrado.html?embed=1" title="Estancias VRM — carrusel 3D" loading="lazy" scrolling="no"
+      <iframe id="vrmDrumFrame" src="drum_integrado.html?embed=1" title="Estancias VRM — carrusel 3D" loading="lazy" scrolling="no"
               allowtransparency="true" style="width:100%;height:min(82vh,860px);min-height:440px;border:0;display:block;background:transparent"></iframe>
       <p class="vrm-drum-hint">Arrastrá para girar · tocá una estancia para abrirla</p>
     </div>
@@ -8685,5 +8685,24 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 </script>
 
 <script>window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){ location.href=e.data.vrmDrumNav; } });</script>
+<script>
+/* Scroll fluido sobre el carrusel: congelamos el render del drum mientras la página
+   scrollea o cuando el drum no está en pantalla, para no pelear con el compositor del scroll. */
+(function(){
+  var frame=document.getElementById('vrmDrumFrame'); if(!frame) return;
+  function send(m){ try{ if(frame.contentWindow) frame.contentWindow.postMessage(m,'*'); }catch(_){} }
+  // Pausar cuando el drum sale de pantalla
+  if('IntersectionObserver' in window){
+    try{ new IntersectionObserver(function(es){ es.forEach(function(en){ send({vrmDrumVisible:en.isIntersecting}); }); }, {rootMargin:'250px 0px'}).observe(frame); }catch(_){}
+  }
+  // Avisar actividad de scroll (incluye el scroll encadenado desde el propio iframe) — throttle ~55ms
+  var last=0;
+  function ping(){ var t=Date.now(); if(t-last>55){ last=t; send({vrmDrumScroll:1}); } }
+  window.addEventListener('scroll', ping, {passive:true});
+  window.addEventListener('wheel',  ping, {passive:true});
+  window.addEventListener('touchmove', ping, {passive:true});
+  try{ if(window.__lenis && window.__lenis.on) window.__lenis.on('scroll', ping); }catch(_){}
+})();
+</script>
 </body>
 </html>
