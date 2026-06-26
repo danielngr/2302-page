@@ -26,7 +26,7 @@
   }
   body.light{ --ui:#14110d; background:radial-gradient(120% 90% at 50% 0%, #ffffff 0%, #f4f1ea 55%, #ece7dd 100%); }
 
-  #gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+  #gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab}
   @media(hover:hover){ #gl:not(.grabbing):hover{cursor:pointer} }
   #gl.grabbing{cursor:grabbing}
   body.embed{ background:transparent !important; }
@@ -578,11 +578,25 @@ ESTANCIAS.forEach((data,i)=>{
 
 /* Interacción — basada en targetOffset (soporta drag, rueda, flechas) */
 const canvas=$('gl');
-let offset=0, target=0, dragging=false, lastX=0, lastInput=0, frontIdx=0, downX=0, downY=0, downT=0, moved=0;
+let offset=0, target=0, dragging=false, lastX=0, lastInput=0, frontIdx=0, downX=0, downY=0, downT=0, moved=0, axis=null;
 const SPACING=()=>P.cardW+P.gap;
-function down(e){ dragging=true; const x=e.clientX??e.touches?.[0]?.clientX??0, y=e.clientY??e.touches?.[0]?.clientY??0; lastX=x; downX=x; downY=y; downT=performance.now(); moved=0; lastInput=performance.now(); canvas.classList.add('grabbing'); }
-function move(e){ if(!dragging)return; const x=e.clientX??e.touches?.[0]?.clientX??0, y=e.clientY??e.touches?.[0]?.clientY??0; const dx=x-lastX; lastX=x; moved+=Math.abs(dx)+Math.abs(y-downY)*0.0; offset+=-dx*0.011; target=offset; lastInput=performance.now(); }
-function up(e){ if(!dragging)return; dragging=false; canvas.classList.remove('grabbing'); target=Math.round(offset/SPACING())*SPACING();
+function down(e){ dragging=true; axis=null; const x=e.clientX??e.touches?.[0]?.clientX??0, y=e.clientY??e.touches?.[0]?.clientY??0; lastX=x; downX=x; downY=y; downT=performance.now(); moved=0; lastInput=performance.now(); canvas.classList.add('grabbing'); }
+function move(e){
+  if(!dragging)return;
+  const x=e.clientX??e.touches?.[0]?.clientX??0, y=e.clientY??e.touches?.[0]?.clientY??0;
+  if(axis===null){                                  // aún sin decidir intención
+    const adx=Math.abs(x-downX), ady=Math.abs(y-downY);
+    if(adx<7 && ady<7) return;                       // umbral: esperar movimiento claro
+    axis = adx>ady ? 'x' : 'y';
+    if(axis==='y'){ dragging=false; canvas.classList.remove('grabbing'); return; }  // VERTICAL → soltar, la página scrollea
+    lastX=x;                                         // HORIZONTAL → arrancar giro desde aquí
+  }
+  if(axis==='x'){
+    if(e.cancelable) e.preventDefault();             // bloquear scroll mientras gira
+    const dx=x-lastX; lastX=x; offset+=-dx*0.011; target=offset; moved+=Math.abs(dx); lastInput=performance.now();
+  }
+}
+function up(e){ if(!dragging){ axis=null; return; } dragging=false; axis=null; canvas.classList.remove('grabbing'); target=Math.round(offset/SPACING())*SPACING();
   const dt=performance.now()-downT;
   if(moved<8 && dt<450){ const d=ESTANCIAS[frontIdx]; if(d&&d.href){ const url=d.href;
     if(window.self===window.top){ window.location.href=url; }                          // standalone
@@ -590,8 +604,12 @@ function up(e){ if(!dragging)return; dragging=false; canvas.classList.remove('gr
            catch(_){ try{ window.parent.postMessage({vrmDrumNav:url},'*'); }catch(__){} } }
   } }   // TAP → abrir depa
 }
-canvas.addEventListener('pointerdown',down); addEventListener('pointermove',move); addEventListener('pointerup',up);
-canvas.addEventListener('wheel',e=>{ e.preventDefault(); target+=(Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY)*0.004; lastInput=performance.now(); },{passive:false});
+canvas.addEventListener('pointerdown',down); addEventListener('pointermove',move,{passive:false}); addEventListener('pointerup',up); addEventListener('pointercancel',up);
+canvas.addEventListener('wheel',e=>{
+  if(Math.abs(e.deltaX) > Math.abs(e.deltaY)){       // trackpad horizontal → gira el drum
+    e.preventDefault(); target+=e.deltaX*0.004; lastInput=performance.now();
+  }                                                  // scroll vertical → NO preventDefault → la página scrollea
+},{passive:false});
 /* parallax: el tambor sigue al cursor (suavizado) */
 let tmx=0,tmy=0,pmx=0,pmy=0;
 addEventListener('pointermove',e=>{ if(dragging) return; const r=glc.getBoundingClientRect(); tmx=((e.clientX-r.left)/r.width)*2-1; tmy=((e.clientY-r.top)/r.height)*2-1; });
