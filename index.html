@@ -4647,7 +4647,7 @@
     </style>
     <div class="vrm-drum-embed">
       <iframe id="vrmDrumFrame" src="drum_integrado.html?embed=1" title="Estancias VRM — carrusel 3D" loading="lazy" scrolling="no"
-              allowtransparency="true" style="width:100%;height:min(82vh,860px);min-height:440px;border:0;display:block;background:transparent;will-change:transform;transform:translateZ(0);backface-visibility:hidden;contain:layout paint style;overscroll-behavior:contain"></iframe>
+              allowtransparency="true" style="width:100%;height:min(88vh,940px);min-height:460px;border:0;display:block;background:transparent;will-change:transform;transform:translateZ(0);backface-visibility:hidden;contain:layout paint style;overscroll-behavior:contain"></iframe>
       <script>(function(){var f=document.getElementById('vrmDrumFrame');if(f&&window.VRM_LANG&&f.src.indexOf('lang=')<0){f.src=f.src+(f.src.indexOf('?')<0?'?':'&')+'lang='+window.VRM_LANG;}})();</script>
       <p class="vrm-drum-hint" data-i18n="drum.hint.outer">Arrastrá para girar · tocá una estancia para abrirla</p>
     </div>
@@ -8972,11 +8972,13 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){ location.href=e.data.vrmDrumNav; } });
 /* TRANSICIÓN de página (opción 1): la card se expande a pantalla completa + velo, luego navega */
 (function(){
-  /* === SHATTER (vidrio roto, estilo aikawa) === */
-  var VPT_BG = '#0A1428';   /* color que revela el shatter — cambiá a '#ffffff' para estilo aikawa */
+  /* === SHATTER (vidrio roto, estilo aikawa) — ida (explode) y vuelta (implode) === */
+  var VPT_BG = '#0A1428';     /* color que revela el shatter — '#ffffff' para estilo aikawa */
   var VPT_COLS = 6, VPT_ROWS = 5;        /* nº de esquirlas = COLS*ROWS (30) */
-  var VPT_NAV_MS = 740;                  /* cuándo navega (ms) */
-  function buildShatter(stage, img, x, y, w, h){
+  var VPT_DUR = 1.15;                     /* duración del estallido/ensamble (s) — subí para más lento */
+  var VPT_NAV_MS = 1020;                  /* cuándo navega (ms) */
+  function vptEase(){ return 'transform '+VPT_DUR+'s cubic-bezier(.2,.55,.2,1), opacity '+VPT_DUR+'s ease'; }
+  function makeShards(stage, img, x, y, w, h){
     var jx=(w/VPT_COLS)*0.55, jy=(h/VPT_ROWS)*0.55, V=[];
     for (var r=0;r<=VPT_ROWS;r++){ V[r]=[]; for (var c=0;c<=VPT_COLS;c++){
       var px=c/VPT_COLS, py=r/VPT_ROWS;
@@ -8984,7 +8986,7 @@ window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){
       if(r>0&&r<VPT_ROWS) py += ((Math.random()-0.5)*jy)/h;
       V[r][c]={px:px,py:py};
     }}
-    var cx=x+w/2, cy=y+h/2, far=Math.max(window.innerWidth,window.innerHeight), frag=document.createDocumentFragment();
+    var cx=x+w/2, cy=y+h/2, far=Math.max(window.innerWidth,window.innerHeight), shards=[];
     for (var rr=0;rr<VPT_ROWS;rr++){ for (var cc=0;cc<VPT_COLS;cc++){
       var p1=V[rr][cc], p2=V[rr][cc+1], p3=V[rr+1][cc+1], p4=V[rr+1][cc];
       var poly='polygon('+(p1.px*100).toFixed(2)+'% '+(p1.py*100).toFixed(2)+'%,'+(p2.px*100).toFixed(2)+'% '+(p2.py*100).toFixed(2)+'%,'+(p3.px*100).toFixed(2)+'% '+(p3.py*100).toFixed(2)+'%,'+(p4.px*100).toFixed(2)+'% '+(p4.py*100).toFixed(2)+'%)';
@@ -8994,17 +8996,26 @@ window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){
       sh.style.webkitClipPath=poly; sh.style.clipPath=poly;
       var mx=(p1.px+p2.px+p3.px+p4.px)/4, my=(p1.py+p2.py+p3.py+p4.py)/4;
       var dx=(x+mx*w)-cx, dy=(y+my*h)-cy, L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
-      sh._t={ tx:dx*far*(0.7+Math.random()*0.6), ty:dy*far*(0.7+Math.random()*0.6), tz:(Math.random()*2-1)*340,
-              ax:Math.random()*2-1, ay:Math.random()*2-1, az:Math.random()*2-1, ang:40+Math.random()*150, sc:0.45+Math.random()*0.5 };
-      sh.style.transitionDelay=(Math.random()*0.09).toFixed(3)+'s';
-      frag.appendChild(sh);
+      var T='translate3d('+(dx*far*(0.7+Math.random()*0.6)).toFixed(1)+'px,'+(dy*far*(0.7+Math.random()*0.6)).toFixed(1)+'px,'+((Math.random()*2-1)*340).toFixed(1)+'px) rotate3d('+(Math.random()*2-1).toFixed(3)+','+(Math.random()*2-1).toFixed(3)+','+(Math.random()*2-1).toFixed(3)+','+(40+Math.random()*150).toFixed(1)+'deg) scale('+(0.45+Math.random()*0.5).toFixed(3)+')';
+      sh._T=T; sh._d=(Math.random()*0.10);
+      stage.appendChild(sh); shards.push(sh);
     }}
-    stage.appendChild(frag);
+    return shards;
+  }
+  function explode(shards){
     requestAnimationFrame(function(){ requestAnimationFrame(function(){
-      var sh=stage.querySelectorAll('.vpt-shard');
-      for (var i=0;i<sh.length;i++){ var t=sh[i]._t;
-        sh[i].style.transform='translate3d('+t.tx.toFixed(1)+'px,'+t.ty.toFixed(1)+'px,'+t.tz.toFixed(1)+'px) rotate3d('+t.ax.toFixed(3)+','+t.ay.toFixed(3)+','+t.az.toFixed(3)+','+t.ang.toFixed(1)+'deg) scale('+t.sc.toFixed(3)+')';
-        sh[i].style.opacity='0';
+      for (var i=0;i<shards.length;i++){ var s=shards[i];
+        s.style.transition=vptEase(); s.style.transitionDelay=s._d.toFixed(3)+'s';
+        s.style.transform=s._T; s.style.opacity='0';
+      }
+    });});
+  }
+  function implode(shards){
+    for (var i=0;i<shards.length;i++){ var s=shards[i]; s.style.transition='none'; s.style.transform=s._T; s.style.opacity='0'; }
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      for (var j=0;j<shards.length;j++){ var s2=shards[j];
+        s2.style.transition=vptEase(); s2.style.transitionDelay=s2._d.toFixed(3)+'s';
+        s2.style.transform='none'; s2.style.opacity='1';
       }
     });});
   }
@@ -9020,14 +9031,40 @@ window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){
     var veil=document.createElement('div'); veil.className='vpt-veil'; veil.style.background=VPT_BG; ov.appendChild(veil);
     document.body.appendChild(ov);
     if (data.img){
+      try { sessionStorage.setItem('vrmReturn', JSON.stringify({img:data.img, x:x, y:y, w:w, h:h, t:Date.now()})); } catch(e){}
       var stage=document.createElement('div'); stage.className='vpt-stage'; ov.appendChild(stage);
-      buildShatter(stage, data.img, x, y, w, h);
-      requestAnimationFrame(function(){ veil.style.opacity='1'; });   // el fondo entra rápido detrás de las esquirlas
+      explode(makeShards(stage, data.img, x, y, w, h));
+      requestAnimationFrame(function(){ veil.style.opacity='1'; });
       setTimeout(go, VPT_NAV_MS);
     } else {
       requestAnimationFrame(function(){ veil.style.opacity='1'; }); setTimeout(go, 360);
     }
   }
+  /* VUELTA: al volver (botón atrás), las esquirlas se juntan y forman la card, luego se revela el index */
+  function playReturnTransition(data){
+    if (document.querySelector('.vrm-page-transition')) return;
+    var ov=document.createElement('div'); ov.className='vrm-page-transition';
+    var veil=document.createElement('div'); veil.className='vpt-veil'; veil.style.background=VPT_BG; veil.style.opacity='1'; veil.style.transition='opacity .42s ease'; ov.appendChild(veil);
+    var stage=document.createElement('div'); stage.className='vpt-stage'; ov.appendChild(stage);
+    document.body.appendChild(ov);
+    implode(makeShards(stage, data.img, data.x, data.y, data.w, data.h));
+    setTimeout(function(){ veil.style.opacity='0'; ov.style.transition='opacity .42s ease'; ov.style.opacity='0'; }, VPT_DUR*1000+140);
+    setTimeout(function(){ ov.remove(); }, VPT_DUR*1000+640);
+  }
+  window.addEventListener('pageshow', function(e){
+    var olds=document.querySelectorAll('.vrm-page-transition'); for (var k=0;k<olds.length;k++) olds[k].remove();
+    var nav=(performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || {};
+    var isBack=(nav.type==='back_forward') || e.persisted;
+    if (!isBack) return;
+    var raw; try { raw=sessionStorage.getItem('vrmReturn'); } catch(_){ return; }
+    if (!raw) return;
+    var rdata; try { rdata=JSON.parse(raw); } catch(_){ return; }
+    try { sessionStorage.removeItem('vrmReturn'); } catch(_){}
+    if (!rdata || !rdata.img || (Date.now()-rdata.t) > 300000) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    playReturnTransition(rdata);
+  });
+
   window.addEventListener('message', function(e){
     if (e && e.data && e.data.vrmDrumOpen && e.data.vrmDrumOpen.href) playOpenTransition(e.data.vrmDrumOpen);
   });
