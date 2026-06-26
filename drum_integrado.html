@@ -623,21 +623,31 @@ const SPACING=()=>P.cardW+P.gap;
 const _bandV = new THREE.Vector3();
 function carouselBandPx(){
   const r = glc.getBoundingClientRect();
+  // Vertical: alto de la card frontal proyectada
   _bandV.set(0,  P.cardH*0.5, 0).project(camera);
   const a = (1 - (_bandV.y*0.5 + 0.5)) * r.height + r.top;
   _bandV.set(0, -P.cardH*0.5, 0).project(camera);
   const b = (1 - (_bandV.y*0.5 + 0.5)) * r.height + r.top;
-  const top = Math.min(a,b), bot = Math.max(a,b);
-  // solo el cilindro: márgenes mínimos (sin franja vacía ni reflejo)
-  return [ top - 4, bot + 4 ];
+  const top = Math.min(a,b) - 4, bot = Math.max(a,b) + 4;
+  // Horizontal: ancho de la card frontal (doblada sobre el cilindro)
+  const halfArc = (P.cardW * 0.5) / P.radius;       // arco que ocupa media card
+  const ex = Math.sin(halfArc) * P.radius;          // x mundo del borde de la card frontal
+  const ez = Math.cos(halfArc) * P.radius - P.radius; // z mundo de ese borde
+  _bandV.set( ex, 0, ez).project(camera);
+  const x1 = (_bandV.x*0.5 + 0.5) * r.width + r.left;
+  _bandV.set(-ex, 0, ez).project(camera);
+  const x2 = (_bandV.x*0.5 + 0.5) * r.width + r.left;
+  const left = Math.min(x1,x2) - 4, right = Math.max(x1,x2) + 4;
+  return [ top, bot, left, right ];
 }
-function onCarousel(clientY){
-  const [t,b] = carouselBandPx();
-  return clientY >= t && clientY <= b;
+function onCarousel(clientX, clientY){
+  const [t,b,l,rr] = carouselBandPx();
+  return clientY >= t && clientY <= b && clientX >= l && clientX <= rr;
 }
 function down(e){
   const py = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
-  if(!onCarousel(py)) return;   // toque fuera del cilindro → no giramos; deja scrollear la página
+  const px = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+  if(!onCarousel(px, py)) return;   // fuera del cilindro (arriba/abajo o a los lados) → deja scrollear la página
   dragging=true; axis=null; velocity=0; snapTo=null;
   const x=e.clientX??e.touches?.[0]?.clientX??0, y=py;
   lastX=x; downX=x; downY=y; downT=performance.now(); moved=0; lastInput=performance.now();
