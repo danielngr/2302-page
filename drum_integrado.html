@@ -675,7 +675,7 @@ function up(e){
   const wasTap = (axis===null) && (performance.now()-downT < 450);   // nunca cruzó 10px y fue rápido → TAP
   axis=null;
   if(wasTap){
-    const d=ESTANCIAS[frontIdx]; if(d&&d.href) navTo(d.href);   // TAP → abrir depa
+    navToCard();   // TAP → abrir depa (con transición de expansión)
   }
 }
 canvas.addEventListener('pointerdown',down); addEventListener('pointermove',move,{passive:false}); addEventListener('pointerup',up); addEventListener('pointercancel',up);
@@ -697,9 +697,25 @@ function navTo(url){
   if(window.self===window.top){ window.location.href=url; }
   else { try{ window.top.location.href=url; } catch(_){ try{ window.parent.postMessage({vrmDrumNav:url},'*'); }catch(__){} } }
 }
+// Abre el depa CON transición: le pasa al padre la posición de la card frontal + su imagen.
+function navToCard(){
+  const d = ESTANCIAS[frontIdx];
+  if(!d || !d.href) return;
+  if(window.self !== window.top){
+    try {
+      const [t,b,l,r] = carouselBandPx();   // rect de la card frontal en el viewport del iframe
+      window.parent.postMessage({ vrmDrumOpen: {
+        href: d.href, img: d.img || '',
+        rect: { left:l, top:t, width:Math.max(0,r-l), height:Math.max(0,b-t) }
+      }}, '*');
+      return;
+    } catch(_){}
+  }
+  navTo(d.href);   // suelto / sin padre → navegación normal
+}
 function goTo(dir){ snapTo=Math.round(offset/SPACING())*SPACING()+dir*SPACING(); velocity=0; lastInput=performance.now(); }
 $('prev').onclick=()=>goTo(-1); $('next').onclick=()=>goTo(1);
-$('pReserve').onclick=()=>{ const d=ESTANCIAS[frontIdx]; if(d&&d.href) navTo(d.href); };
+$('pReserve').onclick=()=>{ navToCard(); };
 
 // ── i18n del drum (sincronizado con el padre vía ?lang= y postMessage) ──
 const DRUM_I18N = {
