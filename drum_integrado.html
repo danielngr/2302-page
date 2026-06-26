@@ -397,7 +397,11 @@ const FRAG = `
     litColor*=mix(0.985,1.03,uActive*vShade);
 
     float a=1.0;
-    if(uReflect>0.5){ a=pow(1.0-vUv.y,1.6)*0.34*mix(0.5,1.0,vShade); litColor*=0.72; }
+    if(uReflect>0.5){
+      a=pow(1.0-vUv.y,1.6)*0.34*mix(0.5,1.0,vShade);
+      a*=smoothstep(0.0, 150.0, gl_FragCoord.y);   // desvanece hacia el borde inferior del canvas → sin corte
+      litColor*=0.72;
+    }
     gl_FragColor=vec4(litColor,a);
   }
 `;
