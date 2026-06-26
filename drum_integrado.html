@@ -690,6 +690,25 @@ function navTo(url){
 function goTo(dir){ snapTo=Math.round(offset/SPACING())*SPACING()+dir*SPACING(); velocity=0; lastInput=performance.now(); }
 $('prev').onclick=()=>goTo(-1); $('next').onclick=()=>goTo(1);
 $('pReserve').onclick=()=>{ const d=ESTANCIAS[frontIdx]; if(d&&d.href) navTo(d.href); };
+
+// ── i18n del drum (sincronizado con el padre vía ?lang= y postMessage) ──
+const DRUM_I18N = {
+  en: { eyebrow:'Selected stays',         unit:'per night', reserve:'Book',     hint:'Drag · \u2190 \u2192' },
+  es: { eyebrow:'Estancias seleccionadas', unit:'por noche', reserve:'Reservar', hint:'Arrastra · \u2190 \u2192' }
+};
+let DRUM_LANG = (function(){ const p=new URLSearchParams(location.search).get('lang'); return (p==='en')?'en':'es'; })();
+function drumApplyLang(){
+  const t = DRUM_I18N[DRUM_LANG] || DRUM_I18N.es;
+  const eb=document.querySelector('.eyebrow-top'); if(eb) eb.textContent=t.eyebrow;
+  const un=document.querySelector('.pill-unit');  if(un) un.textContent=t.unit;
+  const rb=document.querySelector('#pReserve span'); if(rb) rb.textContent=t.reserve;
+  const hn=document.querySelector('.hint');       if(hn) hn.textContent=t.hint;
+  try { document.documentElement.lang = DRUM_LANG; } catch(e){}
+}
+window.addEventListener('message', (e)=>{
+  if (e.data && (e.data.vrmLang==='en' || e.data.vrmLang==='es')) { DRUM_LANG=e.data.vrmLang; drumApplyLang(); }
+});
+drumApplyLang();
 addEventListener('keydown',e=>{ if(e.key==='ArrowLeft')goTo(-1); else if(e.key==='ArrowRight')goTo(1); });
 
 /* Loop */

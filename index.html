@@ -76,9 +76,10 @@
   // Detección de idioma
   const urlParams = new URLSearchParams(window.location.search);
   const forcedLang = urlParams.get('lang');
+  let storedLang = null; try { storedLang = localStorage.getItem('vrm_lang'); } catch(e){}
   const browserLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
-  const lang = forcedLang === 'es' || forcedLang === 'en' 
-    ? forcedLang 
+  const lang = (forcedLang === 'es' || forcedLang === 'en') ? forcedLang
+    : (storedLang === 'es' || storedLang === 'en') ? storedLang
     : (browserLang.startsWith('es') ? 'es' : 'en');
   
   // Guardar en variable global para que el resto del JS pueda accederla
@@ -120,6 +121,14 @@
       'search.guests.suffix': 'guests',
       'search.guests.suffix_one': 'guest',
       'search.zone.all': 'All areas',
+      'search.zone.title': 'Which area?',
+      'search.zone.all.sub': 'All of Banderas Bay',
+      'search.zone.sub.pv_south': 'Puerto Vallarta · South',
+      'search.zone.sub.pv_hotel': 'Puerto Vallarta · Hotel Zone',
+      'search.zone.sub.south_coast': 'South Coast',
+      'search.guests.done': 'Done',
+      'drum.hint.outer': 'Drag to spin · tap a stay to open it',
+      'wa.sub': 'Real human, fast reply',
       'search.picker.title': 'Select your dates',
       'search.picker.clear': 'Clear',
       'search.picker.done': 'Done',
@@ -271,6 +280,14 @@
       'search.guests.suffix': 'huéspedes',
       'search.guests.suffix_one': 'huésped',
       'search.zone.all': 'Todas las zonas',
+      'search.zone.title': '¿En qué zona?',
+      'search.zone.all.sub': 'Toda la Bahía de Banderas',
+      'search.zone.sub.pv_south': 'Puerto Vallarta · Sur',
+      'search.zone.sub.pv_hotel': 'Puerto Vallarta · Hotelera',
+      'search.zone.sub.south_coast': 'Costa Sur',
+      'search.guests.done': 'Listo',
+      'drum.hint.outer': 'Arrastrá para girar · tocá una estancia para abrirla',
+      'wa.sub': 'Respuesta real y rápida',
       'search.picker.title': 'Selecciona tus fechas',
       'search.picker.clear': 'Limpiar',
       'search.picker.done': 'Listo',
@@ -398,6 +415,7 @@
     const dict = window.VRM_I18N[window.VRM_LANG] || window.VRM_I18N.en;
     return dict[key] || window.VRM_I18N.en[key] || key;
   };
+  window.VRM_t = window.t;
   
   // Aplicar traducciones a todos los elementos marcados con data-i18n
   // Se ejecuta después de DOMContentLoaded para garantizar que el DOM esté listo.
@@ -429,6 +447,25 @@
   
   // Exponer la función por si algún script dinámico quiere re-aplicar
   window.VRM_applyI18n = applyI18n;
+
+  // ── Cambio de idioma en runtime + selector EN/ES ──
+  window.VRM_setLang = function(l){
+    if (l !== 'es' && l !== 'en') return;
+    window.VRM_LANG = l;
+    document.documentElement.lang = l;
+    try { localStorage.setItem('vrm_lang', l); } catch(e){}
+    applyI18n();
+    if (typeof window.VRM_syncHero === 'function') window.VRM_syncHero();
+    document.querySelectorAll('.lang-opt').forEach(b => b.classList.toggle('active', b.getAttribute('data-lang') === l));
+    try { var fr = document.getElementById('vrmDrumFrame'); if (fr && fr.contentWindow) fr.contentWindow.postMessage({ vrmLang: l }, '*'); } catch(e){}
+  };
+  function initLangSwitch(){
+    document.querySelectorAll('.lang-opt').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-lang') === window.VRM_LANG);
+      b.addEventListener('click', () => window.VRM_setLang(b.getAttribute('data-lang')));
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initLangSwitch); else initLangSwitch();
 })();
 </script>
 
@@ -604,6 +641,19 @@
     /* mix-blend-mode removido (fix A.1) — causaba duplicado/sombra rara en nav-links */
   }
   .nav > * { pointer-events: auto; }
+  .nav-right { display: flex; align-items: center; gap: 20px; }
+  .lang-switch {
+    display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+    border: 1px solid rgba(232, 228, 218, 0.20); border-radius: 999px;
+    background: rgba(10, 20, 40, 0.28); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .lang-opt {
+    font-family: 'Satoshi', system-ui, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+    color: rgba(232, 228, 218, 0.55); background: transparent; border: 0; padding: 5px 9px; border-radius: 999px;
+    cursor: pointer; transition: color 0.2s, background 0.2s; -webkit-tap-highlight-color: transparent; line-height: 1;
+  }
+  .lang-opt:hover { color: rgba(232, 228, 218, 0.92); }
+  .lang-opt.active { color: #0A1428; background: var(--mist, #E8E4DA); }
   .nav-brand {
     font-family: var(--font-display);
     font-style: italic;
@@ -4271,7 +4321,7 @@
     </svg>
     <div class="wa-floating-text">
       WhatsApp 24/7
-      <small>Real human, fast reply</small>
+      <small data-i18n="wa.sub">Real human, fast reply</small>
     </div>
   </a>
 
@@ -4304,10 +4354,16 @@
     <a href="#top" class="nav-brand" onclick="window.scrollTo({top:0, behavior:'smooth'}); event.preventDefault();">
       <span class="mark"></span>VRM
     </a>
-    <div class="nav-links">
-      <a href="#properties" class="nav-link" data-i18n="nav.properties">Properties</a>
-      <a href="#final" class="nav-link" data-i18n="nav.contact">Contact</a>
-      <a href="#properties" class="nav-reserve" data-i18n="nav.reserve">Reserve</a>
+    <div class="nav-right">
+      <div class="nav-links">
+        <a href="#properties" class="nav-link" data-i18n="nav.properties">Properties</a>
+        <a href="#final" class="nav-link" data-i18n="nav.contact">Contact</a>
+        <a href="#properties" class="nav-reserve" data-i18n="nav.reserve">Reserve</a>
+      </div>
+      <div class="lang-switch" role="group" aria-label="Language / Idioma">
+        <button type="button" class="lang-opt" data-lang="en">EN</button>
+        <button type="button" class="lang-opt" data-lang="es">ES</button>
+      </div>
     </div>
   </nav>
 
@@ -4452,7 +4508,7 @@
           <ul class="guests-wheel-list" id="guestsWheelList">
         <li class="gw-pad"></li>
         <li class="gw-pad"></li>
-        <li class="gw-item" data-v="">Cualquiera</li>
+        <li class="gw-item" data-v="" data-i18n="search.guests.any">Cualquiera</li>
         <li class="gw-item" data-v="1">1</li>
         <li class="gw-item" data-v="2">2</li>
         <li class="gw-item" data-v="3">3</li>
@@ -4469,7 +4525,7 @@
         <li class="gw-pad"></li>
           </ul>
         </div>
-        <button type="button" class="guests-stepper-done" id="gstepDone">Listo</button>
+        <button type="button" class="guests-stepper-done" id="gstepDone" data-i18n="search.guests.done">Listo</button>
       </div>
     </div>
   </div>
@@ -4480,7 +4536,7 @@
     <div class="date-picker-backdrop" id="zonePickerBackdrop"></div>
     <div class="date-picker-card zone-picker-card" role="dialog">
       <div class="date-picker-head">
-        <span class="date-picker-eyebrow">¿En qué zona?</span>
+        <span class="date-picker-eyebrow" data-i18n="search.zone.title">¿En qué zona?</span>
         <button type="button" class="date-picker-close" id="zonePickerClose" aria-label="Cerrar">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
         </button>
@@ -4488,7 +4544,7 @@
       <div class="zone-list" id="zoneList">
         <button type="button" class="zone-option" data-zone="">
           <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
-          <span class="zone-text"><span class="zone-name">Todas las zonas</span><span class="zone-sub">Toda la Bahía de Banderas</span></span>
+          <span class="zone-text"><span class="zone-name" data-i18n="search.zone.all">Todas las zonas</span><span class="zone-sub" data-i18n="search.zone.all.sub">Toda la Bahía de Banderas</span></span>
           <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
         </button>
         <button type="button" class="zone-option" data-zone="Zona Romántica">
@@ -4498,7 +4554,7 @@
         </button>
         <button type="button" class="zone-option" data-zone="Conchas Chinas">
           <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
-          <span class="zone-text"><span class="zone-name">Conchas Chinas</span><span class="zone-sub">Puerto Vallarta · Sur</span></span>
+          <span class="zone-text"><span class="zone-name">Conchas Chinas</span><span class="zone-sub" data-i18n="search.zone.sub.pv_south">Puerto Vallarta · Sur</span></span>
           <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
         </button>
         <button type="button" class="zone-option" data-zone="Amapas">
@@ -4508,12 +4564,12 @@
         </button>
         <button type="button" class="zone-option" data-zone="Marina Vallarta">
           <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
-          <span class="zone-text"><span class="zone-name">Marina Vallarta</span><span class="zone-sub">Puerto Vallarta · Hotelera</span></span>
+          <span class="zone-text"><span class="zone-name">Marina Vallarta</span><span class="zone-sub" data-i18n="search.zone.sub.pv_hotel">Puerto Vallarta · Hotelera</span></span>
           <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
         </button>
         <button type="button" class="zone-option" data-zone="Mismaloya">
           <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
-          <span class="zone-text"><span class="zone-name">Mismaloya</span><span class="zone-sub">Costa Sur</span></span>
+          <span class="zone-text"><span class="zone-name">Mismaloya</span><span class="zone-sub" data-i18n="search.zone.sub.south_coast">Costa Sur</span></span>
           <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
         </button>
         <button type="button" class="zone-option" data-zone="Nuevo Vallarta">
@@ -4581,7 +4637,8 @@
     <div class="vrm-drum-embed">
       <iframe id="vrmDrumFrame" src="drum_integrado.html?embed=1" title="Estancias VRM — carrusel 3D" loading="lazy" scrolling="no"
               allowtransparency="true" style="width:100%;height:min(82vh,860px);min-height:440px;border:0;display:block;background:transparent;will-change:transform;transform:translateZ(0);backface-visibility:hidden;contain:layout paint style;overscroll-behavior:contain"></iframe>
-      <p class="vrm-drum-hint">Arrastrá para girar · tocá una estancia para abrirla</p>
+      <script>(function(){var f=document.getElementById('vrmDrumFrame');if(f&&window.VRM_LANG&&f.src.indexOf('lang=')<0){f.src=f.src+(f.src.indexOf('?')<0?'?':'&')+'lang='+window.VRM_LANG;}})();</script>
+      <p class="vrm-drum-hint" data-i18n="drum.hint.outer">Arrastrá para girar · tocá una estancia para abrirla</p>
     </div>
 
   </section>
@@ -8469,6 +8526,7 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       }
     }
   }
+  window.VRM_syncHero = syncHeroDisplay;
 
   // ───────────────────────────────────────────────────────────────────
   // RESTAURAR ESTADO desde sessionStorage si existe
