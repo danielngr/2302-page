@@ -661,9 +661,14 @@
   .vpt-stage { position: absolute; inset: 0; perspective: 1200px; perspective-origin: 50% 45%; }
   .vpt-shard {
     position: absolute; background-repeat: no-repeat;
-    will-change: transform, opacity;
-    filter: drop-shadow(0 0 1.1px rgba(255, 255, 255, 0.6));
-    transition: transform .82s cubic-bezier(.2,.55,.2,1), opacity .82s ease;
+    will-change: transform, opacity; backface-visibility: hidden;
+    filter: drop-shadow(0 0 0.6px rgba(255,255,255,.9)) drop-shadow(0 1px 1.5px rgba(0,0,0,.4));
+  }
+  .vpt-flash {
+    position: absolute; border-radius: 50%; pointer-events: none; mix-blend-mode: screen;
+    transform: translate(-50%, -50%) scale(0.2); opacity: 0.95;
+    background: radial-gradient(circle at center, rgba(255,255,255,.95) 0%, rgba(255,255,255,.4) 30%, rgba(255,255,255,0) 70%);
+    transition: transform .44s ease, opacity .44s ease;
   }
   .nav-brand {
     font-family: var(--font-display);
@@ -8972,40 +8977,64 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){ location.href=e.data.vrmDrumNav; } });
 /* TRANSICIÓN de página (opción 1): la card se expande a pantalla completa + velo, luego navega */
 (function(){
-  /* === SHATTER (vidrio roto, estilo aikawa) — ida (explode) y vuelta (implode) === */
+  /* === SHATTER (vidrio real, fractura radial) — ida (explode) y vuelta (implode) === */
   var VPT_BG = '#0A1428';     /* color que revela el shatter — '#ffffff' para estilo aikawa */
-  var VPT_COLS = 6, VPT_ROWS = 5;        /* nº de esquirlas = COLS*ROWS (30) */
-  var VPT_DUR = 1.15;                     /* duración del estallido/ensamble (s) — subí para más lento */
-  var VPT_NAV_MS = 1020;                  /* cuándo navega (ms) */
-  function vptEase(){ return 'transform '+VPT_DUR+'s cubic-bezier(.2,.55,.2,1), opacity '+VPT_DUR+'s ease'; }
+  var VPT_SEG = 9, VPT_RINGS = 4;        /* fractura radial: SEG segmentos x RINGS anillos */
+  var VPT_DUR = 1.15;                     /* duración del estallido/ensamble (s) */
+  var VPT_HOLD = 130;                     /* ms que la imagen queda "agrietada" antes de estallar */
+  var VPT_NAV_MS = 1180;                  /* cuándo navega (ms) */
+  var VPT_SHEEN = 'linear-gradient(125deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 32%, rgba(255,255,255,0) 64%, rgba(255,255,255,.09) 100%)';
+  function vptEaseOut(){ return 'transform '+VPT_DUR+'s cubic-bezier(.16,.62,.24,1), opacity '+(VPT_DUR*0.55).toFixed(2)+'s ease '+(VPT_DUR*0.42).toFixed(2)+'s'; }
+  function vptEaseIn(){ return 'transform '+VPT_DUR+'s cubic-bezier(.16,.62,.24,1), opacity '+VPT_DUR+'s ease'; }
   function makeShards(stage, img, x, y, w, h){
-    var jx=(w/VPT_COLS)*0.55, jy=(h/VPT_ROWS)*0.55, V=[];
-    for (var r=0;r<=VPT_ROWS;r++){ V[r]=[]; for (var c=0;c<=VPT_COLS;c++){
-      var px=c/VPT_COLS, py=r/VPT_ROWS;
-      if(c>0&&c<VPT_COLS) px += ((Math.random()-0.5)*jx)/w;
-      if(r>0&&r<VPT_ROWS) py += ((Math.random()-0.5)*jy)/h;
-      V[r][c]={px:px,py:py};
-    }}
-    var cx=x+w/2, cy=y+h/2, far=Math.max(window.innerWidth,window.innerHeight), shards=[];
-    for (var rr=0;rr<VPT_ROWS;rr++){ for (var cc=0;cc<VPT_COLS;cc++){
-      var p1=V[rr][cc], p2=V[rr][cc+1], p3=V[rr+1][cc+1], p4=V[rr+1][cc];
-      var poly='polygon('+(p1.px*100).toFixed(2)+'% '+(p1.py*100).toFixed(2)+'%,'+(p2.px*100).toFixed(2)+'% '+(p2.py*100).toFixed(2)+'%,'+(p3.px*100).toFixed(2)+'% '+(p3.py*100).toFixed(2)+'%,'+(p4.px*100).toFixed(2)+'% '+(p4.py*100).toFixed(2)+'%)';
+    var halfDiag=Math.hypot(w,h)*0.5, maxFrac=0.74, pts=[];
+    for (var ri=0; ri<=VPT_RINGS; ri++){
+      pts[ri]=[];
+      var rad=(ri===0)?0:maxFrac*Math.pow(ri/VPT_RINGS,1.22);
+      for (var si=0; si<VPT_SEG; si++){
+        if(ri===0){ pts[ri][si]={u:0.5,v:0.5}; continue; }
+        var ang=(si/VPT_SEG)*Math.PI*2 + ri*0.55;
+        var jr=rad*(1+(Math.random()-0.5)*0.26);
+        var ja=ang+(Math.random()-0.5)*(Math.PI*2/VPT_SEG)*0.5;
+        pts[ri][si]={ u:0.5+Math.cos(ja)*jr*halfDiag/w, v:0.5+Math.sin(ja)*jr*halfDiag/h };
+      }
+    }
+    var cells=[];
+    for (var s0=0;s0<VPT_SEG;s0++) cells.push({p:[pts[0][0],pts[1][s0],pts[1][(s0+1)%VPT_SEG]], ring:0});
+    for (var r1=1;r1<VPT_RINGS;r1++) for (var s1=0;s1<VPT_SEG;s1++)
+      cells.push({p:[pts[r1][s1],pts[r1][(s1+1)%VPT_SEG],pts[r1+1][(s1+1)%VPT_SEG],pts[r1+1][s1]], ring:r1});
+    var far=Math.max(window.innerWidth,window.innerHeight), bg=w+'px '+h+'px', shards=[];
+    for (var ci=0; ci<cells.length; ci++){
+      var cell=cells[ci], CP=cell.p;
+      var poly='polygon('+CP.map(function(p){ return (p.u*100).toFixed(2)+'% '+(p.v*100).toFixed(2)+'%'; }).join(',')+')';
       var sh=document.createElement('div'); sh.className='vpt-shard';
       sh.style.left=x+'px'; sh.style.top=y+'px'; sh.style.width=w+'px'; sh.style.height=h+'px';
-      sh.style.backgroundImage='url("'+img+'")'; sh.style.backgroundSize=w+'px '+h+'px';
+      sh.style.backgroundImage=VPT_SHEEN+', url("'+img+'")';
+      sh.style.backgroundSize=bg+', '+bg;
       sh.style.webkitClipPath=poly; sh.style.clipPath=poly;
-      var mx=(p1.px+p2.px+p3.px+p4.px)/4, my=(p1.py+p2.py+p3.py+p4.py)/4;
-      var dx=(x+mx*w)-cx, dy=(y+my*h)-cy, L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
-      var T='translate3d('+(dx*far*(0.7+Math.random()*0.6)).toFixed(1)+'px,'+(dy*far*(0.7+Math.random()*0.6)).toFixed(1)+'px,'+((Math.random()*2-1)*340).toFixed(1)+'px) rotate3d('+(Math.random()*2-1).toFixed(3)+','+(Math.random()*2-1).toFixed(3)+','+(Math.random()*2-1).toFixed(3)+','+(40+Math.random()*150).toFixed(1)+'deg) scale('+(0.45+Math.random()*0.5).toFixed(3)+')';
-      sh._T=T; sh._d=(Math.random()*0.10);
+      var mu=0,mv=0; for (var pi=0;pi<CP.length;pi++){ mu+=CP[pi].u; mv+=CP[pi].v; } mu/=CP.length; mv/=CP.length;
+      var dx=(mu-0.5)*w, dy=(mv-0.5)*h, L=Math.hypot(dx,dy)||1, nx=dx/L, ny=dy/L;
+      var spread=0.55 + (cell.ring/VPT_RINGS)*0.7 + Math.random()*0.35;
+      var tx=nx*far*spread, ty=ny*far*spread + far*0.16, tz=(Math.random()*2-1)*420;
+      var ang=(60 + cell.ring*40 + Math.random()*150)*(Math.random()<0.5?-1:1);
+      var sc=0.35+Math.random()*0.45;
+      sh._T='translate3d('+tx.toFixed(1)+'px,'+ty.toFixed(1)+'px,'+tz.toFixed(1)+'px) rotate3d('+(Math.random()*2-1).toFixed(2)+','+(Math.random()*2-1).toFixed(2)+','+(Math.random()*2-1).toFixed(2)+','+ang.toFixed(0)+'deg) scale('+sc.toFixed(2)+')';
+      sh._d=(cell.ring/VPT_RINGS)*0.12 + Math.random()*0.05;
       stage.appendChild(sh); shards.push(sh);
-    }}
+    }
     return shards;
+  }
+  function impactFlash(stage, px, py, size){
+    var f=document.createElement('div'); f.className='vpt-flash';
+    f.style.left=px+'px'; f.style.top=py+'px'; f.style.width=size+'px'; f.style.height=size+'px';
+    stage.appendChild(f);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ f.style.transform='translate(-50%,-50%) scale(2.6)'; f.style.opacity='0'; }); });
+    setTimeout(function(){ f.remove(); }, 460);
   }
   function explode(shards){
     requestAnimationFrame(function(){ requestAnimationFrame(function(){
       for (var i=0;i<shards.length;i++){ var s=shards[i];
-        s.style.transition=vptEase(); s.style.transitionDelay=s._d.toFixed(3)+'s';
+        s.style.transition=vptEaseOut(); s.style.transitionDelay=s._d.toFixed(3)+'s';
         s.style.transform=s._T; s.style.opacity='0';
       }
     });});
@@ -9014,7 +9043,7 @@ window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){
     for (var i=0;i<shards.length;i++){ var s=shards[i]; s.style.transition='none'; s.style.transform=s._T; s.style.opacity='0'; }
     requestAnimationFrame(function(){ requestAnimationFrame(function(){
       for (var j=0;j<shards.length;j++){ var s2=shards[j];
-        s2.style.transition=vptEase(); s2.style.transitionDelay=s2._d.toFixed(3)+'s';
+        s2.style.transition=vptEaseIn(); s2.style.transitionDelay=s2._d.toFixed(3)+'s';
         s2.style.transform='none'; s2.style.opacity='1';
       }
     });});
@@ -9028,13 +9057,14 @@ window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){
     var rc = data.rect || {};
     var x=(rc.left||0)+fo.left, y=(rc.top||0)+fo.top, w=rc.width||220, h=rc.height||280;
     var ov=document.createElement('div'); ov.className='vrm-page-transition';
-    var veil=document.createElement('div'); veil.className='vpt-veil'; veil.style.background=VPT_BG; ov.appendChild(veil);
+    var veil=document.createElement('div'); veil.className='vpt-veil'; veil.style.background=VPT_BG; veil.style.transition='opacity .28s ease'; ov.appendChild(veil);
     document.body.appendChild(ov);
     if (data.img){
       try { sessionStorage.setItem('vrmReturn', JSON.stringify({img:data.img, x:x, y:y, w:w, h:h, t:Date.now()})); } catch(e){}
       var stage=document.createElement('div'); stage.className='vpt-stage'; ov.appendChild(stage);
-      explode(makeShards(stage, data.img, x, y, w, h));
-      requestAnimationFrame(function(){ veil.style.opacity='1'; });
+      var shards=makeShards(stage, data.img, x, y, w, h);
+      impactFlash(stage, x+w/2, y+h/2, Math.max(w,h)*0.9);
+      setTimeout(function(){ veil.style.opacity='1'; explode(shards); }, VPT_HOLD);   // grietas → estalla
       setTimeout(go, VPT_NAV_MS);
     } else {
       requestAnimationFrame(function(){ veil.style.opacity='1'; }); setTimeout(go, 360);
@@ -9048,8 +9078,8 @@ window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){
     var stage=document.createElement('div'); stage.className='vpt-stage'; ov.appendChild(stage);
     document.body.appendChild(ov);
     implode(makeShards(stage, data.img, data.x, data.y, data.w, data.h));
-    setTimeout(function(){ veil.style.opacity='0'; ov.style.transition='opacity .42s ease'; ov.style.opacity='0'; }, VPT_DUR*1000+140);
-    setTimeout(function(){ ov.remove(); }, VPT_DUR*1000+640);
+    setTimeout(function(){ veil.style.opacity='0'; ov.style.transition='opacity .42s ease'; ov.style.opacity='0'; }, VPT_DUR*1000+160);
+    setTimeout(function(){ ov.remove(); }, VPT_DUR*1000+660);
   }
   window.addEventListener('pageshow', function(e){
     var olds=document.querySelectorAll('.vrm-page-transition'); for (var k=0;k<olds.length;k++) olds[k].remove();
