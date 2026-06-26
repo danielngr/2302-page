@@ -658,13 +658,13 @@
   /* TRANSICIÓN de página — expandir card + velo (opción 1) */
   .vrm-page-transition { position: fixed; inset: 0; z-index: 99999; pointer-events: none; }
   .vpt-card {
-    position: absolute; overflow: hidden; border-radius: 14px; background: #0A1428;
-    box-shadow: 0 40px 120px rgba(0, 0, 0, 0.55);
-    transition: left .58s cubic-bezier(.66,0,.2,1), top .58s cubic-bezier(.66,0,.2,1),
-                width .58s cubic-bezier(.66,0,.2,1), height .58s cubic-bezier(.66,0,.2,1), border-radius .5s ease;
+    position: absolute; overflow: hidden; border-radius: 16px; background: #0A1428;
+    box-shadow: 0 50px 140px rgba(0, 0, 0, 0.6);
+    transition: left .85s cubic-bezier(.76,0,.24,1), top .85s cubic-bezier(.76,0,.24,1),
+                width .85s cubic-bezier(.76,0,.24,1), height .85s cubic-bezier(.76,0,.24,1), border-radius .7s ease;
   }
-  .vpt-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .vpt-veil { position: absolute; inset: 0; background: #0A1428; opacity: 0; transition: opacity .22s ease; }
+  .vpt-card img { width: 100%; height: 100%; object-fit: cover; display: block; transform: scale(1); transition: transform .9s cubic-bezier(.76,0,.24,1); }
+  .vpt-veil { position: absolute; inset: 0; background: #0A1428; opacity: 0; transition: opacity .34s ease; }
   .nav-brand {
     font-family: var(--font-display);
     font-style: italic;
@@ -8980,6 +8980,8 @@ window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){
     var fo = fr ? fr.getBoundingClientRect() : {left:0, top:0};
     var rc = data.rect || {};
     var x = (rc.left||0)+fo.left, y = (rc.top||0)+fo.top, w = rc.width||220, h = rc.height||280;
+    // el mundo retrocede: el drum se aleja y oscurece mientras la card se levanta
+    if (fr){ fr.style.transition='transform .85s cubic-bezier(.76,0,.24,1), filter .85s ease'; fr.style.transform='scale(.93)'; fr.style.filter='brightness(.4)'; }
     var ov = document.createElement('div'); ov.className='vrm-page-transition';
     var card = document.createElement('div'); card.className='vpt-card';
     card.style.left=x+'px'; card.style.top=y+'px'; card.style.width=w+'px'; card.style.height=h+'px';
@@ -8990,9 +8992,10 @@ window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){
       card.style.left='0px'; card.style.top='0px';
       card.style.width=window.innerWidth+'px'; card.style.height=window.innerHeight+'px';
       card.style.borderRadius='0px';
+      var im2 = card.querySelector('img'); if (im2) im2.style.transform='scale(1.1)';   // push-in (zoom suave a la foto)
     });});
-    setTimeout(function(){ veil.style.opacity='1'; }, 400);   // velo sólido cubre justo antes de navegar
-    setTimeout(go, 600);
+    setTimeout(function(){ veil.style.opacity='1'; }, 560);   // velo entra tarde y suave (empalme)
+    setTimeout(go, 880);
   }
   window.addEventListener('message', function(e){
     if (e && e.data && e.data.vrmDrumOpen && e.data.vrmDrumOpen.href) playOpenTransition(e.data.vrmDrumOpen);
