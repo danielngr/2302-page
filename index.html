@@ -2592,12 +2592,7 @@
   /* =============================================================
      PROPIEDADES — Sección editorial + grid + filtros
      ============================================================= */
-  .properties {
-    position: relative; z-index: 4; padding: 0 0 200px;
-    /* Fondo opaco para que la ballena (canvas fijo) NO se transparente en la sección del drum.
-       Fundido suave arriba (la ballena se disuelve al entrar); abajo, abismo sólido y limpio. */
-    background: linear-gradient(180deg, rgba(10,20,40,0) 0, var(--abyss) 340px);
-  }
+  .properties { position: relative; z-index: 4; padding: 0 0 200px; }
 
   /* ═════════════════════════════════════════════════════════════
      HERO SEARCH — UI auxiliar después del filtro
@@ -8980,6 +8975,19 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 
 <script>
 window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){ location.href=e.data.vrmDrumNav; } });
+/* Scroll reenviado desde el drum (el iframe atrapaba la rueda vertical) → lo aplicamos con Lenis */
+window.addEventListener("message", function(e){
+  if(!e || !e.data || typeof e.data.vrmDrumWheel !== 'number') return;
+  var dy = e.data.vrmDrumWheel, l = window.__lenis;
+  if(l && typeof l.scrollTo === 'function'){
+    var cur = (typeof l.targetScroll === 'number') ? l.targetScroll
+            : (typeof l.animatedScroll === 'number') ? l.animatedScroll
+            : window.scrollY;
+    l.scrollTo(cur + dy, { duration: 0.4, easing: function(t){ return 1 - Math.pow(1 - t, 3); } });
+  } else {
+    window.scrollBy(0, dy);
+  }
+});
 /* TRANSICIÓN de página (opción 1): la card se expande a pantalla completa + velo, luego navega */
 (function(){
   /* === SHATTER (vidrio real, fractura radial) — ida (explode) y vuelta (implode) === */

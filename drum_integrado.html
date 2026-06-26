@@ -688,10 +688,13 @@ addEventListener('message', function(e){
   if('vrmDrumVisible' in e.data) dVisible = !!e.data.vrmDrumVisible;
   if('vrmDrumScroll'  in e.data) scrollFreezeUntil = performance.now()+220;
 });
-canvas.addEventListener('wheel',e=>{
-  if(Math.abs(e.deltaX) > Math.abs(e.deltaY)){       // trackpad horizontal → gira el drum
+addEventListener('wheel',e=>{
+  if(Math.abs(e.deltaX) > Math.abs(e.deltaY)+2){       // horizontal claro → gira el drum
     e.preventDefault(); velocity += e.deltaX*0.0016; snapTo=null; lastInput=performance.now();
-  }                                                  // scroll vertical → NO preventDefault → la página scrollea
+  } else {                                             // vertical → reenviar al padre (si no, el iframe atrapa el scroll)
+    e.preventDefault();
+    if(window.parent!==window){ try{ window.parent.postMessage({vrmDrumWheel:e.deltaY},'*'); }catch(_){} }
+  }
 },{passive:false});
 /* parallax: el tambor sigue al cursor (suavizado) */
 let tmx=0,tmy=0,pmx=0,pmy=0;
