@@ -18,7 +18,7 @@
     --ui:#E8E4DA;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{height:100%;overflow:hidden}
+  html,body{height:100%;overflow:hidden;overscroll-behavior:contain}
   body{
     font-family:var(--font-body); color:var(--ui);
     background:radial-gradient(120% 90% at 50% -10%, #16273f 0%, #0c1730 38%, #070d1c 78%);
@@ -41,25 +41,40 @@
 
   /* pill de navegación estilo aikawa */
   .pill{
-    position:absolute;left:50%;bottom:40px;transform:translateX(-50%);
-    display:flex;align-items:center;gap:4px;pointer-events:auto;
-    background:rgba(12,20,38,.62);border:1px solid var(--rule);border-radius:999px;
-    padding:7px 9px 7px 16px;backdrop-filter:blur(14px);
-    box-shadow:0 12px 40px rgba(0,0,0,.32);
+    position:absolute;left:50%;bottom:46px;transform:translateX(-50%);
+    display:flex;align-items:center;gap:10px;pointer-events:auto;
+    background:rgba(12,20,38,.72);border:1px solid rgba(232,228,218,.18);border-radius:999px;
+    padding:9px 11px 9px 11px;backdrop-filter:blur(18px) saturate(160%);
+    box-shadow:0 1px 0 rgba(255,255,255,.10) inset, 0 18px 50px rgba(0,0,0,.42), 0 4px 14px rgba(0,0,0,.28);
+    max-width:calc(100vw - 28px);
   }
-  body.light .pill{ background:rgba(255,255,255,.62);border-color:rgba(20,17,13,.1);box-shadow:0 12px 40px rgba(120,110,95,.18) }
-  .pill-label{display:flex;flex-direction:column;line-height:1.15;margin-right:12px;min-width:150px}
-  .pill-eyebrow{font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-soft);font-weight:600}
-  .pill-title{font-family:var(--font-display);font-style:italic;font-size:16px;color:var(--ui)}
+  body.light .pill{ background:rgba(255,255,255,.72);border-color:rgba(20,17,13,.1);box-shadow:0 18px 50px rgba(120,110,95,.22) }
+  .pill-label{display:flex;flex-direction:column;line-height:1.18;margin:0 4px 0 6px;min-width:150px}
+  .pill-eyebrow{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-soft);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+  .pill-title{font-family:var(--font-display);font-style:italic;font-size:19px;color:var(--ui);white-space:nowrap}
+  .pill-price-wrap{display:flex;flex-direction:column;align-items:flex-end;line-height:1.05;margin:0 6px 0 8px}
+  .pill-price{font-family:var(--font-body);font-weight:700;font-size:18px;color:var(--gold);letter-spacing:-.01em}
+  .pill-unit{font-family:var(--font-body);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ui);opacity:.5;font-weight:600;margin-top:1px}
+  .pill-reserve{
+    display:inline-flex;align-items:center;gap:7px;pointer-events:auto;
+    padding:13px 20px;border:0;border-radius:999px;cursor:pointer;
+    background:linear-gradient(135deg,#E08766 0%,#D97757 55%,#C5654A 100%);color:#fff;
+    font-family:var(--font-body);font-size:12px;font-weight:700;letter-spacing:.06em;
+    box-shadow:0 6px 18px rgba(217,119,87,.42), 0 1px 0 rgba(255,255,255,.20) inset;
+    transition:filter .25s var(--ease),transform .12s var(--ease),box-shadow .25s var(--ease);
+    white-space:nowrap;
+  }
+  .pill-reserve:hover{filter:brightness(1.07);transform:translateY(-1px);box-shadow:0 10px 26px rgba(217,119,87,.54), 0 1px 0 rgba(255,255,255,.24) inset}
+  .pill-reserve:active{transform:translateY(0) scale(.98)}
+  .pill-reserve svg{transition:transform .25s var(--ease)} .pill-reserve:hover svg{transform:translateX(2px)}
   .pill-btn{
-    width:34px;height:34px;border-radius:50%;border:1px solid var(--rule);
-    background:transparent;color:var(--ui);display:flex;align-items:center;justify-content:center;
+    width:38px;height:38px;border-radius:50%;border:1px solid rgba(232,228,218,.20);flex:0 0 auto;
+    background:rgba(232,228,218,.04);color:var(--ui);display:flex;align-items:center;justify-content:center;
     cursor:pointer;transition:.25s var(--ease);pointer-events:auto
   }
-  .pill-btn:hover{background:rgba(232,228,218,.12)}
+  .pill-btn:hover{background:rgba(232,228,218,.14);border-color:rgba(232,228,218,.34)}
   body.light .pill-btn{border-color:rgba(20,17,13,.12)} body.light .pill-btn:hover{background:rgba(20,17,13,.06)}
-  .pill-btn svg{width:14px;height:14px}
-  .pill-price{font-family:var(--font-body);font-weight:700;font-size:12px;color:var(--gold);margin-left:10px;margin-right:4px}
+  .pill-btn svg{width:15px;height:15px}
 
   .counter{position:absolute;bottom:46px;right:42px;font-family:var(--font-display);font-style:italic;font-size:15px;color:var(--ui);opacity:.55;letter-spacing:.05em}
   .counter b{color:var(--ui);opacity:1;font-style:normal;font-weight:700;font-family:var(--font-body);font-size:13px}
@@ -76,7 +91,16 @@
 
   @media(max-width:760px){
     .eyebrow-top{top:20px;left:18px;font-size:9px} .wordmark{top:16px;right:18px;font-size:19px}
-    .hint{display:none} .counter{right:18px;bottom:96px} .pill-label{min-width:110px}
+    .hint{display:none} .counter{right:18px;bottom:104px}
+    /* Pill compacta: en móvil se navega con swipe → ocultamos flechas y dejamos info + Reservar */
+    .pill{gap:9px;padding:7px 8px 7px 16px;bottom:30px;max-width:calc(100vw - 20px)}
+    .pill .pill-btn{display:none}
+    .pill-label{min-width:0;margin:0;flex:1 1 auto;overflow:hidden}
+    .pill-title{font-size:15.5px;overflow:hidden;text-overflow:ellipsis}
+    .pill-eyebrow{font-size:8px;max-width:none}
+    .pill-price-wrap{margin:0 4px 0 6px}
+    .pill-price{font-size:15px} .pill-unit{font-size:7.5px}
+    .pill-reserve{padding:11px 16px;font-size:11px;flex:0 0 auto}
   }
 </style>
 </head>
@@ -107,13 +131,20 @@ setTimeout(()=>{ if(!window.__drumOK) window.__showErr('El motor 3D no arrancó 
   <div class="wordmark">vrm.</div>
 
   <div class="pill">
+    <button class="pill-btn" id="prev" aria-label="anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M15 5l-7 7 7 7"/></svg></button>
     <div class="pill-label">
       <span class="pill-eyebrow" id="pEyebrow">—</span>
       <span class="pill-title" id="pTitle">—</span>
     </div>
-    <span class="pill-price" id="pPrice">—</span>
-    <button class="pill-btn" id="prev" aria-label="anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M15 5l-7 7 7 7"/></svg></button>
-    <button class="pill-btn" id="next" aria-label="siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 5l7 7-7 7"/></svg></button>
+    <div class="pill-price-wrap">
+      <span class="pill-price" id="pPrice">—</span>
+      <span class="pill-unit">por noche</span>
+    </div>
+    <button class="pill-reserve" id="pReserve">
+      <span>Reservar</span>
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+    </button>
+    <button class="pill-btn" id="next" aria-label="siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 5l7 7-7 7"/></svg></button>
   </div>
 
   <div class="hint">Arrastra · ← →</div>
@@ -610,11 +641,7 @@ function up(e){
   const wasTap = (axis===null) && (performance.now()-downT < 450);   // nunca cruzó 10px y fue rápido → TAP
   axis=null;
   if(wasTap){
-    const d=ESTANCIAS[frontIdx]; if(d&&d.href){ const url=d.href;
-      if(window.self===window.top){ window.location.href=url; }                         // standalone
-      else { try{ window.top.location.href=url; }                                        // embebido: ventana completa
-             catch(_){ try{ window.parent.postMessage({vrmDrumNav:url},'*'); }catch(__){} } }
-    }
+    const d=ESTANCIAS[frontIdx]; if(d&&d.href) navTo(d.href);   // TAP → abrir depa
   }
 }
 canvas.addEventListener('pointerdown',down); addEventListener('pointermove',move,{passive:false}); addEventListener('pointerup',up); addEventListener('pointercancel',up);
@@ -632,8 +659,13 @@ canvas.addEventListener('wheel',e=>{
 /* parallax: el tambor sigue al cursor (suavizado) */
 let tmx=0,tmy=0,pmx=0,pmy=0;
 addEventListener('pointermove',e=>{ if(dragging) return; const r=glc.getBoundingClientRect(); tmx=((e.clientX-r.left)/r.width)*2-1; tmy=((e.clientY-r.top)/r.height)*2-1; });
+function navTo(url){
+  if(window.self===window.top){ window.location.href=url; }
+  else { try{ window.top.location.href=url; } catch(_){ try{ window.parent.postMessage({vrmDrumNav:url},'*'); }catch(__){} } }
+}
 function goTo(dir){ snapTo=Math.round(offset/SPACING())*SPACING()+dir*SPACING(); velocity=0; lastInput=performance.now(); }
 $('prev').onclick=()=>goTo(-1); $('next').onclick=()=>goTo(1);
+$('pReserve').onclick=()=>{ const d=ESTANCIAS[frontIdx]; if(d&&d.href) navTo(d.href); };
 addEventListener('keydown',e=>{ if(e.key==='ArrowLeft')goTo(-1); else if(e.key==='ArrowRight')goTo(1); });
 
 /* Loop */
