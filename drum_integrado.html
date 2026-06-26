@@ -248,7 +248,7 @@ const FRAG = `
   precision highp float;
   uniform sampler2D uTex;
   uniform vec2  uTexAspect, uCardSize;
-  uniform float uActive, uReflect, uCA, uTime;
+  uniform float uActive, uReflect, uCA, uTime, uViewH;
   uniform float uGlassReflect, uGlassEdge, uGlassAbsorption;
   uniform float uReflectStrength, uReflectEdge, uReflectFace, uReflectThickness, uReflectScale, uReflectSat;
   uniform float uPrismBack, uPrismScatter, uPrismSat, uGlowStrength;
@@ -399,7 +399,7 @@ const FRAG = `
     float a=1.0;
     if(uReflect>0.5){
       a=pow(1.0-vUv.y,1.6)*0.34*mix(0.5,1.0,vShade);
-      a*=smoothstep(0.0, 150.0, gl_FragCoord.y);   // desvanece hacia el borde inferior del canvas → sin corte
+      a*=smoothstep(0.0, uViewH*0.30, gl_FragCoord.y);   // desvanece en el 30% inferior del canvas (DPR-independiente) → sin corte
       litColor*=0.72;
     }
     gl_FragColor=vec4(litColor,a);
@@ -508,7 +508,7 @@ const cards = [];
 function uniforms(tex, reflect){
   return {
     uRadius:{value:P.radius}, uCardX:{value:0}, uCurve:{value:P.curve},
-    uReflect:{value:reflect}, uReflectBase:{value:REFLECT_BASE}, uCA:{value:P.ca},
+    uReflect:{value:reflect}, uReflectBase:{value:REFLECT_BASE}, uCA:{value:P.ca}, uViewH:{value:CH()*DPR},
     uTex:{value:tex}, uTexAspect:{value:new THREE.Vector2(640,400)},
     uCardSize:{value:new THREE.Vector2(P.cardW,P.cardH)}, uActive:{value:0}, uTime:{value:0},
     uGlassReflect:{value:0.30}, uGlassEdge:{value:0.34}, uGlassAbsorption:{value:0.18},
@@ -617,7 +617,7 @@ function loop(){
     for(const m of [c.main,c.refl]){
       m.visible=vis; const u=m.material.uniforms;
       u.uCardX.value=x; u.uRadius.value=P.radius; u.uCurve.value=P.curve; u.uCA.value=P.ca;
-      u.uReflectBase.value=P.cardH + 0.70; u.uCardSize.value.set(P.cardW,P.cardH); u.uTime.value=uTime;
+      u.uReflectBase.value=P.cardH + 0.70; u.uCardSize.value.set(P.cardW,P.cardH); u.uTime.value=uTime; u.uViewH.value=CH()*DPR;
       u.uActive.value += (act-u.uActive.value)*0.12;
     }
     // título: capa de vidrio que se CURVA (suave) y flota delante de la card
