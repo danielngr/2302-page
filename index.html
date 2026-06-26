@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<script>if("scrollRestoration" in history) history.scrollRestoration="manual";</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0A1428">
@@ -481,6 +482,7 @@
   *, *::before, *::after { box-sizing: border-box; }
   html {
     scroll-behavior: smooth;
+    overscroll-behavior: none;            /* sin rebote/rubber-band al llegar a límites o al cruzar el carrusel */
     /* Fondo del html para que cubra status bar + home indicator areas en
        iOS Safari (cuando viewport-fit: cover está activo, esas zonas
        pueden quedar del color del navegador si html no tiene fondo). */
@@ -503,6 +505,7 @@
     -moz-osx-font-smoothing: grayscale;
     line-height: 1.5;
     overflow-x: hidden;
+    overscroll-behavior-y: none;          /* anti-rebote vertical */
     /* Asegurar que el body siempre cubre el viewport completo, incluyendo
        cuando la barra de URL de Safari se expande/contrae. dvh (dynamic
        viewport height) responde a los cambios de UI del navegador. */
@@ -978,12 +981,13 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 12px 16px;
+    gap: 5px;
+    padding: 14px 18px;
     background: rgba(232, 228, 218, 0.04);
     border: 1px solid rgba(232, 228, 218, 0.14);
-    border-radius: 12px;
-    transition: border-color 0.3s var(--ease-soft), background 0.3s var(--ease-soft);
+    border-radius: 14px;
+    transition: border-color .35s var(--ease-soft), background .35s var(--ease-soft), box-shadow .35s var(--ease-soft), transform .35s var(--ease-soft);
+    position: relative;
     cursor: pointer;
     min-width: 0;
     /* Reset button default styles si es <button> */
@@ -996,25 +1000,35 @@
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
   }
-  .hero-search-field:hover,
+  .hero-search-field:hover {
+    background: rgba(232, 228, 218, 0.08);
+    border-color: rgba(232, 228, 218, 0.34);
+    transform: translateY(-1px);
+  }
   .hero-search-field:focus-within,
-  .hero-search-field:focus {
-    background: rgba(232, 228, 218, 0.07);
-    border-color: rgba(232, 228, 218, 0.28);
+  .hero-search-field:focus,
+  .hero-search-field:active {
+    background: rgba(217, 119, 87, 0.08);
+    border-color: rgba(217, 119, 87, 0.60);
+    box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.12), 0 10px 28px rgba(7, 18, 36, 0.38);
     outline: none;
   }
+  /* Campo con valor elegido → label coral + valor brillante (feedback premium) */
+  .hero-search-field[data-empty="false"] .hero-search-label { color: rgba(217, 119, 87, 0.92); }
+  .hero-search-field[data-empty="false"] .hero-search-value { color: #FFFFFF; font-weight: 600; }
   .hero-search-label {
     font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.20em;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: rgba(232, 228, 218, 0.55);
+    color: rgba(232, 228, 218, 0.60);
     pointer-events: none;
+    transition: color .3s var(--ease-soft);
   }
   .hero-search-value {
     font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
     letter-spacing: 0.01em;
     color: rgba(232, 228, 218, 0.95);
@@ -1054,26 +1068,26 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    padding: 16px 24px;
-    background: var(--gold-bright, #D97757);
+    padding: 19px 28px;
+    background: linear-gradient(135deg, #E08766 0%, #D97757 55%, #C5654A 100%);
     color: #FFFFFF;
     font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 12.5px;
+    font-weight: 700;
     letter-spacing: 0.24em;
     text-transform: uppercase;
     border: none;
-    border-radius: 12px;
+    border-radius: 14px;
     cursor: pointer;
-    transition: background 0.3s var(--ease-soft), transform 0.3s var(--ease-soft), box-shadow 0.3s var(--ease-soft);
-    box-shadow: 0 4px 16px rgba(217, 119, 87, 0.32);
-    /* Compensar letter-spacing fantasma */
-    padding-right: calc(24px - 0.24em);
+    transition: filter .3s var(--ease-soft), transform .3s var(--ease-soft), box-shadow .3s var(--ease-soft);
+    box-shadow: 0 6px 22px rgba(217, 119, 87, 0.40), 0 1px 0 rgba(255,255,255,0.18) inset;
+    margin-top: 4px;
+    padding-right: calc(28px - 0.24em);
   }
   .hero-search-submit:hover {
-    background: #C5654A;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(217, 119, 87, 0.42);
+    filter: brightness(1.07);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(217, 119, 87, 0.52), 0 1px 0 rgba(255,255,255,0.22) inset;
   }
   .hero-search-submit:active {
     transform: translateY(0);
@@ -1374,34 +1388,86 @@
     transform: none;
   }
 
-  /* GUESTS PICKER — Grid de opciones tipo pills */
-  .guests-picker-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-top: 8px;
+  /* GUESTS PICKER — Ruleta (iOS-style, 1..12) */
+  .guests-wheel {
+    position: relative; height: 250px; margin: 8px 0 4px;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 24%, #000 76%, transparent 100%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 24%, #000 76%, transparent 100%);
   }
-  .guests-picker-option {
-    padding: 16px 12px;
-    background: rgba(232, 228, 218, 0.04);
-    border: 1px solid rgba(232, 228, 218, 0.16);
-    border-radius: 12px;
-    color: rgba(232, 228, 218, 0.92);
-    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
+  .guests-wheel-band {
+    position: absolute; left: 6px; right: 6px; top: 50%; height: 50px;
+    transform: translateY(-50%); pointer-events: none; z-index: 1;
+    border-top: 1px solid rgba(232,228,218,.16); border-bottom: 1px solid rgba(232,228,218,.16);
+    background: rgba(217,119,87,.05); border-radius: 12px;
   }
-  .guests-picker-option:hover {
-    background: rgba(232, 228, 218, 0.10);
-    border-color: rgba(232, 228, 218, 0.32);
+  .guests-wheel-list {
+    list-style: none; margin: 0; padding: 0; height: 100%;
+    overflow-y: scroll; scroll-snap-type: y mandatory;
+    scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch;
   }
-  .guests-picker-option.selected {
-    background: var(--gold-bright, #D97757);
-    border-color: var(--gold-bright, #D97757);
-    color: #FFFFFF;
-    font-weight: 600;
+  .guests-wheel-list::-webkit-scrollbar { display: none; }
+  .gw-pad { height: 50px; }
+  .gw-item {
+    height: 50px; display: flex; align-items: center; justify-content: center;
+    scroll-snap-align: center; cursor: pointer; user-select: none;
+    font-family: 'Boska', Georgia, serif; font-size: 27px; font-weight: 600;
+    color: var(--paper); letter-spacing: -0.01em; line-height: 1;
+    will-change: transform, opacity; transition: color .2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .gw-item.gw-sel { color: var(--gold-bright, #D97757); }
+
+  .guests-stepper-done {
+    width: 100%; margin-top: 8px; padding: 16px;
+    background: var(--gold-bright, #D97757); border: 0; border-radius: 14px;
+    color: #fff; font-family: 'Satoshi', system-ui, sans-serif; font-size: 15px; font-weight: 600;
+    letter-spacing: 0.02em; cursor: pointer; transition: filter .2s, transform .1s;
+  }
+  .guests-stepper-done:hover { filter: brightness(1.08); }
+  .guests-stepper-done:active { transform: scale(0.99); }
+
+  /* ZONA — campo botón + chevron */
+  .hero-search-field-zone { position: relative; padding-right: 38px; }
+  .hero-search-chevron {
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    color: rgba(232,228,218,.55); transition: color .3s var(--ease-soft), transform .3s var(--ease-soft); pointer-events: none;
+  }
+  .hero-search-field-zone:hover .hero-search-chevron,
+  .hero-search-field-zone:focus .hero-search-chevron { color: var(--gold-bright,#D97757); }
+
+  /* ZONE PICKER — modal premium */
+  .zone-picker-modal {
+    position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center;
+    padding: 20px; opacity: 0; pointer-events: none; transition: opacity .3s var(--ease-soft);
+  }
+  .zone-picker-modal.open { opacity: 1; pointer-events: auto; }
+  .zone-picker-card { max-width: 470px; width: 100%; }
+  .zone-picker-modal .date-picker-card { transform: translateY(16px) scale(.98); transition: transform .38s var(--ease-soft); }
+  .zone-picker-modal.open .date-picker-card { transform: translateY(0) scale(1); }
+  .zone-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 60vh; overflow-y: auto; }
+  .zone-option {
+    display: flex; align-items: center; gap: 13px; width: 100%; text-align: left;
+    padding: 13px 14px; border-radius: 14px; cursor: pointer;
+    background: rgba(232,228,218,.03); border: 1px solid rgba(232,228,218,.10);
+    color: var(--paper); transition: background .2s, border-color .2s, transform .12s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .zone-option:hover { background: rgba(232,228,218,.07); border-color: rgba(232,228,218,.22); }
+  .zone-option:active { transform: scale(.99); }
+  .zone-ico {
+    flex: 0 0 auto; width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center;
+    background: rgba(232,228,218,.05); border: 1px solid rgba(232,228,218,.12); color: rgba(232,228,218,.70); transition: background .2s, border-color .2s, color .2s;
+  }
+  .zone-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+  .zone-name { font-family: 'Satoshi', system-ui, sans-serif; font-size: 15px; font-weight: 600; color: var(--paper); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .zone-sub  { font-family: 'Satoshi', system-ui, sans-serif; font-size: 11.5px; color: rgba(232,228,218,.5); letter-spacing: .01em; }
+  .zone-check { flex: 0 0 auto; color: var(--gold-bright,#D97757); opacity: 0; transform: scale(.6); transition: opacity .2s, transform .2s; }
+  .zone-option.selected { background: rgba(217,119,87,.10); border-color: rgba(217,119,87,.45); }
+  .zone-option.selected .zone-ico { background: rgba(217,119,87,.16); border-color: rgba(217,119,87,.40); color: var(--gold-bright,#D97757); }
+  .zone-option.selected .zone-check { opacity: 1; transform: scale(1); }
+  @media (max-width: 600px) {
+    .zone-picker-modal { align-items: flex-end; padding: 0; }
+    .zone-picker-card { max-width: 100%; border-radius: 22px 22px 0 0; max-height: 86vh; }
   }
 
   /* Mobile date picker */
@@ -4292,15 +4358,12 @@
             </button>
           </div>
           <div class="hero-search-row hero-search-row-single">
-            <label class="hero-search-field" for="heroSearchZone">
+            <button type="button" class="hero-search-field hero-search-field-zone" id="heroSearchZoneBtn" aria-label="Seleccionar zona">
               <span class="hero-search-label" data-i18n="search.zone">Area</span>
-              <select class="hero-search-value" id="heroSearchZone">
-                <option value="" data-i18n="search.zone.all">All areas</option>
-                <option value="La Cruz">La Cruz de Huanacaxtle</option>
-                <option value="Nuevo Vallarta">Nuevo Vallarta · Flamingos</option>
-                <option value="Punta de Mita">Punta de Mita · Riviera Nayarit</option>
-              </select>
-            </label>
+              <span class="hero-search-value" id="heroSearchZoneValue" data-i18n="search.zone.all">All areas</span>
+              <svg class="hero-search-chevron" viewBox="0 0 10 6" width="11" height="7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg>
+            </button>
+            <input type="hidden" id="heroSearchZone" value="">
           </div>
           <button type="button" class="hero-search-submit" id="heroSearchSubmit">
             <span data-i18n="search.button">Search</span>
@@ -4383,16 +4446,96 @@
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
         </button>
       </div>
-      <div class="guests-picker-grid" id="guestsPickerGrid">
-        <button type="button" class="guests-picker-option" data-guests="">Any</button>
-        <button type="button" class="guests-picker-option" data-guests="1">1</button>
-        <button type="button" class="guests-picker-option" data-guests="2">2</button>
-        <button type="button" class="guests-picker-option" data-guests="3">3</button>
-        <button type="button" class="guests-picker-option" data-guests="4">4</button>
-        <button type="button" class="guests-picker-option" data-guests="5">5</button>
-        <button type="button" class="guests-picker-option" data-guests="6">6</button>
-        <button type="button" class="guests-picker-option" data-guests="7">7</button>
-        <button type="button" class="guests-picker-option" data-guests="8">8+</button>
+      <div id="guestsPickerGrid">
+        <div class="guests-wheel">
+          <div class="guests-wheel-band"></div>
+          <ul class="guests-wheel-list" id="guestsWheelList">
+        <li class="gw-pad"></li>
+        <li class="gw-pad"></li>
+        <li class="gw-item" data-v="">Cualquiera</li>
+        <li class="gw-item" data-v="1">1</li>
+        <li class="gw-item" data-v="2">2</li>
+        <li class="gw-item" data-v="3">3</li>
+        <li class="gw-item" data-v="4">4</li>
+        <li class="gw-item" data-v="5">5</li>
+        <li class="gw-item" data-v="6">6</li>
+        <li class="gw-item" data-v="7">7</li>
+        <li class="gw-item" data-v="8">8</li>
+        <li class="gw-item" data-v="9">9</li>
+        <li class="gw-item" data-v="10">10</li>
+        <li class="gw-item" data-v="11">11</li>
+        <li class="gw-item" data-v="12">12</li>
+        <li class="gw-pad"></li>
+        <li class="gw-pad"></li>
+          </ul>
+        </div>
+        <button type="button" class="guests-stepper-done" id="gstepDone">Listo</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ZONE PICKER — modal premium de zonas -->
+  <div class="zone-picker-modal" id="zonePickerModal" aria-hidden="true">
+    <div class="date-picker-backdrop" id="zonePickerBackdrop"></div>
+    <div class="date-picker-card zone-picker-card" role="dialog">
+      <div class="date-picker-head">
+        <span class="date-picker-eyebrow">¿En qué zona?</span>
+        <button type="button" class="date-picker-close" id="zonePickerClose" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="zone-list" id="zoneList">
+        <button type="button" class="zone-option" data-zone="">
+          <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
+          <span class="zone-text"><span class="zone-name">Todas las zonas</span><span class="zone-sub">Toda la Bahía de Banderas</span></span>
+          <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        </button>
+        <button type="button" class="zone-option" data-zone="Zona Romántica">
+          <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
+          <span class="zone-text"><span class="zone-name">Zona Romántica</span><span class="zone-sub">Puerto Vallarta · Olas Altas</span></span>
+          <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        </button>
+        <button type="button" class="zone-option" data-zone="Conchas Chinas">
+          <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
+          <span class="zone-text"><span class="zone-name">Conchas Chinas</span><span class="zone-sub">Puerto Vallarta · Sur</span></span>
+          <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        </button>
+        <button type="button" class="zone-option" data-zone="Amapas">
+          <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
+          <span class="zone-text"><span class="zone-name">Amapas</span><span class="zone-sub">Puerto Vallarta</span></span>
+          <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        </button>
+        <button type="button" class="zone-option" data-zone="Marina Vallarta">
+          <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
+          <span class="zone-text"><span class="zone-name">Marina Vallarta</span><span class="zone-sub">Puerto Vallarta · Hotelera</span></span>
+          <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        </button>
+        <button type="button" class="zone-option" data-zone="Mismaloya">
+          <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
+          <span class="zone-text"><span class="zone-name">Mismaloya</span><span class="zone-sub">Costa Sur</span></span>
+          <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        </button>
+        <button type="button" class="zone-option" data-zone="Nuevo Vallarta">
+          <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
+          <span class="zone-text"><span class="zone-name">Nuevo Vallarta · Flamingos</span><span class="zone-sub">Riviera Nayarit</span></span>
+          <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        </button>
+        <button type="button" class="zone-option" data-zone="Bucerías">
+          <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
+          <span class="zone-text"><span class="zone-name">Bucerías</span><span class="zone-sub">Riviera Nayarit</span></span>
+          <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        </button>
+        <button type="button" class="zone-option" data-zone="La Cruz">
+          <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
+          <span class="zone-text"><span class="zone-name">La Cruz de Huanacaxtle</span><span class="zone-sub">Riviera Nayarit</span></span>
+          <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        </button>
+        <button type="button" class="zone-option" data-zone="Punta de Mita">
+          <span class="zone-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
+          <span class="zone-text"><span class="zone-name">Punta de Mita</span><span class="zone-sub">Riviera Nayarit</span></span>
+          <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        </button>
       </div>
     </div>
   </div>
@@ -4437,7 +4580,7 @@
     </style>
     <div class="vrm-drum-embed">
       <iframe id="vrmDrumFrame" src="drum_integrado.html?embed=1" title="Estancias VRM — carrusel 3D" loading="lazy" scrolling="no"
-              allowtransparency="true" style="width:100%;height:min(82vh,860px);min-height:440px;border:0;display:block;background:transparent;will-change:transform;transform:translateZ(0);backface-visibility:hidden;contain:layout paint style"></iframe>
+              allowtransparency="true" style="width:100%;height:min(82vh,860px);min-height:440px;border:0;display:block;background:transparent;will-change:transform;transform:translateZ(0);backface-visibility:hidden;contain:layout paint style;overscroll-behavior:contain"></iframe>
       <p class="vrm-drum-hint">Arrastrá para girar · tocá una estancia para abrirla</p>
     </div>
 
@@ -7955,6 +8098,12 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   const $checkoutValue = document.getElementById('heroSearchCheckoutValue');
   const $guestsValue   = document.getElementById('heroSearchGuestsValue');
   const $zone          = document.getElementById('heroSearchZone');
+  const $zoneBtn       = document.getElementById('heroSearchZoneBtn');
+  const $zoneValue     = document.getElementById('heroSearchZoneValue');
+  const $znModal       = document.getElementById('zonePickerModal');
+  const $znBackdrop    = document.getElementById('zonePickerBackdrop');
+  const $znClose       = document.getElementById('zonePickerClose');
+  const $znList        = document.getElementById('zoneList');
   const $submit        = document.getElementById('heroSearchSubmit');
 
   // Date picker modal
@@ -7975,6 +8124,48 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   const $gpBackdrop  = document.getElementById('guestsPickerBackdrop');
   const $gpClose     = document.getElementById('guestsPickerClose');
   const $gpGrid      = document.getElementById('guestsPickerGrid');
+  const $gstepDone   = document.getElementById('gstepDone');
+  // ── RULETA de huéspedes (1..12) ──
+  const $gwList = document.getElementById('guestsWheelList');
+  const GW_ITEM_H = 50;
+  let gwRaf = null, gwScrollT = null;
+  function gwItems(){ return $gwList ? Array.from($gwList.querySelectorAll('.gw-item')) : []; }
+  function gwUpdateVisual(){
+    if(!$gwList) return;
+    const mid = $gwList.scrollTop + $gwList.clientHeight/2;
+    gwItems().forEach(li => {
+      const c = li.offsetTop + li.offsetHeight/2;
+      const dItems = (c - mid) / GW_ITEM_H, ad = Math.abs(dItems);
+      li.style.transform = 'perspective(440px) rotateX(' + Math.max(-62, Math.min(62, dItems*-20)).toFixed(2) + 'deg) scale(' + Math.max(0.66, 1 - ad*0.12).toFixed(3) + ')';
+      li.style.opacity = Math.max(0.20, 1 - ad*0.32).toFixed(3);
+      li.classList.toggle('gw-sel', ad < 0.5);
+    });
+  }
+  function gwCenteredValue(){
+    if(!$gwList) return '';
+    const mid = $gwList.scrollTop + $gwList.clientHeight/2;
+    let best=null, bd=1e9;
+    gwItems().forEach(li => { const c=li.offsetTop+li.offsetHeight/2, dd=Math.abs(c-mid); if(dd<bd){bd=dd;best=li;} });
+    return best ? (best.getAttribute('data-v')||'') : '';
+  }
+  function gwScrollToValue(v, smooth){
+    if(!$gwList) return;
+    const t = gwItems().find(li => (li.getAttribute('data-v')||'') === (v||''));
+    if(!t) return;
+    $gwList.scrollTo({ top: t.offsetTop + t.offsetHeight/2 - $gwList.clientHeight/2, behavior: smooth ? 'smooth' : 'auto' });
+    requestAnimationFrame(gwUpdateVisual);
+  }
+  if($gwList){
+    $gwList.addEventListener('scroll', () => {
+      if(gwRaf) cancelAnimationFrame(gwRaf);
+      gwRaf = requestAnimationFrame(gwUpdateVisual);
+      if(gwScrollT) clearTimeout(gwScrollT);
+      gwScrollT = setTimeout(() => { state.guests = gwCenteredValue(); syncHeroDisplay(); }, 110);
+    }, { passive: true });
+    gwItems().forEach(li => li.addEventListener('click', () => {
+      const v = li.getAttribute('data-v')||''; state.guests = v; gwScrollToValue(v, true); syncHeroDisplay();
+    }));
+  }
 
   if (!$checkinBtn || !$submit || !$dpModal) return;
 
@@ -8188,20 +8379,31 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   // ABRIR / CERRAR GUESTS PICKER
   // ───────────────────────────────────────────────────────────────────
   function openGuestsPicker() {
-    // Marcar la opción actualmente seleccionada
-    if ($gpGrid) {
-      $gpGrid.querySelectorAll('.guests-picker-option').forEach(btn => {
-        const val = btn.getAttribute('data-guests') || '';
-        btn.classList.toggle('selected', val === state.guests);
-      });
-    }
     $gpModal.classList.add('open');
     $gpModal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+    requestAnimationFrame(() => { gwScrollToValue(state.guests, false); requestAnimationFrame(gwUpdateVisual); });
   }
   function closeGuestsPicker() {
     $gpModal.classList.remove('open');
     $gpModal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+  // ── ZONE PICKER ──
+  function markZoneSelected(){
+    if(!$znList || !$zone) return;
+    const cur = $zone.value || '';
+    $znList.querySelectorAll('.zone-option').forEach(o => o.classList.toggle('selected', (o.getAttribute('data-zone')||'') === cur));
+  }
+  function openZonePicker(){
+    if(!$znModal) return;
+    markZoneSelected();
+    $znModal.classList.add('open'); $znModal.setAttribute('aria-hidden','false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeZonePicker(){
+    if(!$znModal) return;
+    $znModal.classList.remove('open'); $znModal.setAttribute('aria-hidden','true');
     document.body.style.overflow = '';
   }
 
@@ -8244,9 +8446,26 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
           : ((window.VRM_t && window.VRM_t('search.guests.suffix')) || 'guests');
         $guestsValue.textContent = `${g} ${suffix}`;
         $guestsValue.removeAttribute('data-i18n');
+        if ($guestsBtn) $guestsBtn.setAttribute('data-empty', 'false');
       } else {
         $guestsValue.setAttribute('data-i18n', 'search.guests.any');
         $guestsValue.textContent = (window.VRM_t && window.VRM_t('search.guests.any')) || 'Any';
+        if ($guestsBtn) $guestsBtn.setAttribute('data-empty', 'true');
+      }
+    }
+    // Zona
+    if ($zoneValue) {
+      const zv = $zone ? ($zone.value || '') : '';
+      if (zv) {
+        let label = zv;
+        if ($znList) $znList.querySelectorAll('.zone-option').forEach(o => { if ((o.getAttribute('data-zone')||'') === zv) { const n=o.querySelector('.zone-name'); if(n) label=n.textContent; } });
+        $zoneValue.textContent = label;
+        $zoneValue.removeAttribute('data-i18n');
+        if ($zoneBtn) $zoneBtn.setAttribute('data-empty', 'false');
+      } else {
+        $zoneValue.setAttribute('data-i18n', 'search.zone.all');
+        $zoneValue.textContent = (window.VRM_t && window.VRM_t('search.zone.all')) || 'All areas';
+        if ($zoneBtn) $zoneBtn.setAttribute('data-empty', 'true');
       }
     }
   }
@@ -8300,25 +8519,25 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   // Guests picker controls
   if ($gpClose)    $gpClose.addEventListener('click', closeGuestsPicker);
   if ($gpBackdrop) $gpBackdrop.addEventListener('click', closeGuestsPicker);
-  if ($gpGrid) {
-    $gpGrid.querySelectorAll('.guests-picker-option').forEach(btn => {
-      btn.addEventListener('click', () => {
-        state.guests = btn.getAttribute('data-guests') || '';
-        $gpGrid.querySelectorAll('.guests-picker-option').forEach(b => {
-          b.classList.toggle('selected', b === btn);
-        });
-        syncHeroDisplay();
-        // Cerrar con pequeño delay para que se vea el highlight
-        setTimeout(closeGuestsPicker, 180);
-      });
+  if ($gstepDone)  $gstepDone.addEventListener('click', closeGuestsPicker);
+  // ZONA
+  if ($zoneBtn)    $zoneBtn.addEventListener('click', openZonePicker);
+  if ($znClose)    $znClose.addEventListener('click', closeZonePicker);
+  if ($znBackdrop) $znBackdrop.addEventListener('click', closeZonePicker);
+  if ($znList) $znList.querySelectorAll('.zone-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      if ($zone) $zone.value = opt.getAttribute('data-zone') || '';
+      markZoneSelected(); syncHeroDisplay();
+      setTimeout(closeZonePicker, 160);
     });
-  }
+  });
 
   // Escape key cierra modales
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if ($dpModal.classList.contains('open')) closeDatePicker();
       if ($gpModal.classList.contains('open')) closeGuestsPicker();
+      if ($znModal && $znModal.classList.contains('open')) closeZonePicker();
     }
   });
 
@@ -8680,7 +8899,15 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 
 </script>
 
-<script>window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){ location.href=e.data.vrmDrumNav; } });</script>
+<script>
+window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){ location.href=e.data.vrmDrumNav; } });
+/* Refresh siempre desde el inicio (salvo deep-link con #ancla) */
+(function(){
+  function toTop(){ if(location.hash) return; window.scrollTo(0,0); try{ if(window.__lenis) window.__lenis.scrollTo(0,{immediate:true}); }catch(_){} }
+  window.addEventListener("load", toTop);
+  window.addEventListener("pageshow", function(ev){ if(ev.persisted) toTop(); });   // back-forward cache
+})();
+</script>
 <script>
 /* Scroll fluido sobre el carrusel: congelamos el render del drum mientras la página
    scrollea o cuando el drum no está en pantalla, para no pelear con el compositor del scroll. */

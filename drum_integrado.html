@@ -618,7 +618,30 @@ let offset=0, velocity=0, snapTo=null, dragging=false, lastX=0, lastInput=0, fro
 let rtOffset=1e9, rtRotY=999, rtRotX=999;   // estado del render target (para no re-renderizar PASE 1 si nada cambió)
 let dVisible=true, scrollFreezeUntil=0, lastFrame=0;   // visibilidad + congelado durante scroll (libera GPU)
 const SPACING=()=>P.cardW+P.gap;
-function down(e){ dragging=true; axis=null; velocity=0; snapTo=null; const x=e.clientX??e.touches?.[0]?.clientX??0, y=e.clientY??e.touches?.[0]?.clientY??0; lastX=x; downX=x; downY=y; downT=performance.now(); moved=0; lastInput=performance.now(); canvas.classList.add('grabbing'); }
+/* ── Zona activa del carrusel: solo la banda vertical del cilindro responde al giro.
+      Si tocás fuera (cielo arriba / reflejo-pill abajo) → la página scrollea vertical. ── */
+const _bandV = new THREE.Vector3();
+function carouselBandPx(){
+  const r = glc.getBoundingClientRect();
+  _bandV.set(0,  P.cardH*0.5, 0).project(camera);
+  const a = (1 - (_bandV.y*0.5 + 0.5)) * r.height + r.top;
+  _bandV.set(0, -P.cardH*0.5, 0).project(camera);
+  const b = (1 - (_bandV.y*0.5 + 0.5)) * r.height + r.top;
+  const top = Math.min(a,b), bot = Math.max(a,b), H = r.height;
+  return [ top - H*0.06, bot + H*0.10 ];   // padding: un poco arriba, algo más abajo (borde del reflejo)
+}
+function onCarousel(clientY){
+  const [t,b] = carouselBandPx();
+  return clientY >= t && clientY <= b;
+}
+function down(e){
+  const py = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+  if(!onCarousel(py)) return;   // toque fuera del cilindro → no giramos; deja scrollear la página
+  dragging=true; axis=null; velocity=0; snapTo=null;
+  const x=e.clientX??e.touches?.[0]?.clientX??0, y=py;
+  lastX=x; downX=x; downY=y; downT=performance.now(); moved=0; lastInput=performance.now();
+  canvas.classList.add('grabbing');
+}
 function move(e){
   if(!dragging)return;
   const x=e.clientX??e.touches?.[0]?.clientX??0, y=e.clientY??e.touches?.[0]?.clientY??0;
