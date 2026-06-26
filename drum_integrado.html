@@ -164,13 +164,13 @@ const N = ESTANCIAS.length;
 
 /* Parámetros aikawa-like (tuneables, tecla T) */
 const P = { radius:3.5, cardW:6.4, cardH:2.56, camZ:5.2, fov:45, curve:1.0, ca:1.0, gap:0.25, fill:0.60 };
-const SEG = 180;
+const SEG = 128;
 let TOTAL = N * (P.cardW + P.gap);   // spacing = cardW + gap (huequito entre cards)
 const REFLECT_BASE = P.cardH;
 
 /* Three */
 let renderer;
-try { renderer = new THREE.WebGLRenderer({ canvas:$('gl'), antialias:true, alpha:true }); }
+try { renderer = new THREE.WebGLRenderer({ canvas:$('gl'), antialias:true, alpha:true, powerPreference:'high-performance' }); }
 catch(e){ window.__showErr('No se pudo crear WebGL: '+e.message); throw e; }
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 const glc=$('gl');
@@ -185,8 +185,10 @@ renderer.setSize(CW(), CH(), false);
 
 /* Render target: captura el tambor (fotos) para refracción del nombre y reflejo */
 const DPR = Math.min(devicePixelRatio,2);
+const IS_MOBILE = matchMedia('(max-width:768px)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+const RT_SCALE = IS_MOBILE ? 0.6 : 0.8;   // resolución del render target (solo refracción/reflejo, no visible)
 let rtScene = new THREE.WebGLRenderTarget(
-  Math.floor(CW()*DPR), Math.floor(CH()*DPR),
+  Math.floor(CW()*DPR*RT_SCALE), Math.floor(CH()*DPR*RT_SCALE),
   { minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter, format:THREE.RGBAFormat }
 );
 const clock = new THREE.Clock();
@@ -316,6 +318,9 @@ const FRAG = `
     vec2 uvR=vUv;
     vec3 texColor;
     if(uReflect>0.5){
+      // si el reflejo ya es invisible aquí, saltamos TODO el ruido pesado (invisible, gran ahorro)
+      float aFade = pow(1.0-vUv.y,1.6) * smoothstep(0.0, uViewH*0.30, gl_FragCoord.y);
+      if(aFade < 0.02){ gl_FragColor = vec4(0.0); return; }
       float tN=uTime*0.25;
       vec2 flowUv=vUv*vec2(2.1,2.8);
       float warpA=snoise3D(vec3(flowUv*0.75+vec2(2.4,6.1), tN*0.13));
@@ -579,6 +584,7 @@ ESTANCIAS.forEach((data,i)=>{
 /* Interacción — basada en targetOffset (soporta drag, rueda, flechas) */
 const canvas=$('gl');
 let offset=0, target=0, dragging=false, lastX=0, lastInput=0, frontIdx=0, downX=0, downY=0, downT=0, moved=0, axis=null;
+let rtOffset=1e9, rtRotY=999, rtRotX=999;   // estado del render target (para no re-renderizar PASE 1 si nada cambió)
 const SPACING=()=>P.cardW+P.gap;
 function down(e){ dragging=true; axis=null; const x=e.clientX??e.touches?.[0]?.clientX??0, y=e.clientY??e.touches?.[0]?.clientY??0; lastX=x; downX=x; downY=y; downT=performance.now(); moved=0; lastInput=performance.now(); canvas.classList.add('grabbing'); }
 function move(e){
@@ -649,16 +655,25 @@ function loop(){
   world.rotation.x = -pmy*0.06;
   uTime += clock.getDelta();
 
-  // PASE 1 — solo las fotos del tambor → render target (para refracción del nombre)
-  for(const c of cards){ c.text.visible=false; c.refl.visible=false; }
-  renderer.setRenderTarget(rtScene);
-  renderer.setClearColor(0x000000, 0); renderer.clear();
-  renderer.render(scene, camera);
+  // PASE 1 — solo las fotos → render target. Si la escena está quieta (sin girar ni parallax),
+  // reusamos el RT del frame anterior en vez de re-renderizarlo (mitad de costo en reposo, invisible).
+  const sceneMoved = dragging
+    || Math.abs(offset-rtOffset) > 1e-4
+    || Math.abs(world.rotation.y-rtRotY) > 1e-5
+    || Math.abs(world.rotation.x-rtRotX) > 1e-5;
+  if(sceneMoved){
+    for(const c of cards){ c.text.visible=false; c.refl.visible=false; }
+    renderer.setRenderTarget(rtScene);
+    renderer.setClearColor(0x000000, 0); renderer.clear();
+    renderer.render(scene, camera);
+    rtOffset=offset; rtRotY=world.rotation.y; rtRotX=world.rotation.x;
+  }
 
   // PASE 2 — pantalla: fotos + reflejo + nombres (que refractan rtScene)
   for(const c of cards){
-    const x=c.main.material.uniforms.uCardX.value, vis=Math.abs(x/P.radius)<2.7;
-    c.refl.visible=vis; c.text.visible=vis;
+    const x=c.main.material.uniforms.uCardX.value, ax=Math.abs(x/P.radius);
+    c.refl.visible = ax<2.1;   // reflejo solo en las cards centrales (las laterales casi no se ven reflejadas)
+    c.text.visible = ax<2.7;
     c.text.material.uniforms.uScene.value = rtScene.texture;
   }
   renderer.setRenderTarget(null);
@@ -706,7 +721,7 @@ addEventListener('keydown',e=>{
 });
 tsync();
 
-function resize(){ placeCam(); renderer.setSize(CW(),CH(),false); rtScene.setSize(Math.max(2,Math.floor(CW()*DPR)),Math.max(2,Math.floor(CH()*DPR))); }
+function resize(){ placeCam(); renderer.setSize(CW(),CH(),false); rtScene.setSize(Math.max(2,Math.floor(CW()*DPR*RT_SCALE)),Math.max(2,Math.floor(CH()*DPR*RT_SCALE))); }
 addEventListener('resize',resize);
 if(window.ResizeObserver){ new ResizeObserver(resize).observe(glc.parentElement||glc); }
 setTimeout(()=>$('loader').classList.add('hide'),3000);
