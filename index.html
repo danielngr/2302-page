@@ -9087,12 +9087,24 @@ window.addEventListener("message", function(e){
   function playReturnTransition(data){
     if (document.querySelector('.vrm-page-transition')) return;
     var ov=document.createElement('div'); ov.className='vrm-page-transition';
-    var veil=document.createElement('div'); veil.className='vpt-veil'; veil.style.background=VPT_BG; veil.style.opacity='1'; veil.style.transition='opacity .42s ease'; ov.appendChild(veil);
+    var veil=document.createElement('div'); veil.className='vpt-veil'; veil.style.background=VPT_BG; veil.style.opacity='1'; ov.appendChild(veil);
     var stage=document.createElement('div'); stage.className='vpt-stage'; ov.appendChild(stage);
     document.body.appendChild(ov);
-    implode(makeShards(stage, data.img, data.x, data.y, data.w, data.h));
-    setTimeout(function(){ veil.style.opacity='0'; ov.style.transition='opacity .42s ease'; ov.style.opacity='0'; }, VPT_DUR*1000+160);
-    setTimeout(function(){ ov.remove(); }, VPT_DUR*1000+660);
+    var shards=makeShards(stage, data.img, data.x, data.y, data.w, data.h);
+    // arrancan dispersas y VISIBLES sobre el velo
+    for (var i=0;i<shards.length;i++){ var s=shards[i]; s.style.transition='none'; s.style.transform=s._T; s.style.opacity='1'; }
+    // convergen hacia el centro y se disuelven en el último tramo; el velo se levanta revelando el cilindro
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      for (var j=0;j<shards.length;j++){ var s2=shards[j];
+        var od=(s2._d + VPT_DUR*0.56).toFixed(2);   // la opacidad se va recién al final (ya convergidas)
+        s2.style.transition='transform '+VPT_DUR+'s cubic-bezier(.16,.62,.24,1) '+s2._d.toFixed(3)+'s, opacity '+(VPT_DUR*0.42).toFixed(2)+'s ease '+od+'s';
+        s2.style.transform='none'; s2.style.opacity='0';
+      }
+      veil.style.transition='opacity '+(VPT_DUR*0.6).toFixed(2)+'s ease '+(VPT_DUR*0.42).toFixed(2)+'s';
+      veil.style.opacity='0';   // se levanta en la 2da mitad → aparece el cilindro mientras los vidrios se disuelven
+    });});
+    setTimeout(function(){ ov.style.transition='opacity .35s ease'; ov.style.opacity='0'; }, VPT_DUR*1000+200);
+    setTimeout(function(){ ov.remove(); }, VPT_DUR*1000+650);
   }
   window.addEventListener('pageshow', function(e){
     var olds=document.querySelectorAll('.vrm-page-transition'); for (var k=0;k<olds.length;k++) olds[k].remove();
