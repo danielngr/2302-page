@@ -587,32 +587,35 @@ let offset=0, velocity=0, snapTo=null, dragging=false, lastX=0, lastInput=0, fro
 let rtOffset=1e9, rtRotY=999, rtRotX=999;   // estado del render target (para no re-renderizar PASE 1 si nada cambió)
 let dVisible=true, scrollFreezeUntil=0, lastFrame=0;   // visibilidad + congelado durante scroll (libera GPU)
 const SPACING=()=>P.cardW+P.gap;
-function down(e){ dragging=true; axis=null; const x=e.clientX??e.touches?.[0]?.clientX??0, y=e.clientY??e.touches?.[0]?.clientY??0; lastX=x; downX=x; downY=y; downT=performance.now(); moved=0; lastInput=performance.now(); canvas.classList.add('grabbing'); }
+function down(e){ dragging=true; axis=null; velocity=0; snapTo=null; const x=e.clientX??e.touches?.[0]?.clientX??0, y=e.clientY??e.touches?.[0]?.clientY??0; lastX=x; downX=x; downY=y; downT=performance.now(); moved=0; lastInput=performance.now(); canvas.classList.add('grabbing'); }
 function move(e){
   if(!dragging)return;
   const x=e.clientX??e.touches?.[0]?.clientX??0, y=e.clientY??e.touches?.[0]?.clientY??0;
   if(axis===null){                                  // aún sin decidir intención
-    const adx=Math.abs(x-downX), ady=Math.abs(y-downY);
-    if(adx<7 && ady<7) return;                       // umbral: esperar movimiento claro
-    axis = adx>ady ? 'x' : 'y';
-    if(axis==='y'){ dragging=false; canvas.classList.remove('grabbing'); scrollFreezeUntil=performance.now()+260; return; }  // VERTICAL → soltar + congelar, la página scrollea
-    lastX=x;                                         // HORIZONTAL → arrancar giro desde aquí
+    if(Math.hypot(x-downX, y-downY) < 10) return;    // bajo umbral (10px) → todavía puede ser un TAP
+    axis = Math.abs(x-downX) > Math.abs(y-downY) ? 'x' : 'y';
+    if(axis==='y'){ scrollFreezeUntil=performance.now()+280; canvas.classList.remove('grabbing'); return; }  // VERTICAL → scroll nativo (no spin, no preventDefault)
+    lastX=x;                                         // HORIZONTAL → arrancar giro
   }
-  if(axis==='x'){
-    if(e.cancelable) e.preventDefault();             // bloquear scroll mientras gira
-    const dx=x-lastX; lastX=x; const step=-dx*0.011;
-    offset+=step;                                    // arrastre directo 1:1 → respuesta inmediata
-    velocity = velocity*0.55 + step*0.45;            // velocidad suavizada para la inercia al soltar
-    snapTo=null; moved+=Math.abs(dx); lastInput=performance.now();
-  }
+  if(axis!=='x') return;                             // gesto vertical en curso → dejar scrollear
+  if(e.cancelable) e.preventDefault();               // bloquear scroll mientras gira
+  const dx=x-lastX; lastX=x; const step=-dx*0.011;
+  offset+=step;                                      // arrastre directo 1:1 → respuesta inmediata
+  velocity = velocity*0.55 + step*0.45;              // velocidad suavizada para la inercia al soltar
+  snapTo=null; moved+=Math.abs(dx); lastInput=performance.now();
 }
-function up(e){ if(!dragging){ axis=null; return; } dragging=false; axis=null; canvas.classList.remove('grabbing');
-  const dt=performance.now()-downT;
-  if(moved<8 && dt<450){ const d=ESTANCIAS[frontIdx]; if(d&&d.href){ const url=d.href;
-    if(window.self===window.top){ window.location.href=url; }                          // standalone
-    else { try{ window.top.location.href=url; }                                          // embebido: ventana completa
-           catch(_){ try{ window.parent.postMessage({vrmDrumNav:url},'*'); }catch(__){} } }
-  } }   // TAP → abrir depa
+function up(e){
+  if(!dragging){ axis=null; return; }
+  dragging=false; canvas.classList.remove('grabbing');
+  const wasTap = (axis===null) && (performance.now()-downT < 450);   // nunca cruzó 10px y fue rápido → TAP
+  axis=null;
+  if(wasTap){
+    const d=ESTANCIAS[frontIdx]; if(d&&d.href){ const url=d.href;
+      if(window.self===window.top){ window.location.href=url; }                         // standalone
+      else { try{ window.top.location.href=url; }                                        // embebido: ventana completa
+             catch(_){ try{ window.parent.postMessage({vrmDrumNav:url},'*'); }catch(__){} } }
+    }
+  }
 }
 canvas.addEventListener('pointerdown',down); addEventListener('pointermove',move,{passive:false}); addEventListener('pointerup',up); addEventListener('pointercancel',up);
 // El parent (index) avisa cuándo se está scrolleando o el drum sale de pantalla → congelamos para no pelear con el scroll

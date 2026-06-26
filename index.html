@@ -6106,15 +6106,11 @@ let lenis = null;
 try {
   if (window.Lenis) {
     lenis = new Lenis({
-      lerp: 0.09,
-      duration: 1.2,
-      easing: (x) => Math.min(1, 1.001 - Math.pow(2, -10 * x)),
+      lerp: 0.09,                 // sweet spot de suavidad/respuesta (rueda desktop)
       orientation: 'vertical',
       gestureOrientation: 'vertical',
-      smoothWheel: true,
-      syncTouch: true,
-      syncTouchLerp: 0.08,
-      touchInertiaMultiplier: 12,
+      smoothWheel: true,          // desktop: rueda suave
+      syncTouch: false,           // MÓVIL: scroll NATIVO del SO (momentum por GPU = fluido). syncTouch lo hacía pesado/gomoso y peleaba con el touch del drum
       wheelMultiplier: 1,
       touchMultiplier: 1.0,
       normalizeWheel: true
@@ -6206,9 +6202,9 @@ function animate(time) {
   // Con Lenis el scrollTarget ya llega suave (sin saltos de momentum),
   // asi que la ballena lo sigue mas de cerca -> fluida y responsiva.
   // Si Lenis no cargo, caemos al valor original.
-  const scrollSmoothing = lenis
-    ? (isMobile ? 0.16 : 0.20)
-    : (isMobile ? 0.06 : 0.12);
+  // Móvil = scroll nativo (con momentum del SO) → suavizado gentil absorbe los saltos sin rezago.
+  // Desktop = Lenis ya entrega suave → seguimiento más tight.
+  const scrollSmoothing = isMobile ? 0.09 : (lenis ? 0.20 : 0.12);
   scrollProgress += (scrollTarget - scrollProgress) * scrollSmoothing;
   window.__vrmScroll = scrollProgress;
   const sp = scrollProgress;
