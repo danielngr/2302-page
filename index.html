@@ -656,15 +656,15 @@
   .lang-opt.active { color: #0A1428; background: var(--mist, #E8E4DA); }
 
   /* TRANSICIÓN de página — expandir card + velo (opción 1) */
-  .vrm-page-transition { position: fixed; inset: 0; z-index: 99999; pointer-events: none; }
-  .vpt-card {
-    position: absolute; overflow: hidden; border-radius: 16px; background: #0A1428;
-    box-shadow: 0 50px 140px rgba(0, 0, 0, 0.6);
-    transition: left .85s cubic-bezier(.76,0,.24,1), top .85s cubic-bezier(.76,0,.24,1),
-                width .85s cubic-bezier(.76,0,.24,1), height .85s cubic-bezier(.76,0,.24,1), border-radius .7s ease;
+  .vrm-page-transition { position: fixed; inset: 0; z-index: 99999; pointer-events: none; overflow: hidden; }
+  .vpt-veil { position: absolute; inset: 0; background: #0A1428; opacity: 0; transition: opacity .16s ease; }
+  .vpt-stage { position: absolute; inset: 0; perspective: 1200px; perspective-origin: 50% 45%; }
+  .vpt-shard {
+    position: absolute; background-repeat: no-repeat;
+    will-change: transform, opacity;
+    filter: drop-shadow(0 0 1.1px rgba(255, 255, 255, 0.6));
+    transition: transform .82s cubic-bezier(.2,.55,.2,1), opacity .82s ease;
   }
-  .vpt-card img { width: 100%; height: 100%; object-fit: cover; display: block; transform: scale(1); transition: transform .9s cubic-bezier(.76,0,.24,1); }
-  .vpt-veil { position: absolute; inset: 0; background: #0A1428; opacity: 0; transition: opacity .34s ease; }
   .nav-brand {
     font-family: var(--font-display);
     font-style: italic;
@@ -8972,6 +8972,42 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){ location.href=e.data.vrmDrumNav; } });
 /* TRANSICIÓN de página (opción 1): la card se expande a pantalla completa + velo, luego navega */
 (function(){
+  /* === SHATTER (vidrio roto, estilo aikawa) === */
+  var VPT_BG = '#0A1428';   /* color que revela el shatter — cambiá a '#ffffff' para estilo aikawa */
+  var VPT_COLS = 6, VPT_ROWS = 5;        /* nº de esquirlas = COLS*ROWS (30) */
+  var VPT_NAV_MS = 740;                  /* cuándo navega (ms) */
+  function buildShatter(stage, img, x, y, w, h){
+    var jx=(w/VPT_COLS)*0.55, jy=(h/VPT_ROWS)*0.55, V=[];
+    for (var r=0;r<=VPT_ROWS;r++){ V[r]=[]; for (var c=0;c<=VPT_COLS;c++){
+      var px=c/VPT_COLS, py=r/VPT_ROWS;
+      if(c>0&&c<VPT_COLS) px += ((Math.random()-0.5)*jx)/w;
+      if(r>0&&r<VPT_ROWS) py += ((Math.random()-0.5)*jy)/h;
+      V[r][c]={px:px,py:py};
+    }}
+    var cx=x+w/2, cy=y+h/2, far=Math.max(window.innerWidth,window.innerHeight), frag=document.createDocumentFragment();
+    for (var rr=0;rr<VPT_ROWS;rr++){ for (var cc=0;cc<VPT_COLS;cc++){
+      var p1=V[rr][cc], p2=V[rr][cc+1], p3=V[rr+1][cc+1], p4=V[rr+1][cc];
+      var poly='polygon('+(p1.px*100).toFixed(2)+'% '+(p1.py*100).toFixed(2)+'%,'+(p2.px*100).toFixed(2)+'% '+(p2.py*100).toFixed(2)+'%,'+(p3.px*100).toFixed(2)+'% '+(p3.py*100).toFixed(2)+'%,'+(p4.px*100).toFixed(2)+'% '+(p4.py*100).toFixed(2)+'%)';
+      var sh=document.createElement('div'); sh.className='vpt-shard';
+      sh.style.left=x+'px'; sh.style.top=y+'px'; sh.style.width=w+'px'; sh.style.height=h+'px';
+      sh.style.backgroundImage='url("'+img+'")'; sh.style.backgroundSize=w+'px '+h+'px';
+      sh.style.webkitClipPath=poly; sh.style.clipPath=poly;
+      var mx=(p1.px+p2.px+p3.px+p4.px)/4, my=(p1.py+p2.py+p3.py+p4.py)/4;
+      var dx=(x+mx*w)-cx, dy=(y+my*h)-cy, L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
+      sh._t={ tx:dx*far*(0.7+Math.random()*0.6), ty:dy*far*(0.7+Math.random()*0.6), tz:(Math.random()*2-1)*340,
+              ax:Math.random()*2-1, ay:Math.random()*2-1, az:Math.random()*2-1, ang:40+Math.random()*150, sc:0.45+Math.random()*0.5 };
+      sh.style.transitionDelay=(Math.random()*0.09).toFixed(3)+'s';
+      frag.appendChild(sh);
+    }}
+    stage.appendChild(frag);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      var sh=stage.querySelectorAll('.vpt-shard');
+      for (var i=0;i<sh.length;i++){ var t=sh[i]._t;
+        sh[i].style.transform='translate3d('+t.tx.toFixed(1)+'px,'+t.ty.toFixed(1)+'px,'+t.tz.toFixed(1)+'px) rotate3d('+t.ax.toFixed(3)+','+t.ay.toFixed(3)+','+t.az.toFixed(3)+','+t.ang.toFixed(1)+'deg) scale('+t.sc.toFixed(3)+')';
+        sh[i].style.opacity='0';
+      }
+    });});
+  }
   function playOpenTransition(data){
     if (document.querySelector('.vrm-page-transition')) return;
     var go = function(){ location.href = data.href; };
@@ -8979,23 +9015,18 @@ window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){
     var fr = document.getElementById('vrmDrumFrame');
     var fo = fr ? fr.getBoundingClientRect() : {left:0, top:0};
     var rc = data.rect || {};
-    var x = (rc.left||0)+fo.left, y = (rc.top||0)+fo.top, w = rc.width||220, h = rc.height||280;
-    // el mundo retrocede: el drum se aleja y oscurece mientras la card se levanta
-    if (fr){ fr.style.transition='transform .85s cubic-bezier(.76,0,.24,1), filter .85s ease'; fr.style.transform='scale(.93)'; fr.style.filter='brightness(.4)'; }
-    var ov = document.createElement('div'); ov.className='vrm-page-transition';
-    var card = document.createElement('div'); card.className='vpt-card';
-    card.style.left=x+'px'; card.style.top=y+'px'; card.style.width=w+'px'; card.style.height=h+'px';
-    if (data.img){ var im=document.createElement('img'); im.src=data.img; im.alt=''; im.decoding='async'; card.appendChild(im); }
-    var veil=document.createElement('div'); veil.className='vpt-veil';
-    ov.appendChild(card); ov.appendChild(veil); document.body.appendChild(ov);
-    requestAnimationFrame(function(){ requestAnimationFrame(function(){
-      card.style.left='0px'; card.style.top='0px';
-      card.style.width=window.innerWidth+'px'; card.style.height=window.innerHeight+'px';
-      card.style.borderRadius='0px';
-      var im2 = card.querySelector('img'); if (im2) im2.style.transform='scale(1.1)';   // push-in (zoom suave a la foto)
-    });});
-    setTimeout(function(){ veil.style.opacity='1'; }, 560);   // velo entra tarde y suave (empalme)
-    setTimeout(go, 880);
+    var x=(rc.left||0)+fo.left, y=(rc.top||0)+fo.top, w=rc.width||220, h=rc.height||280;
+    var ov=document.createElement('div'); ov.className='vrm-page-transition';
+    var veil=document.createElement('div'); veil.className='vpt-veil'; veil.style.background=VPT_BG; ov.appendChild(veil);
+    document.body.appendChild(ov);
+    if (data.img){
+      var stage=document.createElement('div'); stage.className='vpt-stage'; ov.appendChild(stage);
+      buildShatter(stage, data.img, x, y, w, h);
+      requestAnimationFrame(function(){ veil.style.opacity='1'; });   // el fondo entra rápido detrás de las esquirlas
+      setTimeout(go, VPT_NAV_MS);
+    } else {
+      requestAnimationFrame(function(){ veil.style.opacity='1'; }); setTimeout(go, 360);
+    }
   }
   window.addEventListener('message', function(e){
     if (e && e.data && e.data.vrmDrumOpen && e.data.vrmDrumOpen.href) playOpenTransition(e.data.vrmDrumOpen);
