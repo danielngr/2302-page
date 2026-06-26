@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VRM · Drum — aikawa cylinder (v4)</title>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f%5B%5D=boska@400i,500i,700,500&f%5B%5D=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,144,400;1,144,500;1,144,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --abyss:#0A1428; --marine:#1A2E48; --mist:#E8E4DA; --sand:#C5BBA8;
+    --stone:#3A4A60; --coral:#D97757; --cyan:#4A8FB5; --gold:#B89668; --gold-soft:#C8A87C;
+    --whisper:rgba(232,228,218,.58); --rule:rgba(232,228,218,.10);
+    --font-display:'Boska','Times New Roman',serif;
+    --font-body:'Satoshi',system-ui,-apple-system,sans-serif;
+    --ease:cubic-bezier(.22,1,.36,1);
+    --ui:#E8E4DA;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden}
+  body{
+    font-family:var(--font-body); color:var(--ui);
+    background:radial-gradient(120% 90% at 50% -10%, #16273f 0%, #0c1730 38%, #070d1c 78%);
+    -webkit-font-smoothing:antialiased; transition:background .5s var(--ease);
+  }
+  body.light{ --ui:#14110d; background:radial-gradient(120% 90% at 50% 0%, #ffffff 0%, #f4f1ea 55%, #ece7dd 100%); }
+
+  #gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+  @media(hover:hover){ #gl:not(.grabbing):hover{cursor:pointer} }
+  #gl.grabbing{cursor:grabbing}
+  body.embed{ background:transparent !important; }
+  body.embed .grain, body.embed .eyebrow-top, body.embed .wordmark, body.embed .hint{ display:none; }
+
+  .grain{position:fixed;inset:0;pointer-events:none;opacity:.04;mix-blend-mode:overlay;z-index:3;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  .ui{position:fixed;inset:0;pointer-events:none;z-index:4}
+  .eyebrow-top{position:absolute;top:30px;left:36px;font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--ui);opacity:.62;font-weight:500}
+  .wordmark{position:absolute;top:24px;right:38px;font-family:var(--font-display);font-style:italic;font-weight:500;font-size:24px;color:var(--ui);letter-spacing:.01em}
+
+  /* pill de navegación estilo aikawa */
+  .pill{
+    position:absolute;left:50%;bottom:40px;transform:translateX(-50%);
+    display:flex;align-items:center;gap:4px;pointer-events:auto;
+    background:rgba(12,20,38,.62);border:1px solid var(--rule);border-radius:999px;
+    padding:7px 9px 7px 16px;backdrop-filter:blur(14px);
+    box-shadow:0 12px 40px rgba(0,0,0,.32);
+  }
+  body.light .pill{ background:rgba(255,255,255,.62);border-color:rgba(20,17,13,.1);box-shadow:0 12px 40px rgba(120,110,95,.18) }
+  .pill-label{display:flex;flex-direction:column;line-height:1.15;margin-right:12px;min-width:150px}
+  .pill-eyebrow{font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-soft);font-weight:600}
+  .pill-title{font-family:var(--font-display);font-style:italic;font-size:16px;color:var(--ui)}
+  .pill-btn{
+    width:34px;height:34px;border-radius:50%;border:1px solid var(--rule);
+    background:transparent;color:var(--ui);display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:.25s var(--ease);pointer-events:auto
+  }
+  .pill-btn:hover{background:rgba(232,228,218,.12)}
+  body.light .pill-btn{border-color:rgba(20,17,13,.12)} body.light .pill-btn:hover{background:rgba(20,17,13,.06)}
+  .pill-btn svg{width:14px;height:14px}
+  .pill-price{font-family:var(--font-body);font-weight:700;font-size:12px;color:var(--gold);margin-left:10px;margin-right:4px}
+
+  .counter{position:absolute;bottom:46px;right:42px;font-family:var(--font-display);font-style:italic;font-size:15px;color:var(--ui);opacity:.55;letter-spacing:.05em}
+  .counter b{color:var(--ui);opacity:1;font-style:normal;font-weight:700;font-family:var(--font-body);font-size:13px}
+  .hint{position:absolute;bottom:48px;left:42px;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ui);opacity:.5;font-weight:500}
+  .loader{position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:#070d1c;transition:opacity .8s var(--ease)}
+  .loader.hide{opacity:0;pointer-events:none}
+  .loader .dot{font-family:var(--font-display);font-style:italic;font-size:30px;color:#E8E4DA;opacity:.85;animation:breathe 2s var(--ease) infinite}
+  @keyframes breathe{0%,100%{opacity:.4}50%{opacity:.9}}
+
+  .tuner{position:fixed;top:64px;right:18px;z-index:8;background:rgba(10,20,40,.85);border:1px solid var(--rule);border-radius:10px;padding:14px 16px;font-size:11px;line-height:1.9;color:#cfc8bb;backdrop-filter:blur(8px);display:none;min-width:200px}
+  .tuner.show{display:block}
+  .tuner b{color:#C8A87C;font-weight:700}
+  .tuner kbd{background:rgba(232,228,218,.12);border-radius:3px;padding:1px 5px;color:#E8E4DA;font-size:10px}
+
+  @media(max-width:760px){
+    .eyebrow-top{top:20px;left:18px;font-size:9px} .wordmark{top:16px;right:18px;font-size:19px}
+    .hint{display:none} .counter{right:18px;bottom:96px} .pill-label{min-width:110px}
+  }
+</style>
+</head>
+<body>
+
+<script>
+/* Watchdog clásico — siempre corre, incluso si el módulo falla */
+window.__drumOK = false;
+window.__showErr = function(m){
+  if(document.getElementById('__err')) return;
+  var o=document.createElement('div'); o.id='__err';
+  o.style.cssText='position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;padding:34px;text-align:center;font:13px/1.7 monospace;color:#D97757;background:#070d1c;white-space:pre-wrap';
+  o.textContent='\u26A0  '+m; document.body.appendChild(o);
+  var l=document.getElementById('loader'); if(l) l.classList.add('hide');
+  console.error('[drum]', m);
+};
+addEventListener('error', e=>window.__showErr('JS: '+(e.message||e.filename||'error')));
+addEventListener('unhandledrejection', e=>window.__showErr('Promesa: '+((e.reason&&e.reason.message)||e.reason)));
+setTimeout(()=>{ if(!window.__drumOK) window.__showErr('El motor 3D no arrancó en 6s.\nProbable bloqueo de red al CDN o módulos deshabilitados.\nAbre la consola (F12) para el detalle.'); }, 6000);
+</script>
+
+<canvas id="gl"></canvas>
+<div class="grain"></div>
+<div class="loader" id="loader"><div class="dot">vrm.</div></div>
+
+<div class="ui">
+  <div class="eyebrow-top">Estancias seleccionadas</div>
+  <div class="wordmark">vrm.</div>
+
+  <div class="pill">
+    <div class="pill-label">
+      <span class="pill-eyebrow" id="pEyebrow">—</span>
+      <span class="pill-title" id="pTitle">—</span>
+    </div>
+    <span class="pill-price" id="pPrice">—</span>
+    <button class="pill-btn" id="prev" aria-label="anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="pill-btn" id="next" aria-label="siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+
+  <div class="hint">Arrastra · ← →</div>
+  <div class="counter"><b id="cNow">01</b> / <span id="cTot">08</span></div>
+</div>
+
+<div class="tuner" id="tuner">
+  <div><b>TUNER</b> &nbsp; <kbd>T</kbd> ocultar &nbsp; <kbd>B</kbd> fondo</div>
+  <div>radio &nbsp;&nbsp; <kbd>[</kbd> <kbd>]</kbd> &nbsp; <b id="tRad">3.5</b></div>
+  <div>ancho &nbsp; <kbd>,</kbd> <kbd>.</kbd> &nbsp; <b id="tW">6.4</b></div>
+  <div>cámara &nbsp; <kbd>;</kbd> <kbd>'</kbd> &nbsp; <b id="tCam">5.2</b></div>
+  <div>fov &nbsp;&nbsp;&nbsp; <kbd>9</kbd> <kbd>0</kbd> &nbsp; <b id="tFov">45</b></div>
+  <div>cromático <kbd>k</kbd> <kbd>l</kbd> <b id="tCa">1.0</b></div>
+  <div>gap &nbsp;&nbsp;&nbsp; <kbd>o</kbd> <kbd>p</kbd> &nbsp; <b id="tGap">0.25</b></div>
+  <div>curva &nbsp; <kbd>C</kbd> &nbsp;&nbsp; <b id="tCrv">1.0</b></div>
+</div>
+
+<script type="module">
+/* import dinámico con fallback de CDN — robusto en file:// y sin import map */
+let THREE;
+try { THREE = await import('https://unpkg.com/three@0.158.0/build/three.module.js'); }
+catch(e1){
+  try { THREE = await import('https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js'); }
+  catch(e2){ window.__showErr('No se pudo cargar Three.js desde ningún CDN.'); throw e2; }
+}
+
+const $ = id => document.getElementById(id);
+
+/* ════════════════════════════════════════════════════════════
+   VRM · DRUM v4 — réplica aikawakenichi
+   Una imagen dominante envuelta sobre cilindro de eje vertical:
+     theta = x/radius ; bent = (sin θ·r, y, cos θ·r − R)
+   Strip de imágenes en layout plano → offset desliza/gira el tambor.
+   ════════════════════════════════════════════════════════════ */
+
+const ESTANCIAS = [
+  { id:'2302', img:'https://i.imgur.com/e8ObYP6.jpeg',  eyebrow:'01 · La Cruz de Huanacaxtle',     title:'Vallarta Gardens 2302', price:'$300', guests:'6 huéspedes' },
+  { id:'6S',   img:'https://i.imgur.com/HtlrbEg.jpeg',  eyebrow:'02 · Nuevo Vallarta · Flamingos', title:'Marítima 6S',           price:'$190', guests:'8 huéspedes' },
+  { id:'211',  img:'https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/a2cbb607-d8f6-476d-b001-46d7baf3104c.jpeg?im_w=1200', eyebrow:'03 · Punta de Mita', title:'Bolongo 211', price:'$220', guests:'7 huéspedes' },
+  { id:'PHN',  img:'https://i.imgur.com/xhooPKT.jpeg',  eyebrow:'04 · Nuevo Vallarta · Flamingos', title:'Marítima Penthouse',    price:'$380', guests:'12 huéspedes' },
+  { id:'G13',  img:'https://i.imgur.com/ThY3A8L.jpeg',  eyebrow:'07 · Punta de Mita', title:'Bolongo G13',       price:'$280', guests:'10 huéspedes' },
+  { id:'9S',   img:'https://i.imgur.com/sgXZxMP.jpeg',  eyebrow:'08 · Nuevo Vallarta · Flamingos', title:'Marítima 9S',           price:'$215', guests:'8 huéspedes' },
+  { id:'3N',   img:'https://a0.muscache.com/im/pictures/hosting/Hosting-1483418374242300943/original/5bdb38b9-52f2-4a2d-8e95-43b8fd972de7.jpeg?im_w=1200', eyebrow:'09 · Punta de Mita', title:'Bolongo 3N', price:'$185', guests:'4 huéspedes' },
+  { id:'3004', img:'https://i.imgur.com/JV7Bscs.jpeg',  eyebrow:'10 · La Cruz de Huanacaxtle',     title:'Vallarta Gardens 3004', price:'$250', guests:'6 huéspedes' },
+];
+ESTANCIAS.forEach(e=>e.href='vrm_property.html?id='+e.id);
+const N = ESTANCIAS.length;
+
+/* Parámetros aikawa-like (tuneables, tecla T) */
+const P = { radius:3.5, cardW:6.4, cardH:2.56, camZ:5.2, fov:45, curve:1.0, ca:1.0, gap:0.25, fill:0.60 };
+const SEG = 180;
+let TOTAL = N * (P.cardW + P.gap);   // spacing = cardW + gap (huequito entre cards)
+const REFLECT_BASE = P.cardH;
+
+/* Three */
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas:$('gl'), antialias:true, alpha:true }); }
+catch(e){ window.__showErr('No se pudo crear WebGL: '+e.message); throw e; }
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const glc=$('gl');
+if(window.self!==window.top || new URLSearchParams(location.search).has('embed')){
+  document.body.classList.add('embed');
+  document.body.style.background='transparent';            // refuerzo
+  document.documentElement.style.background='transparent';
+}
+const CW=()=>glc.clientWidth||innerWidth, CH=()=>glc.clientHeight||innerHeight;
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(CW(), CH(), false);
+
+/* Render target: captura el tambor (fotos) para refracción del nombre y reflejo */
+const DPR = Math.min(devicePixelRatio,2);
+let rtScene = new THREE.WebGLRenderTarget(
+  Math.floor(CW()*DPR), Math.floor(CH()*DPR),
+  { minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter, format:THREE.RGBAFormat }
+);
+const clock = new THREE.Clock();
+let uTime = 0;
+
+const scene  = new THREE.Scene();
+const world  = new THREE.Group();  // contenedor que se inclina hacia el cursor
+scene.add(world);
+const camera = new THREE.PerspectiveCamera(P.fov, CW()/CH(), 0.1, 100);
+function placeCam(){
+  camera.fov=P.fov; camera.aspect=CW()/CH();
+  const portrait = CH()>CW(); const fillEff = portrait ? Math.min(0.94, P.fill*1.5) : P.fill;
+  const bentHalfW = Math.sin(Math.min(P.cardW/2/P.radius, 1.5533))*P.radius;   // semiancho real del slab curvado
+  let z = bentHalfW / (fillEff * Math.tan(P.fov*Math.PI/360) * camera.aspect);   // que ocupe P.fill del ancho
+  P.camZ = Math.max(3.0, Math.min(z, 26.0));
+  camera.position.set(0,0,P.camZ); camera.lookAt(0,-0.05,0); camera.updateProjectionMatrix();
+}
+placeCam();
+
+/* Placeholder marino con id (siempre visible) */
+function placeholder(label){
+  const c=document.createElement('canvas'); c.width=640; c.height=400;
+  const g=c.getContext('2d');
+  const grd=g.createLinearGradient(0,0,0,400); grd.addColorStop(0,'#27415f'); grd.addColorStop(1,'#0f2038');
+  g.fillStyle=grd; g.fillRect(0,0,640,400);
+  g.fillStyle='rgba(200,168,124,.9)'; g.font='italic 52px Boska, serif'; g.textAlign='center';
+  g.fillText(label,320,214);
+  g.fillStyle='rgba(232,228,218,.4)'; g.font='600 15px Satoshi, sans-serif'; g.fillText('cargando…',320,256);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
+}
+
+/* ── CARD: SLAB real (box con espesor) — port fiel del fragment de aikawa ──
+   vFaceMask=abs(normal.z): 1=cara(foto), 0=canto(grosor). Los efectos de vidrio
+   van SOLO en el canto → borde brillante fino, cara con foto limpia. ── */
+const VERT = `
+  uniform float uRadius, uCardX, uCurve, uReflect, uReflectBase;
+  varying vec2 vUv; varying float vShade, vReflect, vFaceMask;
+  varying vec3 vNormalV, vViewPos;
+  void main(){
+    vUv = uv;
+    vNormalV  = normalize(normalMatrix * normal);
+    vFaceMask = smoothstep(0.2, 0.8, abs(normal.z));   // 1=cara · 0=canto
+    vec3 p = position;
+    float flatX  = p.x + uCardX;
+    float theta  = flatX / uRadius;
+    float radial = uRadius + p.z;
+    vec3 bent   = vec3(sin(theta)*radial, p.y, cos(theta)*radial - uRadius);
+    vec3 planar = vec3(flatX, p.y, p.z);
+    vec3 pos    = mix(planar, bent, uCurve);
+    if (uReflect > 0.5){ pos.y = -uReflectBase - pos.y; }
+    vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+    vViewPos = -mv.xyz;
+    vShade   = clamp(cos(theta), 0.0, 1.0);
+    vReflect = uReflect;
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+const FRAG = `
+  precision highp float;
+  uniform sampler2D uTex;
+  uniform vec2  uTexAspect, uCardSize;
+  uniform float uActive, uReflect, uCA, uTime;
+  uniform float uGlassReflect, uGlassEdge, uGlassAbsorption;
+  uniform float uReflectStrength, uReflectEdge, uReflectFace, uReflectThickness, uReflectScale, uReflectSat;
+  uniform float uPrismBack, uPrismScatter, uPrismSat, uGlowStrength;
+  uniform vec3  uPrism1,uPrism2,uPrism3,uPrism4,uGlowColor;
+  varying vec2  vUv; varying float vShade, vReflect, vFaceMask; varying vec3 vNormalV, vViewPos;
+  // ── ruido simplex 3D (Ashima/aikawa) para la distorsión de agua del reflejo ──
+  vec3 mod289(vec3 x){ return x - floor(x*(1.0/289.0))*289.0; }
+  vec4 mod289(vec4 x){ return x - floor(x*(1.0/289.0))*289.0; }
+  vec4 permute(vec4 x){ return mod289(((x*34.0)+1.0)*x); }
+  vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314*r; }
+  float snoise3D(vec3 v){
+    const vec2 C=vec2(1.0/6.0,1.0/3.0); const vec4 D=vec4(0.0,0.5,1.0,2.0);
+    vec3 i=floor(v+dot(v,C.yyy)); vec3 x0=v-i+dot(i,C.xxx);
+    vec3 g=step(x0.yzx,x0.xyz); vec3 l=1.0-g; vec3 i1=min(g.xyz,l.zxy); vec3 i2=max(g.xyz,l.zxy);
+    vec3 x1=x0-i1+C.xxx; vec3 x2=x0-i2+C.yyy; vec3 x3=x0-D.yyy;
+    i=mod289(i);
+    vec4 p=permute(permute(permute(i.z+vec4(0.0,i1.z,i2.z,1.0))+i.y+vec4(0.0,i1.y,i2.y,1.0))+i.x+vec4(0.0,i1.x,i2.x,1.0));
+    float n_=0.142857142857; vec3 ns=n_*D.wyz-D.xzx;
+    vec4 j=p-49.0*floor(p*ns.z*ns.z);
+    vec4 x_=floor(j*ns.z); vec4 y_=floor(j-7.0*x_);
+    vec4 x=x_*ns.x+ns.yyyy; vec4 y=y_*ns.x+ns.yyyy; vec4 h=1.0-abs(x)-abs(y);
+    vec4 b0=vec4(x.xy,y.xy); vec4 b1=vec4(x.zw,y.zw);
+    vec4 s0=floor(b0)*2.0+1.0; vec4 s1=floor(b1)*2.0+1.0; vec4 sh=-step(h,vec4(0.0));
+    vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy; vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+    vec3 p0=vec3(a0.xy,h.x); vec3 p1=vec3(a0.zw,h.y); vec3 p2=vec3(a1.xy,h.z); vec3 p3=vec3(a1.zw,h.w);
+    vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+    p0*=norm.x; p1*=norm.y; p2*=norm.z; p3*=norm.w;
+    vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0); m=m*m;
+    return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+  }
+
+  vec2 coverUv(vec2 uv){
+    float cardA=uCardSize.x/uCardSize.y, imgA=uTexAspect.x/uTexAspect.y;
+    vec2 s=vec2(1.0); if(cardA>imgA) s.y=imgA/cardA; else s.x=cardA/imgA;
+    return clamp((uv-0.5)*s+0.5, 0.001, 0.999);
+  }
+  vec3 spectralAccent(float t){
+    t=fract(t);
+    vec3 cB=vec3(0.42,0.58,1.0),cC=vec3(0.47,0.90,0.96),cV=vec3(0.66,0.50,0.93),cR=vec3(0.92,0.42,0.48);
+    float wB=exp(-32.0*pow(t-0.08,2.0)),wC=exp(-34.0*pow(t-0.33,2.0)),wV=exp(-30.0*pow(t-0.64,2.0)),wR=exp(-38.0*pow(t-0.88,2.0));
+    vec3 c=(cB*wB+cC*wC+cV*wV+cR*wR)/max(wB+wC+wV+wR,0.0001);
+    return mix(vec3(1.0),c,uReflectSat);
+  }
+  vec3 prismPalette(float t){
+    t=fract(t);
+    float s1=smoothstep(0.0,0.22,t)-smoothstep(0.22,0.44,t);
+    float s2=smoothstep(0.18,0.42,t)-smoothstep(0.42,0.68,t);
+    float s3=smoothstep(0.44,0.70,t)-smoothstep(0.70,0.90,t);
+    float s4=smoothstep(0.74,0.92,t)+(1.0-smoothstep(0.0,0.12,t));
+    return (uPrism1*max(s1,0.0)+uPrism2*max(s2,0.0)+uPrism3*max(s3,0.0)+uPrism4*max(s4,0.0))/max(s1+s2+s3+s4,0.0001);
+  }
+  vec3 prismGradient(vec2 uv){
+    float d=distance(vec2(0.5),uv)*2.0, gm=clamp(d*0.5,0.0,1.0);
+    return mix(mix(uPrism1,uPrism2,uv.x), mix(uPrism3,uPrism4,uv.y), gm);
+  }
+  void main(){
+    vec3 nrm=normalize(vNormalV), viewDir=normalize(vViewPos);
+    float NoV=clamp(abs(dot(nrm,viewDir)),0.0,1.0);
+    float fresnel=pow(1.0-NoV,3.0), rim=pow(1.0-NoV,1.35);
+    // luz casi blanca (aikawa clampa la luz a ~1) + leve direccional para volumen
+    float dif=clamp(dot(nrm, normalize(vec3(-0.30,0.45,0.85))),0.0,1.0);
+    float sceneLight=clamp(0.90+0.20*dif, 0.82, 1.18);
+
+    // FOTO en la cara — en el REFLEJO: distorsión de agua (snoise, valores aikawa) + cromática
+    vec2 uvR=vUv;
+    vec3 texColor;
+    if(uReflect>0.5){
+      float tN=uTime*0.25;
+      vec2 flowUv=vUv*vec2(2.1,2.8);
+      float warpA=snoise3D(vec3(flowUv*0.75+vec2(2.4,6.1), tN*0.13));
+      float warpB=snoise3D(vec3(flowUv*0.92+vec2(8.3,1.7), tN*0.16));
+      vec2 warpedUv=flowUv+vec2(warpA,warpB)*(0.95+2.15*0.35);
+      float waveX=snoise3D(vec3(warpedUv.x*2.4+tN*0.22, warpedUv.y*0.9, tN*0.18));
+      float waveY=snoise3D(vec3(warpedUv.x*1.5-tN*0.11, warpedUv.y*2.1+tN*0.06, tN*0.15));
+      float waveMicro=snoise3D(vec3(warpedUv*4.5+vec2(5.7,-3.4), tN*0.26));
+      vec2 rippleMain=vec2(waveX*0.010+waveY*0.004+waveMicro*0.0025,
+                           waveY*0.009-waveX*0.003+waveMicro*0.0018)*(0.45+2.15*0.75);
+      float t2=uTime*0.18+17.3;
+      vec2 flowUv2=vUv*vec2(1.65,2.05)*2.35+vec2(9.7,-4.6);
+      float warpC=snoise3D(vec3(flowUv2*0.88+vec2(-1.8,3.9), t2*0.21));
+      float warpD=snoise3D(vec3(flowUv2*1.04+vec2(4.3,-2.7), t2*0.17));
+      vec2 warpedUv2=flowUv2+vec2(warpC,warpD)*(0.55+0.65*0.32);
+      float w2X=snoise3D(vec3(warpedUv2.x*2.8+t2*0.19, warpedUv2.y*0.82, t2*0.15));
+      float w2Y=snoise3D(vec3(warpedUv2.x*1.22-t2*0.08, warpedUv2.y*2.45+t2*0.07, t2*0.11));
+      vec2 rippleSec=vec2(w2X*0.0075+w2Y*0.0038, w2Y*0.0068-w2X*0.0028)*(0.35+0.65*0.60);
+      vec2 ripple=(rippleMain+rippleSec*(0.60+2.15*0.18));
+      ripple *= mix(1.0, 0.12, smoothstep(0.0, 0.55, vUv.y));   // más ondas cerca del borde (seam)
+      uvR += ripple;
+      float ch=0.004;
+      vec2 uc=coverUv(uvR);
+      texColor.r=texture2D(uTex, coverUv(uvR+vec2(ch,0.0))).r;   // cromática
+      texColor.g=texture2D(uTex, uc).g;
+      texColor.b=texture2D(uTex, coverUv(uvR-vec2(ch,0.0))).b;
+    } else {
+      texColor=texture2D(uTex, coverUv(uvR)).rgb;
+    }
+    vec3 frontColor=texColor * mix(vec3(1.0), vec3(sceneLight), 0.16);
+    float frontLuma=dot(frontColor, vec3(0.2126,0.7152,0.0722));
+
+    vec3 prismAverage=(uPrism1+uPrism2+uPrism3+uPrism4)*0.25;
+
+    // ── CANTO (grosor del slab) → lleva la MISMA foto, tinte más oscuro ──
+    vec3 photoSide = mix(vec3(frontLuma), texColor, 0.72);      // foto un toque desaturada
+    vec3 sideBase  = mix(photoSide*0.62, prismAverage, 0.12);   // foto oscurecida + pizca de prisma
+    vec3 sideColor = sideBase*(0.62+0.30*sceneLight);
+    float sideDepth=pow(1.0-vFaceMask,0.78);
+    float sideBodyLight=0.8+frontLuma*0.06+abs(nrm.y)*0.08+rim*0.16;
+    float sideShade=1.0-sideDepth*0.12;
+    sideColor*=sideBodyLight*sideShade;
+    vec3 absorptionTint=mix(vec3(1.0), mix(prismAverage,vec3(0.96,0.98,1.0),0.55), sideDepth*uGlassAbsorption);
+    sideColor*=absorptionTint;
+
+    // film iridiscente
+    float phase=(1.0-NoV)*uReflectThickness*1.75;
+    phase+=dot(nrm,normalize(vec3(0.28,0.74,0.61)))*0.35*uReflectScale;
+    phase+=dot(nrm,normalize(vec3(-0.81,0.22,0.54)))*0.18*uReflectScale;
+    vec3 sidePaletteColor=prismPalette(phase*0.18+vUv.y*0.42);
+    vec3 coolFilmColor=mix(mix(vec3(0.72,0.82,0.94),prismAverage,0.42), sidePaletteColor, 0.72);
+
+    float faceReflectionMask=pow(1.0-NoV,5.5)*vFaceMask*uReflectFace;
+    float sideReflectionMask=(0.36+fresnel*1.2)*(1.0-vFaceMask)*uReflectEdge;
+    float sideSpecular=pow(1.0-NoV,1.75)*(1.0-vFaceMask);
+    float innerSideMask=pow(1.0-vFaceMask,1.05)*(0.34+0.86*pow(fresnel,0.75));
+    float filmMask=(faceReflectionMask+sideReflectionMask+sideSpecular*0.18*uReflectEdge)*uReflectStrength;
+    vec3 filmReflection=coolFilmColor*filmMask*(0.42+0.56*sceneLight);
+    vec3 innerFilm=coolFilmColor*innerSideMask*uReflectStrength*uReflectEdge*0.24;
+    vec3 sideFilmTint=coolFilmColor*(0.16+0.34*rim)*sideDepth*uReflectStrength*uReflectEdge;
+
+    vec3 glassSpecColor=mix(vec3(1.0),vec3(0.9,0.95,1.0),0.2);
+    vec3 glassSpec=glassSpecColor*rim*uGlassReflect*(0.35+0.5*sceneLight);
+    vec3 sideSpec=glassSpecColor*(0.16+0.86*rim)*(1.0-vFaceMask)*uGlassEdge*(0.34+0.62*sceneLight);
+
+    sideColor+=uGlowColor*fresnel*uGlowStrength*0.28;
+    sideColor+=sideSpec;
+    sideColor+=sideFilmTint;
+    sideColor+=filmReflection;
+    sideColor+=innerFilm;
+    sideColor=clamp(sideColor, vec3(0.05), vec3(0.96,0.95,1.0));
+
+    // ── CARA frontal (foto + spec de vidrio leve) ──
+    vec3 frontReflection=glassSpec*vFaceMask + filmReflection*(0.02+0.12*fresnel);
+    vec3 frontGlassColor=frontColor+frontReflection;
+
+    // composición cara vs canto
+    vec3 litColor=mix(sideColor, frontGlassColor, vFaceMask);
+    litColor*=mix(0.985,1.03,uActive*vShade);
+
+    float a=1.0;
+    if(uReflect>0.5){ a=pow(1.0-vUv.y,1.6)*0.34*mix(0.5,1.0,vShade); litColor*=0.72; }
+    gl_FragColor=vec4(litColor,a);
+  }
+`;
+
+/* ── TEXTO: vidrio con GROSOR 3D real (relieve) + refracta la escena (aikawa) ── */
+const TEXT_VERT = `
+  uniform float uTRadius, uCardX, uForward;
+  varying vec2 vUv; varying float vShade; varying vec4 vClip;
+  varying vec3 vNormalV, vViewPos;
+  void main(){
+    vUv = uv;
+    vec3 p = position;
+    float flatX  = p.x + uCardX;
+    float theta  = flatX / uTRadius;
+    float radial = uTRadius + p.z + uForward;
+    vec3 pos = vec3(sin(theta)*radial, p.y, cos(theta)*radial - uTRadius);
+    vec3 nrm = normalize(vec3(sin(theta), 0.0, cos(theta)));
+    vNormalV = normalize(normalMatrix * nrm);
+    vec4 mv  = modelViewMatrix * vec4(pos, 1.0);
+    vViewPos = -mv.xyz;
+    vShade   = clamp(cos(theta), 0.0, 1.0);
+    vec4 clip = projectionMatrix * mv;
+    vClip = clip;
+    gl_Position = clip;
+  }
+`;
+const TEXT_FRAG = `
+  precision highp float;
+  uniform sampler2D uTitle, uScene;
+  uniform float uIridescence, uRefraction, uChroma, uDepth;
+  uniform vec3  uGlassTint, uEdgeColor;
+  varying vec2 vUv; varying float vShade; varying vec4 vClip; varying vec3 vNormalV, vViewPos;
+  void main(){
+    vec2 suv = (vClip.xy / vClip.w) * 0.5 + 0.5;
+    vec3 N = normalize(vNormalV);
+    // dirección del GROSOR en UV: sale por donde la card se curva → la pared lateral se ve de costado
+    vec2 ext = vec2(N.x, -N.y) * uDepth;
+    float aF = texture2D(uTitle, vUv).a;              // cara frontal
+    // marcha de relieve: construye la pared del grosor (lo que está "detrás" de la cara)
+    float wall = 0.0, depthHit = 0.0;
+    for(int i=1;i<=10;i++){
+      float t = float(i)/10.0;
+      float a = texture2D(uTitle, vUv - ext*t).a;
+      if(a>0.5 && depthHit<0.001) depthHit = 1.0 - t;
+      wall = max(wall, a);
+    }
+    wall = clamp(wall - aF, 0.0, 1.0);                // pared = hay atrás pero no delante
+    if(aF<0.04 && wall<0.04) discard;
+    // normal de relieve (para el bisel/spec de la cara)
+    float st=1.7/512.0;
+    float aL=texture2D(uTitle,vUv-vec2(st,0.0)).a, aR=texture2D(uTitle,vUv+vec2(st,0.0)).a;
+    float aD=texture2D(uTitle,vUv-vec2(0.0,st)).a, aU=texture2D(uTitle,vUv+vec2(0.0,st)).a;
+    vec3 nb=normalize(vec3((aL-aR)*5.0,(aU-aD)*5.0,1.0));
+    // cara frontal: refracta la escena detrás (vidrio)
+    vec2 refr=nb.xy*uRefraction; vec2 chr=nb.xy*uRefraction*0.35*uChroma;
+    vec3 sc;
+    sc.r=texture2D(uScene,suv+refr+chr).r; sc.g=texture2D(uScene,suv+refr).g; sc.b=texture2D(uScene,suv+refr-chr).b;
+    vec3 Ld=normalize(vec3(-0.45,0.80,0.85));
+    float spc=pow(clamp(dot(reflect(-Ld,nb),vec3(0.0,0.0,1.0)),0.0,1.0),22.0);
+    vec3 iri=mix(vec3(0.58,0.95,1.0),vec3(0.72,0.56,1.0),vUv.y);
+    vec3 frost = mix(sc, uGlassTint, 0.58) + 0.04;     // vidrio frosteado: bien más claro que la foto → se lee
+    vec3 faceCol = frost + vec3(1.0)*spc*1.1 + iri*spc*uIridescence*1.7;
+    // PARED del grosor: más oscura + color de canto, con degradado en profundidad → 3D real
+    vec3 wallCol = sc*0.38 + uEdgeColor*0.18;
+    wallCol *= mix(0.50, 1.0, depthHit);
+    float face=smoothstep(0.30,0.62,aF);
+    vec3 col=mix(wallCol, faceCol, face);
+    // alpha exacto aikawa → cuerpo de letra ~0.96 (casi opaco), sin desvanecer por la curva
+    float structureMask = smoothstep(0.16, 0.55, max(aF, wall*0.85));
+    float a = clamp((0.074 + 0.96*structureMask + spc*0.03) * 1.15, 0.0, 0.96);
+    gl_FragColor=vec4(col,a);
+  }
+`;
+
+/* Textura del título por tarjeta — texto blanco sobre transparente.
+   Se muestrea en el shader en espacio UV de la foto → se curva con el tambor. */
+const __titles=[];
+function makeTitle(name){
+  const aspect = P.cardW/P.cardH;
+  const W=1024, H=Math.round(W/aspect);
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
+  tex.minFilter=THREE.LinearMipmapLinearFilter; tex.magFilter=THREE.LinearFilter;
+  function draw(){
+    const g=c.getContext('2d'); g.clearRect(0,0,W,H);
+    g.fillStyle='#fff'; g.textAlign='center'; g.textBaseline='middle';
+    let size=Math.round(H*0.20);
+    const fit=s=>{ g.font='500 italic '+s+'px "Fraunces", "Times New Roman", serif'; return g.measureText(name).width; };
+    while(fit(size) > W*0.30 && size>12) size-=2;   // nombre ≈ 27-30% del ancho (dato real aikawa)
+    g.fillText(name, W/2, H*0.50);
+    tex.needsUpdate=true;
+  }
+  draw();
+  __titles.push(draw);
+  return tex;
+}
+if(document.fonts&&document.fonts.ready){ document.fonts.ready.then(()=>__titles.forEach(d=>d())); }
+
+const FORWARD = 0.35;               // cuánto flota el texto delante de la card (mundo)
+const THICK = 0.09;   // espesor del slab (canto visible)
+const geoCard = new THREE.BoxGeometry(P.cardW, P.cardH, THICK, SEG, 1, 1);
+const geoText = new THREE.PlaneGeometry(P.cardW, P.cardH, 70, 1);
+const cards = [];
+function uniforms(tex, reflect){
+  return {
+    uRadius:{value:P.radius}, uCardX:{value:0}, uCurve:{value:P.curve},
+    uReflect:{value:reflect}, uReflectBase:{value:REFLECT_BASE}, uCA:{value:P.ca},
+    uTex:{value:tex}, uTexAspect:{value:new THREE.Vector2(640,400)},
+    uCardSize:{value:new THREE.Vector2(P.cardW,P.cardH)}, uActive:{value:0}, uTime:{value:0},
+    uGlassReflect:{value:0.30}, uGlassEdge:{value:0.34}, uGlassAbsorption:{value:0.18},
+    uReflectStrength:{value:0.62}, uReflectEdge:{value:1.05}, uReflectFace:{value:0.08},
+    uReflectThickness:{value:1.8}, uReflectScale:{value:1.15}, uReflectSat:{value:0.74},
+    uPrismBack:{value:1.5}, uPrismScatter:{value:0.78}, uPrismSat:{value:1.0}, uGlowStrength:{value:0.30},
+    uGlowColor:{value:new THREE.Color(0.624,0.624,0.624)},
+    uPrism1:{value:new THREE.Color(0.680,0.896,0.982)}, uPrism2:{value:new THREE.Color(0.456,0.631,0.807)},
+    uPrism3:{value:new THREE.Color(0.266,0.462,0.694)}, uPrism4:{value:new THREE.Color(0.147,0.319,0.558)},
+  };
+}
+function textUniforms(titleTex){ return {
+  uTitle:{value:titleTex}, uScene:{value:rtScene.texture}, uCardX:{value:0},
+  uTRadius:{value:P.radius}, uForward:{value:FORWARD},
+  uRefraction:{value:0.022}, uChroma:{value:1.0}, uIridescence:{value:0.26}, uDepth:{value:0.032},
+  uGlassTint:{value:new THREE.Color(0.926,0.949,0.971)},
+  uEdgeColor:{value:new THREE.Color(0.741,0.835,0.912)},
+}; }
+/* Carga de texturas con CORS garantizado.
+   WebGL exige CORS para subir imágenes; imgur no lo trae → las ruteamos por
+   un proxy que añade Access-Control-Allow-Origin. Fallback directo por si el
+   host sí lo manda (p.ej. muscache). */
+function loadTexture(url, onTex, onFail){
+  const proxied = 'https://images.weserv.nl/?url='+encodeURIComponent(url)+'&w=1400&output=jpg&q=88';
+  function mkTex(im){
+    const t=new THREE.Texture(im); t.colorSpace=THREE.SRGBColorSpace;
+    t.minFilter=THREE.LinearMipmapLinearFilter; t.magFilter=THREE.LinearFilter;
+    t.anisotropy=renderer.capabilities.getMaxAnisotropy(); t.generateMipmaps=true; t.needsUpdate=true;
+    onTex(t, im.naturalWidth||1400, im.naturalHeight||900);
+  }
+  const fallback='https://picsum.photos/seed/'+encodeURIComponent(url).slice(-10)+'/1400/560';
+  const tries=[url, proxied, fallback];   // 1) directo (imgur sí manda CORS)  2) proxy weserv  3) picsum
+  let i=0;
+  function attempt(){
+    const im=new Image(); im.crossOrigin='anonymous';
+    im.onload=()=>mkTex(im);
+    im.onerror=()=>{ if(++i<tries.length) attempt(); else { console.warn('[drum] imagen falló:', url); onFail(); } };
+    im.src=tries[i];
+  }
+  attempt();
+}
+
+let loaded=0;
+ESTANCIAS.forEach((data,i)=>{
+  const tex=placeholder(data.id);
+  const tTex=makeTitle(data.title);
+
+  // losa 3D (foto + cantos) — sólida, solo caras hacia cámara
+  const main=new THREE.Mesh(geoCard,new THREE.ShaderMaterial({vertexShader:VERT,fragmentShader:FRAG,uniforms:uniforms(tex,0),side:THREE.FrontSide}));
+  main.renderOrder=1;
+  // reflejo en piso
+  const refl=new THREE.Mesh(geoCard,new THREE.ShaderMaterial({vertexShader:VERT,fragmentShader:FRAG,uniforms:uniforms(tex,1),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  refl.renderOrder=0;
+  // título: capa de vidrio que FLOTA delante (gap)
+  const text=new THREE.Mesh(geoText,new THREE.ShaderMaterial({vertexShader:TEXT_VERT,fragmentShader:TEXT_FRAG,uniforms:textUniforms(tTex),transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  text.renderOrder=2;
+
+  world.add(main,refl,text);
+  cards.push({data,main,refl,text,i});
+
+  loadTexture(data.img, (t,w,h)=>{
+    main.material.uniforms.uTex.value=t; refl.material.uniforms.uTex.value=t;
+    main.material.uniforms.uTexAspect.value.set(w,h); refl.material.uniforms.uTexAspect.value.set(w,h);
+    if(++loaded>=N) $('loader').classList.add('hide');
+  }, ()=>{ if(++loaded>=N) $('loader').classList.add('hide'); });
+});
+
+/* Interacción — basada en targetOffset (soporta drag, rueda, flechas) */
+const canvas=$('gl');
+let offset=0, target=0, dragging=false, lastX=0, lastInput=0, frontIdx=0, downX=0, downY=0, downT=0, moved=0;
+const SPACING=()=>P.cardW+P.gap;
+function down(e){ dragging=true; const x=e.clientX??e.touches?.[0]?.clientX??0, y=e.clientY??e.touches?.[0]?.clientY??0; lastX=x; downX=x; downY=y; downT=performance.now(); moved=0; lastInput=performance.now(); canvas.classList.add('grabbing'); }
+function move(e){ if(!dragging)return; const x=e.clientX??e.touches?.[0]?.clientX??0, y=e.clientY??e.touches?.[0]?.clientY??0; const dx=x-lastX; lastX=x; moved+=Math.abs(dx)+Math.abs(y-downY)*0.0; offset+=-dx*0.011; target=offset; lastInput=performance.now(); }
+function up(e){ if(!dragging)return; dragging=false; canvas.classList.remove('grabbing'); target=Math.round(offset/SPACING())*SPACING();
+  const dt=performance.now()-downT;
+  if(moved<8 && dt<450){ const d=ESTANCIAS[frontIdx]; if(d&&d.href){ const url=d.href;
+    if(window.self===window.top){ window.location.href=url; }                          // standalone
+    else { try{ window.top.location.href=url; }                                          // embebido: ventana completa
+           catch(_){ try{ window.parent.postMessage({vrmDrumNav:url},'*'); }catch(__){} } }
+  } }   // TAP → abrir depa
+}
+canvas.addEventListener('pointerdown',down); addEventListener('pointermove',move); addEventListener('pointerup',up);
+canvas.addEventListener('wheel',e=>{ e.preventDefault(); target+=(Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY)*0.004; lastInput=performance.now(); },{passive:false});
+/* parallax: el tambor sigue al cursor (suavizado) */
+let tmx=0,tmy=0,pmx=0,pmy=0;
+addEventListener('pointermove',e=>{ if(dragging) return; const r=glc.getBoundingClientRect(); tmx=((e.clientX-r.left)/r.width)*2-1; tmy=((e.clientY-r.top)/r.height)*2-1; });
+function goTo(dir){ target=Math.round(offset/SPACING())*SPACING()+dir*SPACING(); lastInput=performance.now(); }
+$('prev').onclick=()=>goTo(-1); $('next').onclick=()=>goTo(1);
+addEventListener('keydown',e=>{ if(e.key==='ArrowLeft')goTo(-1); else if(e.key==='ArrowRight')goTo(1); });
+
+/* Loop */
+function loop(){
+  const nowSec=performance.now()/1000;
+  if(!dragging){
+    // snap de la rueda tras inactividad
+    if(performance.now()-lastInput>220) target=Math.round(target/SPACING())*SPACING();
+    offset += (target-offset)*0.10;
+  }
+  frontIdx=((Math.round(offset/SPACING())%N)+N)%N;
+  TOTAL=N*SPACING();
+  for(const c of cards){
+    let x=c.i*SPACING()-offset; x=((x%TOTAL)+TOTAL)%TOTAL; if(x>TOTAL/2)x-=TOTAL;
+    const vis=Math.abs(x/P.radius)<2.7;
+    const act=(c.i===frontIdx?1:0);
+    // losa + reflejo
+    for(const m of [c.main,c.refl]){
+      m.visible=vis; const u=m.material.uniforms;
+      u.uCardX.value=x; u.uRadius.value=P.radius; u.uCurve.value=P.curve; u.uCA.value=P.ca;
+      u.uReflectBase.value=P.cardH + 0.70; u.uCardSize.value.set(P.cardW,P.cardH); u.uTime.value=uTime;
+      u.uActive.value += (act-u.uActive.value)*0.12;
+    }
+    // título: capa de vidrio que se CURVA (suave) y flota delante de la card
+    c.text.visible=vis; const tu=c.text.material.uniforms;
+    tu.uCardX.value=x; tu.uTRadius.value=P.radius; tu.uForward.value=FORWARD;
+  }
+  // parallax suavizado
+  if(dragging){ tmx*=0.85; tmy*=0.85; }       // sin parallax mientras se arrastra → no más warp/zoom
+  pmx += (tmx-pmx)*0.06; pmy += (tmy-pmy)*0.06;
+  world.rotation.y = pmx*0.10;
+  world.rotation.x = -pmy*0.06;
+  uTime += clock.getDelta();
+
+  // PASE 1 — solo las fotos del tambor → render target (para refracción del nombre)
+  for(const c of cards){ c.text.visible=false; c.refl.visible=false; }
+  renderer.setRenderTarget(rtScene);
+  renderer.setClearColor(0x000000, 0); renderer.clear();
+  renderer.render(scene, camera);
+
+  // PASE 2 — pantalla: fotos + reflejo + nombres (que refractan rtScene)
+  for(const c of cards){
+    const x=c.main.material.uniforms.uCardX.value, vis=Math.abs(x/P.radius)<2.7;
+    c.refl.visible=vis; c.text.visible=vis;
+    c.text.material.uniforms.uScene.value = rtScene.texture;
+  }
+  renderer.setRenderTarget(null);
+  renderer.render(scene, camera);
+
+  caption(); requestAnimationFrame(loop);
+}
+
+/* Caption / pill */
+let capId=-1;
+function caption(){
+  if(frontIdx===capId)return; capId=frontIdx;
+  const d=ESTANCIAS[frontIdx];
+  $('pEyebrow').textContent=d.eyebrow; $('pTitle').textContent=d.title;
+  $('pPrice').textContent=d.price; $('cNow').textContent=String(frontIdx+1).padStart(2,'0');
+}
+$('cTot').textContent=String(N).padStart(2,'0');
+
+/* Tuner + toggle de fondo */
+function tsync(){ $('tRad').textContent=P.radius.toFixed(1); $('tW').textContent=P.cardW.toFixed(1); $('tCam').textContent=P.camZ.toFixed(1); $('tFov').textContent=P.fov.toFixed(0); $('tCa').textContent=P.ca.toFixed(1); $('tGap').textContent=P.gap.toFixed(2); $('tCrv').textContent=P.curve.toFixed(2); }
+addEventListener('keydown',e=>{
+  const k=e.key; let rebuild=false;
+  if(k==='t'||k==='T') $('tuner').classList.toggle('show');
+  else if(k==='b'||k==='B') document.body.classList.toggle('light');
+  else if(k==='[') P.radius=Math.max(1.5,P.radius-0.2);
+  else if(k===']') P.radius+=0.2;
+  else if(k===',') { P.cardW=Math.max(2,P.cardW-0.3); rebuild=true; }
+  else if(k==='.') { P.cardW+=0.3; rebuild=true; }
+  else if(k===';'){ P.fill=Math.max(0.5,P.fill-0.04); placeCam(); }   // vecinas asoman MÁS
+  else if(k==="'"){ P.fill=Math.min(1.15,P.fill+0.04); placeCam(); }  // card MÁS grande
+  else if(k==='9'){ P.fov=Math.max(15,P.fov-1); placeCam(); }
+  else if(k==='0'){ P.fov+=1; placeCam(); }
+  else if(k==='k') P.ca=Math.max(0,P.ca-0.2);
+  else if(k==='l') P.ca+=0.2;
+  else if(k==='o'){ P.gap=Math.max(0,P.gap-0.1); }
+  else if(k==='p'){ P.gap+=0.1; }
+  else if(k==='c'||k==='C') P.curve=P.curve>0.5?0:1;
+  else return;
+  if(rebuild){
+    const gc=new THREE.BoxGeometry(P.cardW,P.cardH,THICK,SEG,1,1);
+    const gt=new THREE.PlaneGeometry(P.cardW,P.cardH,70,1);
+    for(const c of cards){ c.main.geometry=gc; c.refl.geometry=gc; c.text.geometry=gt; }
+  }
+  tsync();
+});
+tsync();
+
+function resize(){ placeCam(); renderer.setSize(CW(),CH(),false); rtScene.setSize(Math.max(2,Math.floor(CW()*DPR)),Math.max(2,Math.floor(CH()*DPR))); }
+addEventListener('resize',resize);
+if(window.ResizeObserver){ new ResizeObserver(resize).observe(glc.parentElement||glc); }
+setTimeout(()=>$('loader').classList.add('hide'),3000);
+window.__drumOK=true;
+loop();
+</script>
+</body>
+</html>
