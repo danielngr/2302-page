@@ -659,6 +659,8 @@
   .vrm-page-transition { position: fixed; inset: 0; z-index: 99999; pointer-events: none; overflow: hidden; }
   .vpt-veil { position: absolute; inset: 0; background: #0A1428; opacity: 0; transition: opacity .16s ease; }
   .vpt-stage { position: absolute; inset: 0; perspective: 1200px; perspective-origin: 50% 45%; }
+  .vrm-prop-overlay { animation: vrmPropIn .3s ease both; }
+  @keyframes vrmPropIn { from { opacity: 0.6; } to { opacity: 1; } }
   .vpt-shard {
     position: absolute; background-repeat: no-repeat;
     will-change: transform, opacity; backface-visibility: hidden;
@@ -9061,28 +9063,77 @@ window.addEventListener("message", function(e){
       }
     });});
   }
+  var vptLastCard = null;   // datos de la última card abierta (para la animación de volver)
   function playOpenTransition(data){
     if (document.querySelector('.vrm-page-transition')) return;
-    var go = function(){ location.href = data.href; };
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { go(); return; }
     var fr = document.getElementById('vrmDrumFrame');
     var fo = fr ? fr.getBoundingClientRect() : {left:0, top:0};
     var rc = data.rect || {};
     var x=(rc.left||0)+fo.left, y=(rc.top||0)+fo.top, w=rc.width||220, h=rc.height||280;
+    var id = (String(data.href).match(/[?&]id=([^&]+)/)||[])[1] || '';
+    vptLastCard = { img:data.img, x:x, y:y, w:w, h:h };
+    try { sessionStorage.setItem('vrmReturn', JSON.stringify({img:data.img, x:x, y:y, w:w, h:h, t:Date.now()})); } catch(e){}
+    // Precargar la propiedad YA (detrás del shatter), para que esté lista al terminar
+    openPropertyOverlay(data.href, id);
+    var reveal = function(){
+      try { history.pushState({vrmProp:id}, '', '?id='+encodeURIComponent(id)); } catch(_){}
+      var old=document.querySelector('.vrm-page-transition'); if(old) old.remove();   // quita el shatter → muestra la propiedad
+    };
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { reveal(); return; }
     var ov=document.createElement('div'); ov.className='vrm-page-transition';
     var veil=document.createElement('div'); veil.className='vpt-veil'; veil.style.background=VPT_BG; veil.style.transition='opacity .28s ease'; ov.appendChild(veil);
     document.body.appendChild(ov);
     if (data.img){
-      try { sessionStorage.setItem('vrmReturn', JSON.stringify({img:data.img, x:x, y:y, w:w, h:h, t:Date.now()})); } catch(e){}
       var stage=document.createElement('div'); stage.className='vpt-stage'; ov.appendChild(stage);
       var shards=makeShards(stage, data.img, x, y, w, h);
       impactFlash(stage, x+w/2, y+h/2, Math.max(w,h)*0.9);
       setTimeout(function(){ veil.style.opacity='1'; explode(shards); }, VPT_HOLD);   // grietas → estalla
-      setTimeout(go, VPT_NAV_MS);
+      setTimeout(reveal, VPT_NAV_MS);
     } else {
-      requestAnimationFrame(function(){ veil.style.opacity='1'; }); setTimeout(go, 360);
+      requestAnimationFrame(function(){ veil.style.opacity='1'; }); setTimeout(reveal, 360);
     }
   }
+  /* ===== SPA-lite: detalle de la propiedad como OVERLAY in-page (sin navegar) ===== */
+  function openPropertyOverlay(href, id){
+    var ex=document.querySelector('.vrm-prop-overlay'); if(ex) return ex;
+    var po=document.createElement('div'); po.className='vrm-prop-overlay';
+    po.style.cssText='position:fixed;inset:0;z-index:99980;background:'+VPT_BG+';';
+    var ifr=document.createElement('iframe');
+    ifr.src = href + (href.indexOf('?')<0?'?':'&') + 'shell=1';
+    ifr.style.cssText='width:100%;height:100%;border:0;display:block;background:'+VPT_BG+';';
+    ifr.setAttribute('title','VRM');
+    po.appendChild(ifr);
+    document.body.appendChild(po);
+    // Fallback: si el iframe navega de vuelta a index.html (link no interceptado) → cerrar overlay
+    ifr.addEventListener('load', function(){
+      try { var p=ifr.contentWindow.location.pathname||''; if(/vrm_property/.test(p)) return; if(/index\.html$/.test(p) || /2302-page\/?$/.test(p) || p==='/'){ requestClose(); } } catch(_){}
+    });
+    return po;
+  }
+  function requestClose(){ try{ if(location.search.indexOf('id=')>-1){ history.back(); return; } }catch(_){} closePropertyOverlay(); }
+  function closePropertyOverlay(){
+    var po=document.querySelector('.vrm-prop-overlay'); if(!po || po.__closing) return; po.__closing=true;
+    var d=vptLastCard, reduce=(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if(d && d.img && !reduce){
+      playReturnTransition(d);                                  // velo opaco + esquirlas convergen → revela el cilindro
+      setTimeout(function(){ if(po.parentNode) po.parentNode.removeChild(po); }, 80);
+    } else {
+      if(po.parentNode) po.parentNode.removeChild(po);
+    }
+  }
+  window.addEventListener('popstate', function(){ if(document.querySelector('.vrm-prop-overlay')) closePropertyOverlay(); });
+  window.addEventListener('message', function(e){ if(e && e.data && e.data.vrmCloseProp){ requestClose(); } });
+  // Deep-link: index.html?id=XXX abre la propiedad directo (links compartidos / recarga con ?id=)
+  (function(){
+    try {
+      var did=new URLSearchParams(location.search).get('id');
+      if(did){
+        history.replaceState({base:1}, '', location.pathname);             // base = index limpio
+        history.pushState({vrmProp:did}, '', '?id='+encodeURIComponent(did));
+        openPropertyOverlay('vrm_property.html?id='+encodeURIComponent(did), did);
+      }
+    } catch(_){}
+  })();
   /* VUELTA: al volver (botón atrás), las esquirlas se juntan y forman la card, luego se revela el index */
   function playReturnTransition(data){
     if (document.querySelector('.vrm-page-transition')) return;

@@ -7180,5 +7180,20 @@ document.addEventListener('visibilitychange', () => {
   })();
 </script>
 
+<script>
+/* SPA-lite: si esta página se abre dentro del overlay del index (?shell=1), los links de
+   "volver" cierran el overlay (postMessage) en vez de navegar. Standalone: funciona normal. */
+(function(){
+  try{
+    var inShell = new URLSearchParams(location.search).get('shell')==='1' && window.parent!==window;
+    if(!inShell) return;
+    document.documentElement.classList.add('vrm-in-shell');
+    document.addEventListener('click', function(e){
+      var a = e.target.closest && e.target.closest('a.topbar-back, a.topbar-brand');
+      if(a){ e.preventDefault(); try{ window.parent.postMessage({vrmCloseProp:1},'*'); }catch(_){} }
+    }, true);
+  }catch(_){}
+})();
+</script>
 </body>
 </html>
