@@ -66,26 +66,24 @@
   .info-price{font-family:var(--font-title);font-style:italic;font-weight:600;font-optical-sizing:auto;font-size:clamp(21px,2.5vw,30px);color:var(--gold-soft);display:inline-flex;align-items:baseline;gap:9px;text-shadow:0 1px 16px rgba(200,168,124,.25)}
   .pill-unit{font-family:var(--font-body);font-size:9px;letter-spacing:.20em;text-transform:uppercase;color:var(--mist);opacity:.5;font-weight:600}
   .info-book{
-    position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:10px;pointer-events:auto;cursor:pointer;
-    padding:16px 30px;border:1px solid rgba(255,234,216,.46);border-radius:999px;
-    background:linear-gradient(135deg,#F2A87B 0%,#E07C58 46%,#C2593C 100%);color:#fff;
-    font-family:var(--font-body);font-size:11.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;
-    box-shadow:0 12px 30px rgba(217,119,87,.52),0 2px 8px rgba(217,119,87,.40),0 1px 0 rgba(255,255,255,.42) inset,0 0 0 .5px rgba(200,168,124,.45);
-    transition:filter .22s var(--ease),transform .16s var(--ease),box-shadow .25s var(--ease);
-    animation:bookPulse 3s var(--ease) infinite;
+    position:relative;display:inline-flex;align-items:center;gap:14px;pointer-events:auto;cursor:pointer;
+    padding:9px 9px 9px 26px;border-radius:999px;border:1px solid rgba(200,168,124,.42);
+    background:rgba(16,26,50,.55);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);
+    color:var(--mist);font-family:var(--font-body);font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;
+    box-shadow:0 12px 28px rgba(0,0,0,.42),0 1px 0 rgba(255,255,255,.12) inset;
+    transition:border-color .25s var(--ease),transform .16s var(--ease),box-shadow .25s var(--ease),background .25s var(--ease);
   }
-  /* halo coral que late → tira del ojo y pide el clic */
-  @keyframes bookPulse{
-    0%,100%{box-shadow:0 12px 30px rgba(217,119,87,.50),0 0 0 0 rgba(240,150,110,0),0 1px 0 rgba(255,255,255,.42) inset,0 0 0 .5px rgba(200,168,124,.45)}
-    50%{box-shadow:0 16px 42px rgba(217,119,87,.66),0 0 30px 5px rgba(240,150,110,.34),0 1px 0 rgba(255,255,255,.48) inset,0 0 0 .5px rgba(200,168,124,.62)}
-  }
-  /* barrido de luz (premium sheen) */
-  .info-book::after{content:"";position:absolute;top:-20%;left:-65%;width:40%;height:140%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.62),transparent);transform:skewX(-18deg);animation:pillSheen 4.2s var(--ease) infinite}
-  @keyframes pillSheen{0%,18%{left:-65%}42%,100%{left:175%}}
-  .info-book:hover{animation:none;filter:brightness(1.08);transform:translateY(-2px) scale(1.02);box-shadow:0 20px 46px rgba(217,119,87,.70),0 0 36px 6px rgba(240,150,110,.42),0 1px 0 rgba(255,255,255,.52) inset,0 0 0 .5px rgba(200,168,124,.75)}
-  .info-book:active{transform:translateY(0) scale(.97)}
-  .info-book svg{transition:transform .28s var(--ease)} .info-book:hover svg{transform:translateX(4px)}
-  @media(prefers-reduced-motion:reduce){.info-book,.info-book::after{animation:none}}
+  /* disco dorado = imán del clic (sin brillos ni latidos) */
+  .book-chip{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;flex:0 0 auto;
+    background:linear-gradient(135deg,#D8BD93,#C8A87C 55%,#A9854F);color:#15203a;
+    box-shadow:0 5px 14px rgba(168,133,79,.45),0 1px 0 rgba(255,255,255,.45) inset;
+    transition:transform .22s var(--ease),box-shadow .25s var(--ease)}
+  .book-chip svg{width:15px;height:15px;display:block;transition:transform .22s var(--ease)}
+  .info-book:hover{border-color:rgba(200,168,124,.85);transform:translateY(-2px);background:rgba(22,34,62,.72);box-shadow:0 18px 40px rgba(0,0,0,.52),0 0 0 .5px rgba(200,168,124,.45),0 1px 0 rgba(255,255,255,.16) inset}
+  .info-book:hover .book-chip{transform:scale(1.07);box-shadow:0 7px 18px rgba(168,133,79,.6),0 1px 0 rgba(255,255,255,.5) inset}
+  .info-book:hover .book-chip svg{transform:translateX(2px)}
+  .info-book:active{transform:translateY(0) scale(.98)}
+  body.light .info-book{background:rgba(255,255,255,.6);border-color:rgba(184,150,104,.45);color:#3a2f22;box-shadow:0 10px 26px rgba(120,110,95,.20),0 1px 0 rgba(255,255,255,.6) inset}
   body.light .info-eyebrow,body.light .info-title{text-shadow:none}
 
   /* nav prev/next discretos (desktop) */
@@ -122,7 +120,8 @@
     .info-title{font-size:clamp(26px,8vw,40px);max-width:none}
     .info-row{gap:16px;margin-top:5px}
     .info-price{font-size:19px}
-    .info-book{padding:12px 20px;font-size:10.5px}
+    .info-book{padding:7px 7px 7px 20px;font-size:10.5px;gap:11px}
+    .info-book .book-chip{width:34px;height:34px}
   }
 </style>
 </head>
@@ -159,7 +158,7 @@ setTimeout(()=>{ if(!window.__drumOK) window.__showErr('El motor 3D no arrancó 
       <span class="info-price"><span id="pPrice">—</span> <span class="pill-unit">por noche</span></span>
       <button class="info-book" id="pReserve">
         <span>Reservar</span>
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+        <span class="book-chip"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg></span>
       </button>
     </div>
   </div>
