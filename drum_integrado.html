@@ -695,7 +695,7 @@ let offset=0, velocity=0, snapTo=null, dragging=false, lastX=0, lastInput=0, fro
 let rtOffset=1e9, rtRotY=999, rtRotX=999, rtZoom=0;   // estado del render target (para no re-renderizar PASE 1 si nada cambió)
 let zoomNow=0;                                          // dolly actual de cámara (giro rápido → se acerca)
 let ZOOM_GAIN=5.0, ZOOM_MAX=0.15, ZOOM_EASE=0.10;      // giro rápido → cámara se acerca ~15% (medido en aikawa ~13%) · suelta → vuelve (perillas z/x/n/m)
-let VMAX=0.16, FRICTION=0.93, SNAP_EASE=0.08;          // tope de velocidad + fricción (glide) + ease de asentamiento (~1s, flotante como aikawa) — perillas g/h (vel) y r/f (fricción)
+let VMAX=0.14, FRICTION=0.95, SNAP_EASE=0.08, DRAG_GAIN=0.0040;   // arrastre MUY deliberato (poco sensible) · control = paso por gesto + snap ±1 · perillas u/i (arrastre) r/f g/h
 let dVisible=true, scrollFreezeUntil=0, lastFrame=0;   // visibilidad + congelado durante scroll (libera GPU)
 const SPACING=()=>P.cardW+P.gap;
 /* ── Zona activa del carrusel: solo la banda vertical del cilindro responde al giro.
@@ -744,7 +744,7 @@ function move(e){
   }
   if(axis!=='x') return;                             // gesto vertical en curso → dejar scrollear
   if(e.cancelable) e.preventDefault();               // bloquear scroll mientras gira
-  const dx=x-lastX; lastX=x; const step=-dx*0.011;
+  const dx=x-lastX; lastX=x; const step=-dx*DRAG_GAIN;
   offset+=step;                                      // arrastre directo 1:1 → respuesta inmediata
   velocity = velocity*0.55 + step*0.45;              // velocidad suavizada para la inercia al soltar
   snapTo=null; moved+=Math.abs(dx); lastInput=performance.now();
@@ -754,9 +754,12 @@ function up(e){
   dragging=false; canvas.classList.remove('grabbing');
   const wasTap = (axis===null) && (performance.now()-downT < 450);   // nunca cruzó 10px y fue rápido → TAP
   axis=null;
-  if(wasTap){
-    navToCard();   // TAP → abrir depa (con transición de expansión)
-  }
+  if(wasTap){ navToCard(); return; }   // TAP → abrir depa
+  // SOLTAR: snap CONTROLADO — a lo sumo ±1 card de impulso (no vuela por varias)
+  const base = Math.round(offset/SPACING());
+  let tgt = Math.round((offset + velocity*4.0)/SPACING());
+  tgt = Math.max(base-1, Math.min(base+1, tgt));
+  snapTo = tgt*SPACING(); velocity = 0; lastInput = performance.now();
 }
 canvas.addEventListener('pointerdown',down); addEventListener('pointermove',move,{passive:false}); addEventListener('pointerup',up); addEventListener('pointercancel',up);
 // El parent (index) avisa cuándo se está scrolleando o el drum sale de pantalla → congelamos para no pelear con el scroll
@@ -765,9 +768,20 @@ addEventListener('message', function(e){
   if('vrmDrumVisible' in e.data) dVisible = !!e.data.vrmDrumVisible;
   if('vrmDrumScroll'  in e.data) scrollFreezeUntil = performance.now()+220;
 });
+let wheelAccum=0, wheelLock=0, lastWheelT=0; const WHEEL_STEP=180, WHEEL_LOCK_MS=480;   // rueda/trackpad: 1 card por gesto DELIBERADO + debounce → no salta ni vuela
 addEventListener('wheel',e=>{
-  if(Math.abs(e.deltaX) > Math.abs(e.deltaY)+2){       // horizontal claro → gira el drum
-    e.preventDefault(); velocity += e.deltaX*0.0010; snapTo=null; lastInput=performance.now();
+  if(Math.abs(e.deltaX) > Math.abs(e.deltaY)+2){       // horizontal claro → avanza UNA card por gesto
+    e.preventDefault();
+    const nowT=performance.now();
+    if(nowT - lastWheelT > 160) wheelAccum = 0;        // pausa → reinicia (scrolls sueltos no se acumulan)
+    lastWheelT = nowT;
+    if(nowT < wheelLock) return;                       // debounce: ignora hasta terminar la transición (mata la inercia del trackpad)
+    wheelAccum += e.deltaX;
+    if(Math.abs(wheelAccum) >= WHEEL_STEP){
+      goTo(wheelAccum>0 ? 1 : -1);
+      wheelAccum = 0; wheelLock = nowT + WHEEL_LOCK_MS;
+    }
+    lastInput = nowT;
   } else {                                             // vertical → reenviar al padre (si no, el iframe atrapa el scroll)
     e.preventDefault();
     if(window.parent!==window){ try{ window.parent.postMessage({vrmDrumWheel:e.deltaY},'*'); }catch(_){} }
@@ -830,8 +844,8 @@ function loop(){
   lastFrame=now;
   const nowSec=now/1000;
   if(!dragging){
-    if(snapTo!==null){                               // navegación con flechas: ease preciso
-      offset += (snapTo-offset)*0.10;
+    if(snapTo!==null){                               // transición a UNA card: ease pausado (~0.8s, no salta)
+      offset += (snapTo-offset)*0.085;
       if(Math.abs(snapTo-offset)<0.0015){ offset=snapTo; snapTo=null; }
     } else {
       if(velocity>VMAX) velocity=VMAX; else if(velocity<-VMAX) velocity=-VMAX;  // tope de velocidad → no gira rapidísimo
@@ -940,8 +954,10 @@ addEventListener('keydown',e=>{
   else if(k==='m'){ ZOOM_MAX=Math.min(0.8,ZOOM_MAX+0.04); console.log('ZOOM_MAX',ZOOM_MAX.toFixed(2)); }
   else if(k==='g'){ VMAX=Math.max(0.04,VMAX-0.02); console.log('VMAX',VMAX.toFixed(2)); }
   else if(k==='h'){ VMAX+=0.02; console.log('VMAX',VMAX.toFixed(2)); }
-  else if(k==='r'){ FRICTION=Math.max(0.80,FRICTION-0.01); console.log('FRICTION',FRICTION.toFixed(2)); }
-  else if(k==='f'){ FRICTION=Math.min(0.985,FRICTION+0.01); console.log('FRICTION',FRICTION.toFixed(2)); }
+  else if(k==='r'){ FRICTION=Math.max(0.80,FRICTION-0.01); console.log('FRICTION',FRICTION.toFixed(3)); }
+  else if(k==='f'){ FRICTION=Math.min(0.985,FRICTION+0.01); console.log('FRICTION',FRICTION.toFixed(3)); }
+  else if(k==='u'){ DRAG_GAIN=Math.max(0.003,DRAG_GAIN-0.001); console.log('DRAG_GAIN (más pesado)',DRAG_GAIN.toFixed(4)); }
+  else if(k==='i'){ DRAG_GAIN+=0.001; console.log('DRAG_GAIN (más liviano)',DRAG_GAIN.toFixed(4)); }
   else return;
   if(rebuild){
     const gc=new THREE.BoxGeometry(P.cardW,P.cardH,THICK,SEG,1,1);
