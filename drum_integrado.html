@@ -48,11 +48,11 @@
   .eyebrow-top{position:absolute;top:30px;left:36px;font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--ui);opacity:.62;font-weight:500}
   .wordmark{position:absolute;top:24px;right:38px;font-family:var(--font-display);font-style:italic;font-weight:500;font-size:24px;color:var(--ui);letter-spacing:.01em}
 
-  /* ── INFO EDITORIAL (abajo-izquierda, sin cápsula, estilo aikawa) ── */
+  /* ── INFO EDITORIAL (centrada, cerca del cilindro) ── */
   .info{
-    position:absolute;left:clamp(20px,4.2vw,52px);bottom:clamp(30px,6vh,54px);
-    display:flex;flex-direction:column;gap:11px;pointer-events:none;
-    max-width:min(66vw,680px);z-index:5;
+    position:absolute;left:50%;transform:translateX(-50%);bottom:var(--info-y,16vh);
+    display:flex;flex-direction:column;align-items:center;text-align:center;gap:11px;
+    pointer-events:none;max-width:min(86vw,720px);z-index:5;
   }
   .info-eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:11px;letter-spacing:.30em;text-transform:uppercase;color:var(--gold-soft);font-weight:600;text-shadow:0 1px 10px rgba(0,0,0,.45)}
   .info-eyebrow::before{content:"";flex:0 0 auto;width:5px;height:5px;border-radius:50%;background:var(--gold-soft);box-shadow:0 0 9px rgba(200,168,124,.95)}
@@ -60,9 +60,9 @@
     font-family:var(--font-title);font-style:italic;font-weight:600;font-optical-sizing:auto;
     font-size:clamp(32px,5.4vw,58px);line-height:.96;color:var(--mist);letter-spacing:.005em;
     text-shadow:0 2px 34px rgba(0,0,0,.55),0 1px 3px rgba(0,0,0,.4);
-    max-width:14ch;
+    max-width:16ch;
   }
-  .info-row{display:flex;align-items:center;gap:clamp(16px,2.4vw,30px);margin-top:7px;pointer-events:auto;flex-wrap:wrap}
+  .info-row{display:flex;align-items:center;justify-content:center;gap:clamp(16px,2.4vw,30px);margin-top:7px;pointer-events:auto;flex-wrap:wrap}
   .info-price{font-family:var(--font-title);font-style:italic;font-weight:600;font-optical-sizing:auto;font-size:clamp(21px,2.5vw,30px);color:var(--gold-soft);display:inline-flex;align-items:baseline;gap:9px;text-shadow:0 1px 16px rgba(200,168,124,.25)}
   .pill-unit{font-family:var(--font-body);font-size:9px;letter-spacing:.20em;text-transform:uppercase;color:var(--mist);opacity:.5;font-weight:600}
   .info-book{
@@ -115,7 +115,7 @@
     .hint{display:none} .counter{right:18px;top:18px;bottom:auto}
     /* móvil: editorial compacto, sin flechas (se gira con swipe) */
     .nav-mini{display:none}
-    .info{left:18px;right:18px;bottom:22px;max-width:none;gap:8px}
+    .info{left:50%;right:auto;transform:translateX(-50%);bottom:var(--info-y,12vh);max-width:90vw;gap:8px}
     .info-eyebrow{font-size:9px;letter-spacing:.24em}
     .info-title{font-size:clamp(26px,8vw,40px);max-width:none}
     .info-row{gap:16px;margin-top:5px}
@@ -847,7 +847,13 @@ window.addEventListener('message', (e)=>{
   if (e.data && (e.data.vrmLang==='en' || e.data.vrmLang==='es')) { DRUM_LANG=e.data.vrmLang; drumApplyLang(); }
 });
 drumApplyLang();
-addEventListener('keydown',e=>{ if(e.key==='ArrowLeft')goTo(-1); else if(e.key==='ArrowRight')goTo(1); });
+let infoY=16; const _root=document.documentElement;
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft')goTo(-1);
+  else if(e.key==='ArrowRight')goTo(1);
+  else if(e.key==='ArrowUp'){ e.preventDefault(); infoY=Math.min(50,infoY+1.5); _root.style.setProperty('--info-y',infoY+'vh'); console.log('info-y =',infoY+'vh (sube)'); }
+  else if(e.key==='ArrowDown'){ e.preventDefault(); infoY=Math.max(2,infoY-1.5); _root.style.setProperty('--info-y',infoY+'vh'); console.log('info-y =',infoY+'vh (baja)'); }
+});
 
 /* Loop */
 function loop(){
