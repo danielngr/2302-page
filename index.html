@@ -564,6 +564,8 @@
   }
   /* No body background extra — confiamos en var(--ink) directo */
 
+  #dive-veil{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;
+    background:linear-gradient(180deg,#04070E 0%,#02050C 100%);will-change:opacity}
   .whale-canvas {
     position: fixed;
     inset: 0;
@@ -4341,6 +4343,9 @@
 
   <canvas class="whale-canvas" id="whale-canvas"></canvas>
 
+  <!-- Velo de inmersión: el fondo se hunde a aguas profundas al scrollear (z2: sobre ballena z1, bajo contenido z3) -->
+  <div id="dive-veil" aria-hidden="true"></div>
+
   <!-- ===========================================================
        WHALE-ANCHORED WORDS — Palabras gigantes 3D que aparecen
        detrás de la ballena en momentos clave del scroll.
@@ -4783,6 +4788,7 @@
   </section>
 
   <section class="final" id="final">
+    <canvas id="shellsCanvas" aria-hidden="true"></canvas>
     <h2 class="final-title reveal" data-i18n-html="final.title.combined">We'll send you<br><em>elsewhere if we should.</em></h2>
     <div class="final-actions reveal reveal-d1">
       <a href="#properties" class="btn btn-primary">
@@ -6059,111 +6065,32 @@ const CAMERA_HERO = {
 // scroll mínimo → todo lento, premium, con peso.
 
 const WHALE_PATH = [
-  // ════════════════════════════════════════════════════════════════════
-  // ANÁLISIS QUIRÚRGICO DEL PATH
-  // ════════════════════════════════════════════════════════════════════
-  // Principios:
-  //   1. La ballena SIEMPRE está nadando. Nunca se detiene en pose estática.
-  //      Eso significa que entre keyframes adyacentes siempre hay una
-  //      dirección de movimiento clara y consistente.
-  //
-  //   2. La orientación es CONSECUENCIA de la trayectoria. La cabeza
-  //      apunta a donde va el cuerpo. Si el cuerpo curva, la cabeza
-  //      curva con él. Nunca "pivotes sobre el eje".
-  //
-  //   3. Los cambios de orientación grandes (girar para volver hacia
-  //      la cámara al final) se logran trazando un ARCO FÍSICO en el
-  //      espacio. La ballena recorre un camino curvo que la lleva
-  //      gradualmente a la nueva orientación. Como un avión dando la
-  //      vuelta: no rota sobre su eje, traza un círculo amplio.
-  //
-  //   4. Entre cada par de keyframes adyacentes, el ángulo entre las
-  //      dos direcciones de natación debe ser SUAVE (idealmente <30°).
-  //      Cambios bruscos de dirección causan giros visibles.
-
-  // ═══════ HERO ESTÁTICO — Detrás del logo, casi sin desplazarse (sp 0-12%) ═══════
-  // La ballena llega del reveal, se asienta detrás del logo y se queda
-  // ahí casi quieta. NO atraviesa el frame. NO sigue moviéndose lateralmente.
-  // El secondary motion (cola, respiración, dorsal bob) le da vida sin
-  // que la posición o orientación cambien.
-  //
-  // X≈0 durante todo este tramo → la ballena no se mueve lateralmente.
-  // Z varía sutilmente (4.5 a 4.0) — apenas una respiración de profundidad.
-  // Y varía sutilmente (0 a -0.1) — apenas un cabeceo.
-  //
-  // Como el swim direction entre estos keyframes es casi nulo, el código
-  // usa _lastValidSwim (que fue inicializado para mirar hacia la cámara
-  // al final del reveal). Resultado: la ballena queda viendo al frente,
-  // sin rotar.
-  _kf(0.00,  0.0,  0.0,  4.5),    // detrás del logo, centrada
-  _kf(0.04,  0.0,  0.0,  4.4),    // microvariación de profundidad (respiración)
-  _kf(0.08,  0.0, -0.05, 4.3),    // microvariación vertical
-  _kf(0.12,  0.0, -0.1,  4.2),    // empieza apenas a alejarse al final del hero
-
-  // ═══════ TRAVESÍA HACIA EL FONDO (sp 12-32%) ═══════
-  // La ballena se "despega" del hero gradualmente. X crece lentamente
-  // hacia la derecha. Y baja. Z decrece. Cambios suaves para que el
-  // movimiento se vea como una "decisión" de la ballena de empezar
-  // el viaje, no como un salto brusco.
-  _kf(0.18,  0.5, -0.4,  2.5),
-  _kf(0.25,  1.2, -0.7,  1.0),
-  _kf(0.32,  1.8, -0.9, -0.5),
-
-  // ═══════ FONDO PROFUNDO (sp 32-52%) ═══════
-  // Sigue en la misma dirección general (derecha-fondo) pero ahora
-  // empieza a subir en Y. Esto cambia la "presencia" sin afectar
-  // mucho la orientación lateral. Z sigue decreciendo monotónicamente.
-  _kf(0.38,  2.6, -0.7, -2.5),
-  _kf(0.45,  2.8, -0.3, -4.0),
-  _kf(0.52,  2.7,  0.2, -5.0),
-
-  // ═══════ TRAVESÍA POR EL FONDO (sp 52-72%) ═══════
-  // AQUÍ es el ÚNICO cambio importante de dirección lateral durante
-  // el viaje principal: la ballena empieza a cruzar de derecha a
-  // izquierda en el fondo. Pero lo hace MUY GRADUAL — 20% de scroll
-  // para cambiar de x=2.7 a x=-1.5. La trayectoria forma una curva
-  // amplia en el fondo. El lookahead grande hace que el giro se
-  // distribuye a lo largo de toda esta sección.
-  _kf(0.58,  2.0,  0.6, -5.8),
-  _kf(0.64,  1.0,  0.9, -6.5),
-  _kf(0.68,  0.0,  1.0, -7.0),    // punto más alto, centro del fondo
-  _kf(0.72, -1.0,  0.9, -7.2),
-
-  // ═══════ ZONA DEL GRID (sp 72-84%) ═══════
-  // Sigue hacia la izquierda en el fondo, descendiendo.
-  // La ballena queda lejana y silueta mientras lees el grid.
-  _kf(0.78, -1.8,  0.5, -7.0),
-  _kf(0.84, -2.2,  0.1, -6.5),
-
-  // ════════════════════════════════════════════════════════════════════
-  // EL GIRO FÍSICO — Arco amplio para volver hacia el usuario (84-100%)
-  // ════════════════════════════════════════════════════════════════════
-  // La ballena debe pasar de "viajando hacia -z" a "viajando hacia +z"
-  // para llegar de frente al usuario en el cierre. Lo hace trazando un
-  // ARCO AMPLIO en el espacio, no rotando sobre su eje.
-  //
-  // El arco se traza así:
-  //   sp 0.84: x=-2.2  y=0.1  z=-6.5  → moving (-x,-y,-z) viaje al fondo izq
-  //   sp 0.88: x=-2.8  y=0.0  z=-5.5  → CURVA: x sigue izq pero z empieza
-  //                                     a subir. La ballena curva hacia
-  //                                     "atrás-arriba" (eje y mundo).
-  //   sp 0.92: x=-2.5  y=0.0  z=-3.0  → x ahora se acerca a 0 mientras
-  //                                     z sube fuerte. Ballena visible
-  //                                     viniendo desde izq-atrás.
-  //   sp 0.95: x=-1.5  y=0.0  z=-1.0  → cruza el plano del cristal por
-  //                                     la izquierda, ya orientada hacia
-  //                                     la cámara.
-  //   sp 0.97: x=-0.5  y=0.0  z= 1.5  → entra al frente, casi centrada
-  //   sp 1.00: x= 0.0  y=0.0  z= 3.5  → cierre: cerca, de frente
-  //
-  // Total: la ballena recorre un arco de ~10 unidades de longitud en
-  // el espacio durante los últimos 16% del scroll. Eso es bastante
-  // recorrido para que el cambio de orientación se distribuya naturalmente.
-  _kf(0.88, -2.8,  0.0, -5.5),
-  _kf(0.92, -2.5,  0.0, -3.0),
-  _kf(0.95, -1.5,  0.0, -1.0),
-  _kf(0.97, -0.5,  0.0,  1.5),
-  _kf(1.00,  0.0,  0.0,  3.5)
+  // ═══ RUTA OPTIMIZADA (nado natural): avance continuo, sin reversas.
+  // Arcos amplios con giros ≤90° espaciados; la profundidad (z) hace el
+  // trabajo dramático. Capítulos: hero cerca → bajo el tambor LEJOS →
+  // cruce de fondo → EL MOMENTO cerca (stats) → salida → regreso al cierre.
+  _kf(0.00,  0.0,  0.00,  4.50),   // pose hero icónica
+  _kf(0.04,  0.0, -0.05,  4.45),
+  _kf(0.08,  0.1, -0.15,  4.30),   // fin del hero
+  _kf(0.13,  0.7, -0.70,  3.20),   // inicia inmersión: baja-derecha en arco
+  _kf(0.18,  1.5, -1.40,  1.80),
+  _kf(0.24,  2.2, -2.00, -0.50),   // se hunde (el velo oscurece con ella)
+  _kf(0.30,  1.8, -2.20, -3.50),   // vira en arco amplio hacia el fondo
+  _kf(0.36,  0.2, -1.90, -5.60),   // pasa LEJOS y abajo (zona del tambor: no compite)
+  _kf(0.42, -1.6, -1.20, -6.80),
+  _kf(0.48, -2.8, -0.30, -7.20),   // llega al fondo izquierdo
+  _kf(0.54, -2.2,  0.20, -7.20),   // cruce de fondo, presencia ambiente →
+  _kf(0.60, -0.8,  0.50, -7.00),
+  _kf(0.66,  0.9,  0.50, -6.20),
+  _kf(0.71,  2.3,  0.20, -4.00),   // asciende por la derecha, se acerca
+  _kf(0.75,  2.9, -0.30, -1.20),
+  _kf(0.79,  1.6, -0.50,  1.20),   // ★ EL MOMENTO: pasa cerca y grande (stats)
+  _kf(0.83, -0.2,  0.20,  1.00),
+  _kf(0.87, -1.8,  0.90, -1.20),   // sale arriba-izquierda ganando fondo (reviews respiran)
+  _kf(0.91, -2.2,  1.20, -3.60),
+  _kf(0.95, -1.2,  0.60, -4.40),   // regreso final: desciende al centro…
+  _kf(0.98, -0.3, -0.40, -3.40),
+  _kf(1.00,  0.1, -1.20, -2.20)    // …hacia el cierre (el río de conchas la espera)
 ];
 
 // ════════════════════════════════════════════════════════════════════════
@@ -6382,7 +6309,16 @@ function animate(time) {
   const dt = clock.getDelta();
   const t = clock.getElapsedTime();
 
-  if (mixer) mixer.update(dt);
+  if (mixer) {
+    // Nado reactivo: crucero lento en reposo, braceo más potente al scrollear (suavizado)
+    const _y = window.scrollY || 0;
+    const _ly = window.__lastY ?? _y;
+    const yVel = Math.min(1.4, Math.abs(_y - _ly) * 0.004);
+    window.__lastY = _y;
+    window.__swimTS = (window.__swimTS ?? 0.85) + ((0.85 + yVel) - (window.__swimTS ?? 0.85)) * 0.04;
+    mixer.timeScale = window.__swimTS;
+    mixer.update(dt);
+  }
   waterTexture.update();
   bgMaterial.uniforms.uTime.value = t;
 
@@ -6742,6 +6678,10 @@ function animate(time) {
     else auroraOp = (sp - 0.70) * 1.5;
     aurora.style.opacity = String(Math.max(0, Math.min(1, auroraOp)));
   }
+
+  // Velo de inmersión: se oscurece con el scroll (superficie → profundidad)
+  const dv = window.__diveVeil || (window.__diveVeil = document.getElementById('dive-veil'));
+  if (dv) dv.style.opacity = String(Math.min(0.62, Math.max(0, (sp - 0.06) * 2.0)));
 
   canvas.style.opacity = '1';
 
@@ -9026,6 +8966,144 @@ window.addEventListener("message", function(e){
   window.addEventListener('touchmove', ping, {passive:true});
   try{ if(window.__lenis && window.__lenis.on) window.__lenis.on('scroll', ping); }catch(_){}
 })();
+</script>
+
+<!-- ═══════════ RÍO DE CONCHAS — fondo vivo de la sección final ═══════════
+     Corriente diagonal de conchas reales (fotogrametría, instanciadas) con
+     claroscuro y repulsión del mouse. Autónoma: el scroll no la afecta.
+     Se pausa sola fuera de viewport. Requiere seashell_opt.glb junto al index. -->
+<style>
+  .final{position:relative;overflow:hidden}
+  .final>*{position:relative;z-index:2}
+  #shellsCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1;pointer-events:none}
+</style>
+<script type="module">
+try{
+  const THREE = await import('three');
+  const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+  const { RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js');
+
+  const sec=document.getElementById('final'), canvas=document.getElementById('shellsCanvas');
+  if(sec && canvas){
+    const IS_MOBILE=matchMedia('(max-width:768px)').matches||/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    const COUNT=IS_MOBILE?140:380;
+    const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
+    renderer.setPixelRatio(Math.min(devicePixelRatio,IS_MOBILE?1.4:1.6));
+    renderer.setClearColor(0x000000,0);
+    renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.08;
+    const scene=new THREE.Scene();
+    scene.fog=new THREE.Fog(0x04070E,36,90);
+    const camera=new THREE.PerspectiveCamera(50,1,0.1,400); camera.position.set(0,0,30);
+    function resize(){const w=sec.clientWidth,hh=sec.clientHeight;renderer.setSize(w,hh,false);camera.aspect=w/hh;camera.updateProjectionMatrix();}
+    resize(); addEventListener('resize',resize);
+    const pmrem=new THREE.PMREMGenerator(renderer);
+    scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
+    scene.add(new THREE.AmbientLight(0x1a2438,0.32));
+    const keyL=new THREE.PointLight(0xffd9a8,1500,200,2.0); keyL.position.set(21,-5,19); scene.add(keyL);
+    const fillL=new THREE.DirectionalLight(0xfff2dd,0.28); fillL.position.set(10,18,30); scene.add(fillL);
+    const rimL=new THREE.DirectionalLight(0x4A8FB5,0.35); rimL.position.set(-26,6,-16); scene.add(rimL);
+
+    const rnd=(a,b)=>a+Math.random()*(b-a);
+    const gauss=()=>(Math.random()+Math.random()+Math.random())/3*2-1;
+    function normalize(g,size){g.computeBoundingBox();const b=g.boundingBox;
+      const s=size/Math.max(b.max.x-b.min.x,b.max.y-b.min.y,b.max.z-b.min.z);g.scale(s,s,s);}
+
+    const gltf=await new GLTFLoader().loadAsync('./seashell_opt.glb');
+    const defs=[];
+    gltf.scene.traverse(o=>{ if(o.isMesh&&defs.length<3){
+      const g=o.geometry.clone(); g.center(); normalize(g,2.05);
+      o.material.envMapIntensity=0.38; o.material.roughness=Math.min(1,(o.material.roughness??1)*0.92);
+      defs.push({geo:g,mat:o.material});
+    }});
+    const perGeo=Math.ceil(COUNT/defs.length);
+    const meshes=defs.map(d=>{const m=new THREE.InstancedMesh(d.geo,d.mat,perGeo);
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(m);return m;});
+    const TOTAL=perGeo*defs.length;
+
+    const A0=new THREE.Vector3(-42,12,0),A1=new THREE.Vector3(42,-9,0);
+    const DIRV=A1.clone().sub(A0);const RLEN=DIRV.length();DIRV.normalize();
+    const NRM=new THREE.Vector3(-DIRV.y,DIRV.x,0);
+    const sPar=new Float32Array(TOTAL),perp=new Float32Array(TOTAL),homeZ=new Float32Array(TOTAL);
+    const off=new Float32Array(TOTAL*3),ovel=new Float32Array(TOTAL*3),flow=new Float32Array(TOTAL);
+    const rotAxis=[],rotSpd=new Float32Array(TOTAL),scl=new Float32Array(TOTAL),phase=new Float32Array(TOTAL);
+    const C=new THREE.Color();
+    const TINTS=[0xFFFFFF,0xF6EFE6,0xEFE4D4,0xFFF4E8].map(x=>new THREE.Color(x));
+    for(let i=0;i<TOTAL;i++){
+      sPar[i]=Math.random(); perp[i]=gauss()*4.0; homeZ[i]=rnd(-19,6)+gauss()*2;
+      const depth=(homeZ[i]+19)/25;
+      flow[i]=(0.030+depth*0.028)*(1+rnd(-0.18,0.18));
+      rotAxis.push(new THREE.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize());
+      rotSpd[i]=rnd(0.04,0.15)*(Math.random()<0.5?-1:1);
+      scl[i]=rnd(0.88,1.12); phase[i]=rnd(0,Math.PI*2);
+      const mi=(i/perGeo)|0,li=i-mi*perGeo;
+      C.copy(TINTS[(Math.random()*TINTS.length)|0]); C.offsetHSL(0,rnd(-0.02,0.02),rnd(-0.04,0.03));
+      if(meshes[mi].setColorAt) meshes[mi].setColorAt(li,C);
+    }
+    meshes.forEach(m=>{if(m.instanceColor)m.instanceColor.needsUpdate=true;});
+
+    const raycaster=new THREE.Raycaster(),mouseNDC=new THREE.Vector2(10,10);
+    let mouseActive=false,mouseVel=0,lastMX=0,lastMY=0;
+    function setMouse(cx,cy,vb){
+      const r=sec.getBoundingClientRect();
+      if(cy<r.top||cy>r.bottom){mouseActive=false;return;}
+      const nx=(cx-r.left)/r.width*2-1,ny=-((cy-r.top)/r.height)*2+1;
+      mouseVel=Math.min(3,Math.abs(nx-lastMX)*34+Math.abs(ny-lastMY)*34+(vb||0));
+      lastMX=nx;lastMY=ny;mouseNDC.set(nx,ny);mouseActive=true;
+    }
+    addEventListener('pointermove',e=>setMouse(e.clientX,e.clientY),{passive:true});
+    addEventListener('pointerdown',e=>setMouse(e.clientX,e.clientY,2.0),{passive:true});
+
+    let visible=true;
+    new IntersectionObserver(es=>{visible=es[0].isIntersecting;},{threshold:0.02}).observe(sec);
+
+    const REPEL_R=12.0,REPEL_F=34,SPRING=1.6,DAMP=2.6;
+    const M=new THREE.Matrix4(),Q=new THREE.Quaternion(),S=new THREE.Vector3(),V=new THREE.Vector3();
+    const rayO=new THREE.Vector3(),rayD=new THREE.Vector3(),tmp=new THREE.Vector3(),closest=new THREE.Vector3();
+    const clock=new THREE.Clock();
+    (function frame(){
+      requestAnimationFrame(frame);
+      const dt=Math.min(clock.getDelta(),0.05);
+      if(!visible) return;
+      const t=clock.getElapsedTime();
+      mouseVel*=0.92;
+      if(mouseActive){raycaster.setFromCamera(mouseNDC,camera);rayO.copy(raycaster.ray.origin);rayD.copy(raycaster.ray.direction);}
+      for(let i=0;i<TOTAL;i++){
+        const k=i*3,ph=phase[i];
+        sPar[i]+=flow[i]*dt;
+        if(sPar[i]>1.04){sPar[i]-=1.08;perp[i]=gauss()*4.0;homeZ[i]=rnd(-19,6)+gauss()*2;}
+        const along=sPar[i]*RLEN;
+        const mePerp=perp[i]+Math.sin(along*0.09+t*0.35+ph)*1.5;
+        const hx=A0.x+DIRV.x*along+NRM.x*mePerp;
+        const hy=A0.y+DIRV.y*along+NRM.y*mePerp;
+        const hz=homeZ[i]+Math.sin(t*0.3+ph)*0.5;
+        let fx=0,fy=0,fz=0;
+        if(mouseActive){
+          tmp.set(hx+off[k],hy+off[k+1],hz+off[k+2]).sub(rayO);
+          const proj=tmp.dot(rayD);
+          closest.copy(rayD).multiplyScalar(proj).add(rayO);
+          tmp.set(hx+off[k]-closest.x,hy+off[k+1]-closest.y,hz+off[k+2]-closest.z);
+          const d=tmp.length();
+          if(d<REPEL_R&&d>1e-4){const s=(1-d/REPEL_R);const f=REPEL_F*s*s*(0.7+mouseVel*0.25)/d;
+            fx=tmp.x*f;fy=tmp.y*f;fz=tmp.z*f*0.6;}
+        }
+        ovel[k]+=(fx-off[k]*SPRING-ovel[k]*DAMP)*dt;
+        ovel[k+1]+=(fy-off[k+1]*SPRING-ovel[k+1]*DAMP)*dt;
+        ovel[k+2]+=(fz-off[k+2]*SPRING-ovel[k+2]*DAMP)*dt;
+        off[k]+=ovel[k]*dt; off[k+1]+=ovel[k+1]*dt; off[k+2]+=ovel[k+2]*dt;
+        V.set(hx+off[k],hy+off[k+1],hz+off[k+2]);
+        const agit=Math.min(0.6,(Math.abs(ovel[k])+Math.abs(ovel[k+1]))*0.05);
+        const w=t*rotSpd[i]*(1+agit*1.2)+ph;
+        Q.setFromAxisAngle(rotAxis[i],w);
+        const s=scl[i];S.set(s,s,s);
+        M.compose(V,Q,S);
+        const mi=(i/perGeo)|0,li=i-mi*perGeo;
+        meshes[mi].setMatrixAt(li,M);
+      }
+      meshes.forEach(m=>m.instanceMatrix.needsUpdate=true);
+      renderer.render(scene,camera);
+    })();
+  }
+}catch(e){ console.warn('[conchas] no se pudo iniciar:', e.message); }
 </script>
 </body>
 </html>
