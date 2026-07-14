@@ -603,6 +603,7 @@
 <div class="loader" id="loader">cargando la columna…</div>
 <div class="err" id="err"></div>
 
+<script>if('scrollRestoration' in history){history.scrollRestoration='manual';} window.scrollTo(0,0);</script>
 <script type="module">
 const $=i=>document.getElementById(i);
 window.__e=m=>{const e=$('err');e.style.display='flex';e.textContent=m;};
@@ -628,8 +629,8 @@ const ESTANCIAS=[
 ];
 
 const canvas=$('c');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:!IS_MOBILE,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio,IS_MOBILE?1.5:2));
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.setClearColor(0xF1EFE8,1);   // fondo dentro del canvas → el vidrio lo refracta
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.28;
 renderer.shadowMap.enabled=!IS_MOBILE; renderer.shadowMap.type=THREE.PCFSoftShadowMap;   // sombras suaves solo en desktop (caras en móvil)
@@ -817,7 +818,7 @@ try{
  const gltf=await new GLTFLoader().loadAsync(WHALE_GLB);
  const m=gltf.scene;
  const bb=new THREE.Box3().setFromObject(m),sz=new THREE.Vector3(),ct=new THREE.Vector3();
- bb.getSize(sz);bb.getCenter(ct);const s=(IS_PORTRAIT?3.5:7)/Math.max(sz.x,sz.y,sz.z);
+ bb.getSize(sz);bb.getCenter(ct);const s=(IS_PORTRAIT?4.6:7)/Math.max(sz.x,sz.y,sz.z);
  m.scale.setScalar(s);m.position.sub(ct.multiplyScalar(s));
  m.traverse(o=>{if(o.isMesh||o.isSkinnedMesh){o.frustumCulled=false;
    // MATERIAL CRISTAL (idéntico a index): azul facetado, transmisión + iridiscencia + clearcoat
@@ -902,7 +903,7 @@ function makeGlassVRM(){
   const mesh=new THREE.Mesh(new THREE.PlaneGeometry(7.5*aspect,7.5), mat);
   mesh.renderOrder=5; return mesh;
 }
-const vrm3D = makeText3D('VRM',{size:IS_PORTRAIT?3.2:7.5,color:'#1B4D5C',weight:400,font:'Tanker',px:IS_MOBILE?900:1200,maxRes:IS_MOBILE?1800:2600,grad:['#2C6B7A','#1B4D5C','#123c49'],sheen:true});
+const vrm3D = makeText3D('VRM',{size:IS_PORTRAIT?2.6:7.5,color:'#1B4D5C',weight:400,font:'Tanker',px:IS_MOBILE?900:1200,maxRes:IS_MOBILE?1800:2600,grad:['#2C6B7A','#1B4D5C','#123c49'],sheen:true});
 vrm3D.position.set(0,0,0);
 scene.add(vrm3D);
 
@@ -1444,7 +1445,7 @@ addEventListener('wheel',e=>{ if(!CAMTUNE) return; if(camPanel&&camPanel.contain
 /* ═══════════ CALIDAD ADAPTATIVA por FPS ═══════════
    Monitorea el frame time; si va lento baja DPR y cantidad de peces, si sobra rendimiento los restaura.
    Así va fluido igual en un PC potente que en un móvil de gama media, sin tocar nada. */
-const _tierDPR  = IS_MOBILE ? [1.0, 1.25, 1.5]  : [1.25, 1.5, 2.0];
+const _tierDPR  = IS_MOBILE ? [1.5, 1.75, 2.0]  : [1.25, 1.5, 2.0];
 const _tierFish = IS_MOBILE ? [22, 34, 45]      : [55, 85, 120];
 let _perfTier = IS_MOBILE ? 1 : 2;                 // móvil arranca en nivel medio (buen default) y BAJA si sufre; desktop arranca alto
 let _pfAcc=0, _pfN=0, _pfSlow=0, _pfFast=0;
