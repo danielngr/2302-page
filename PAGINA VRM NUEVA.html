@@ -73,7 +73,7 @@
  /* ── FICHA FLOTANTE MÓVIL (card abajo con foto + datos + reservar) ── */
  #mCard{display:none}
  @media(max-width:860px){
-   #mCard{display:block;position:fixed;left:12px;right:12px;bottom:16px;z-index:6;
+   #mCard{display:block;position:fixed;left:12px;right:12px;bottom:16px;z-index:6;transition:transform .5s var(--e);
      background:rgba(255,255,255,.82);backdrop-filter:blur(18px);border:1px solid rgba(10,20,40,.1);
      border-radius:20px;padding:12px;box-shadow:0 18px 50px rgba(20,35,55,.22);
      display:flex;gap:12px;align-items:center;transition:opacity .35s var(--e)}
@@ -1588,7 +1588,7 @@ addEventListener('keydown',ev=>{
  // riseK: 0 en introT 0.85 → 1 en introT 1.0 (el aro emerge desde abajo durante ese tramo)
  const riseK = Math.max(0, Math.min(1, (introT-0.85)/0.15));
  const riseEase = riseK*riseK*(3-2*riseK);        // smoothstep
- cylGroup.visible = introT > 0.85;
+ cylGroup.visible = introT > 0.86 && rawP > 0.02;   // oculto en el hero pase lo que pase con el scroll inicial
  // desplazamiento vertical de emergencia: empieza abajo (-8) y sube a su sitio (0)
  const riseOffset = (introT < 1) ? (-8*(1-riseEase)) : 0;
  // la foto lateral SOLO aparece cuando la intro terminó del todo (no durante la ballena cruzando)
@@ -1597,6 +1597,7 @@ addEventListener('keydown',ev=>{
  if(apEl){
    apEl.style.transform = (introT >= 1 && qCard<=0) ? 'translateY(0)' : 'translateY(105vh)';
  }
+ { const _mc=document.getElementById('mCard'); if(_mc) _mc.style.transform = (introT > 0.9 && qCard<=0.05) ? 'translateY(0)' : 'translateY(180%)'; }   // la tarjeta móvil solo en la fase de aros
 
  // el cilindro ACTIVO queda a la altura de la cámara (y≈0) → banda de perfil, no boca elíptica
  // en la fase final la columna de aros se despeja hacia arriba (deja el escenario al cardumen + texto)
