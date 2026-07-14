@@ -364,6 +364,21 @@
  .ex-rev-n i{font-family:var(--fd);font-style:italic;font-weight:500;font-size:clamp(40px,4.2vw,66px);color:var(--teal);line-height:1}
  .ex-rev-n small{font-family:var(--fb);font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:#5c7278;position:relative;padding-left:20px}
  .ex-rev-n small::before{content:"";position:absolute;left:0;top:50%;width:1px;height:18px;background:rgba(27,77,92,.28);transform:translateY(-50%)}
+
+ /* mapa en móvil: limpio, apilado, ballena atenuada detrás */
+ @media(max-width:900px){
+   .ed-map-m{background:var(--bg)!important}
+   .ed-map-m .mx-head{padding:4vh 6vw 0;flex-direction:column;align-items:flex-start;gap:6px}
+   .ed-map-m .mx-meta{text-align:left}
+   .ed-map-m .mx-h{font-size:clamp(24px,6.4vw,38px)}
+   .ed-map-m .mx-body{padding:0 1vw 4vh;align-items:center}
+   .ed-map-m .mx-wrap{width:100%}
+   .ed-map-m .mx-wrap svg{max-height:none;width:130%;height:auto;margin-left:-15%}
+   .ed-map-m .mx-mex{stroke-width:3.2}
+   .ed-map-m .mx-pin-lab{font-size:18px}
+   .ed-map-m .mx-pin-sub{font-size:13px}
+   .ed-map-m .mx-grat{display:none}
+ }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
@@ -1060,6 +1075,28 @@ gsap.ticker.add(t=>lenis.raf(t*1000));gsap.ticker.lagSmoothing(0);
 let PROG=0,SPROG=0;
 ScrollTrigger.create({trigger:'#story',start:'top top',end:'bottom bottom',scrub:0.6,
  onUpdate:s=>{PROG=s.progress;}});
+
+// ── SNAP POR ARO en móvil: al soltar el swipe, se acomoda al aro más cercano (efecto carrusel) ──
+if(IS_PORTRAIT){
+  const _storyEl=document.getElementById('story');
+  let _snapTimer=null, _snapping=false;
+  lenis.on('scroll',()=>{
+    if(_snapping || !_storyEl) return;
+    clearTimeout(_snapTimer);
+    _snapTimer=setTimeout(()=>{
+      if(Math.abs(lenis.velocity||0)>2.5) return;                 // aún moviéndose: no snap
+      const N=ESTANCIAS.length;
+      const p=(PROG-INTRO_END)/(RINGS_END-INTRO_END);
+      if(p < -0.03 || p > 1.03) return;                           // solo en la fase de aros
+      const nearest=Math.max(0,Math.min(N-1,Math.round(p*(N-1))));
+      const tRaw=INTRO_END + (nearest/(N-1))*(RINGS_END-INTRO_END);
+      const maxS=_storyEl.offsetHeight-innerHeight;
+      const tScroll=_storyEl.offsetTop + tRaw*maxS;
+      _snapping=true;
+      lenis.scrollTo(tScroll,{duration:0.5,easing:t=>1-Math.pow(1-t,3),onComplete:()=>{_snapping=false;}});
+    },150);
+  });
+}
 // límite de velocidad de la columna: aunque scrollees rapidísimo, avanza a su ritmo
 const MAX_COL_SPEED=0.15;   // progreso máx por segundo (más alto = la ballena baja más rápido por los aros)
 
