@@ -904,7 +904,7 @@ function makeGlassVRM(){
   mesh.renderOrder=5; return mesh;
 }
 const vrm3D = makeText3D('VRM',{size:IS_PORTRAIT?2.6:7.5,color:'#1B4D5C',weight:400,font:'Tanker',px:IS_MOBILE?900:1200,maxRes:IS_MOBILE?1800:2600,grad:['#2C6B7A','#1B4D5C','#123c49'],sheen:true});
-vrm3D.position.set(0, IS_PORTRAIT?2.4:0, 0);
+vrm3D.position.set(0, IS_PORTRAIT?1.6:0, 0);
 scene.add(vrm3D);
 
 /* textos de valor 3D: colocados A LOS COSTADOS del camino recto de la ballena.
@@ -1054,6 +1054,7 @@ canvas.addEventListener('click__disabled',e=>{
 const {gsap,ScrollTrigger,Lenis}=window;
 gsap.registerPlugin(ScrollTrigger);
 const lenis=new Lenis({lerp:0.075,wheelMultiplier:0.5,touchMultiplier:0.72});
+window.__lenis=lenis; lenis.scrollTo(0,{immediate:true}); addEventListener('load',()=>lenis.scrollTo(0,{immediate:true}));
 lenis.on('scroll',ScrollTrigger.update);
 gsap.ticker.add(t=>lenis.raf(t*1000));gsap.ticker.lagSmoothing(0);
 let PROG=0,SPROG=0;
@@ -1654,7 +1655,7 @@ addEventListener('keydown',ev=>{
    const fz=wp.z*(1-blend)+0*blend;
    wWy=fy;
    const _introStart=Math.max(0, 1 - introT/0.34);
-   const _heroLift = IS_PORTRAIT ? 2.4*_introStart : -2.4*_introStart;   // portrait: sube con el VRM · desktop: baja (libera la V)
+   const _heroLift = IS_PORTRAIT ? 1.6*_introStart : -2.4*_introStart;   // portrait: sube con el VRM · desktop: baja (libera la V)
    wrapper.position.set(fx + Math.sin(t*0.15)*0.3, fy + _heroLift, fz);
    // ORIENTACIÓN: interpola suave de la tangente del camino (horizontal) → vertical hacia abajo
    const tanHoriz=wtg.clone().normalize();                    // dirección del nado en el camino
@@ -1777,7 +1778,7 @@ addEventListener('keydown',ev=>{
  }
  // ── CARDUMEN en el MISMO lienzo: nada en la escena principal durante la fase final ──
  if(window.__fishStep) window.__fishStep(t, dt, qCard);
- { const _cnt=document.getElementById('count'); if(_cnt) _cnt.style.opacity = qCard>0.1 ? '0' : ''; }
+ { const _cnt=document.getElementById('count'); if(_cnt) _cnt.style.opacity = (introT>0.85 && qCard<=0.1) ? '' : '0'; }
  renderer.render(scene,camera);
 })();
 </script>
