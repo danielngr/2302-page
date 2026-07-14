@@ -636,9 +636,9 @@ renderer.shadowMap.enabled=!IS_MOBILE; renderer.shadowMap.type=THREE.PCFSoftShad
 try{renderer.transmissionResolutionScale=1.0;}catch(e){}
 const scene=new THREE.Scene(); scene.background=new THREE.Color(0xF1EFE8);
 scene.fog=new THREE.Fog(0xF1EFE8, 26, 78);   // profundidad atmosférica: los peces lejanos se funden en el marfil (la ballena se excluye)
-const camera=new THREE.PerspectiveCamera(IS_PORTRAIT?47:34,innerWidth/innerHeight,0.1,100);
+const camera=new THREE.PerspectiveCamera(IS_PORTRAIT?42:34,innerWidth/innerHeight,0.1,100);
 const _CENTERED = IS_MOBILE || innerWidth <= 860 || innerHeight > innerWidth || matchMedia('(pointer:coarse)').matches;   // centra en móvil, angosto, vertical o CUALQUIER táctil
-camera.position.set(0,0,(IS_PORTRAIT?25:_CENTERED?15:17)); const WORLD_SHIFT_X = _CENTERED?0:8.2; const CAM_SHIFT_X = _CENTERED?0:3.0;
+camera.position.set(0,0,(IS_PORTRAIT?18:_CENTERED?15:17)); const WORLD_SHIFT_X = _CENTERED?0:8.2; const CAM_SHIFT_X = _CENTERED?0:3.0;
 function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
 resize();addEventListener('resize',resize);
 const pmrem=new THREE.PMREMGenerator(renderer);
@@ -673,7 +673,7 @@ particles.renderOrder=1;
 scene.add(particles);
 
 /* ── CILINDRO estilo Noomo (técnica del código reconstruido) ── */
-const GAP=7.4, RAD=3.7, HEI=3.0;
+const GAP=IS_PORTRAIT?11:7.4, RAD=IS_PORTRAIT?2.5:3.7, HEI=IS_PORTRAIT?2.6:3.0;
 const cylGroup=new THREE.Group();scene.add(cylGroup);
 const cylinders=[];
 const maxAniso=renderer.capabilities.getMaxAnisotropy();
@@ -817,7 +817,7 @@ try{
  const gltf=await new GLTFLoader().loadAsync(WHALE_GLB);
  const m=gltf.scene;
  const bb=new THREE.Box3().setFromObject(m),sz=new THREE.Vector3(),ct=new THREE.Vector3();
- bb.getSize(sz);bb.getCenter(ct);const s=(IS_PORTRAIT?4.4:7)/Math.max(sz.x,sz.y,sz.z);
+ bb.getSize(sz);bb.getCenter(ct);const s=(IS_PORTRAIT?3.5:7)/Math.max(sz.x,sz.y,sz.z);
  m.scale.setScalar(s);m.position.sub(ct.multiplyScalar(s));
  m.traverse(o=>{if(o.isMesh||o.isSkinnedMesh){o.frustumCulled=false;
    // MATERIAL CRISTAL (idéntico a index): azul facetado, transmisión + iridiscencia + clearcoat
@@ -902,7 +902,7 @@ function makeGlassVRM(){
   const mesh=new THREE.Mesh(new THREE.PlaneGeometry(7.5*aspect,7.5), mat);
   mesh.renderOrder=5; return mesh;
 }
-const vrm3D = makeText3D('VRM',{size:IS_PORTRAIT?3.9:7.5,color:'#1B4D5C',weight:400,font:'Tanker',px:IS_MOBILE?900:1200,maxRes:IS_MOBILE?1800:2600,grad:['#2C6B7A','#1B4D5C','#123c49'],sheen:true});
+const vrm3D = makeText3D('VRM',{size:IS_PORTRAIT?3.2:7.5,color:'#1B4D5C',weight:400,font:'Tanker',px:IS_MOBILE?900:1200,maxRes:IS_MOBILE?1800:2600,grad:['#2C6B7A','#1B4D5C','#123c49'],sheen:true});
 vrm3D.position.set(0,0,0);
 scene.add(vrm3D);
 
@@ -930,7 +930,7 @@ const CAMPATH = new THREE.CatmullRomCurve3([
   new THREE.Vector3(-3, -0.5, -3),    // 0.6 pasamos detrás, siguiendo a la ballena
   new THREE.Vector3(3, -0.5, -2),     // 0.75 detrás de la ballena que va a la derecha
   new THREE.Vector3(CAM_SHIFT_X, 0, 8),// 0.9 empezamos a enderezar hacia los aros
-  new THREE.Vector3(CAM_SHIFT_X, 0, (IS_PORTRAIT?25:_CENTERED?15:17))  // 1.0 posición final de los aros
+  new THREE.Vector3(CAM_SHIFT_X, 0, (IS_PORTRAIT?18:_CENTERED?15:17))  // 1.0 posición final de los aros
 ], false, 'centripetal', 0.5);
 
 /* punto que la cámara MIRA a lo largo de la intro (hero VRM → ballena → aros) */
@@ -977,8 +977,8 @@ const WHALE_EXIT = new THREE.CatmullRomCurve3([
    Con C: scrubbeás el momento, componés el plano (arrastrar=orbitar, rueda=acercar,
    Shift+arrastrar=desplazar objetivo), GUARDÁS keyframes y COPIÁS los números. */
 let CAM_KEYS = [
-  {q:0.00, p:[CAM_SHIFT_X,0,(IS_PORTRAIT?25:_CENTERED?15:17)], l:[CAM_SHIFT_X,0,0],           fov:34},  // vista de aros EXACTA (sin corte)
-  {q:0.10, p:[CAM_SHIFT_X,0,(IS_PORTRAIT?25:_CENTERED?15:17)], l:[WORLD_SHIFT_X,0,0],         fov:35},  // centra el aro (la foto se retira)
+  {q:0.00, p:[CAM_SHIFT_X,0,(IS_PORTRAIT?18:_CENTERED?15:17)], l:[CAM_SHIFT_X,0,0],           fov:34},  // vista de aros EXACTA (sin corte)
+  {q:0.10, p:[CAM_SHIFT_X,0,(IS_PORTRAIT?18:_CENTERED?15:17)], l:[WORLD_SHIFT_X,0,0],         fov:35},  // centra el aro (la foto se retira)
   {q:0.18, p:[WORLD_SHIFT_X,4,1.5],           l:[WORLD_SHIFT_X,-4,0],        fov:44},  // sobre el último aro, en el HUECO (sin chocar el aro de arriba), mirando abajo
   {q:0.26, p:[WORLD_SHIFT_X,1,0.5],           l:[WORLD_SHIFT_X,-6,-0.3],     fov:58},  // CRUZANDO por dentro del aro (eje central)
   {q:0.34, p:[WORLD_SHIFT_X-1,-4,2],          l:[WORLD_SHIFT_X-4,-5.4,-1.5], fov:50},  // sale por abajo del aro; la ballena baja e izquierda
@@ -1714,7 +1714,7 @@ addEventListener('keydown',ev=>{
      wrapper.position.y*0.6 + 0.5,
      wrapper.position.z + 6.5
    );
-   const ringsCam = new THREE.Vector3(CAM_SHIFT_X, 0, (IS_PORTRAIT?25:_CENTERED?15:17));
+   const ringsCam = new THREE.Vector3(CAM_SHIFT_X, 0, (IS_PORTRAIT?18:_CENTERED?15:17));
    const camBehind = camFixed.clone().lerp(behind, follow);
    camera.position.lerpVectors(camBehind, ringsCam, land);
    camera.position.x += mx*0.4; camera.position.y -= my*0.3;
@@ -1734,14 +1734,14 @@ addEventListener('keydown',ev=>{
    camera.fov += (targetFov - camera.fov)*0.1;
    camera.updateProjectionMatrix();
  } else {
-   const Zbase = (IS_PORTRAIT?25:_CENTERED?15:17);
+   const Zbase = (IS_PORTRAIT?18:_CENTERED?15:17);
    if(qCard<=0){
      // vista de aros normal
      camera.position.x += ((CAM_SHIFT_X + mx*1.2)-camera.position.x)*0.04;
      camera.position.y += ((-my*0.3)-camera.position.y)*0.04;
      camera.position.z += ((Zbase)-camera.position.z)*0.06;
      camera.lookAt(CAM_SHIFT_X,0,0);
-     camera.fov += ((IS_PORTRAIT?47:34) - camera.fov)*0.1; camera.updateProjectionMatrix();
+     camera.fov += ((IS_PORTRAIT?42:34) - camera.fov)*0.1; camera.updateProjectionMatrix();
    } else if(CAMTUNE){
      // ── MODO DIRECTOR: componés el plano en vivo (la fase queda congelada en el scrub) ──
      camera.position.copy(camDirPos());
@@ -1751,7 +1751,7 @@ addEventListener('keydown',ev=>{
      // ── BAJADA DIRECTA a posición final fija (como index): sin vuelta, sin chase ──
      const qe = qCard*qCard*(3-2*qCard);
      const _cx=Math.min(1,qCard/0.2), _cxe=_cx*_cx*(3-2*_cx);   // centrado en X al MISMO ritmo que el aro y la ballena
-     const _pt = new THREE.Vector3(CAM_SHIFT_X*(1-_cxe) + mx*0.4, 3.5*qe - my*0.3, ((IS_PORTRAIT?25:_CENTERED?15:17))*(1-qe) + 22*qe);
+     const _pt = new THREE.Vector3(CAM_SHIFT_X*(1-_cxe) + mx*0.4, 3.5*qe - my*0.3, ((IS_PORTRAIT?18:_CENTERED?15:17))*(1-qe) + 22*qe);
      camera.position.lerp(_pt, 0.18);
      const _lt = new THREE.Vector3(CAM_SHIFT_X*(1-_cxe), -6*qe, -7*qe);   // la mirada se centra en X junto con el aro/ballena
      camera.lookAt(_lt);
