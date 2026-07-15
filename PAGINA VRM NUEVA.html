@@ -643,11 +643,11 @@ const ESTANCIAS=[
 ];
 
 const canvas=$('c');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const renderer=new THREE.WebGLRenderer({canvas,antialias:!IS_PORTRAIT,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,IS_PORTRAIT?1.8:2));
 renderer.setClearColor(0xF1EFE8,1);   // fondo dentro del canvas → el vidrio lo refracta
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.28;
-renderer.shadowMap.enabled=!IS_MOBILE; renderer.shadowMap.type=THREE.PCFSoftShadowMap;   // sombras suaves solo en desktop (caras en móvil)
+renderer.shadowMap.enabled=!IS_PORTRAIT; renderer.shadowMap.type=THREE.PCFSoftShadowMap;   // sombras suaves solo en desktop (caras en móvil)
 try{renderer.transmissionResolutionScale=1.0;}catch(e){}
 const scene=new THREE.Scene(); scene.background=new THREE.Color(0xF1EFE8);
 scene.fog=new THREE.Fog(0xF1EFE8, 26, 78);   // profundidad atmosférica: los peces lejanos se funden en el marfil (la ballena se excluye)
@@ -659,7 +659,7 @@ resize();addEventListener('resize',resize);
 const pmrem=new THREE.PMREMGenerator(renderer);
 scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;   // fallback inmediato
 // HDRI de ESTUDIO — reflejos limpios de cristal sobre marfil
-if(!IS_MOBILE){ new RGBELoader().setPath('https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/')
+if(!IS_PORTRAIT){ new RGBELoader().setPath('https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/')
   .load('photo_studio_01_1k.hdr',(hdr)=>{hdr.mapping=THREE.EquirectangularReflectionMapping;scene.environment=hdr;},undefined,
    ()=>{ new RGBELoader().setPath('https://threejs.org/examples/textures/equirectangular/')
        .load('royal_esplanade_1k.hdr',(h2)=>{h2.mapping=THREE.EquirectangularReflectionMapping;scene.environment=h2;},undefined,()=>{}); }); }
@@ -668,7 +668,7 @@ const key=new THREE.DirectionalLight(0xffffff,2.2);key.position.set(5,10,8);scen
 const rim=new THREE.DirectionalLight(0xbcd0e6,1.0);rim.position.set(-6,-4,-6);scene.add(rim);
 
 /* ── PARTÍCULAS AMBIENTE: motas suaves flotando (vida, tipo plancton/polvo de luz) ── */
-const PARTICLE_N = IS_MOBILE?45:180;
+const PARTICLE_N = IS_PORTRAIT?45:180;
 const pGeo=new THREE.BufferGeometry();
 const pPos=new Float32Array(PARTICLE_N*3), pSeed=new Float32Array(PARTICLE_N);
 for(let i=0;i<PARTICLE_N;i++){
@@ -836,7 +836,7 @@ try{
  m.scale.setScalar(s);m.position.sub(ct.multiplyScalar(s));
  m.traverse(o=>{if(o.isMesh||o.isSkinnedMesh){o.frustumCulled=false;
    // MATERIAL CRISTAL (idéntico a index): azul facetado, transmisión + iridiscencia + clearcoat
-   o.material = IS_MOBILE
+   o.material = IS_PORTRAIT
      ? new THREE.MeshStandardMaterial({color:0x70a8d8, metalness:0.45, roughness:0.14, envMapIntensity:1.3, emissive:new THREE.Color(0x143f6e), emissiveIntensity:0.28, flatShading:true, fog:false})
      : new THREE.MeshPhysicalMaterial({
      color:0x70a8d8, transmission:0.30, thickness:1.2, ior:1.7,
@@ -1360,7 +1360,7 @@ const _brand=$('brand'), _sb=$('searchbar');
 // este frame y, si se pasa del margen, resuelvo la x de mundo exacta que la deja
 // justo en el borde permitido (y,z fijos). Es lineal → solución de una pasada.
 //   MARGIN_X = 1.0 sería el borde exacto; <1 deja aire para el cuerpo/cola.
-const WHALE_NDC_MARGIN_X = IS_MOBILE ? 0.70 : 0.80;
+const WHALE_NDC_MARGIN_X = IS_PORTRAIT ? 0.70 : 0.80;
 function clampWhaleToViewport(introT){
   // cámara al día antes de proyectar
   camera.updateMatrixWorld();
@@ -1503,9 +1503,9 @@ addEventListener('wheel',e=>{ if(!CAMTUNE) return; if(camPanel&&camPanel.contain
 /* ═══════════ CALIDAD ADAPTATIVA por FPS ═══════════
    Monitorea el frame time; si va lento baja DPR y cantidad de peces, si sobra rendimiento los restaura.
    Así va fluido igual en un PC potente que en un móvil de gama media, sin tocar nada. */
-const _tierDPR  = IS_MOBILE ? [1.5, 1.75, 2.0]  : [1.25, 1.5, 2.0];
-const _tierFish = IS_MOBILE ? [22, 34, 45]      : [55, 85, 120];
-let _perfTier = IS_MOBILE ? 1 : 2;                 // móvil arranca en nivel medio (buen default) y BAJA si sufre; desktop arranca alto
+const _tierDPR  = IS_PORTRAIT ? [1.4, 1.6, 1.8]  : [1.25, 1.5, 2.0];
+const _tierFish = IS_PORTRAIT ? [22, 34, 45]      : [55, 85, 120];
+let _perfTier = IS_PORTRAIT ? 1 : 2;                 // móvil arranca en nivel medio (buen default) y BAJA si sufre; desktop arranca alto
 let _pfAcc=0, _pfN=0, _pfSlow=0, _pfFast=0;
 window.__perfMaxFish = _tierFish[_perfTier];
 function applyTier(){
