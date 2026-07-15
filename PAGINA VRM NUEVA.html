@@ -477,7 +477,7 @@
   </div>
 </div>
 <div id="freeEd" aria-hidden="true">
-  <div class="ed-m ed-map-m" data-a="0.36" data-b="0.86">
+  <div class="ed-m ed-map-m" data-a="0.48" data-b="0.90">
   <div class="mx-vign"></div>
   <div class="mx-head">
     <div><div class="mx-eye">La red VRM</div><h2 class="mx-h">Cuatro Méxicos,<br><b>una misma</b> casa.</h2></div>
@@ -963,7 +963,20 @@ const CAMLOOK = new THREE.CatmullRomCurve3([
    rodea VRM por la izquierda, PASA POR DELANTE de VRM, y luego SIGUE DERECHO hacia adelante
    (la cámara va en su espalda = viaje recto) mientras los textos pasan a los costados.
    Al final gira hacia el primer aro. */
-const WHALEPATH = new THREE.CatmullRomCurve3([
+const WHALEPATH = new THREE.CatmullRomCurve3(IS_PORTRAIT ? [
+  new THREE.Vector3(0.30, 1.40, -11.00),   // móvil: inicio arriba, detrás del VRM (angosto para caber en vertical)
+  new THREE.Vector3(-1.90, 0.40, -5.50),
+  new THREE.Vector3(-2.30, -0.50, 0.50),   // rizo izquierdo (angosto)
+  new THREE.Vector3(-1.30, -1.30, 3.80),
+  new THREE.Vector3(-0.30, -1.55, 4.20),   // cruza al frente, bajo el centro
+  new THREE.Vector3(0.60, -2.00, 2.00),
+  new THREE.Vector3(0.85, -1.55, -1.60),   // sube por detrás
+  new THREE.Vector3(0.70, -0.50, -6.00),
+  new THREE.Vector3(0.40, 0.15, -7.20),
+  new THREE.Vector3(0.10, 0.42, -5.00),
+  new THREE.Vector3(0.00, 0.35, -2.40),    // endereza hacia el aro
+  new THREE.Vector3(0.00, 0.00, 0.00)      // centrada en el primer aro
+] : [
   new THREE.Vector3(0.71, 1.85, -16.00),   // inicio: arriba, centrada (emerge detrás de VRM)
   new THREE.Vector3(-5.17, 0.48, -7.00),
   new THREE.Vector3(-6.27, -0.69, 1.00),   // extremo izquierdo del rizo (vuelta cerrada)
@@ -1075,26 +1088,25 @@ let PROG=0,SPROG=0;
 ScrollTrigger.create({trigger:'#story',start:'top top',end:'bottom bottom',scrub:0.6,
  onUpdate:s=>{PROG=s.progress;}});
 
-// ── SNAP POR ARO en móvil: al soltar el swipe, se acomoda al aro más cercano (efecto carrusel) ──
+// ── PAGINADO "un swipe = un aro" en móvil ──
 if(IS_PORTRAIT){
   const _storyEl=document.getElementById('story');
-  let _snapTimer=null, _snapping=false;
-  lenis.on('scroll',()=>{
-    if(_snapping || !_storyEl) return;
-    clearTimeout(_snapTimer);
-    _snapTimer=setTimeout(()=>{
-      if(Math.abs(lenis.velocity||0)>2.5) return;                 // aún moviéndose: no snap
-      const N=ESTANCIAS.length;
-      const p=(PROG-INTRO_END)/(RINGS_END-INTRO_END);
-      if(p < -0.03 || p > 1.03) return;                           // solo en la fase de aros
-      const nearest=Math.max(0,Math.min(N-1,Math.round(p*(N-1))));
-      const tRaw=INTRO_END + (nearest/(N-1))*(RINGS_END-INTRO_END);
-      const maxS=_storyEl.offsetHeight-innerHeight;
-      const tScroll=_storyEl.offsetTop + tRaw*maxS;
-      _snapping=true;
-      lenis.scrollTo(tScroll,{duration:0.5,easing:t=>1-Math.pow(1-t,3),onComplete:()=>{_snapping=false;}});
-    },150);
-  });
+  const N=ESTANCIAS.length;
+  const ringScroll=(i)=>{ const tRaw=INTRO_END + (i/(N-1))*(RINGS_END-INTRO_END); return _storyEl.offsetTop + tRaw*(_storyEl.offsetHeight-innerHeight); };
+  const ringsP=()=> (PROG-INTRO_END)/(RINGS_END-INTRO_END);
+  const inRings=()=>{ const p=ringsP(); return p > -0.015 && p < 1.015; };
+  const curIdx=()=> Math.max(0,Math.min(N-1,Math.round(ringsP()*(N-1))));
+  let _y0=0, _idx0=0, _paging=false, _armed=false;
+  addEventListener('touchstart',(e)=>{ if(!inRings()){_armed=false;return;} _armed=true; _y0=e.touches[0].clientY; _idx0=curIdx(); },{passive:true});
+  addEventListener('touchend',(e)=>{
+    if(!_armed || _paging) return; _armed=false;
+    if(!inRings()) return;
+    const dy=_y0-(e.changedTouches[0].clientY);          // >0: swipe hacia arriba → siguiente aro
+    let target=_idx0;
+    if(Math.abs(dy)>=20) target=Math.max(0,Math.min(N-1,_idx0+(dy>0?1:-1)));  // exactamente ±1 aro por swipe
+    _paging=true;
+    lenis.scrollTo(ringScroll(target),{duration:0.6,easing:t=>1-Math.pow(1-t,3),onComplete:()=>{_paging=false;}});
+  },{passive:true});
 }
 // límite de velocidad de la columna: aunque scrollees rapidísimo, avanza a su ritmo
 const MAX_COL_SPEED=0.15;   // progreso máx por segundo (más alto = la ballena baja más rápido por los aros)
@@ -1581,7 +1593,7 @@ addEventListener('keydown',ev=>{
  if(window.__finalTune.active){ SPROG = RINGS_END + Math.max(0,Math.min(1,window.__finalTune.scrubQ))*(1-RINGS_END); }  // ajuste final: congela en el scrub
  const rawP=Math.max(0,Math.min(1,SPROG));
  // el logo y la barra de reserva viven en el hero y se desvanecen al entrar a las estancias
- { const heroFade=Math.max(0,Math.min(1,1-rawP/0.20));   // barra + brand se van antes del nado libre (sin choque)
+ { const heroFade=Math.max(0,Math.min(1,1-rawP/(IS_PORTRAIT?0.14:0.20)));   // barra + brand se van antes del nado libre (sin choque)
    if(_sb){ _sb.style.opacity=heroFade; _sb.style.pointerEvents=heroFade<0.05?'none':'auto'; }
    if(_brand) _brand.style.opacity=heroFade; }
 
@@ -1602,12 +1614,12 @@ addEventListener('keydown',ev=>{
  // por movimiento puro (sin fade). Latch: una vez rebasado, no reaparece al volver la cámara.
  vrm3D.rotation.set(0,0,0);
  // VRM se DISUELVE por introT (simétrico: igual bajando o subiendo) → abre la ventana limpia del nado libre
- vrm3D.visible = introT < 0.64;
- if(vrm3D.material) vrm3D.material.opacity = 1 - Math.max(0, Math.min(1,(introT-0.54)/0.09));   // siempre actualiza (subir rápido no lo deja atorado)
- window.__vrmGone = introT > 0.60;
+ vrm3D.visible = introT < (IS_PORTRAIT?0.50:0.64);
+ if(vrm3D.material) vrm3D.material.opacity = 1 - Math.max(0, Math.min(1,(introT-(IS_PORTRAIT?0.34:0.54))/0.09));   // siempre actualiza (subir rápido no lo deja atorado)
+ window.__vrmGone = introT > (IS_PORTRAIT?0.44:0.60);
  // ── EDITORIAL del nado libre: por introT (simétrico), en pantalla ya limpia ──
  for(const el of _edMoments){ el.classList.toggle('on', introT > +el.dataset.a && introT < +el.dataset.b); }
- if(window.__mapDraw){ const _mA=IS_PORTRAIT?0.36:0.50; const _mp=Math.max(0,Math.min(1,(introT-_mA)/(0.86-_mA))); window.__mapDraw(_mp); }   // móvil más lento
+ if(window.__mapDraw){ const _mA=IS_PORTRAIT?0.48:0.50, _mB=IS_PORTRAIT?0.90:0.86; const _mp=Math.max(0,Math.min(1,(introT-_mA)/(_mB-_mA))); window.__mapDraw(_mp); }   // móvil: su propio espacio, más lento
  for(const el of _exMoments){ el.classList.toggle('on', qCard > +el.dataset.a && qCard < +el.dataset.b); }
  // ── TEXTOS DE VALOR: de a uno, bien separados, después de que VRM ya no está ──
  valueMeshes.forEach((m)=>{
@@ -1624,7 +1636,7 @@ addEventListener('keydown',ev=>{
  // riseK: 0 en introT 0.85 → 1 en introT 1.0 (el aro emerge desde abajo durante ese tramo)
  const riseK = Math.max(0, Math.min(1, (introT-0.85)/0.15));
  const riseEase = riseK*riseK*(3-2*riseK);        // smoothstep
- cylGroup.visible = introT > 0.86 && rawP > 0.02;   // oculto en el hero pase lo que pase con el scroll inicial
+ cylGroup.visible = introT > (IS_PORTRAIT?0.92:0.86) && rawP > 0.02;   // oculto en el hero pase lo que pase con el scroll inicial
  // desplazamiento vertical de emergencia: empieza abajo (-8) y sube a su sitio (0)
  const riseOffset = (introT < 1) ? (-8*(1-riseEase)) : 0;
  // la foto lateral SOLO aparece cuando la intro terminó del todo (no durante la ballena cruzando)
