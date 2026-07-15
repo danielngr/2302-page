@@ -1080,7 +1080,15 @@ canvas.addEventListener('click__disabled',e=>{
 /* ── Lenis + ScrollTrigger ── */
 const {gsap,ScrollTrigger,Lenis}=window;
 gsap.registerPlugin(ScrollTrigger);
-const lenis=new Lenis({lerp:0.075,wheelMultiplier:0.5,touchMultiplier:0.72});
+const lenis=new Lenis({
+  lerp:0.09,
+  wheelMultiplier:0.5,
+  gestureOrientation:'vertical',
+  syncTouch:true,               // clave: suavizado + inercia con peso en táctil (antes se sentía ligero/raro)
+  syncTouchLerp:0.075,          // suavidad de la inercia táctil (más bajo = glide más pesado/suave)
+  touchInertiaMultiplier:26,    // fuerza del impulso al soltar (glide satisfactorio, controlado)
+  touchMultiplier:1.25          // seguimiento del dedo (natural, con un pelín de respuesta)
+});
 window.__lenis=lenis; lenis.scrollTo(0,{immediate:true}); addEventListener('load',()=>lenis.scrollTo(0,{immediate:true}));
 lenis.on('scroll',ScrollTrigger.update);
 gsap.ticker.add(t=>lenis.raf(t*1000));gsap.ticker.lagSmoothing(0);
@@ -1105,7 +1113,7 @@ if(IS_PORTRAIT){
     let target=_idx0;
     if(Math.abs(dy)>=20) target=Math.max(0,Math.min(N-1,_idx0+(dy>0?1:-1)));  // exactamente ±1 aro por swipe
     _paging=true;
-    lenis.scrollTo(ringScroll(target),{duration:0.6,easing:t=>1-Math.pow(1-t,3),onComplete:()=>{_paging=false;}});
+    lenis.scrollTo(ringScroll(target),{duration:0.7,easing:t=>1-Math.pow(1-t,3.2),onComplete:()=>{_paging=false;}});
   },{passive:true});
 }
 // límite de velocidad de la columna: aunque scrollees rapidísimo, avanza a su ritmo
@@ -1772,7 +1780,7 @@ addEventListener('keydown',ev=>{
    camera.position.x += mx*0.4; camera.position.y -= my*0.3;
 
    const lookBehind = new THREE.Vector3(0,0,0).lerp(wrapper.position, follow);
-   const lookRings = new THREE.Vector3(CAM_SHIFT_X,0,0);
+   const lookRings = new THREE.Vector3(CAM_SHIFT_X, IS_PORTRAIT?-2.8:0, 0);
    const lookTarget = lookBehind.clone().lerp(lookRings, land);
    camera.lookAt(lookTarget);
 
@@ -1792,7 +1800,7 @@ addEventListener('keydown',ev=>{
      camera.position.x += ((CAM_SHIFT_X + mx*1.2)-camera.position.x)*0.04;
      camera.position.y += ((-my*0.3)-camera.position.y)*0.04;
      camera.position.z += ((Zbase)-camera.position.z)*0.06;
-     camera.lookAt(CAM_SHIFT_X,0,0);
+     camera.lookAt(CAM_SHIFT_X, IS_PORTRAIT?-2.8:0, 0);
      camera.fov += ((IS_PORTRAIT?42:34) - camera.fov)*0.1; camera.updateProjectionMatrix();
    } else if(CAMTUNE){
      // ── MODO DIRECTOR: componés el plano en vivo (la fase queda congelada en el scrub) ──
