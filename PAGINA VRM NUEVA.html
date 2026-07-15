@@ -1085,9 +1085,9 @@ const lenis=new Lenis({
   wheelMultiplier:0.5,
   gestureOrientation:'vertical',
   syncTouch:true,
-  syncTouchLerp:0.045,          // más bajo = glide más PESADO y lento (menos ligero)
-  touchInertiaMultiplier:12,    // impulso corto: no se va de largo al soltar
-  touchMultiplier:0.65          // el dedo mueve MENOS = scroll más lento y con cuerpo
+  syncTouchLerp:0.10,           // respuesta natural (ni pesado ni ligero)
+  touchInertiaMultiplier:18,    // glide moderado
+  touchMultiplier:0.9           // seguimiento del dedo natural
 });
 window.__lenis=lenis; lenis.scrollTo(0,{immediate:true}); addEventListener('load',()=>lenis.scrollTo(0,{immediate:true}));
 lenis.on('scroll',ScrollTrigger.update);
@@ -1096,24 +1096,25 @@ let PROG=0,SPROG=0;
 ScrollTrigger.create({trigger:'#story',start:'top top',end:'bottom bottom',scrub:0.6,
  onUpdate:s=>{PROG=s.progress;}});
 
-// ── PAGINADO "un swipe = un aro" en móvil ──
+// ── CARRUSEL DE AROS en móvil: cada swipe avanza ±1 aro a VELOCIDAD FIJA (mismo tiempo/feel siempre) ──
 if(IS_PORTRAIT){
   const _storyEl=document.getElementById('story');
   const N=ESTANCIAS.length;
-  const ringScroll=(i)=>{ const tRaw=INTRO_END + (i/(N-1))*(RINGS_END-INTRO_END); return _storyEl.offsetTop + tRaw*(_storyEl.offsetHeight-innerHeight); };
+  const ringScroll=(i)=>{ const t=INTRO_END + (i/(N-1))*(RINGS_END-INTRO_END); return _storyEl.offsetTop + t*(_storyEl.offsetHeight-innerHeight); };
   const ringsP=()=> (PROG-INTRO_END)/(RINGS_END-INTRO_END);
-  const inRings=()=>{ const p=ringsP(); return p > -0.015 && p < 1.015; };
+  const inRings=()=>{ const p=ringsP(); return p > -0.02 && p < 1.02; };
   const curIdx=()=> Math.max(0,Math.min(N-1,Math.round(ringsP()*(N-1))));
-  let _y0=0, _idx0=0, _paging=false, _armed=false;
+  const easeInOut=t=> t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;   // acelera y frena suave (paso de carrusel)
+  const STEP=0.62;                                                 // MISMA duración siempre → misma velocidad
+  let _y0=0,_idx0=0,_armed=false;
   addEventListener('touchstart',(e)=>{ if(!inRings()){_armed=false;return;} _armed=true; _y0=e.touches[0].clientY; _idx0=curIdx(); },{passive:true});
   addEventListener('touchend',(e)=>{
-    if(!_armed || _paging) return; _armed=false;
+    if(!_armed) return; _armed=false;
     if(!inRings()) return;
-    const dy=_y0-(e.changedTouches[0].clientY);          // >0: swipe hacia arriba → siguiente aro
+    const dy=_y0-e.changedTouches[0].clientY;                      // >0: swipe arriba → aro siguiente
     let target=_idx0;
-    if(Math.abs(dy)>=20) target=Math.max(0,Math.min(N-1,_idx0+(dy>0?1:-1)));  // exactamente ±1 aro por swipe
-    _paging=true;
-    lenis.scrollTo(ringScroll(target),{duration:0.7,easing:t=>1-Math.pow(1-t,3.2),onComplete:()=>{_paging=false;}});
+    if(Math.abs(dy)>=16) target=Math.max(0,Math.min(N-1,_idx0+(dy>0?1:-1)));  // exactamente ±1 aro
+    lenis.scrollTo(ringScroll(target),{duration:STEP,easing:easeInOut});       // se frena en el siguiente, misma velocidad
   },{passive:true});
 }
 // límite de velocidad de la columna: aunque scrollees rapidísimo, avanza a su ritmo
