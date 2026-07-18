@@ -1,6 +1,6 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>VRM · Aros + ballena · premium</title>
+<title>VRM · Aros + ballena · GSAP</title>
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=boska@400,401,500&f[]=tanker@400&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#F1EFE8;--ink:#0E2A3A;--teal:#1B4D5C;--teal2:#2C6B7A;--gold:#B08A57;
@@ -20,8 +20,8 @@
   .counter{position:absolute;right:18px;top:16px;z-index:9;text-align:right}
   .counter .n{font-family:var(--fd);font-style:italic;font-size:30px;color:var(--teal);line-height:1}
   .counter .t{font-family:var(--fb);font-size:9px;letter-spacing:.24em;color:#8aa0a6;margin-top:2px}
-  .col{position:absolute;left:50%;top:0;width:min(84vw,360px);transform:translateX(-50%);will-change:transform}
-  .ring{position:absolute;left:0;top:0;width:100%;height:132px;will-change:transform,opacity;transform-origin:50% 50%}
+  .col{position:absolute;left:50%;top:42%;width:min(84vw,360px);margin-left:calc(min(84vw,360px)/-2);will-change:transform}
+  .ring{position:absolute;left:0;width:100%;height:132px;margin-top:-66px;will-change:transform,opacity;transform-origin:50% 50%}
   .cyl{position:absolute;inset:0;border-radius:50%/16px;overflow:hidden;
     background:linear-gradient(180deg,#dfe5e7 0%,#f6f8f8 12%,#ffffff 38%,#ffffff 62%,#eef1f2 84%,#d6dddf 100%);
     box-shadow:0 22px 48px rgba(20,35,55,.18), inset 0 3px 6px rgba(255,255,255,.95), inset 0 -10px 18px rgba(27,77,92,.09)}
@@ -34,7 +34,7 @@
   .sub{position:absolute;left:0;right:0;bottom:16px;text-align:center;font-family:var(--fb);
     font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:#9db0b5;z-index:2}
   .whale{position:absolute;left:50%;top:0;width:70px;height:132px;margin-left:-35px;z-index:5;will-change:transform;
-    filter:drop-shadow(0 10px 18px rgba(27,77,92,.28))}
+    filter:drop-shadow(0 10px 18px rgba(27,77,92,.28));pointer-events:none}
   .whale svg{width:100%;height:100%;display:block}
   .grab{position:absolute;left:0;right:0;bottom:16px;text-align:center;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:#9fb0b4;z-index:9;pointer-events:none;transition:opacity .4s}
   .card{margin:0 14px 16px;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 24px 56px rgba(20,35,55,.24);flex:0 0 auto;z-index:10}
@@ -48,7 +48,7 @@
 <body>
 <svg class="grain"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2"/><feColorMatrix type="matrix" values="0 0 0 0 .07 0 0 0 0 .17 0 0 0 0 .22 0 0 0 .5 0"/></filter><rect width="100%" height="100%" filter="url(#g)"/></svg>
 <div class="app">
-  <header><div class="ey">La columna de estancias</div><h1>Desliza · la ballena nada de aro en aro</h1></header>
+  <header><div class="ey">La columna de estancias · GSAP</div><h1>Desliza · la ballena nada de aro en aro</h1></header>
   <div class="scene" id="scene">
     <div class="counter"><div class="n" id="cN">01</div><div class="t">de 05</div></div>
     <div class="col" id="col"></div>
@@ -71,6 +71,9 @@
     <a class="cb">Reservar</a>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Draggable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/InertiaPlugin.min.js"></script>
 <script>
 const DATA=[
   {t:'La Cruz de Huanacaxtle',n:'VALLARTA GARDENS 3004',cn:'Vallarta Gardens 3004',m:'6 huéspedes · $250 / noche',img:'https://picsum.photos/seed/wA/700/440'},
@@ -83,56 +86,53 @@ const N=DATA.length, GAP=250;
 const scene=document.getElementById('scene'),col=document.getElementById('col'),whale=document.getElementById('whale');
 const cN=document.getElementById('cN'),grab=document.getElementById('grab');
 const cardPh=document.getElementById('cardPh'),cardT=document.getElementById('cardT'),cardN=document.getElementById('cardN'),cardM=document.getElementById('cardM');
-DATA.forEach((d)=>{const r=document.createElement('div');r.className='ring';
+DATA.forEach((d,i)=>{const r=document.createElement('div');r.className='ring';r.style.top=(i*GAP)+'px';
   r.innerHTML='<div class="cyl"></div><div class="nm">'+d.n+'</div><div class="sub">'+d.t+'</div>';col.appendChild(r);});
 const rings=[...col.children];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-let current=0, target=0, drag=0, dragging=false, y0=0, ly=0, vel=0, lastCard=-1;
 const CENTER=()=>scene.clientHeight*0.42;
+let lastCard=-1, dragging=false;
+
 function render(){
-  const cur=current+drag, cy=CENTER();
-  col.style.transform='translate3d(-50%,'+(cy-cur*GAP-66)+'px,0)';
+  const y=(window.gsap?gsap.getProperty(col,'y'):0)||0;
+  const cur=clamp(-y/GAP,0,N-1);
   for(let i=0;i<rings.length;i++){
-    const off=i-cur, a=Math.abs(off);
-    const sc=clamp(1-a*0.07,0.8,1), op=clamp(1.25-a*0.55,0,1);
-    rings[i].style.transform='translate3d(0,'+(i*GAP)+'px,0) scale('+sc+')';
-    rings[i].style.opacity=op;
+    const a=Math.abs(i-cur);
+    rings[i].style.transform='translateY('+(i*GAP)+'px) scale('+clamp(1-a*0.07,0.8,1)+')';
+    rings[i].style.top='0px';
+    rings[i].style.opacity=clamp(1.25-a*0.55,0,1);
     rings[i].style.filter = a>0.7?'blur('+Math.min((a-0.7)*3,4)+'px)':'';
     rings[i].style.zIndex = 100-Math.round(a*10);
   }
-  const frac=cur-Math.floor(cur), sw=Math.sin(frac*Math.PI);
+  const frac=cur-Math.floor(cur), sw=Math.sin(frac*Math.PI), cy=CENTER();
   const wx=sw*36, wyBob=-sw*30, wrot=Math.sin(frac*Math.PI*2)*10, wsc=1-sw*0.12;
   whale.style.transform='translate3d('+wx+'px,'+((cy-66)+wyBob)+'px,0) rotate('+wrot+'deg) scale('+wsc+')';
   const act=clamp(Math.round(cur),0,N-1);
   cN.textContent=String(act+1).padStart(2,'0');
   if(act!==lastCard){lastCard=act;const d=DATA[act];cardPh.style.backgroundImage='url('+d.img+')';cardT.textContent=d.t;cardN.textContent=d.cn;cardM.textContent=d.m;}
-  grab.style.opacity = (dragging||Math.abs(current-target)>0.01)?0:.9;
+  grab.style.opacity=dragging?0:.9;
 }
-function loop(){
-  const goal=target+drag;
-  current += (goal-current)*0.16;
-  if(Math.abs(goal-current)<0.0005) current=goal;
-  render();
-  requestAnimationFrame(loop);
-}
-requestAnimationFrame(loop);
-scene.addEventListener('touchstart',e=>{dragging=true;y0=ly=e.touches[0].clientY;vel=0;},{passive:false});
-scene.addEventListener('touchmove',e=>{
-  e.preventDefault();
-  if(!dragging)return;
-  const y=e.touches[0].clientY;vel=0.6*vel+0.4*(ly-y);ly=y;
-  let f=(y0-y)/GAP; f=clamp(f,-0.9,0.9);
-  let np=target+f;
-  if(np<0)f=-target+(np)*0.3; if(np>N-1)f=(N-1-target)+(np-(N-1))*0.3;
-  drag=f;
-},{passive:false});
-scene.addEventListener('touchend',e=>{
-  if(!dragging)return;dragging=false;
-  const proj=target+drag+vel*0.02;
-  let t=Math.round(proj);
-  if(Math.abs(drag)>0.18 && t===target) t=target+(drag>0?1:-1);
-  target=clamp(t,0,N-1); drag=0;
-},{passive:false});
-render();
+function frame(){render();requestAnimationFrame(frame);}
+
+window.addEventListener('load',()=>{
+  // posicionar rings con transform (no top) para no chocar con el translate del col
+  rings.forEach((r,i)=>{r.style.top='0px';r.style.transform='translateY('+(i*GAP)+'px)';});
+  gsap.registerPlugin(Draggable, InertiaPlugin);
+  let startIdx=0;
+  Draggable.create(col,{
+    type:'y', inertia:false, edgeResistance:0.86,
+    bounds:{minY:-(N-1)*GAP, maxY:0},
+    onPress(){ startIdx=Math.round(-this.y/GAP); gsap.killTweensOf(col); dragging=true; },
+    onRelease(){ dragging=false; },
+    onDragEnd(){
+      const moved = (-this.y/GAP) - startIdx;               // aros movidos
+      let t=startIdx;
+      if(Math.abs(moved)>0.16) t=startIdx + (moved>0?1:-1); // ±1 aro por swipe
+      t=clamp(t,0,N-1);
+      gsap.to(col,{y:-t*GAP, duration:0.6, ease:'power3.out'});  // aterrizaje LIMPIO, sin rebote
+    }
+  });
+  requestAnimationFrame(frame);
+});
 </script>
 </body></html>
