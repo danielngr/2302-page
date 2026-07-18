@@ -118,18 +118,19 @@ window.addEventListener('load',()=>{
   // posicionar rings con transform (no top) para no chocar con el translate del col
   rings.forEach((r,i)=>{r.style.top='0px';r.style.transform='translateY('+(i*GAP)+'px)';});
   gsap.registerPlugin(Draggable, InertiaPlugin);
-  let startIdx=0;
+  let startIdx=0, startY=0;
   Draggable.create(col,{
-    type:'y', inertia:false, edgeResistance:0.86,
+    type:'y', inertia:false, edgeResistance:0.9,
+    trigger:'#scene',                                        // el gesto se detecta en TODA la escena, no solo en el aro
     bounds:{minY:-(N-1)*GAP, maxY:0},
-    onPress(){ startIdx=Math.round(-this.y/GAP); gsap.killTweensOf(col); dragging=true; },
+    onPress(){ startIdx=Math.round(-this.y/GAP); startY=this.y; gsap.killTweensOf(col); dragging=true; },
     onRelease(){ dragging=false; },
     onDragEnd(){
-      const moved = (-this.y/GAP) - startIdx;               // aros movidos
+      const moved = (-this.y/GAP) - startIdx;               // aros movidos (con signo)
       let t=startIdx;
-      if(Math.abs(moved)>0.16) t=startIdx + (moved>0?1:-1); // ±1 aro por swipe
+      if(Math.abs(moved)>0.14) t=startIdx + (moved>0?1:-1); // ±1 aro por swipe, en cualquier dirección
       t=clamp(t,0,N-1);
-      gsap.to(col,{y:-t*GAP, duration:0.6, ease:'power3.out'});  // aterrizaje LIMPIO, sin rebote
+      gsap.to(col,{y:-t*GAP, duration:0.55, ease:'power2.out', overwrite:true});  // limpio, sin traba al regresar
     }
   });
   requestAnimationFrame(frame);
