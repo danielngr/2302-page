@@ -1,187 +1,158 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>VRM · Pruebas de scroll para los aros</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>VRM · Scroll premium de aros</title>
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=boska@400,401,500&f[]=tanker@400&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#F1EFE8;--ink:#0E2A3A;--teal:#1B4D5C;--gold:#B08A57;--card:#fff;
+  :root{--bg:#F1EFE8;--ink:#0E2A3A;--teal:#1B4D5C;--teal2:#2C6B7A;--gold:#B08A57;
     --fb:'Satoshi',system-ui,sans-serif;--fd:'Boska',Georgia,serif;--fa:'Tanker',sans-serif;--e:cubic-bezier(.22,1,.36,1)}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-  html,body{background:var(--bg);color:var(--ink);font-family:var(--fb);overscroll-behavior:none}
-  .wrap{max-width:520px;margin:0 auto;padding:22px 16px 60px}
-  h1{font-family:var(--fd);font-style:italic;font-weight:500;font-size:26px;color:var(--teal);line-height:1.1}
-  .sub{font-size:13px;color:#5c7278;margin:8px 0 22px;line-height:1.5}
-  .tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:16px;scrollbar-width:none}
+  html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--fb);
+    overflow:hidden;overscroll-behavior:none;position:fixed;inset:0;width:100%;touch-action:none;-webkit-user-select:none;user-select:none}
+  .app{height:100%;display:flex;flex-direction:column;max-width:560px;margin:0 auto}
+  header{padding:16px 18px 6px}
+  .ey{font-size:10px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold)}
+  h1{font-family:var(--fd);font-style:italic;font-weight:500;font-size:21px;color:var(--teal);line-height:1.05;margin-top:4px}
+  .tabs{display:flex;gap:7px;overflow-x:auto;padding:12px 18px;scrollbar-width:none}
   .tabs::-webkit-scrollbar{display:none}
-  .tab{flex:0 0 auto;padding:9px 15px;border-radius:999px;border:1px solid rgba(27,77,92,.22);background:none;
-    font-family:var(--fb);font-size:12px;font-weight:600;color:var(--teal);letter-spacing:.02em;cursor:pointer;white-space:nowrap;transition:all .25s}
+  .tab{flex:0 0 auto;padding:9px 14px;border-radius:999px;border:1px solid rgba(27,77,92,.22);background:none;
+    font-family:var(--fb);font-size:12px;font-weight:600;color:var(--teal);cursor:pointer;white-space:nowrap;transition:.25s}
   .tab.on{background:var(--teal);color:var(--bg);border-color:var(--teal)}
-  .desc{background:rgba(27,77,92,.06);border-radius:14px;padding:14px 16px;margin-bottom:16px;font-size:13px;line-height:1.55}
-  .desc b{color:var(--teal)}
-  .desc .finger{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--gold);font-weight:600}
+  .tip{margin:0 18px 6px;font-size:12px;color:#5c7278;line-height:1.45;min-height:34px}
+  .tip b{color:var(--teal)}
 
-  /* ── ESCENARIO de aros (simulado con tarjetas) ── */
-  .stage{position:relative;height:64vh;border-radius:20px;overflow:hidden;background:linear-gradient(180deg,#F6F4EE,#ECEAE1);
-    border:1px solid rgba(27,77,92,.1);touch-action:pan-y}
-  .stage.lockx{touch-action:none}
-  .ring{position:absolute;left:50%;top:50%;width:80%;max-width:360px;transform:translate(-50%,-50%);
-    background:var(--card);border-radius:18px;box-shadow:0 20px 50px rgba(20,35,55,.16);overflow:hidden;will-change:transform,opacity}
-  .ring .ph{height:150px;background-size:cover;background-position:center}
-  .ring .in{padding:14px 16px 16px}
-  .ring .tg{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:5px}
-  .ring .nm{font-family:var(--fd);font-style:italic;font-size:22px;color:var(--teal);line-height:1.05}
-  .ring .mt{font-size:12px;color:#5c7278;margin-top:5px}
-  .counter{position:absolute;right:14px;top:14px;z-index:5;font-family:var(--fd);font-style:italic;font-size:26px;color:var(--teal)}
-  .counter small{font-family:var(--fb);font-size:9px;letter-spacing:.2em;color:#5c7278;display:block;text-align:right}
-  .hint{position:absolute;left:0;right:0;bottom:12px;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#8a9ba0;z-index:5;pointer-events:none}
-  .dots{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);display:flex;gap:7px;z-index:5}
-  .dots i{width:6px;height:6px;border-radius:50%;background:rgba(27,77,92,.25);transition:all .3s}
-  .dots i.on{background:var(--teal);width:20px;border-radius:3px}
-  .note{font-size:12px;color:#8a9ba0;margin-top:14px;line-height:1.5;text-align:center}
+  /* ── ESCENARIO 3D ── */
+  .scene{flex:1;position:relative;perspective:900px;perspective-origin:50% 45%;overflow:hidden;touch-action:none}
+  .drum{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);transform-style:preserve-3d;width:min(86vw,380px)}
+  .panel{position:absolute;left:0;top:0;width:100%;height:118px;margin-top:-59px;backface-visibility:hidden;
+    display:flex;align-items:center;justify-content:center;transform-style:preserve-3d}
+  /* el "aro": banda cilíndrica blanca con nombre en teal (como el aro real) */
+  .band{width:100%;height:100%;border-radius:16px;position:relative;overflow:hidden;
+    background:linear-gradient(180deg,#ffffff 0%,#f4f6f7 50%,#e8ecee 100%);
+    box-shadow:0 14px 34px rgba(20,35,55,.16), inset 0 2px 0 rgba(255,255,255,.9), inset 0 -8px 14px rgba(27,77,92,.06);
+    display:flex;align-items:center;justify-content:center}
+  .band::before,.band::after{content:"";position:absolute;left:0;right:0;height:26px;pointer-events:none}
+  .band::before{top:0;background:linear-gradient(180deg,rgba(27,77,92,.10),transparent)}
+  .band::after{bottom:0;background:linear-gradient(0deg,rgba(27,77,92,.12),transparent)}
+  .band .nm{font-family:var(--fa);font-size:26px;letter-spacing:.02em;color:var(--teal);text-align:center;line-height:1;padding:0 14px;white-space:nowrap}
+  .band .sm{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-family:var(--fb);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#8aa0a6}
+
+  .counter{position:absolute;right:16px;top:16px;z-index:8;font-family:var(--fd);font-style:italic;font-size:28px;color:var(--teal)}
+  .counter small{display:block;text-align:right;font-family:var(--fb);font-size:9px;letter-spacing:.2em;color:#8aa0a6}
+  .grab{position:absolute;left:0;right:0;bottom:16px;text-align:center;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#9fb0b4;z-index:8;pointer-events:none}
+
+  /* tarjeta del depa abajo */
+  .card{margin:0 14px 16px;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 20px 50px rgba(20,35,55,.22);flex:0 0 auto}
+  .card .ph{height:132px;background-size:cover;background-position:center;transition:background-image .3s}
+  .card .cin{padding:12px 16px 4px}
+  .card .ct{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
+  .card .cn{font-family:var(--fd);font-style:italic;font-size:20px;color:var(--teal);margin-top:3px}
+  .card .cm{font-size:12px;color:#5c7278;margin-top:3px}
+  .card .cb{display:block;margin:12px 16px 16px;background:var(--ink);color:var(--bg);text-align:center;
+    padding:14px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
 </style></head>
 <body>
-<div class="wrap">
-  <h1>Formas de scroll<br>para los aros</h1>
-  <p class="sub">Prueba cada mecánica <b>con el dedo</b> (en móvil). Elige la que se sienta mejor y me dices el número.</p>
-
+<div class="app">
+  <header>
+    <div class="ey">Prueba premium · el aro 3D</div>
+    <h1>El scroll de los aros</h1>
+  </header>
   <div class="tabs" id="tabs"></div>
-  <div class="desc" id="desc"></div>
+  <div class="tip" id="tip"></div>
 
-  <div class="stage" id="stage">
+  <div class="scene" id="scene">
     <div class="counter"><span id="cN">01</span><small>de 05</small></div>
-    <div class="dots" id="dots"></div>
-    <div class="hint" id="hint">desliza ↑↓</div>
+    <div class="drum" id="drum"></div>
+    <div class="grab" id="grab">arrastra el aro ↑↓</div>
   </div>
-  <p class="note" id="note"></p>
+
+  <div class="card">
+    <div class="ph" id="cardPh"></div>
+    <div class="cin"><div class="ct" id="cardT"></div><div class="cn" id="cardN"></div><div class="cm" id="cardM"></div></div>
+    <a class="cb">Reservar</a>
+  </div>
 </div>
 
 <script>
 const DATA=[
-  {tg:'La Cruz de Huanacaxtle',nm:'Vallarta Gardens 3004',mt:'6 huéspedes · $250 / noche',img:'https://picsum.photos/seed/vrm1/600/400'},
-  {tg:'Nuevo Vallarta · Flamingos',nm:'Marítima 6S',mt:'8 huéspedes · $190 / noche',img:'https://picsum.photos/seed/vrm2/600/400'},
-  {tg:'Punta de Mita',nm:'Península 19E',mt:'10 huéspedes · $420 / noche',img:'https://picsum.photos/seed/vrm3/600/400'},
-  {tg:'Bucerías',nm:'Delta 101',mt:'4 huéspedes · $160 / noche',img:'https://picsum.photos/seed/vrm4/600/400'},
-  {tg:'Conchas Chinas',nm:'Maralma 501',mt:'6 huéspedes · $310 / noche',img:'https://picsum.photos/seed/vrm5/600/400'},
+  {t:'La Cruz de Huanacaxtle',n:'VALLARTA GARDENS 3004',cn:'Vallarta Gardens 3004',m:'6 huéspedes · $250 / noche',img:'https://picsum.photos/seed/vrmA/700/440'},
+  {t:'Nuevo Vallarta · Flamingos',n:'MARÍTIMA 6S',cn:'Marítima 6S',m:'8 huéspedes · $190 / noche',img:'https://picsum.photos/seed/vrmB/700/440'},
+  {t:'Punta de Mita',n:'PENÍNSULA 19E',cn:'Península 19E',m:'10 huéspedes · $420 / noche',img:'https://picsum.photos/seed/vrmC/700/440'},
+  {t:'Bucerías',n:'DELTA 101',cn:'Delta 101',m:'4 huéspedes · $160 / noche',img:'https://picsum.photos/seed/vrmD/700/440'},
+  {t:'Conchas Chinas',n:'MARALMA 501',cn:'Maralma 501',m:'6 huéspedes · $310 / noche',img:'https://picsum.photos/seed/vrmE/700/440'},
 ];
 const N=DATA.length;
+const ANG=32;                       // grados por aro en el drum
+const PANEL_H=118, RAD=Math.round((PANEL_H/2)/Math.tan(ANG/2*Math.PI/180));
 
 const MODES=[
-  {t:'1 · Carrusel firme', d:'Cada deslizada avanza <b>exactamente un aro</b>, con paso firme y misma velocidad. Se bloquea el scroll libre. <b>Como historias de Instagram.</b>', finger:'Desliza corto ↑ o ↓ (una vez = un aro)'},
-  {t:'2 · Snap suave', d:'Scroll <b>libre con inercia</b>, pero al soltar <b>se acomoda</b> al aro más cercano. Más natural, menos rígido. <b>Como carrusel de fotos de iOS.</b>', finger:'Desliza con fuerza variable; suelta y se acomoda'},
-  {t:'3 · Rueda / picker', d:'Los aros giran como una <b>ruleta (date picker de iOS)</b>. Sigue tu dedo con inercia y se detiene alineado. <b>Muy táctil.</b>', finger:'Arrastra y suelta; gira con inercia y se alinea'},
-  {t:'4 · Paginado por umbral', d:'Arrastras y <b>ves el siguiente asomarse</b>; si pasas del 40% avanza, si no, <b>regresa</b>. Control total con feedback. <b>Como Tinder vertical.</b>', finger:'Arrastra lento y observa; pasa el umbral para avanzar'},
-  {t:'5 · Flick libre', d:'Scroll <b>totalmente libre</b> con inercia larga (sin snap). Rápido para explorar muchos. <b>Como una lista normal.</b>', finger:'Flick rápido = pasa varios; suave = uno'},
+  {t:'A · Drum inercia', tip:'El aro es un <b>cilindro 3D que gira</b>. Arrastras con inercia y <b>se alinea solo</b> al aro más cercano. Muy táctil, como selector de iOS.'},
+  {t:'B · Drum paso firme', tip:'Mismo cilindro 3D, pero cada deslizada avanza <b>exactamente un aro</b> con paso firme y misma velocidad. Preciso y premium.'},
+  {t:'C · Magnético', tip:'El cilindro tiene un <b>imán</b> hacia cada aro: mientras arrastras sientes que “atrapa” cada posición (resistencia elástica). Muy satisfactorio.'},
 ];
 
-let mode=0, idx=0, drag=0, dragging=false, startY=0, lastY=0, vel=0, anim=null;
-const stage=document.getElementById('stage');
-const cN=document.getElementById('cN'), hint=document.getElementById('hint'), noteEl=document.getElementById('note');
+let mode=0, pos=0, drag=0, dragging=false, y0=0, ly=0, vel=0, raf=null;
+const drum=document.getElementById('drum'), scene=document.getElementById('scene');
+const cN=document.getElementById('cN');
+const cardPh=document.getElementById('cardPh'),cardT=document.getElementById('cardT'),cardN=document.getElementById('cardN'),cardM=document.getElementById('cardM');
 
-// construir rings
-const rings=DATA.map((d,i)=>{
-  const el=document.createElement('div'); el.className='ring';
-  el.innerHTML=`<div class="ph" style="background-image:url(${d.img})"></div><div class="in"><div class="tg">${d.tg}</div><div class="nm">${d.nm}</div><div class="mt">${d.mt}</div></div>`;
-  stage.appendChild(el); return el;
+// construir paneles del drum
+DATA.forEach((d,i)=>{
+  const p=document.createElement('div'); p.className='panel';
+  p.style.transform=`rotateX(${-i*ANG}deg) translateZ(${RAD}px)`;
+  p.innerHTML=`<div class="band"><div class="nm">${d.n}</div><div class="sm">${d.t}</div></div>`;
+  drum.appendChild(p);
 });
-// dots
-const dotsEl=document.getElementById('dots');
-DATA.forEach((_,i)=>{const s=document.createElement('i');dotsEl.appendChild(s);});
-const dots=[...dotsEl.children];
+const panels=[...drum.children];
 
 // tabs
-const tabsEl=document.getElementById('tabs'), descEl=document.getElementById('desc');
-MODES.forEach((m,i)=>{
-  const b=document.createElement('button'); b.className='tab'+(i===0?' on':''); b.textContent=m.t.split(' · ')[0]+' · '+m.t.split(' · ')[1];
-  b.onclick=()=>{mode=i; idx=0; drag=0; [...tabsEl.children].forEach(x=>x.classList.remove('on')); b.classList.add('on'); setDesc(); render(true); };
-  tabsEl.appendChild(b);
-});
-function setDesc(){ const m=MODES[mode]; descEl.innerHTML=m.d+`<div class="finger">👆 ${m.finger}</div>`;
-  noteEl.textContent = 'Modo '+(mode+1)+' de '+MODES.length+' — pruébalo y pasa al siguiente con las pestañas de arriba.'; }
+const tabsEl=document.getElementById('tabs'), tipEl=document.getElementById('tip');
+MODES.forEach((m,i)=>{const b=document.createElement('button');b.className='tab'+(i===0?' on':'');b.textContent=m.t;
+  b.onclick=()=>{mode=i;[...tabsEl.children].forEach(x=>x.classList.remove('on'));b.classList.add('on');tipEl.innerHTML=MODES[i].tip;settle(Math.round(pos),300);};
+  tabsEl.appendChild(b);});
+tipEl.innerHTML=MODES[0].tip;
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const H=()=>stage.clientHeight;
-
-// posición de cada ring según idx + drag (en fracción de aros)
-function layout(){
-  const pos = idx + drag;            // posición flotante actual
-  rings.forEach((el,i)=>{
-    const off = i - pos;             // distancia en aros
-    let y, sc, op, z;
-    if(mode===2){                    // RUEDA / picker: efecto cilindro
-      const ang = off*0.42;          // radianes por aro
-      y = Math.sin(ang)*150;
-      sc = Math.cos(ang)*0.5+0.5; sc=clamp(sc,0.4,1);
-      op = clamp(1-Math.abs(off)*0.5,0,1);
-      z = 100-Math.abs(off)*10;
-      el.style.transform=`translate(-50%,-50%) translateY(${y}px) scale(${sc})`;
-    } else if(mode===3){             // umbral: el siguiente asoma desde abajo/arriba
-      y = off*H()*0.9;
-      sc = clamp(1-Math.abs(off)*0.12,0.7,1);
-      op = clamp(1.2-Math.abs(off),0,1);
-      z = 100-Math.abs(off);
-      el.style.transform=`translate(-50%,-50%) translateY(${y}px) scale(${sc})`;
-    } else {                         // 1,2,5: pila vertical con profundidad
-      y = off*H()*0.82;
-      sc = clamp(1-Math.abs(off)*0.08,0.8,1);
-      op = clamp(1.4-Math.abs(off)*0.9,0,1);
-      z = 100-Math.abs(off);
-      el.style.transform=`translate(-50%,-50%) translateY(${y}px) scale(${sc})`;
-    }
-    el.style.opacity=op; el.style.zIndex=Math.round(z);
-  });
-  const active=Math.round(clamp(idx+drag,0,N-1));
-  cN.textContent=String(active+1).padStart(2,'0');
-  dots.forEach((d,i)=>d.classList.toggle('on',i===active));
+function render(){
+  const cur=clamp(pos+drag,-0.4,N-1+0.4);
+  drum.style.transform=`translate(-50%,-50%) rotateX(${cur*ANG}deg)`;
+  // opacidad/blur por distancia al frente
+  panels.forEach((p,i)=>{const off=Math.abs(i-cur);p.style.opacity=clamp(1.15-off*0.5,0,1);
+    p.querySelector('.band').style.filter=off>0.6?`blur(${Math.min(off*1.2,3)}px)`:'none';});
+  const act=clamp(Math.round(cur),0,N-1);
+  cN.textContent=String(act+1).padStart(2,'0');
+  const d=DATA[act]; if(cardN.textContent!==d.cn){cardPh.style.backgroundImage=`url(${d.img})`;cardT.textContent=d.t;cardN.textContent=d.cn;cardM.textContent=d.m;}
 }
-function render(){ layout(); }
-
-function animateTo(target,dur){
-  cancelAnimationFrame(anim);
-  const start=idx+drag, t0=performance.now(); target=clamp(target,0,N-1);
-  const ease=t=> t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
-  (function step(now){
-    const t=clamp((now-t0)/dur,0,1); const v=start+(target-start)*ease(t);
-    idx=Math.floor(v); drag=v-idx; layout();
-    if(t<1) anim=requestAnimationFrame(step); else { idx=Math.round(target); drag=0; layout(); }
-  })(t0);
+function settle(target,dur){
+  cancelAnimationFrame(raf);target=clamp(target,0,N-1);
+  const s=pos+drag,t0=performance.now(),ease=t=>t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+  (function st(now){const t=clamp((now-t0)/dur,0,1);const v=s+(target-s)*ease(t);pos=v;drag=0;render();
+    if(t<1)raf=requestAnimationFrame(st);else{pos=target;render();}})(t0);
 }
+// imán elástico (modo C): tira hacia el entero más cercano
+function magnet(v){const near=Math.round(v);return near+(v-near)*0.55;}
 
-// ── GESTOS ──
-stage.addEventListener('touchstart',e=>{ dragging=true; startY=lastY=e.touches[0].clientY; vel=0; cancelAnimationFrame(anim); stage.classList.add('lockx'); },{passive:true});
-stage.addEventListener('touchmove',e=>{
-  if(!dragging) return;
-  const y=e.touches[0].clientY; vel=y-lastY; lastY=y;
-  const dyTotal=startY-y;                    // >0 arriba
-  const frac = dyTotal / (H()*0.82);         // en aros
-  if(mode===0 || mode===3){                  // firme / umbral: limita el arrastre a ~1 aro con resistencia
-    drag = clamp(frac, -0.6, 0.6);
-  } else {                                   // libre / snap / rueda: sigue el dedo
-    drag = frac;
-    // resistencia en los extremos
-    if(idx+drag<0) drag=-idx + (idx+drag)*0.35;
-    if(idx+drag>N-1) drag=(N-1-idx) + (idx+drag-(N-1))*0.35;
-  }
-  layout();
-},{passive:true});
-stage.addEventListener('touchend',e=>{
-  if(!dragging) return; dragging=false; stage.classList.remove('lockx');
-  const cur=idx+drag;
-  if(mode===0){                              // CARRUSEL FIRME: ±1 fijo
-    let t=idx; if(Math.abs(drag)>0.15) t=idx+(drag>0?1:-1);
-    animateTo(t,320);
-  } else if(mode===1){                        // SNAP SUAVE: inercia corta + acomoda al más cercano
-    const proj=cur+vel*-0.06;                 // proyecta con velocidad
-    animateTo(Math.round(proj),420);
-  } else if(mode===2){                        // RUEDA: inercia y se alinea
-    const proj=cur+vel*-0.09;
-    animateTo(Math.round(proj),520);
-  } else if(mode===3){                        // UMBRAL: pasa si superó 40%
-    let t=idx; if(Math.abs(drag)>0.4) t=idx+(drag>0?1:-1);
-    animateTo(t,300);
-  } else if(mode===4){                        // FLICK LIBRE: inercia larga sin snap
-    const proj=cur+vel*-0.14; animateTo(Math.round(clamp(proj,0,N-1)),650);
-  }
-},{passive:true});
+scene.addEventListener('touchstart',e=>{dragging=true;y0=ly=e.touches[0].clientY;vel=0;cancelAnimationFrame(raf);},{passive:false});
+scene.addEventListener('touchmove',e=>{
+  e.preventDefault();                                   // BLOQUEA el scroll de la página
+  if(!dragging)return;
+  const y=e.touches[0].clientY;vel=y-ly;ly=y;
+  let f=(y0-y)/(PANEL_H*1.15);                          // arrastre en aros
+  if(mode===1) f=clamp(f,-0.55,0.55);                   // firme: no deja arrastrar más de ~medio aro
+  drag=f;
+  // resistencia en extremos
+  if(pos+drag<0)drag=-pos+(pos+drag)*0.35;
+  if(pos+drag>N-1)drag=(N-1-pos)+(pos+drag-(N-1))*0.35;
+  if(mode===2){const v=pos+drag;const m=magnet(v);drag=m-pos;}   // magnético
+  render();
+},{passive:false});
+scene.addEventListener('touchend',e=>{
+  if(!dragging)return;dragging=false;
+  const cur=pos+drag;
+  if(mode===0){const proj=cur+(-vel*0.05);settle(Math.round(proj),460);}       // inercia + snap
+  else if(mode===1){let t=Math.round(pos);if(Math.abs(drag)>0.16)t=Math.round(pos)+(drag>0?1:-1);settle(t,340);} // firme
+  else if(mode===2){const proj=cur+(-vel*0.04);settle(Math.round(proj),420);}   // magnético → asienta
+},{passive:false});
 
-setDesc(); render();
+render();
 </script>
 </body></html>
