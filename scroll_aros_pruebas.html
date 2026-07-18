@@ -1,143 +1,138 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>VRM · Aros + ballena selector</title>
+<title>VRM · Aros + ballena · premium</title>
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=boska@400,401,500&f[]=tanker@400&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#F1EFE8;--ink:#0E2A3A;--teal:#1B4D5C;--gold:#B08A57;
-    --fb:'Satoshi',system-ui,sans-serif;--fd:'Boska',Georgia,serif;--fa:'Tanker',sans-serif;--e:cubic-bezier(.22,1,.36,1)}
+  :root{--bg:#F1EFE8;--ink:#0E2A3A;--teal:#1B4D5C;--teal2:#2C6B7A;--gold:#B08A57;
+    --fb:'Satoshi',system-ui,sans-serif;--fd:'Boska',Georgia,serif;--fa:'Tanker',sans-serif}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--fb);
-    overflow:hidden;overscroll-behavior:none;position:fixed;inset:0;width:100%;touch-action:none;user-select:none;-webkit-user-select:none}
-  .app{height:100%;display:flex;flex-direction:column;max-width:560px;margin:0 auto}
-  header{padding:14px 18px 4px}
-  .ey{font-size:10px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold)}
-  h1{font-family:var(--fd);font-style:italic;font-weight:500;font-size:20px;color:var(--teal);margin-top:3px}
-  .tip{margin:8px 18px 4px;font-size:12px;color:#5c7278;line-height:1.45}
-  .tip b{color:var(--teal)}
-
+    overflow:hidden;overscroll-behavior:none;position:fixed;inset:0;width:100%;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-font-smoothing:antialiased}
+  .app{height:100%;display:flex;flex-direction:column;max-width:560px;margin:0 auto;position:relative}
+  .grain{position:fixed;inset:0;z-index:50;pointer-events:none;opacity:.35;mix-blend-mode:multiply}
+  header{padding:14px 20px 2px;z-index:10}
+  .ey{font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:12px}
+  .ey::before{content:"";width:26px;height:1px;background:currentColor;opacity:.7}
+  h1{font-family:var(--fd);font-style:italic;font-weight:500;font-size:20px;color:var(--teal);margin-top:5px}
   .scene{flex:1;position:relative;overflow:hidden;touch-action:none}
-  .counter{position:absolute;right:16px;top:14px;z-index:9;font-family:var(--fd);font-style:italic;font-size:26px;color:var(--teal)}
-  .counter small{display:block;text-align:right;font-family:var(--fb);font-size:9px;letter-spacing:.2em;color:#8aa0a6}
-
-  /* columna de aros (separados) */
-  .col{position:absolute;left:50%;top:0;transform:translateX(-50%);width:min(84vw,360px);will-change:transform}
-  .ring{position:absolute;left:0;width:100%;height:120px;display:flex;align-items:center;justify-content:center;will-change:transform,opacity}
-  .band{width:100%;height:100%;border-radius:16px;position:relative;overflow:hidden;
-    background:linear-gradient(180deg,#fff,#f2f5f6 55%,#e6ebed);
-    box-shadow:0 16px 38px rgba(20,35,55,.15),inset 0 2px 0 rgba(255,255,255,.9),inset 0 -8px 14px rgba(27,77,92,.06);
-    display:flex;align-items:center;justify-content:center}
-  .band::before{content:"";position:absolute;top:0;left:0;right:0;height:24px;background:linear-gradient(180deg,rgba(27,77,92,.09),transparent)}
-  .band::after{content:"";position:absolute;bottom:0;left:0;right:0;height:24px;background:linear-gradient(0deg,rgba(27,77,92,.12),transparent)}
-  .band .nm{font-family:var(--fa);font-size:25px;color:var(--teal);white-space:nowrap;padding:0 12px}
-
-  /* ballena (silueta simple que nada entre aros) */
-  .whale{position:absolute;left:50%;top:0;width:64px;height:120px;margin-left:-32px;z-index:7;will-change:transform;
-    filter:drop-shadow(0 8px 16px rgba(27,77,92,.25))}
+  .scene::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:6;
+    background:radial-gradient(120% 80% at 50% 42%,transparent 55%,rgba(20,44,58,.10) 100%)}
+  .counter{position:absolute;right:18px;top:16px;z-index:9;text-align:right}
+  .counter .n{font-family:var(--fd);font-style:italic;font-size:30px;color:var(--teal);line-height:1}
+  .counter .t{font-family:var(--fb);font-size:9px;letter-spacing:.24em;color:#8aa0a6;margin-top:2px}
+  .col{position:absolute;left:50%;top:0;width:min(84vw,360px);transform:translateX(-50%);will-change:transform}
+  .ring{position:absolute;left:0;top:0;width:100%;height:132px;will-change:transform,opacity;transform-origin:50% 50%}
+  .cyl{position:absolute;inset:0;border-radius:50%/16px;overflow:hidden;
+    background:linear-gradient(180deg,#dfe5e7 0%,#f6f8f8 12%,#ffffff 38%,#ffffff 62%,#eef1f2 84%,#d6dddf 100%);
+    box-shadow:0 22px 48px rgba(20,35,55,.18), inset 0 3px 6px rgba(255,255,255,.95), inset 0 -10px 18px rgba(27,77,92,.09)}
+  .cyl::before{content:"";position:absolute;left:0;right:0;top:0;height:34px;border-radius:50%;
+    background:radial-gradient(70% 130% at 50% 0,rgba(27,77,92,.14),transparent 70%)}
+  .cyl::after{content:"";position:absolute;left:8%;right:8%;top:9px;height:12px;border-radius:50%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.9),transparent);filter:blur(1px)}
+  .nm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:var(--fa);font-size:26px;letter-spacing:.02em;color:var(--teal);white-space:nowrap;z-index:2}
+  .sub{position:absolute;left:0;right:0;bottom:16px;text-align:center;font-family:var(--fb);
+    font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:#9db0b5;z-index:2}
+  .whale{position:absolute;left:50%;top:0;width:70px;height:132px;margin-left:-35px;z-index:5;will-change:transform;
+    filter:drop-shadow(0 10px 18px rgba(27,77,92,.28))}
   .whale svg{width:100%;height:100%;display:block}
-
-  .grab{position:absolute;left:0;right:0;bottom:14px;text-align:center;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#9fb0b4;z-index:9;pointer-events:none}
-
-  .card{margin:0 14px 14px;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 20px 50px rgba(20,35,55,.22);flex:0 0 auto}
-  .card .ph{height:120px;background-size:cover;background-position:center}
-  .card .cin{padding:11px 16px 3px}
+  .grab{position:absolute;left:0;right:0;bottom:16px;text-align:center;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:#9fb0b4;z-index:9;pointer-events:none;transition:opacity .4s}
+  .card{margin:0 14px 16px;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 24px 56px rgba(20,35,55,.24);flex:0 0 auto;z-index:10}
+  .card .ph{height:126px;background-size:cover;background-position:center}
+  .card .cin{padding:12px 18px 2px}
   .card .ct{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
-  .card .cn{font-family:var(--fd);font-style:italic;font-size:19px;color:var(--teal);margin-top:2px}
-  .card .cm{font-size:12px;color:#5c7278;margin-top:2px}
-  .card .cb{display:block;margin:11px 16px 15px;background:var(--ink);color:var(--bg);text-align:center;padding:13px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .card .cn{font-family:var(--fd);font-style:italic;font-size:20px;color:var(--teal);margin-top:3px}
+  .card .cm{font-size:12px;color:#5c7278;margin-top:3px}
+  .card .cb{display:block;margin:12px 18px 16px;background:var(--ink);color:var(--bg);text-align:center;padding:14px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
 </style></head>
 <body>
+<svg class="grain"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2"/><feColorMatrix type="matrix" values="0 0 0 0 .07 0 0 0 0 .17 0 0 0 0 .22 0 0 0 .5 0"/></filter><rect width="100%" height="100%" filter="url(#g)"/></svg>
 <div class="app">
-  <header><div class="ey">Opción 1 · paso firme con nado</div><h1>Aros + ballena selector</h1></header>
-  <div class="tip">Cada deslizada = <b>la ballena nada de un aro al siguiente</b> y se frena ahí. Aros separados, la ballena cruza el hueco. <b>El scroll de la página está bloqueado.</b></div>
-
+  <header><div class="ey">La columna de estancias</div><h1>Desliza · la ballena nada de aro en aro</h1></header>
   <div class="scene" id="scene">
-    <div class="counter"><span id="cN">01</span><small>de 05</small></div>
+    <div class="counter"><div class="n" id="cN">01</div><div class="t">de 05</div></div>
     <div class="col" id="col"></div>
     <div class="whale" id="whale">
-      <svg viewBox="0 0 64 120" xmlns="http://www.w3.org/2000/svg">
-        <path d="M32 6 C40 20 44 40 42 64 C41 82 38 100 32 114 C26 100 23 82 22 64 C20 40 24 20 32 6 Z" fill="#9fc4e0"/>
-        <path d="M32 40 C22 46 12 44 6 52 C16 52 24 56 30 62 Z" fill="#8fb8d8"/>
-        <path d="M32 40 C42 46 52 44 58 52 C48 52 40 56 34 62 Z" fill="#8fb8d8"/>
-        <path d="M32 8 C28 2 24 2 22 8 C26 10 30 10 32 14 C34 10 38 10 42 8 C40 2 36 2 32 8 Z" fill="#accfe8"/>
-        <ellipse cx="32" cy="70" rx="9" ry="26" fill="#b6d6ec" opacity=".6"/>
+      <svg viewBox="0 0 70 132" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="wb" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#b9d8ee"/><stop offset="1" stop-color="#8bb6d8"/></linearGradient></defs>
+        <path d="M35 8 C44 24 48 46 46 72 C45 92 41 112 35 126 C29 112 25 92 24 72 C22 46 26 24 35 8 Z" fill="url(#wb)"/>
+        <path d="M35 44 C24 50 12 47 5 56 C17 56 26 61 32 68 Z" fill="#9cc1de"/>
+        <path d="M35 44 C46 50 58 47 65 56 C53 56 44 61 38 68 Z" fill="#9cc1de"/>
+        <path d="M35 10 C30 3 25 3 23 10 C28 12 32 12 35 17 C38 12 42 12 47 10 C45 3 40 3 35 10 Z" fill="#c3ddf0"/>
+        <ellipse cx="35" cy="78" rx="10" ry="30" fill="#cfe3f2" opacity=".55"/>
       </svg>
     </div>
-    <div class="grab" id="grab">desliza ↑ para nadar al siguiente</div>
+    <div class="grab" id="grab">desliza ↑↓</div>
   </div>
-
   <div class="card">
     <div class="ph" id="cardPh"></div>
     <div class="cin"><div class="ct" id="cardT"></div><div class="cn" id="cardN"></div><div class="cm" id="cardM"></div></div>
     <a class="cb">Reservar</a>
   </div>
 </div>
-
 <script>
 const DATA=[
-  {t:'La Cruz de Huanacaxtle',n:'VALLARTA GARDENS 3004',cn:'Vallarta Gardens 3004',m:'6 huéspedes · $250 / noche',img:'https://picsum.photos/seed/vA/700/440'},
-  {t:'Nuevo Vallarta · Flamingos',n:'MARÍTIMA 6S',cn:'Marítima 6S',m:'8 huéspedes · $190 / noche',img:'https://picsum.photos/seed/vB/700/440'},
-  {t:'Punta de Mita',n:'PENÍNSULA 19E',cn:'Península 19E',m:'10 huéspedes · $420 / noche',img:'https://picsum.photos/seed/vC/700/440'},
-  {t:'Bucerías',n:'DELTA 101',cn:'Delta 101',m:'4 huéspedes · $160 / noche',img:'https://picsum.photos/seed/vD/700/440'},
-  {t:'Conchas Chinas',n:'MARALMA 501',cn:'Maralma 501',m:'6 huéspedes · $310 / noche',img:'https://picsum.photos/seed/vE/700/440'},
+  {t:'La Cruz de Huanacaxtle',n:'VALLARTA GARDENS 3004',cn:'Vallarta Gardens 3004',m:'6 huéspedes · $250 / noche',img:'https://picsum.photos/seed/wA/700/440'},
+  {t:'Nuevo Vallarta · Flamingos',n:'MARÍTIMA 6S',cn:'Marítima 6S',m:'8 huéspedes · $190 / noche',img:'https://picsum.photos/seed/wB/700/440'},
+  {t:'Punta de Mita',n:'PENÍNSULA 19E',cn:'Península 19E',m:'10 huéspedes · $420 / noche',img:'https://picsum.photos/seed/wC/700/440'},
+  {t:'Bucerías',n:'DELTA 101',cn:'Delta 101',m:'4 huéspedes · $160 / noche',img:'https://picsum.photos/seed/wD/700/440'},
+  {t:'Conchas Chinas',n:'MARALMA 501',cn:'Maralma 501',m:'6 huéspedes · $310 / noche',img:'https://picsum.photos/seed/wE/700/440'},
 ];
-const N=DATA.length;
-const GAP=250;                 // separación entre aros (px) — hueco donde nada la ballena
-const scene=document.getElementById('scene'), col=document.getElementById('col'), whale=document.getElementById('whale');
-const cN=document.getElementById('cN');
+const N=DATA.length, GAP=250;
+const scene=document.getElementById('scene'),col=document.getElementById('col'),whale=document.getElementById('whale');
+const cN=document.getElementById('cN'),grab=document.getElementById('grab');
 const cardPh=document.getElementById('cardPh'),cardT=document.getElementById('cardT'),cardN=document.getElementById('cardN'),cardM=document.getElementById('cardM');
-
-// crear aros separados por GAP
-DATA.forEach((d,i)=>{const r=document.createElement('div');r.className='ring';r.style.top=(i*GAP)+'px';
-  r.innerHTML=`<div class="band"><div class="nm">${d.n}</div></div>`;col.appendChild(r);});
+DATA.forEach((d)=>{const r=document.createElement('div');r.className='ring';
+  r.innerHTML='<div class="cyl"></div><div class="nm">'+d.n+'</div><div class="sub">'+d.t+'</div>';col.appendChild(r);});
 const rings=[...col.children];
-
-let pos=0, drag=0, dragging=false, y0=0, ly=0, busy=false, raf=null;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+let current=0, target=0, drag=0, dragging=false, y0=0, ly=0, vel=0, lastCard=-1;
 const CENTER=()=>scene.clientHeight*0.42;
-
 function render(){
-  const cur=clamp(pos+drag,-0.35,N-1+0.35);
-  // columna: el aro activo queda en el centro
-  col.style.transform=`translateX(-50%) translateY(${CENTER()-cur*GAP-60}px)`;
-  rings.forEach((r,i)=>{const off=Math.abs(i-cur);r.style.opacity=clamp(1.2-off*0.55,0,1);
-    r.style.transform=`scale(${clamp(1-off*0.06,0.82,1)})`;});
-  // BALLENA: nada por el hueco entre el aro actual y el siguiente
-  const frac=cur-Math.floor(cur);            // 0→1 dentro del tramo
-  const seg=Math.floor(cur);
-  // posición vertical: cruza el hueco; horizontal: arco de nado; rotación: se orienta al nadar
-  const wy=CENTER()-30 + (frac-0.5)*GAP*0.0;  // se queda centrada (la columna se mueve)
-  const swimX=Math.sin(frac*Math.PI)*38*(cur<N-1?1:0);   // arco lateral al nadar
-  const swimRot=Math.sin(frac*Math.PI*2)*8;              // cabecea al nadar
-  const swimY=CENTER()-60 + Math.sin(frac*Math.PI)*40;   // sube-baja en el arco
-  whale.style.transform=`translate(${swimX}px, ${swimY-CENTER()+60}px) rotate(${swimRot}deg) scale(${1-Math.abs(frac-0.5)*0.15})`;
+  const cur=current+drag, cy=CENTER();
+  col.style.transform='translate3d(-50%,'+(cy-cur*GAP-66)+'px,0)';
+  for(let i=0;i<rings.length;i++){
+    const off=i-cur, a=Math.abs(off);
+    const sc=clamp(1-a*0.07,0.8,1), op=clamp(1.25-a*0.55,0,1);
+    rings[i].style.transform='translate3d(0,'+(i*GAP)+'px,0) scale('+sc+')';
+    rings[i].style.opacity=op;
+    rings[i].style.filter = a>0.7?'blur('+Math.min((a-0.7)*3,4)+'px)':'';
+    rings[i].style.zIndex = 100-Math.round(a*10);
+  }
+  const frac=cur-Math.floor(cur), sw=Math.sin(frac*Math.PI);
+  const wx=sw*36, wyBob=-sw*30, wrot=Math.sin(frac*Math.PI*2)*10, wsc=1-sw*0.12;
+  whale.style.transform='translate3d('+wx+'px,'+((cy-66)+wyBob)+'px,0) rotate('+wrot+'deg) scale('+wsc+')';
   const act=clamp(Math.round(cur),0,N-1);
   cN.textContent=String(act+1).padStart(2,'0');
-  const d=DATA[act];if(cardN.textContent!==d.cn){cardPh.style.backgroundImage=`url(${d.img})`;cardT.textContent=d.t;cardN.textContent=d.cn;cardM.textContent=d.m;}
+  if(act!==lastCard){lastCard=act;const d=DATA[act];cardPh.style.backgroundImage='url('+d.img+')';cardT.textContent=d.t;cardN.textContent=d.cn;cardM.textContent=d.m;}
+  grab.style.opacity = (dragging||Math.abs(current-target)>0.01)?0:.9;
 }
-// paso firme: la ballena NADA de un aro al siguiente (duración fija, easing con carácter)
-function step(target,dur){
-  busy=true;cancelAnimationFrame(raf);target=clamp(target,0,N-1);
-  const s=pos,t0=performance.now();
-  const ease=t=>t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;   // acelera y frena
-  (function go(now){const t=clamp((now-t0)/dur,0,1);pos=s+(target-s)*ease(t);drag=0;render();
-    if(t<1)raf=requestAnimationFrame(go);else{pos=target;drag=0;render();busy=false;}})(t0);
-}
-scene.addEventListener('touchstart',e=>{if(busy){e.preventDefault();return;}dragging=true;y0=ly=e.touches[0].clientY;},{passive:false});
-scene.addEventListener('touchmove',e=>{e.preventDefault();if(!dragging||busy)return;
-  const y=e.touches[0].clientY;ly=y;
-  let f=(y0-y)/GAP;f=clamp(f,-0.5,0.5);                 // deja "asomar" el siguiente, máx medio aro
-  drag=f;
-  if(pos+drag<0)drag=-pos+ (pos+drag)*0.3;
-  if(pos+drag>N-1)drag=(N-1-pos)+(pos+drag-(N-1))*0.3;
+function loop(){
+  const goal=target+drag;
+  current += (goal-current)*0.16;
+  if(Math.abs(goal-current)<0.0005) current=goal;
   render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+scene.addEventListener('touchstart',e=>{dragging=true;y0=ly=e.touches[0].clientY;vel=0;},{passive:false});
+scene.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  if(!dragging)return;
+  const y=e.touches[0].clientY;vel=0.6*vel+0.4*(ly-y);ly=y;
+  let f=(y0-y)/GAP; f=clamp(f,-0.9,0.9);
+  let np=target+f;
+  if(np<0)f=-target+(np)*0.3; if(np>N-1)f=(N-1-target)+(np-(N-1))*0.3;
+  drag=f;
 },{passive:false});
-scene.addEventListener('touchend',e=>{if(!dragging||busy)return;dragging=false;
-  let t=Math.round(pos);
-  if(Math.abs(drag)>0.18) t=Math.round(pos)+(drag>0?1:-1);   // swipe suficiente → nada al siguiente
-  t=clamp(t,0,N-1);
-  step(t,820);                                                // NADO de aro a aro (mismo tiempo siempre)
+scene.addEventListener('touchend',e=>{
+  if(!dragging)return;dragging=false;
+  const proj=target+drag+vel*0.02;
+  let t=Math.round(proj);
+  if(Math.abs(drag)>0.18 && t===target) t=target+(drag>0?1:-1);
+  target=clamp(t,0,N-1); drag=0;
 },{passive:false});
-
 render();
 </script>
 </body></html>
