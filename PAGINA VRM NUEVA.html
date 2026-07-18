@@ -1096,17 +1096,19 @@ let PROG=0,SPROG=0;
 ScrollTrigger.create({trigger:'#story',start:'top top',end:'bottom bottom',scrub:0.6,
  onUpdate:s=>{PROG=s.progress;}});
 
-// ── CARRUSEL DE AROS en móvil: bloquea el scroll libre y da pasos FIRMES de aro en aro ──
+// ── CARRUSEL DE AROS en móvil: arrastre en vivo + aterrizaje GSAP limpio (sin rebote, sin traba) ──
 if(IS_PORTRAIT){
   const _storyEl=document.getElementById('story');
   const N=ESTANCIAS.length;
   const _maxS=()=>_storyEl.offsetHeight-innerHeight;
   const ringScroll=(i)=>{ const t=INTRO_END + (i/(N-1))*(RINGS_END-INTRO_END); return _storyEl.offsetTop + t*_maxS(); };
+  const ringPx=()=> ((RINGS_END-INTRO_END)/(N-1))*_maxS();     // pixeles de scroll por aro
   const ringsP=()=> (PROG-INTRO_END)/(RINGS_END-INTRO_END);
   const curIdx=()=> Math.max(0,Math.min(N-1,Math.round(ringsP()*(N-1))));
-  const ease=t=> t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;   // acelera y frena (paso deliberado)
-  const STEP=0.55;                                            // MISMA duración siempre → mismo feel
-  let mode='free', idx=0, busy=false, y0=0;
+  const clampS=(v)=> Math.max(ringScroll(0),Math.min(ringScroll(N-1),v));
+  const proxy={v:0};
+  const applyScroll=()=> lenis.scrollTo(proxy.v,{immediate:true,force:true});
+  let mode='free', idx=0, busy=false, y0=0, pressScroll=0;
 
   // entrar a la fase de aros: bloquear scroll libre y clavarse en el aro actual
   lenis.on('scroll',()=>{
@@ -1114,23 +1116,38 @@ if(IS_PORTRAIT){
     const p=ringsP();
     if(p>=0.015 && p<=0.985){
       mode='rings'; idx=curIdx(); busy=true; lenis.stop();
-      lenis.scrollTo(ringScroll(idx),{duration:0.32,easing:ease,force:true,onComplete:()=>{busy=false;}});
+      proxy.v=lenis.scroll||lenis.animatedScroll||window.scrollY||0;
+      gsap.to(proxy,{v:ringScroll(idx),duration:0.34,ease:'power2.out',overwrite:true,onUpdate:applyScroll,onComplete:()=>{busy=false;}});
     }
   });
-  const go=(n)=>{ busy=true; lenis.scrollTo(ringScroll(n),{duration:STEP,easing:ease,force:true,lock:true,onComplete:()=>{busy=false; idx=n;}}); };
-  const leave=(dir)=>{                                        // salir de los aros (a intro arriba, o a la salida abajo)
-    mode='free'; lenis.start();
-    const outRaw = dir<0 ? (INTRO_END-0.05) : (RINGS_END+0.04);
-    busy=true; lenis.scrollTo(_storyEl.offsetTop + outRaw*_maxS(),{duration:0.5,easing:ease,force:true,onComplete:()=>{busy=false;}});
+  const land=(n)=>{                                            // aterrizaje limpio a un aro
+    busy=true;
+    gsap.to(proxy,{v:ringScroll(n),duration:0.55,ease:'power2.out',overwrite:true,onUpdate:applyScroll,onComplete:()=>{busy=false; idx=n;}});
   };
-  addEventListener('touchstart',(e)=>{ y0=e.touches[0].clientY; },{passive:true});
-  addEventListener('touchmove',(e)=>{ if(mode==='rings' && !busy) e.preventDefault(); },{passive:false});   // durante aros: nada de scroll libre
+  const leave=(dir)=>{                                         // salir de los aros (a intro arriba, o a la salida abajo)
+    mode='free'; gsap.killTweensOf(proxy); lenis.start();
+    const outRaw = dir<0 ? (INTRO_END-0.05) : (RINGS_END+0.04);
+    lenis.scrollTo(_storyEl.offsetTop + outRaw*_maxS(),{duration:0.5,force:true});
+  };
+  // gesto en TODA la pantalla (no solo el aro)
+  addEventListener('touchstart',(e)=>{ if(mode!=='rings')return; gsap.killTweensOf(proxy); busy=false; y0=e.touches[0].clientY; pressScroll=ringScroll(idx); },{passive:true});
+  addEventListener('touchmove',(e)=>{
+    if(mode!=='rings'){ return; }
+    e.preventDefault();                                        // durante aros: nada de scroll libre
+    if(busy) return;
+    const dy=y0-e.touches[0].clientY;                          // >0: dedo arriba → avanzar
+    let v=pressScroll+dy;
+    // resistencia elástica en extremos
+    const lo=ringScroll(0), hi=ringScroll(N-1);
+    if(v<lo) v=lo+(v-lo)*0.35; if(v>hi) v=hi+(v-hi)*0.35;
+    proxy.v=v; applyScroll();
+  },{passive:false});
   addEventListener('touchend',(e)=>{
     if(mode!=='rings' || busy) return;
-    const dy=y0-e.changedTouches[0].clientY;                 // >0: swipe arriba → aro siguiente
-    if(Math.abs(dy)<15) return;                              // toque pequeño: se queda
-    const dir=dy>0?1:-1, next=idx+dir;
-    if(next<0 || next>N-1) leave(dir); else go(next);        // paso firme al siguiente, o salir en los extremos
+    const moved=(proxy.v-ringScroll(idx))/ringPx();            // aros arrastrados (con signo)
+    if(Math.abs(moved)<0.16){ land(idx); return; }             // no alcanzó: regresa al actual
+    const dir=moved>0?1:-1, next=idx+dir;
+    if(next<0 || next>N-1) leave(dir); else land(next);        // paso firme al siguiente, o salir en extremos
   },{passive:true});
 }
 // límite de velocidad de la columna: aunque scrollees rapidísimo, avanza a su ritmo
