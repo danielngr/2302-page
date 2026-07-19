@@ -1124,62 +1124,59 @@ ScrollTrigger.create({trigger:'#story',start:'top top',end:'bottom bottom',scrub
 
 // dots de navegación (móvil)
 if(IS_PORTRAIT){ const _rd=document.getElementById('rdots'); if(_rd){ _rd.style.display='flex'; for(let i=0;i<ESTANCIAS.length;i++){_rd.appendChild(document.createElement('i'));} } }
-// ── CARRUSEL DE AROS en móvil: arrastre en vivo + aterrizaje GSAP limpio (sin rebote, sin traba) ──
+// ── CARRUSEL DE AROS en móvil: mueve un valor JS directo (buttery, sin tocar el scroll cada frame) ──
 if(IS_PORTRAIT){
   const _storyEl=document.getElementById('story');
   const N=ESTANCIAS.length;
   const _maxS=()=>_storyEl.offsetHeight-innerHeight;
-  const ringScroll=(i)=>{ let t=INTRO_END + (i/(N-1))*(RINGS_END-INTRO_END); t=Math.max(INTRO_END+0.006, Math.min(RINGS_END-0.012, t)); return _storyEl.offsetTop + t*_maxS(); };   // nunca toca el borde intro/salida (evita pose desconfigurada en el último aro)
-  const ringPx=()=> ((RINGS_END-INTRO_END)/(N-1))*_maxS();     // pixeles de scroll por aro
+  const ringScrollPx=(i)=>{ let t=INTRO_END + (i/(N-1))*(RINGS_END-INTRO_END); t=Math.max(INTRO_END+0.006,Math.min(RINGS_END-0.012,t)); return _storyEl.offsetTop + t*_maxS(); };
   const ringsP=()=> (PROG-INTRO_END)/(RINGS_END-INTRO_END);
   const curIdx=()=> Math.max(0,Math.min(N-1,Math.round(ringsP()*(N-1))));
-  const clampS=(v)=> Math.max(ringScroll(0),Math.min(ringScroll(N-1),v));
-  const proxy={v:0};
-  const applyScroll=()=> lenis.scrollTo(proxy.v,{immediate:true,force:true});
-  let mode='free', idx=0, busy=false, y0=0, ly=0, vel=0, pressScroll=0;
+  const ease3=(x)=>1-Math.pow(1-x,3);
+  const rp={v:0};                                             // posición de aro 0..N-1 (lo que ve el 3D)
+  const setPos=()=>{ window.__ringPos=rp.v; };
+  let mode='free', y0=0, ly=0, vel=0, startPos=0;
+  const PX_PER_RING=130;                                      // dedo px por aro (menor = más ágil)
 
-  // entrar a la fase de aros: bloquear scroll libre y clavarse en el aro actual
+  // entrar a los aros: congelar el scroll (cámara asentada) y controlar el aro por JS
   lenis.on('scroll',()=>{
-    if(mode!=='free' || busy) return;
+    if(mode!=='free') return;
     const p=ringsP();
     if(p>=0.015 && p<=0.985){
-      mode='rings'; idx=curIdx(); busy=true; lenis.stop();
-      proxy.v=lenis.scroll||lenis.animatedScroll||window.scrollY||0;
-      gsap.to(proxy,{v:ringScroll(idx),duration:0.45,ease:'power1.out',overwrite:true,onUpdate:applyScroll,onComplete:()=>{busy=false;}});
+      mode='rings'; lenis.stop();
+      rp.v=curIdx(); window.__ringPos=rp.v; gsap.killTweensOf(rp);
     }
   });
-  const land=(n)=>{                                            // aterrizaje limpio a un aro
-    busy=true;
-    gsap.to(proxy,{v:ringScroll(n),duration:0.7,ease:'power1.out',overwrite:true,onUpdate:applyScroll,onComplete:()=>{busy=false; idx=n;}});
+  const go=(n)=>{ n=Math.max(0,Math.min(N-1,n)); gsap.to(rp,{v:n,duration:0.6,ease:'power2.out',overwrite:true,onUpdate:setPos}); };
+  const leave=(dir)=>{                                        // salir: sincronizar el scroll real con el aro actual (sin salto) y soltar
+    mode='free'; gsap.killTweensOf(rp);
+    const atIdx = dir<0?0:N-1;
+    lenis.start();
+    lenis.scrollTo(ringScrollPx(atIdx),{immediate:true,force:true});   // scroll real = aro actual → sin brinco al soltar
+    window.__ringPos=null;
+    requestAnimationFrame(()=>{
+      const outRaw = dir<0 ? (INTRO_END-0.05) : (RINGS_END+0.05);
+      lenis.scrollTo(_storyEl.offsetTop+outRaw*_maxS(),{duration:0.9,easing:ease3,force:true});   // salida fluida (una sola toma)
+    });
   };
-  const leave=(dir)=>{                                         // salir de los aros (a intro arriba, o a la salida abajo)
-    mode='free'; gsap.killTweensOf(proxy); lenis.start();
-    const outRaw = dir<0 ? (INTRO_END-0.05) : (RINGS_END+0.05);
-    lenis.scrollTo(_storyEl.offsetTop + outRaw*_maxS(),{duration:0.8,easing:(x)=>1-Math.pow(1-x,3),force:true});   // salida fluida (una sola toma)
-  };
-  // gesto en TODA la pantalla (no solo el aro)
-  addEventListener('touchstart',(e)=>{ if(mode!=='rings')return; gsap.killTweensOf(proxy); busy=false; y0=ly=e.touches[0].clientY; vel=0; pressScroll=ringScroll(idx); },{passive:true});
+  addEventListener('touchstart',(e)=>{ if(mode!=='rings')return; gsap.killTweensOf(rp); y0=ly=e.touches[0].clientY; vel=0; startPos=rp.v; },{passive:true});
   addEventListener('touchmove',(e)=>{
-    if(mode!=='rings'){ return; }
-    e.preventDefault();                                        // durante aros: nada de scroll libre
-    if(busy) return;
-    const yy=e.touches[0].clientY;
-    vel=0.7*vel+0.3*(ly-yy); ly=yy;                            // velocidad suavizada (px/frame)
-    const dy=(y0-yy)*1.55;                                     // factor 1.55 = más ágil (menos arrastre necesario)
-    let v=pressScroll+dy;
-    const lo=ringScroll(0), hi=ringScroll(N-1);
-    if(v<lo) v=lo+(v-lo)*0.35; if(v>hi) v=hi+(v-hi)*0.35;
-    proxy.v=v; applyScroll();
+    if(mode!=='rings')return; e.preventDefault();
+    const yy=e.touches[0].clientY; vel=0.7*vel+0.3*(ly-yy); ly=yy;
+    let v=startPos+(y0-yy)/PX_PER_RING;                       // arrastre en vivo (directo, buttery)
+    if(v<0) v*=0.35; if(v>N-1) v=(N-1)+(v-(N-1))*0.35;        // resistencia elástica en extremos
+    rp.v=v; setPos();
   },{passive:false});
   addEventListener('touchend',(e)=>{
-    if(mode!=='rings' || busy) return;
-    const moved=(proxy.v-ringScroll(idx))/ringPx();            // aros arrastrados (con signo)
-    const flick=Math.abs(vel)>5;                               // toque rápido = flick
-    if(Math.abs(moved)<0.10 && !flick){ land(idx); return; }   // ni arrastre ni flick: regresa
-    const dir = (Math.abs(moved)>=0.10) ? (moved>0?1:-1) : (vel>0?1:-1);   // dir por arrastre o por flick
-    const next=idx+dir;
-    if(next<0 || next>N-1) leave(dir); else land(next);
-  },{passive:true});
+    if(mode!=='rings')return;
+    const moved=rp.v-startPos, flick=Math.abs(vel)>5;
+    let target;
+    if(Math.abs(moved)<0.10 && !flick) target=Math.round(startPos);          // ni arrastre ni flick: se queda
+    else if(Math.abs(moved)<0.10 && flick) target=startPos+(vel>0?1:-1);     // flick corto: avanza 1
+    else target=startPos+(moved>0?1:-1);                                     // arrastre: avanza 1 en su dirección
+    if(target<0 || target>N-1){ leave(target<0?-1:1); return; }              // extremos: salir
+    go(target);
+  },{passive:false});
 }
 // límite de velocidad de la columna: aunque scrollees rapidísimo, avanza a su ritmo
 const MAX_COL_SPEED=0.15;   // progreso máx por segundo (más alto = la ballena baja más rápido por los aros)
@@ -1687,7 +1684,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  // ── FASES: intro (0→INTRO_END) · aros (INTRO_END→RINGS_END) · salida+cardumen (RINGS_END→1) ──
  const p = Math.max(0, Math.min(1, (rawP - INTRO_END) / (RINGS_END - INTRO_END)));   // aros (topado a 1)
  const qCard = Math.max(0, Math.min(1, (rawP - RINGS_END) / (1 - RINGS_END)));        // fase cardumen
- const activeF=p*(ESTANCIAS.length-1);
+ let activeF=p*(ESTANCIAS.length-1); if(IS_PORTRAIT && window.__ringPos!=null) activeF=window.__ringPos;   // móvil: carrusel controla el aro directo (buttery)
 
  // ── INTRO CINEMATOGRÁFICA 3D (cero fades: todo por posición/cámara) ──
  // el overlay HTML de intro se oculta enseguida (usamos texto 3D en su lugar)
@@ -1774,7 +1771,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  }
 
  // ── posición de la ballena ──
- const activeF2 = p*(ESTANCIAS.length-1);
+ let activeF2 = p*(ESTANCIAS.length-1); if(IS_PORTRAIT && window.__ringPos!=null) activeF2=window.__ringPos;
  const frac = activeF2 - Math.floor(activeF2);
  const wyRings = Math.sin(frac * Math.PI) * 3.2;
  if(introT < 1){
