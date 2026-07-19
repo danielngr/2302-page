@@ -1152,8 +1152,13 @@ if(IS_PORTRAIT){
   };
   const leave=(dir)=>{
     mode='free'; leaving=true; gsap.killTweensOf(proxy); lenis.start();      // leaving: bloquea re-entrar a los aros
-    const outRaw = dir<0 ? (INTRO_END-0.06) : (RINGS_END+0.06);
-    lenis.scrollTo(_storyEl.offsetTop + outRaw*_maxS(),{duration:0.85,easing:(x)=>1-Math.pow(1-x,3),force:true,onComplete:()=>{ leaving=false; }});
+    const _io=(x)=> x<0.5 ? 2*x*x : 1-Math.pow(-2*x+2,2)/2;                    // ease in-out (arranca y frena suave)
+    if(dir<0){
+      lenis.scrollTo(_storyEl.offsetTop + (INTRO_END-0.06)*_maxS(),{duration:0.9,easing:_io,force:true,onComplete:()=>{leaving=false;}});
+    } else {
+      // SALIDA del último aro: una sola toma continua y lenta (la ballena sale nadando, sin brinco)
+      lenis.scrollTo(_storyEl.offsetTop + 0.999*_maxS(),{duration:1.4,easing:_io,force:true,onComplete:()=>{leaving=false;}});
+    }
   };
   addEventListener('touchstart',(e)=>{ if(mode!=='rings')return; gsap.killTweensOf(proxy); busy=false; y0=ly=e.touches[0].clientY; vel=0; pressScroll=ringScroll(idx); rawV=pressScroll; },{passive:true});
   addEventListener('touchmove',(e)=>{
