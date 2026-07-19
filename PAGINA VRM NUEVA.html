@@ -1818,12 +1818,19 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  mLook.lookAt(new THREE.Vector3(0,0,0),wtan,UP);qT.setFromRotationMatrix(mLook);
  wrapper.quaternion.slerp(qT, introT<1?0.08:(qCard>0?0.10:0.05));
  wrapper.visible = !(introT>=1 && qCard>=window.__finalTune.whaleHideQ);   // se oculta cuando ya salió (ajustable con F)
- // ── NADO acoplado al SCROLL igual que en los aros: la cola/aletas avanzan con el progreso ──
+ // ── NADO: en la INTRO acoplado al scroll · en los AROS aletea SOLA y continua (vida propia, como la medusa) ──
  if(swimAction){
-   // rawP es el progreso global suavizado (0→1). El clip avanza con él → mover = nadar.
-   // + una deriva mínima para que nunca se congele del todo (respira en reposo).
-   const phase = rawP*10*swimDur + t*0.05;
-   swimAction.time=((phase%swimDur)+swimDur)%swimDur; mixer.update(0);
+   if(introT>=1 && qCard<=0){
+     // EN LOS AROS: la ballena aletea y mueve la cola por sí sola, independiente del scroll
+     if(swimAction.paused) swimAction.paused=false;
+     swimAction.timeScale=0.7;                     // ritmo orgánico y calmado
+     mixer.update(dt);
+   } else {
+     // INTRO / SALIDA: el clip avanza con el progreso del scroll (mover = nadar)
+     if(!swimAction.paused) swimAction.paused=true;
+     const phase = rawP*10*swimDur + t*0.05;       // + deriva mínima para que respire
+     swimAction.time=((phase%swimDur)+swimDur)%swimDur; mixer.update(0);
+   }
  }
 
  // ── partículas: flotan suave normalmente; se ESTIRAN (streaks) en la fase de velocidad ──
