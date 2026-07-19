@@ -378,6 +378,13 @@
    .ed-map-m .mx-pin-sub{font-size:11px}
    .ed-map-m .mx-grat{display:none}
  }
+
+ /* dots de navegación (móvil) */
+ .rdots{position:fixed;left:16px;top:44%;transform:translateY(-50%);z-index:8;display:none;flex-direction:column;gap:9px;opacity:0;transition:opacity .5s var(--e)}
+ .rdots.show{opacity:1}
+ .rdots i{width:6px;height:6px;border-radius:50%;background:rgba(27,77,92,.22);transition:all .4s var(--e)}
+ .rdots i.on{background:var(--teal);height:24px;border-radius:3px;box-shadow:0 2px 8px rgba(27,77,92,.25)}
+ @media(min-width:901px){.rdots{display:none!important}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
@@ -428,6 +435,7 @@
 <div class="hud tr">Bahía de Banderas<br>Vallarta · Riviera Nayarit</div>
 <div class="hud bl">3D · Interactive · Three.js</div>
 <div class="count" id="count"><div class="n" id="cN">01</div><div class="t" id="cT">de 05</div></div>
+<div class="rdots" id="rdots" aria-hidden="true"></div>
 
 <div class="cue" id="cue"><span>Scroll</span><span class="bar"></span></div>
 
@@ -1096,6 +1104,8 @@ let PROG=0,SPROG=0;
 ScrollTrigger.create({trigger:'#story',start:'top top',end:'bottom bottom',scrub:0.6,
  onUpdate:s=>{PROG=s.progress;}});
 
+// dots de navegación (móvil)
+if(IS_PORTRAIT){ const _rd=document.getElementById('rdots'); if(_rd){ _rd.style.display='flex'; for(let i=0;i<ESTANCIAS.length;i++){_rd.appendChild(document.createElement('i'));} } }
 // ── CARRUSEL DE AROS en móvil: arrastre en vivo + aterrizaje GSAP limpio (sin rebote, sin traba) ──
 if(IS_PORTRAIT){
   const _storyEl=document.getElementById('story');
@@ -1108,7 +1118,7 @@ if(IS_PORTRAIT){
   const clampS=(v)=> Math.max(ringScroll(0),Math.min(ringScroll(N-1),v));
   const proxy={v:0};
   const applyScroll=()=> lenis.scrollTo(proxy.v,{immediate:true,force:true});
-  let mode='free', idx=0, busy=false, y0=0, pressScroll=0;
+  let mode='free', idx=0, busy=false, y0=0, ly=0, vel=0, pressScroll=0;
 
   // entrar a la fase de aros: bloquear scroll libre y clavarse en el aro actual
   lenis.on('scroll',()=>{
@@ -1130,14 +1140,15 @@ if(IS_PORTRAIT){
     lenis.scrollTo(_storyEl.offsetTop + outRaw*_maxS(),{duration:0.5,force:true});
   };
   // gesto en TODA la pantalla (no solo el aro)
-  addEventListener('touchstart',(e)=>{ if(mode!=='rings')return; gsap.killTweensOf(proxy); busy=false; y0=e.touches[0].clientY; pressScroll=ringScroll(idx); },{passive:true});
+  addEventListener('touchstart',(e)=>{ if(mode!=='rings')return; gsap.killTweensOf(proxy); busy=false; y0=ly=e.touches[0].clientY; vel=0; pressScroll=ringScroll(idx); },{passive:true});
   addEventListener('touchmove',(e)=>{
     if(mode!=='rings'){ return; }
     e.preventDefault();                                        // durante aros: nada de scroll libre
     if(busy) return;
-    const dy=y0-e.touches[0].clientY;                          // >0: dedo arriba → avanzar
+    const yy=e.touches[0].clientY;
+    vel=0.7*vel+0.3*(ly-yy); ly=yy;                            // velocidad suavizada (px/frame)
+    const dy=(y0-yy)*1.55;                                     // factor 1.55 = más ágil (menos arrastre necesario)
     let v=pressScroll+dy;
-    // resistencia elástica en extremos
     const lo=ringScroll(0), hi=ringScroll(N-1);
     if(v<lo) v=lo+(v-lo)*0.35; if(v>hi) v=hi+(v-hi)*0.35;
     proxy.v=v; applyScroll();
@@ -1145,9 +1156,11 @@ if(IS_PORTRAIT){
   addEventListener('touchend',(e)=>{
     if(mode!=='rings' || busy) return;
     const moved=(proxy.v-ringScroll(idx))/ringPx();            // aros arrastrados (con signo)
-    if(Math.abs(moved)<0.16){ land(idx); return; }             // no alcanzó: regresa al actual
-    const dir=moved>0?1:-1, next=idx+dir;
-    if(next<0 || next>N-1) leave(dir); else land(next);        // paso firme al siguiente, o salir en extremos
+    const flick=Math.abs(vel)>5;                               // toque rápido = flick
+    if(Math.abs(moved)<0.10 && !flick){ land(idx); return; }   // ni arrastre ni flick: regresa
+    const dir = (Math.abs(moved)>=0.10) ? (moved>0?1:-1) : (vel>0?1:-1);   // dir por arrastre o por flick
+    const next=idx+dir;
+    if(next<0 || next>N-1) leave(dir); else land(next);
   },{passive:true});
 }
 // límite de velocidad de la columna: aunque scrollees rapidísimo, avanza a su ritmo
@@ -1704,6 +1717,7 @@ addEventListener('keydown',ev=>{
 
  const idx=Math.min(ESTANCIAS.length-1, Math.round(activeF));
  cN.textContent=String(idx+1).padStart(2,'0');
+ if(IS_PORTRAIT){ const _rd=document.getElementById('rdots'); if(_rd){ const showD=(introT>0.9&&qCard<=0.05); _rd.classList.toggle('show',showD); const ci=_rd.children; for(let k=0;k<ci.length;k++) ci[k].classList.toggle('on',k===idx); } }
  cylinders.forEach((cyl,i)=>{
    const center=1-Math.min(1,Math.abs(activeF-i));
    const focus=center*center;
