@@ -1135,10 +1135,10 @@ if(IS_PORTRAIT){
   const curIdx=()=> Math.max(0,Math.min(N-1,Math.round(ringsP()*(N-1))));
   const proxy={v:0};
   const applyScroll=()=> lenis.scrollTo(proxy.v,{immediate:true,force:true});
-  let mode='free', idx=0, busy=false, y0=0, ly=0, vel=0, pressScroll=0;
+  let mode='free', idx=0, busy=false, leaving=false, y0=0, ly=0, vel=0, pressScroll=0, rawV=0;
 
   lenis.on('scroll',()=>{
-    if(mode!=='free' || busy) return;
+    if(mode!=='free' || busy || leaving) return;              // no re-entrar mientras se sale
     const p=ringsP();
     if(p>=0.015 && p<=0.985){
       mode='rings'; idx=curIdx(); busy=true; lenis.stop();
@@ -1151,26 +1151,25 @@ if(IS_PORTRAIT){
     gsap.to(proxy,{v:ringScroll(n),duration:0.7,ease:'power1.out',overwrite:true,onUpdate:applyScroll,onComplete:()=>{busy=false; idx=n;}});
   };
   const leave=(dir)=>{
-    mode='free'; gsap.killTweensOf(proxy); lenis.start();
-    const outRaw = dir<0 ? (INTRO_END-0.05) : (RINGS_END+0.05);
-    lenis.scrollTo(_storyEl.offsetTop + outRaw*_maxS(),{duration:0.8,easing:(x)=>1-Math.pow(1-x,3),force:true});
+    mode='free'; leaving=true; gsap.killTweensOf(proxy); lenis.start();      // leaving: bloquea re-entrar a los aros
+    const outRaw = dir<0 ? (INTRO_END-0.06) : (RINGS_END+0.06);
+    lenis.scrollTo(_storyEl.offsetTop + outRaw*_maxS(),{duration:0.85,easing:(x)=>1-Math.pow(1-x,3),force:true,onComplete:()=>{ leaving=false; }});
   };
-  addEventListener('touchstart',(e)=>{ if(mode!=='rings')return; gsap.killTweensOf(proxy); busy=false; y0=ly=e.touches[0].clientY; vel=0; pressScroll=ringScroll(idx); },{passive:true});
+  addEventListener('touchstart',(e)=>{ if(mode!=='rings')return; gsap.killTweensOf(proxy); busy=false; y0=ly=e.touches[0].clientY; vel=0; pressScroll=ringScroll(idx); rawV=pressScroll; },{passive:true});
   addEventListener('touchmove',(e)=>{
     if(mode!=='rings'){ return; }
     e.preventDefault();
     if(busy) return;
     const yy=e.touches[0].clientY;
     vel=0.7*vel+0.3*(ly-yy); ly=yy;
-    const dy=(y0-yy)*1.55;
-    let v=pressScroll+dy;
+    rawV=pressScroll+(y0-yy)*1.55;                            // arrastre crudo (para decidir dirección/salida)
     const lo=ringScroll(0), hi=ringScroll(N-1);
-    if(v<lo) v=lo+(v-lo)*0.35; if(v>hi) v=hi+(v-hi)*0.35;
-    proxy.v=v; applyScroll();
+    proxy.v=Math.max(lo,Math.min(hi,rawV));                  // aplicado: NUNCA cruza a intro/salida (evita el bug del último aro)
+    applyScroll();
   },{passive:false});
   addEventListener('touchend',(e)=>{
     if(mode!=='rings' || busy) return;
-    const moved=(proxy.v-ringScroll(idx))/ringPx();
+    const moved=(rawV-ringScroll(idx))/ringPx();              // usa el arrastre crudo (detecta intención de salir del último aro)
     const flick=Math.abs(vel)>5;
     if(Math.abs(moved)<0.10 && !flick){ land(idx); return; }
     const dir = (Math.abs(moved)>=0.10) ? (moved>0?1:-1) : (vel>0?1:-1);
