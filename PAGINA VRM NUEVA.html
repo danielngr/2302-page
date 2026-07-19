@@ -1154,8 +1154,8 @@ if(IS_PORTRAIT){
   };
   const leave=(dir)=>{                                         // salir de los aros (a intro arriba, o a la salida abajo)
     mode='free'; gsap.killTweensOf(proxy); lenis.start();
-    const outRaw = dir<0 ? (INTRO_END-0.05) : (RINGS_END+0.04);
-    lenis.scrollTo(_storyEl.offsetTop + outRaw*_maxS(),{duration:0.5,force:true});
+    const outRaw = dir<0 ? (INTRO_END-0.05) : (RINGS_END+0.05);
+    lenis.scrollTo(_storyEl.offsetTop + outRaw*_maxS(),{duration:0.8,easing:(x)=>1-Math.pow(1-x,3),force:true});   // salida fluida (una sola toma)
   };
   // gesto en TODA la pantalla (no solo el aro)
   addEventListener('touchstart',(e)=>{ if(mode!=='rings')return; gsap.killTweensOf(proxy); busy=false; y0=ly=e.touches[0].clientY; vel=0; pressScroll=ringScroll(idx); },{passive:true});
@@ -1818,17 +1818,17 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  mLook.lookAt(new THREE.Vector3(0,0,0),wtan,UP);qT.setFromRotationMatrix(mLook);
  wrapper.quaternion.slerp(qT, introT<1?0.08:(qCard>0?0.10:0.05));
  wrapper.visible = !(introT>=1 && qCard>=window.__finalTune.whaleHideQ);   // se oculta cuando ya salió (ajustable con F)
- // ── NADO: en la INTRO acoplado al scroll · en los AROS aletea SOLA y continua (vida propia, como la medusa) ──
+ // ── NADO: INTRO acoplado al scroll · AROS + SALIDA aletea continua (una sola toma, sin corte) ──
  if(swimAction){
-   if(introT>=1 && qCard<=0){
-     // EN LOS AROS: la ballena aletea y mueve la cola por sí sola, independiente del scroll
+   if(introT>=1){
+     // AROS Y SALIDA: aletea/cola por sí sola, continua → la transición al descender es fluida (misma toma)
      if(swimAction.paused) swimAction.paused=false;
-     swimAction.timeScale=1.15;                    // aleteo/cola un poco más rápido (vida propia)
+     swimAction.timeScale=1.15;
      mixer.update(dt);
    } else {
-     // INTRO / SALIDA: el clip avanza con el progreso del scroll (mover = nadar)
+     // INTRO: el clip avanza con el progreso del scroll (mover = nadar)
      if(!swimAction.paused) swimAction.paused=true;
-     const phase = rawP*10*swimDur + t*0.05;       // + deriva mínima para que respire
+     const phase = rawP*10*swimDur + t*0.05;
      swimAction.time=((phase%swimDur)+swimDur)%swimDur; mixer.update(0);
    }
  }
