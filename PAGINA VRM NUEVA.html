@@ -389,6 +389,16 @@
  .rdots i{width:6px;height:6px;border-radius:50%;background:rgba(27,77,92,.22);transition:all .4s var(--e)}
  .rdots i.on{background:var(--teal);height:24px;border-radius:3px;box-shadow:0 2px 8px rgba(27,77,92,.25)}
  @media(min-width:901px){.rdots{display:none!important}}
+
+ /* fondo estilo Noomo: luminoso + grid fino + ruido sutil (bajo costo GPU) */
+ .bg-noomo{position:fixed;inset:0;z-index:0;pointer-events:none;background:#F4F3ED}
+ .bg-noomo::before{content:"";position:absolute;inset:0;
+   background-image:linear-gradient(rgba(27,77,92,.032) 1px,transparent 1px),linear-gradient(90deg,rgba(27,77,92,.032) 1px,transparent 1px);
+   background-size:36px 36px;
+   -webkit-mask:radial-gradient(130% 100% at 50% 40%,#000,transparent 78%);mask:radial-gradient(130% 100% at 50% 40%,#000,transparent 78%)}
+ .bg-noomo::after{content:"";position:absolute;inset:0;opacity:.4;mix-blend-mode:multiply;
+   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E")}
+ .bg-glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(120% 80% at 50% 28%,rgba(255,255,255,.7),transparent 58%)}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
@@ -425,6 +435,8 @@
     </div>
   </div>
 </div>
+<div class="bg-noomo" aria-hidden="true"></div>
+<div class="bg-glow" aria-hidden="true"></div>
 <canvas id="c"></canvas>
 <div id="mCard">
   <div class="mc-pill">
@@ -656,13 +668,13 @@ const ESTANCIAS=[
 ];
 
 const canvas=$('c');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:!IS_PORTRAIT,powerPreference:'high-performance',stencil:false,depth:true});
+const renderer=new THREE.WebGLRenderer({canvas,antialias:!IS_PORTRAIT,powerPreference:'high-performance',stencil:false,depth:true,alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,IS_PORTRAIT?1.8:2));
-renderer.setClearColor(0xF1EFE8,1);   // fondo dentro del canvas → el vidrio lo refracta
+renderer.setClearColor(0xF1EFE8, IS_PORTRAIT?0:1);   // móvil: canvas transparente (se ve el fondo Noomo detrás)
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.28;
 renderer.shadowMap.enabled=!IS_PORTRAIT; renderer.shadowMap.type=THREE.PCFSoftShadowMap;   // sombras suaves solo en desktop (caras en móvil)
 try{renderer.transmissionResolutionScale=1.0;}catch(e){}
-const scene=new THREE.Scene(); scene.background=new THREE.Color(0xF1EFE8);
+const scene=new THREE.Scene(); scene.background = IS_PORTRAIT ? null : new THREE.Color(0xF1EFE8);
 scene.fog=new THREE.Fog(0xF1EFE8, 26, 78);   // profundidad atmosférica: los peces lejanos se funden en el marfil (la ballena se excluye)
 const camera=new THREE.PerspectiveCamera(IS_PORTRAIT?42:34,innerWidth/innerHeight,0.1,100);
 const _CENTERED = IS_MOBILE || innerWidth <= 860 || innerHeight > innerWidth || matchMedia('(pointer:coarse)').matches;   // centra en móvil, angosto, vertical o CUALQUIER táctil
