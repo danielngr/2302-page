@@ -1160,7 +1160,7 @@ if(IS_PORTRAIT){
       lenis.scrollTo(_storyEl.offsetTop + (INTRO_END-0.06)*_maxS(),{duration:0.9,easing:_io,force:true,onComplete:()=>{leaving=false;}});
     } else {
       // SALIDA del último aro: una sola toma continua y lenta (la ballena sale nadando, sin brinco)
-      lenis.scrollTo(_storyEl.offsetTop + 0.999*_maxS(),{duration:1.4,easing:_io,force:true,onComplete:()=>{leaving=false;}});
+      lenis.scrollTo(_storyEl.offsetTop + 0.999*_maxS(),{duration:2.2,easing:_io,force:true,onComplete:()=>{leaving=false;}});
     }
   };
   addEventListener('touchstart',(e)=>{ if(mode!=='rings')return; gsap.killTweensOf(proxy); busy=false; y0=ly=e.touches[0].clientY; vel=0; pressScroll=ringScroll(idx); rawV=pressScroll; },{passive:true});
@@ -1672,9 +1672,9 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    // móvil en fase de aros: el carrusel controla el ritmo → seguimiento DIRECTO (sin lag) = fluido premium
    const _inRingsM = IS_PORTRAIT && SPROG>INTRO_END-0.02 && SPROG<RINGS_END+0.005;
    const _inExitM = IS_PORTRAIT && SPROG >= RINGS_END-0.02;
-   const _lerp = _gap * (_inRingsM ? 0.22 : (_inExitM ? 0.13 : 0.07));   // aros móvil: directo · salida móvil: conectada
+   const _lerp = _gap * (_inRingsM ? 0.22 : (_inExitM ? 0.16 : 0.07));   // aros móvil: directo · salida móvil: conectada
    // en la SALIDA (fase final) la cámara avanza mucho más lento por scroll → sin mareo
-   const _spd = (SPROG >= RINGS_END-0.02) ? MAX_COL_SPEED*(IS_PORTRAIT?1.8:0.55) : (_inRingsM ? 0.6 : MAX_COL_SPEED);   // móvil: la salida sigue al tween del leave (sin trabar el aro)
+   const _spd = (SPROG >= RINGS_END-0.02) ? MAX_COL_SPEED*(IS_PORTRAIT?1.0:0.55) : (_inRingsM ? 0.6 : MAX_COL_SPEED);   // móvil: tope = velocidad del tween del leave (verificado numéricamente)
    const _cap = _spd * dt;                                      // tope por frame
    const _step = Math.max(-_cap, Math.min(_cap, _lerp));        // nunca supera el tope
    SPROG += _step;
@@ -1693,7 +1693,8 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  const introT = Math.min(1, rawP/INTRO_END);          // 0 en el tope, 1 al terminar la intro
  // ── FASES: intro (0→INTRO_END) · aros (INTRO_END→RINGS_END) · salida+cardumen (RINGS_END→1) ──
  const p = Math.max(0, Math.min(1, (rawP - INTRO_END) / (RINGS_END - INTRO_END)));   // aros (topado a 1)
- const qCard = Math.max(0, Math.min(1, (rawP - RINGS_END) / (1 - RINGS_END)));        // fase cardumen
+ const _qs = IS_PORTRAIT ? (RINGS_END-0.012) : RINGS_END, _qe2 = IS_PORTRAIT ? 0.999 : 1;   // móvil: la salida arranca justo al dejar el aro 5 (sin zona muerta)
+ const qCard = Math.max(0, Math.min(1, (rawP - _qs) / (_qe2 - _qs)));        // fase cardumen
  const _pmA = IS_PORTRAIT ? Math.max(0,Math.min(1,(rawP-(INTRO_END+0.006))/((RINGS_END-0.012)-(INTRO_END+0.006)))) : p;   // móvil: el rango clampado del carrusel mapea exacto 0..1 → último aro completo
  const activeF=_pmA*(ESTANCIAS.length-1);
 
@@ -1742,7 +1743,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
 
  // el cilindro ACTIVO queda a la altura de la cámara (y≈0) → banda de perfil, no boca elíptica
  // en la fase final la columna de aros se despeja hacia arriba (deja el escenario al cardumen + texto)
- const _cx = Math.max(0, Math.min(1, (qCard-0.05)/0.55));       // el aro sube a la vez que la ballena baja
+ const _cx = IS_PORTRAIT ? Math.max(0,Math.min(1,qCard/0.92)) : Math.max(0, Math.min(1, (qCard-0.05)/0.55));   // móvil: subida del aro repartida en toda la toma (verificado: pico ~paso normal)
  const colExit = qCard>0 ? _cx*_cx*(3-2*_cx)*22 : 0;
  cylGroup.position.y = activeF*GAP + riseOffset + colExit;   // + emergencia intro · + salida final
  // cada cilindro gira SIEMPRE sobre su propio eje (el texto envolvente pasa hacia atrás)
