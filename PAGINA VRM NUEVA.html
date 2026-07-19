@@ -1132,7 +1132,7 @@ if(IS_PORTRAIT){
   const _storyEl=document.getElementById('story');
   const N=ESTANCIAS.length;
   const _maxS=()=>_storyEl.offsetHeight-innerHeight;
-  const ringScroll=(i)=>{ let t=INTRO_END + (i/(N-1))*(RINGS_END-INTRO_END); t=Math.max(INTRO_END+0.006, Math.min(RINGS_END-0.012, t)); return _storyEl.offsetTop + t*_maxS(); };
+  const ringScroll=(i)=>{ const tLo=INTRO_END+0.006, tHi=RINGS_END-0.012; const t=tLo+(i/(N-1))*(tHi-tLo); return _storyEl.offsetTop + t*_maxS(); };   // mismo rango que el remap del 3D → todos los aros aterrizan EXACTOS
   const ringPx=()=> ((RINGS_END-INTRO_END)/(N-1))*_maxS();
   const ringsP=()=> (PROG-INTRO_END)/(RINGS_END-INTRO_END);
   const curIdx=()=> Math.max(0,Math.min(N-1,Math.round(ringsP()*(N-1))));
@@ -1671,9 +1671,10 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    const _gap = PROG - SPROG;
    // móvil en fase de aros: el carrusel controla el ritmo → seguimiento DIRECTO (sin lag) = fluido premium
    const _inRingsM = IS_PORTRAIT && SPROG>INTRO_END-0.02 && SPROG<RINGS_END+0.005;
-   const _lerp = _gap * (_inRingsM ? 0.22 : 0.07);              // aros móvil: respuesta casi directa al dedo/tween
+   const _inExitM = IS_PORTRAIT && SPROG >= RINGS_END-0.02;
+   const _lerp = _gap * (_inRingsM ? 0.22 : (_inExitM ? 0.13 : 0.07));   // aros móvil: directo · salida móvil: conectada
    // en la SALIDA (fase final) la cámara avanza mucho más lento por scroll → sin mareo
-   const _spd = (SPROG >= RINGS_END-0.02) ? MAX_COL_SPEED*0.55 : (_inRingsM ? 0.6 : MAX_COL_SPEED);   // aros móvil: sin tope que frene el tween
+   const _spd = (SPROG >= RINGS_END-0.02) ? MAX_COL_SPEED*(IS_PORTRAIT?1.8:0.55) : (_inRingsM ? 0.6 : MAX_COL_SPEED);   // móvil: la salida sigue al tween del leave (sin trabar el aro)
    const _cap = _spd * dt;                                      // tope por frame
    const _step = Math.max(-_cap, Math.min(_cap, _lerp));        // nunca supera el tope
    SPROG += _step;
@@ -1693,7 +1694,8 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  // ── FASES: intro (0→INTRO_END) · aros (INTRO_END→RINGS_END) · salida+cardumen (RINGS_END→1) ──
  const p = Math.max(0, Math.min(1, (rawP - INTRO_END) / (RINGS_END - INTRO_END)));   // aros (topado a 1)
  const qCard = Math.max(0, Math.min(1, (rawP - RINGS_END) / (1 - RINGS_END)));        // fase cardumen
- const activeF=p*(ESTANCIAS.length-1);
+ const _pmA = IS_PORTRAIT ? Math.max(0,Math.min(1,(rawP-(INTRO_END+0.006))/((RINGS_END-0.012)-(INTRO_END+0.006)))) : p;   // móvil: el rango clampado del carrusel mapea exacto 0..1 → último aro completo
+ const activeF=_pmA*(ESTANCIAS.length-1);
 
  // ── INTRO CINEMATOGRÁFICA 3D (cero fades: todo por posición/cámara) ──
  // el overlay HTML de intro se oculta enseguida (usamos texto 3D en su lugar)
@@ -1787,7 +1789,8 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  }
 
  // ── posición de la ballena ──
- const activeF2 = p*(ESTANCIAS.length-1);
+ const _pmB = IS_PORTRAIT ? Math.max(0,Math.min(1,(rawP-(INTRO_END+0.006))/((RINGS_END-0.012)-(INTRO_END+0.006)))) : p;
+ const activeF2 = _pmB*(ESTANCIAS.length-1);
  const frac = activeF2 - Math.floor(activeF2);
  const wyRings = Math.sin(frac * Math.PI) * 3.2;
  if(introT < 1){
