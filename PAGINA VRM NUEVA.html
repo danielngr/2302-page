@@ -656,7 +656,7 @@ const ESTANCIAS=[
 ];
 
 const canvas=$('c');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:!IS_PORTRAIT,powerPreference:'high-performance'});
+const renderer=new THREE.WebGLRenderer({canvas,antialias:!IS_PORTRAIT,powerPreference:'high-performance',stencil:false,depth:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,IS_PORTRAIT?1.8:2));
 renderer.setClearColor(0xF1EFE8,1);   // fondo dentro del canvas → el vidrio lo refracta
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.28;
@@ -705,6 +705,7 @@ const GAP=IS_PORTRAIT?11:7.4, RAD=IS_PORTRAIT?2.5:3.7, HEI=IS_PORTRAIT?2.6:3.0;
 const cylGroup=new THREE.Group();scene.add(cylGroup);
 const cylinders=[];
 const maxAniso=renderer.capabilities.getMaxAnisotropy();
+const ANISO = IS_PORTRAIT ? 1 : Math.min(maxAniso,8);   // móvil: sin filtrado anisotrópico caro
 
 // paleta premium a comparar (un color por cilindro)
 const INK_PALETTE=[
@@ -743,7 +744,7 @@ function makeLabel(item, inkIdx){
  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;
  t.wrapS=THREE.RepeatWrapping;t.wrapT=THREE.ClampToEdgeWrapping;
  t.repeat.set(3,1);
- t.anisotropy=maxAniso;return t;
+ t.anisotropy=ANISO;return t;
 }
 // versión DESENFOCADA del texto (para el reverso tenue) — canvas blur
 function makeBlurLabel(baseTex, alpha){
@@ -893,7 +894,7 @@ function makeText3D(text,{size=1,color='#1B4D5C',weight=500,font='Boska',italic=
   }
   const tex=new THREE.CanvasTexture(cv);
   tex.colorSpace=THREE.SRGBColorSpace;
-  tex.anisotropy=maxAniso;                                      // nitidez en ángulo/perspectiva
+  tex.anisotropy=ANISO;                                      // nitidez en ángulo/perspectiva
   tex.minFilter=THREE.LinearFilter;                             // canvas NPOT → sin mipmaps, upscale limpio
   tex.magFilter=THREE.LinearFilter;
   tex.generateMipmaps=false;
@@ -1556,7 +1557,8 @@ addEventListener('wheel',e=>{ if(!CAMTUNE) return; if(camPanel&&camPanel.contain
    Así va fluido igual en un PC potente que en un móvil de gama media, sin tocar nada. */
 const _tierDPR  = IS_PORTRAIT ? [1.4, 1.6, 1.8]  : [1.25, 1.5, 2.0];
 const _tierFish = IS_PORTRAIT ? [22, 34, 45]      : [55, 85, 120];
-let _perfTier = IS_PORTRAIT ? 1 : 2;                 // móvil arranca en nivel medio (buen default) y BAJA si sufre; desktop arranca alto
+let _perfTier = IS_PORTRAIT ? 1 : 2;
+try{ const _cores=navigator.hardwareConcurrency||4, _mem=navigator.deviceMemory||4; if(IS_PORTRAIT && (_cores<=4 || _mem<=3)) _perfTier=0; }catch(e){}   // device débil: arranca en calidad mínima
 let _pfAcc=0, _pfN=0, _pfSlow=0, _pfFast=0;
 window.__perfMaxFish = _tierFish[_perfTier];
 function applyTier(){
@@ -1634,8 +1636,19 @@ addEventListener('keydown',ev=>{
   }
 });
 
+// ── optimización móvil (estilo Awwwards): cap de FPS + pausa cuando oculto o fuera de vista ──
+let _lastF=0; const _frameMS=1000/45;                 // móvil ~45fps (menos calor/batería)
+window.__canvasHidden=false;
+try{ const _io=new IntersectionObserver((es)=>{ window.__canvasHidden=!es[0].isIntersecting; },{threshold:0});
+     const _st=document.getElementById('story'); if(_st) _io.observe(_st); }catch(e){}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.getDelta(); });   // al volver, no acumular delta
+
 (function loop(){
  requestAnimationFrame(loop);
+ const _now=performance.now();
+ if(document.hidden || window.__canvasHidden){ _lastF=_now; clock.getDelta(); return; }   // pestaña oculta o 3D fuera de vista: no render
+ if(IS_PORTRAIT && (_now-_lastF)<_frameMS){ return; }                                     // cap de FPS en móvil
+ _lastF=_now;
  const _raw=clock.getDelta(), dt=Math.min(_raw,0.05),t=clock.getElapsedTime();
  perfMonitor(_raw);
  {
