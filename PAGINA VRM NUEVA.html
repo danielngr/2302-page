@@ -73,21 +73,22 @@
  /* ── FICHA FLOTANTE MÓVIL (card abajo con foto + datos + reservar) ── */
  #mCard{display:none}
  @media(max-width:860px){
-   #mCard{display:block;position:fixed;left:12px;right:12px;bottom:14px;z-index:6;height:298px;
-     border-radius:28px;overflow:hidden;background:#0b1a22;box-shadow:0 26px 64px rgba(20,35,55,.34);
+   #mCard{display:block;position:fixed;left:16px;right:16px;bottom:16px;z-index:6;background:none;overflow:visible;
      transition:transform .55s var(--e),opacity .35s var(--e)}
-   #mCard .mc-photo{position:absolute;inset:0}
+   #mCard .mc-pill{margin:0 auto 12px;width:max-content;max-width:100%;border-radius:999px;padding:9px 20px;text-align:center;
+     background:rgba(255,255,255,.42);-webkit-backdrop-filter:blur(26px) saturate(190%);backdrop-filter:blur(26px) saturate(190%);
+     box-shadow:0 10px 30px rgba(20,35,55,.18),inset 0 1px 1px rgba(255,255,255,.7),inset 0 0 0 1px rgba(255,255,255,.28)}
+   #mCard .mc-tag{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:#B08A57;margin-bottom:1px}
+   #mCard .mc-name{font-family:var(--fd);font-style:italic;font-size:18px;line-height:1.05;color:var(--teal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:78vw}
+   #mCard .mc-photo{border-radius:26px;overflow:hidden;position:relative;height:196px;box-shadow:0 24px 56px rgba(20,35,55,.28)}
    #mCard .mc-photo img{width:100%;height:100%;object-fit:cover;display:block}
-   #mCard .mc-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(6,20,28,.62),rgba(6,20,28,.05) 52%,transparent 70%)}
-   #mCard .mc-glass{position:absolute;left:12px;right:12px;bottom:12px;border-radius:22px;padding:15px 17px;z-index:3;
-     background:rgba(20,42,54,.30);-webkit-backdrop-filter:blur(26px) saturate(190%);backdrop-filter:blur(26px) saturate(190%);
-     box-shadow:0 12px 34px rgba(0,0,0,.28),inset 0 1px 1px rgba(255,255,255,.5),inset 0 0 0 1px rgba(255,255,255,.16)}
-   #mCard .mc-tag{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#ecc998}
-   #mCard .mc-name{font-family:var(--fd);font-style:italic;font-size:23px;line-height:1.06;color:#fff;margin-top:3px;white-space:normal}
-   #mCard .mc-meta{font-size:12.5px;color:rgba(255,255,255,.85);margin-top:4px}
-   #mCard .mc-book{display:block;margin-top:13px;background:rgba(255,255,255,.92);color:#0E2A3A;font-size:12px;font-weight:700;letter-spacing:.1em;
-     text-transform:uppercase;padding:15px;border-radius:999px;text-decoration:none;text-align:center;
-     box-shadow:0 6px 18px rgba(0,0,0,.18)}
+   #mCard .mc-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(6,20,28,.4),transparent 45%)}
+   #mCard .mc-bookwrap{position:absolute;left:12px;right:12px;bottom:12px;z-index:3}
+   #mCard .mc-book{display:block;text-align:center;text-decoration:none;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+     color:#0E2A3A;padding:15px;border-radius:999px;
+     background:rgba(255,255,255,.5);-webkit-backdrop-filter:blur(22px) saturate(190%);backdrop-filter:blur(22px) saturate(190%);
+     box-shadow:0 8px 22px rgba(0,0,0,.16),inset 0 1px 1px rgba(255,255,255,.7),inset 0 0 0 1px rgba(255,255,255,.3)}
+   #mCard .mc-meta{text-align:center;font-size:11px;letter-spacing:.06em;color:#5c7f81;margin-top:11px}
    /* HUD y contador más compactos en móvil */
    .hud.tr,.hud.bl{display:none}
    .count{right:14px}
@@ -426,13 +427,14 @@
 </div>
 <canvas id="c"></canvas>
 <div id="mCard">
-  <div class="mc-photo"><img id="mcImg" alt=""></div>
-  <div class="mc-glass">
+  <div class="mc-pill">
     <div class="mc-tag" id="mcTag">Zona</div>
     <div class="mc-name" id="mcName">Estancia</div>
-    <div class="mc-meta" id="mcMeta"></div>
-    <a class="mc-book" id="mcBook">Reservar</a>
   </div>
+  <div class="mc-photo"><img id="mcImg" alt="">
+    <div class="mc-bookwrap"><a class="mc-book" id="mcBook">Reservar</a></div>
+  </div>
+  <div class="mc-meta" id="mcMeta"></div>
 </div>
 <div class="hud tl">VRM · Estancias</div>
 <div class="hud tr">Bahía de Banderas<br>Vallarta · Riviera Nayarit</div>
@@ -1114,7 +1116,7 @@ if(IS_PORTRAIT){
   const _storyEl=document.getElementById('story');
   const N=ESTANCIAS.length;
   const _maxS=()=>_storyEl.offsetHeight-innerHeight;
-  const ringScroll=(i)=>{ const t=INTRO_END + (i/(N-1))*(RINGS_END-INTRO_END); return _storyEl.offsetTop + t*_maxS(); };
+  const ringScroll=(i)=>{ let t=INTRO_END + (i/(N-1))*(RINGS_END-INTRO_END); t=Math.max(INTRO_END+0.006, Math.min(RINGS_END-0.012, t)); return _storyEl.offsetTop + t*_maxS(); };   // nunca toca el borde intro/salida (evita pose desconfigurada en el último aro)
   const ringPx=()=> ((RINGS_END-INTRO_END)/(N-1))*_maxS();     // pixeles de scroll por aro
   const ringsP=()=> (PROG-INTRO_END)/(RINGS_END-INTRO_END);
   const curIdx=()=> Math.max(0,Math.min(N-1,Math.round(ringsP()*(N-1))));
