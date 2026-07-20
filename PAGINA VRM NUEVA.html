@@ -1817,7 +1817,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    wrapper.scale.setScalar(baseWhaleScale*introScale);
  } else {
    // EN LOS AROS: nado original (asentándose en cada aro)
-   wWy += (wyRings - wWy) * 0.1;
+   wWy += (wyRings - wWy) * (IS_PORTRAIT?0.18:0.1);   // móvil: nado conectado al carrusel (una sola capa de suavizado dominante)
    let _wx = WORLD_SHIFT_X + Math.sin(t*0.15)*0.4 + mx*0.3, _wy = wWy, _wz = 0.0;
    wtan.set(Math.sin(t*0.15)*0.15, -1, 0.15).normalize();
    if(qCard>0){
@@ -1833,7 +1833,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    wrapper.scale.setScalar(baseWhaleScale);
  }
  mLook.lookAt(new THREE.Vector3(0,0,0),wtan,UP);qT.setFromRotationMatrix(mLook);
- wrapper.quaternion.slerp(qT, introT<1?0.08:(qCard>0?0.06:0.05));
+ wrapper.quaternion.slerp(qT, introT<1?0.08:(qCard>0?(IS_PORTRAIT?0.10:0.06):(IS_PORTRAIT?0.10:0.05)));   // móvil: giro al ritmo del nado
  wrapper.visible = !(introT>=1 && qCard>=window.__finalTune.whaleHideQ);   // se oculta cuando ya salió (ajustable con F)
  // ── NADO: INTRO acoplado al scroll · AROS + SALIDA aletea continua (una sola toma, sin corte) ──
  if(swimAction){
@@ -1915,7 +1915,8 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
      const _cx=Math.min(1,qCard/0.2), _cxe=_cx*_cx*(3-2*_cx);   // centrado en X al MISMO ritmo que el aro y la ballena
      const _pt = new THREE.Vector3(CAM_SHIFT_X*(1-_cxe) + mx*0.4, 3.5*qe - my*0.3, ((IS_PORTRAIT?18:_CENTERED?15:17))*(1-qe) + 22*qe);
      camera.position.lerp(_pt, 0.18);
-     const _lt = new THREE.Vector3(CAM_SHIFT_X*(1-_cxe), -6*qe, -7*qe);   // la mirada se centra en X junto con el aro/ballena
+     const _lookY0 = IS_PORTRAIT ? -2.8 : 0;   // continuidad EXACTA con la mirada de la fase de aros (sin salto de encuadre)
+     const _lt = new THREE.Vector3(CAM_SHIFT_X*(1-_cxe), _lookY0*(1-qe) - 6*qe, -7*qe);
      camera.lookAt(_lt);
      camera.fov += (36 - camera.fov)*0.12; camera.updateProjectionMatrix();
    }
