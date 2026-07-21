@@ -2319,19 +2319,20 @@ try{
 
 <script>
 (function(){
-  var gate=document.getElementById('introGate'), enter=document.getElementById('igEnter'), opened=false;
-  function lock(){ try{ if(window.__lenis){ window.__lenis.stop(); } }catch(e){} }
-  // bloquear scroll mientras el gate está arriba (reintenta hasta que exista lenis)
-  var t=setInterval(function(){ if(window.__lenis){ lock(); clearInterval(t); } },60);
+  var gate=document.getElementById('introGate'), opened=false;
+  function L(){ return window.__lenis; }
+  function lock(){ try{ var l=L(); if(l) l.stop(); }catch(e){} }
+  var t=setInterval(function(){ if(L()){ lock(); clearInterval(t); } },50);
   lock();
-  gate.addEventListener('touchmove', function(e){ if(!opened) e.preventDefault(); }, {passive:false});
   function openSite(){
     if(opened) return; opened=true;
     gate.classList.add('gone');
-    try{ if(window.__lenis){ window.__lenis.start(); window.__lenis.scrollTo(0,{immediate:true}); } }catch(e){}
-    setTimeout(function(){ gate.style.display='none'; }, 1350);
+    try{ var l=L(); if(l){ l.start(); l.scrollTo(0,{immediate:true,force:true}); } }catch(e){}
+    setTimeout(function(){ if(gate) gate.style.display='none'; }, 1350);
   }
-  enter.addEventListener('click', openSite);
+  // cualquier toque/click en el gate entra (robusto)
+  gate.addEventListener('click', openSite);
+  gate.addEventListener('touchend', openSite, {passive:true});
 })();
 </script>
 
