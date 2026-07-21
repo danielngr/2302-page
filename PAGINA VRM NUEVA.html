@@ -1202,7 +1202,7 @@ if(IS_PORTRAIT){
       lenis.scrollTo(_storyEl.offsetTop + (INTRO_END-0.06)*_maxS(),{duration:0.9,easing:_io,force:true,onComplete:()=>{leaving=false;}});
     } else {
       // SALIDA del último aro: una sola toma continua y lenta (la ballena sale nadando, sin brinco)
-      lenis.scrollTo(_storyEl.offsetTop + 0.999*_maxS(),{duration:2.2,easing:_io,force:true,onComplete:()=>{leaving=false;}});
+      lenis.scrollTo(_storyEl.offsetTop + 0.999*_maxS(),{duration:3.4,easing:_io,force:true,onComplete:()=>{leaving=false;}});
     }
   };
   addEventListener('touchstart',(e)=>{ if(mode!=='rings')return; gsap.killTweensOf(proxy); busy=false; y0=ly=e.touches[0].clientY; vel=0; pressScroll=ringScroll(idx); rawV=pressScroll; },{passive:true});
@@ -1871,14 +1871,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
      { const _qc=Math.min(1,qCard/0.2), _qce=_qc*_qc*(3-2*_qc); _wx = WORLD_SHIFT_X*(1-_qce); }   // x al MISMO ritmo que el aro y la cámara
      _wy = _wy*(1-bi) + (wyRings - qe*10.5)*bi;                // desciende
      _wz = _wz*(1-bi) + (qe*4.0)*bi;                           // nada un poco hacia la pantalla (cámara)
-     wtan.lerp(_exitUp.set(0,-0.72,0.70).normalize(), bi).normalize();   // cabeza LEVANTADA, nariz hacia la pantalla-abajo (no vertical)
-     // ── NADO al salir: vaivén lateral + ondulación → nada hacia afuera, no cae recta ──
-     const _sw = Math.min(1, qCard/0.14);
-     _wx += Math.sin(t*1.7 + qCard*7)*0.7*_sw;                 // vaivén lateral (coleo del nado)
-     _wz += Math.sin(t*1.3)*0.28*_sw;                          // ondulación suave en profundidad
-     wtan.x += Math.sin(t*1.7)*0.16*_sw;                       // la cabeza ondula al nadar
-     wtan.y += Math.cos(t*1.5)*0.06*_sw;
-     wtan.normalize();
+     wtan.lerp(_exitUp.set(0,-0.72,0.70).normalize(), bi).normalize();   // cabeza LEVANTADA, nariz hacia la pantalla-abajo
    }
    wrapper.position.set(_wx, _wy, _wz);
    wrapper.scale.setScalar(baseWhaleScale);
@@ -1886,15 +1879,15 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  mLook.lookAt(new THREE.Vector3(0,0,0),wtan,UP);qT.setFromRotationMatrix(mLook);
  wrapper.quaternion.slerp(qT, introT<1?0.08:(qCard>0?(IS_PORTRAIT?0.10:0.06):(IS_PORTRAIT?0.10:0.05)));   // móvil: giro al ritmo del nado
  wrapper.visible = !(introT>=1 && qCard>=window.__finalTune.whaleHideQ);   // se oculta cuando ya salió (ajustable con F)
- // ── NADO: INTRO acoplado al scroll · AROS + SALIDA aletea continua (una sola toma, sin corte) ──
+ // ── NADO: INTRO y SALIDA acoplados al SCROLL (aletas/cola avanzan al scrollear) · AROS aletea solo ──
  if(swimAction){
-   if(introT>=1){
-     // AROS Y SALIDA: aletea/cola por sí sola, continua → la transición al descender es fluida (misma toma)
+   if(introT>=1 && qCard<=0){
+     // SOLO EN LOS AROS: aletea/cola por sí sola, continua (vida propia)
      if(swimAction.paused) swimAction.paused=false;
-     swimAction.timeScale = (qCard>0) ? 1.55 : 1.15;          // en la salida aletea/colea más fuerte (nada hacia afuera)
+     swimAction.timeScale=1.15;
      mixer.update(dt);
    } else {
-     // INTRO: el clip avanza con el progreso del scroll (mover = nadar)
+     // INTRO y SALIDA: el clip avanza con el progreso del scroll (mover = nadar)
      if(!swimAction.paused) swimAction.paused=true;
      const phase = rawP*10*swimDur + t*0.05;
      swimAction.time=((phase%swimDur)+swimDur)%swimDur; mixer.update(0);
