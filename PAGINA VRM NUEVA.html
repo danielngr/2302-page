@@ -392,6 +392,16 @@
  @media(min-width:901px){.rdots{display:none!important}}
 
  /* fondo estilo Noomo: luminoso + grid fino + ruido sutil (bajo costo GPU) */
+
+ /* atmósfera etérea del hero (estilo Palazzo) — se funde con la ballena, se desvanece al entrar */
+ .hero-atmos{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:1;will-change:opacity;
+   background:
+     radial-gradient(120% 75% at 50% 6%, rgba(150,178,200,.55), transparent 55%),
+     radial-gradient(140% 90% at 50% 100%, rgba(224,232,238,.6), transparent 55%),
+     linear-gradient(180deg, rgba(160,186,206,.42) 0%, rgba(198,214,225,.30) 40%, rgba(244,243,237,0) 78%)}
+ .hero-atmos .ha-clouds{position:absolute;inset:-20%;opacity:.5;mix-blend-mode:screen;background-size:cover;animation:ha-drift 52s linear infinite;
+   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='hc'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.02' numOctaves='4' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.7 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23hc)'/%3E%3C/svg%3E")}
+ @keyframes ha-drift{0%{transform:translate3d(0,0,0) scale(1.05)}50%{transform:translate3d(-3%,2%,0) scale(1.12)}100%{transform:translate3d(0,0,0) scale(1.05)}}
  .bg-noomo{position:fixed;inset:0;z-index:0;pointer-events:none;background:#F4F3ED}
  .bg-noomo::before{content:"";position:absolute;inset:0;
    background-image:linear-gradient(rgba(27,77,92,.032) 1px,transparent 1px),linear-gradient(90deg,rgba(27,77,92,.032) 1px,transparent 1px);
@@ -437,17 +447,7 @@
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
 </head><body>
 
-<div id="introGate">
-  <div class="ig-sky"></div><div class="ig-clouds"></div><div class="ig-clouds b"></div><div class="ig-grain"></div><div class="ig-vign"></div>
-  <div class="ig-content">
-    <div class="ig-eyebrow">Vacation Rental México</div>
-    <div class="ig-mono ig-holo">VRM</div>
-    <h1 class="ig-name ig-holo">Vacation Rental</h1>
-    <div class="ig-rule"></div>
-    <div class="ig-place">Bahía de Banderas</div>
-  </div>
-  <div class="ig-foot"><button class="ig-enter" id="igEnter">Entrar<span class="ig-ln"></span></button></div>
-</div>
+
 
 <div id="bg"></div><div id="dots"></div><div id="vign"></div><div id="grain"></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -481,6 +481,7 @@
 </div>
 <div class="bg-noomo" aria-hidden="true"></div>
 <div class="bg-glow" aria-hidden="true"></div>
+<div class="hero-atmos" id="heroAtmos" aria-hidden="true"><div class="ha-clouds"></div></div>
 <canvas id="c"></canvas>
 <div id="mCard">
   <div class="mc-pill">
@@ -1749,6 +1750,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  vrm3D.visible = introT < (IS_PORTRAIT?0.50:0.64);
  if(vrm3D.material) vrm3D.material.opacity = 1 - Math.max(0, Math.min(1,(introT-(IS_PORTRAIT?0.34:0.54))/0.09));   // siempre actualiza (subir rápido no lo deja atorado)
  window.__vrmGone = introT > (IS_PORTRAIT?0.44:0.60);
+ { const _ha=document.getElementById('heroAtmos'); if(_ha){ _ha.style.opacity=Math.max(0,1-introT*1.35).toFixed(3); } }   // atmósfera etérea: fuerte en el hero, se funde al marfil al entrar
  // ── EDITORIAL del nado libre: por introT (simétrico), en pantalla ya limpia ──
  for(const el of _edMoments){ el.classList.toggle('on', introT > +el.dataset.a && introT < +el.dataset.b); }
  if(window.__mapDraw){ const _mA=IS_PORTRAIT?0.48:0.50, _mB=IS_PORTRAIT?0.90:0.86; const _mp=Math.max(0,Math.min(1,(introT-_mA)/(_mB-_mA))); window.__mapDraw(_mp); }   // móvil: su propio espacio, más lento
@@ -2317,23 +2319,6 @@ try{
 })();
 </script>
 
-<script>
-(function(){
-  var gate=document.getElementById('introGate'), opened=false;
-  function L(){ return window.__lenis; }
-  function lock(){ try{ var l=L(); if(l) l.stop(); }catch(e){} }
-  var t=setInterval(function(){ if(L()){ lock(); clearInterval(t); } },50);
-  lock();
-  function openSite(){
-    if(opened) return; opened=true;
-    gate.classList.add('gone');
-    try{ var l=L(); if(l){ l.start(); l.scrollTo(0,{immediate:true,force:true}); } }catch(e){}
-    setTimeout(function(){ if(gate) gate.style.display='none'; }, 1350);
-  }
-  // cualquier toque/click en el gate entra (robusto)
-  gate.addEventListener('click', openSite);
-  gate.addEventListener('touchend', openSite, {passive:true});
-})();
-</script>
+
 
 </body></html>
