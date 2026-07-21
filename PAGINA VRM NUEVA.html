@@ -374,9 +374,9 @@
    .ed-map-m .mx-head{padding:5vh 6vw 0;flex-direction:column;align-items:flex-start;gap:8px}
    .ed-map-m .mx-meta{text-align:left}
    .ed-map-m .mx-h{font-size:clamp(26px,7vw,40px)}
-   .ed-map-m .mx-body{padding:1vh 2vw 8vh;align-items:center}
+   .ed-map-m .mx-body{padding:1vh 2vw 12vh;align-items:center;justify-content:center}
    .ed-map-m .mx-wrap{width:100%}
-   .ed-map-m .mx-wrap svg{max-height:58vh;width:116%;height:auto;margin-left:-8%}
+   .ed-map-m .mx-wrap svg{max-height:66vh;width:122%;height:auto;margin-left:-11%}
    .ed-map-m .mx-mex{stroke-width:2.8}
    .ed-map-m .mx-pin-lab{font-size:15px}
    .ed-map-m .mx-pin-sub{font-size:11px}
@@ -1808,13 +1808,17 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    wWy=fy;
    const _introStart=Math.max(0, 1 - introT/0.34);
    const _heroLift = IS_PORTRAIT ? 1.6*_introStart : -2.4*_introStart;   // portrait: sube con el VRM · desktop: baja (libera la V)
-   wrapper.position.set(fx + Math.sin(t*0.15)*0.3, fy + _heroLift, fz);
+   // ── durante el MAPA (portrait): la ballena se hace acento — sube, se ladea y se encoge para que el mapa sea protagonista ──
+   const _mwRaw = IS_PORTRAIT ? (Math.max(0,Math.min(1,(introT-0.48)/0.10)) * Math.max(0,Math.min(1,(0.90-introT)/0.10))) : 0;
+   const _mapWin = _mwRaw*_mwRaw*(3-2*_mwRaw);
+   const _mapUp = _mapWin*5.2, _mapSide = _mapWin*2.0, _mapBack = _mapWin*3.0;
+   wrapper.position.set(fx + Math.sin(t*0.15)*0.3 + _mapSide, fy + _heroLift + _mapUp, fz - _mapBack);
    // ORIENTACIÓN: interpola suave de la tangente del camino (horizontal) → vertical hacia abajo
    const tanHoriz=wtg.clone().normalize();                    // dirección del nado en el camino
    const tanVert=new THREE.Vector3(Math.sin(t*0.15)*0.15,-1,0.15).normalize(); // hacia abajo (aros)
    wtan.copy(tanHoriz).lerp(tanVert, blend).normalize();      // gira gradualmente al bajar
    const introScale=1+(1-introT)*0.15;              // ligeramente más grande al inicio (sin dominar)
-   wrapper.scale.setScalar(baseWhaleScale*introScale);
+   wrapper.scale.setScalar(baseWhaleScale*introScale*(1 - _mapWin*0.55));   // más chica durante el mapa
  } else {
    // EN LOS AROS: nado original (asentándose en cada aro)
    wWy += (wyRings - wWy) * (IS_PORTRAIT?0.18:0.1);   // móvil: nado conectado al carrusel (una sola capa de suavizado dominante)
