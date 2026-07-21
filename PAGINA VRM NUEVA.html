@@ -1218,7 +1218,8 @@ if(IS_PORTRAIT){
   let mode='free', idx=0, busy=false, leaving=false, y0=0, ly=0, vel=0, pressScroll=0, rawV=0;
 
   lenis.on('scroll',()=>{
-    if(leaving && ringsP()>1.02) leaving=false;               // ya salió de verdad → permitir re-enganchar al regresar
+    if(busy && !gsap.isTweening(proxy)) busy=false;           // watchdog: busy sin animación en curso = atorado → resetear
+    if(leaving && (ringsP()>1.02 || ringsP()<-0.02)) leaving=false;   // ya salió (arriba o abajo) → permitir re-enganchar al regresar
     if(mode!=='free' || busy || leaving) return;              // no re-entrar mientras se sale
     const p=ringsP();
     if(p>=0.015 && p<=0.985){
@@ -1232,7 +1233,7 @@ if(IS_PORTRAIT){
     gsap.to(proxy,{v:ringScroll(n),duration:0.7,ease:'power1.out',overwrite:true,onUpdate:applyScroll,onComplete:()=>{busy=false; idx=n;}});
   };
   const leave=(dir)=>{
-    mode='free'; leaving=true; gsap.killTweensOf(proxy); lenis.start();      // leaving: bloquea re-entrar a los aros
+    mode='free'; leaving=true; busy=false; gsap.killTweensOf(proxy); lenis.start();   // busy=false: killTweensOf no dispara onComplete → hay que resetear a mano (si no, se atora)
     const _io=(x)=> x<0.5 ? 2*x*x : 1-Math.pow(-2*x+2,2)/2;                    // ease in-out (arranca y frena suave)
     if(dir<0){
       lenis.scrollTo(_storyEl.offsetTop + (INTRO_END-0.06)*_maxS(),{duration:0.9,easing:_io,force:true,onComplete:()=>{leaving=false;}});
