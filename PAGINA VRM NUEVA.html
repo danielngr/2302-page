@@ -1869,9 +1869,16 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
      const bIn=Math.min(1,qCard/0.34), bi=bIn*bIn*(3-2*bIn);   // entrada a la pose de salida MUY gradual (Noomo: sin brinco)
      const qe=qCard*qCard*(3-2*qCard);
      { const _qc=Math.min(1,qCard/0.2), _qce=_qc*_qc*(3-2*_qc); _wx = WORLD_SHIFT_X*(1-_qce); }   // x al MISMO ritmo que el aro y la cámara
-     _wy = _wy*(1-bi) + (wyRings - qe*10.5)*bi;                // desciende recto
+     _wy = _wy*(1-bi) + (wyRings - qe*10.5)*bi;                // desciende
      _wz = _wz*(1-bi) + (qe*4.0)*bi;                           // nada un poco hacia la pantalla (cámara)
      wtan.lerp(_exitUp.set(0,-0.72,0.70).normalize(), bi).normalize();   // cabeza LEVANTADA, nariz hacia la pantalla-abajo (no vertical)
+     // ── NADO al salir: vaivén lateral + ondulación → nada hacia afuera, no cae recta ──
+     const _sw = Math.min(1, qCard/0.14);
+     _wx += Math.sin(t*1.7 + qCard*7)*0.7*_sw;                 // vaivén lateral (coleo del nado)
+     _wz += Math.sin(t*1.3)*0.28*_sw;                          // ondulación suave en profundidad
+     wtan.x += Math.sin(t*1.7)*0.16*_sw;                       // la cabeza ondula al nadar
+     wtan.y += Math.cos(t*1.5)*0.06*_sw;
+     wtan.normalize();
    }
    wrapper.position.set(_wx, _wy, _wz);
    wrapper.scale.setScalar(baseWhaleScale);
@@ -1884,7 +1891,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    if(introT>=1){
      // AROS Y SALIDA: aletea/cola por sí sola, continua → la transición al descender es fluida (misma toma)
      if(swimAction.paused) swimAction.paused=false;
-     swimAction.timeScale=1.15;
+     swimAction.timeScale = (qCard>0) ? 1.55 : 1.15;          // en la salida aletea/colea más fuerte (nada hacia afuera)
      mixer.update(dt);
    } else {
      // INTRO: el clip avanza con el progreso del scroll (mover = nadar)
