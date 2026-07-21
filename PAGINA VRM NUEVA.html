@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8">
+\<!doctype html><html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>VRM · Columna de estancias (puro + detalle)</title>
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&f[]=boska@401,500&f[]=tanker@400&display=swap" rel="stylesheet">
@@ -334,7 +334,8 @@
  .mx-z .zn{font-family:var(--fd);font-style:italic;font-size:20px;color:var(--teal);line-height:1.05}
  .mx-z .zr{font-family:var(--fb);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-top:3px}
  .mx-z .zc{font-family:var(--fb);font-size:9px;letter-spacing:.12em;color:#3a6f7d;margin-top:2px;font-variant-numeric:tabular-nums}
- .mx-wrap{position:relative;height:100%;display:flex;align-items:center;justify-content:center;min-height:0}
+ .mx-wrap{position:relative;height:100%;display:flex;align-items:center;justify-content:center;min-height:0;overflow:hidden}
+ #mapSvg{transform-origin:50% 50%}
  .mx-wrap svg{width:100%;height:100%;max-height:74vh;overflow:visible;display:block}
  .mx-grat{stroke:rgba(27,77,92,.16);stroke-width:.75}
  .mx-mexfill{fill:rgba(27,77,92,.05)}
@@ -1809,9 +1810,9 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    const _introStart=Math.max(0, 1 - introT/0.34);
    const _heroLift = IS_PORTRAIT ? 1.6*_introStart : -2.4*_introStart;   // portrait: sube con el VRM · desktop: baja (libera la V)
    // ── durante el MAPA (portrait): la ballena se hace acento — sube, se ladea y se encoge para que el mapa sea protagonista ──
-   const _mwRaw = IS_PORTRAIT ? (Math.max(0,Math.min(1,(introT-0.48)/0.10)) * Math.max(0,Math.min(1,(0.90-introT)/0.10))) : 0;
+   const _mwRaw = IS_PORTRAIT ? (Math.max(0,Math.min(1,(introT-0.46)/0.20)) * Math.max(0,Math.min(1,(0.92-introT)/0.20))) : 0;
    const _mapWin = _mwRaw*_mwRaw*(3-2*_mwRaw);
-   const _mapUp = _mapWin*5.2, _mapSide = _mapWin*2.0, _mapBack = _mapWin*3.0;
+   const _mapUp = _mapWin*1.8, _mapSide = _mapWin*0.8, _mapBack = _mapWin*0.6;   // excursión GENTIL y ancha (verificado: sin saltos)
    wrapper.position.set(fx + Math.sin(t*0.15)*0.3 + _mapSide, fy + _heroLift + _mapUp, fz - _mapBack);
    // ORIENTACIÓN: interpola suave de la tangente del camino (horizontal) → vertical hacia abajo
    const tanHoriz=wtg.clone().normalize();                    // dirección del nado en el camino
@@ -2243,13 +2244,37 @@ try{
   const netLens=nets.map(n=>{const l=n.getTotalLength(); n.style.strokeDasharray=l+' '+l; n.style.strokeDashoffset=l; return l;});
   pins.forEach(p=>{p.style.opacity=0; p._ring=p.querySelector('.mx-pin-ring');});
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), sm=t=>t*t*(3-2*t);
+  const mapSvg=document.getElementById('mapSvg');
+  if(mapSvg){ mapSvg.style.willChange='transform'; }
+  // keyframes del zoom cinematográfico: establecimiento → sede → GDL → Mazamitla → Tulum → red completa
+  // coords EXACTAS de los pines (viewBox 1000x679)
+  const ZK=[
+    [0.00, 500, 360, 1.00],   // México completo (establecimiento)
+    [0.36, 500, 360, 1.12],
+    [0.44, 401.1, 438.9, 2.9],// Bahía de Banderas (sede)
+    [0.56, 458.1, 437.3, 3.0],// Guadalajara
+    [0.64, 468.1, 462.0, 3.2],// Mazamitla
+    [0.74, 940.0, 452.5, 2.7],// Tulum
+    [0.90, 540, 400, 1.00],   // pull-back → la red completa
+    [1.00, 540, 400, 1.00]
+  ];
   function draw(p){
     const pc=clamp((p-0.04)/0.42,0,1); mex.style.strokeDashoffset=mexLen*(1-sm(pc));
     compass.style.opacity=clamp((p-0.28)/0.10,0,1);
     pins.forEach(pin=>{const thr=+pin.dataset.thr, pp=clamp((p-thr)/0.05,0,1); pin.style.opacity=pp; pin._ring.setAttribute('r',(2+(1-sm(pp))*14).toFixed(1)); pin._ring.style.opacity=(pp*(1-pp)*2).toFixed(2);});
-    nets.forEach((n,i)=>{const st=0.5+i*0.08, pn=clamp((p-st)/0.16,0,1); n.style.strokeDashoffset=netLens[i]*(1-sm(pn));});
+    // red dorada: se dibuja en el PULL-BACK final (cuando se ve todo el mapa)
+    nets.forEach((n,i)=>{const st=0.80+i*0.03, pn=clamp((p-st)/0.12,0,1); n.style.strokeDashoffset=netLens[i]*(1-sm(pn));});
     zones.forEach(z=>z.classList.toggle('on', p>+z.dataset.thr));
     if(fill) fill.style.opacity=clamp((p-0.86)/0.14,0,1);
+    // ── ZOOM cinematográfico (transform sobre el SVG, coords exactas) ──
+    if(mapSvg){
+      let a=ZK[0], b=ZK[ZK.length-1];
+      for(let i=0;i<ZK.length-1;i++){ if(p>=ZK[i][0] && p<=ZK[i+1][0]){ a=ZK[i]; b=ZK[i+1]; break; } }
+      const span=(b[0]-a[0])||1, f=sm(clamp((p-a[0])/span,0,1));
+      const cx=a[1]+(b[1]-a[1])*f, cy=a[2]+(b[2]-a[2])*f, s=a[3]+(b[3]-a[3])*f;
+      mapSvg.style.transformOrigin=(cx/1000*100).toFixed(2)+'% '+(cy/679*100).toFixed(2)+'%';
+      mapSvg.style.transform='scale('+s.toFixed(3)+')';
+    }
   }
   window.__mapDraw=draw; draw(0);
 })();
