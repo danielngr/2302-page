@@ -1911,7 +1911,14 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    }
    _whaleExit = _mapOut;   // avisa al clamp de borde que la ballena está saliendo (0 en desktop → sin efecto)
    // SALIDA: glide DIAGONAL abajo-izquierda + un poco AL FRENTE (profundidad), nunca al fondo, misma escala
-   wrapper.position.set(fx + Math.sin(t*0.15)*0.3 - _mapOut*7.0, fy + _heroLift - _mapOut*13.0, fz - _mapOut*1.5);
+   // dirección del "fuera de cuadro": ABAJO-IZQUIERDA al SALIR → ARRIBA al VOLVER
+   // (mientras está invisible tras el mapa se reubica al tope, así entra al aro DESDE ARRIBA, no desde abajo)
+   const _dirMorph = (()=>{ const q=Math.max(0,Math.min(1,(introT-0.60)/0.22)); return q*q*(3-2*q); })();
+   const _rise  = Math.min(1, _dirMorph/0.5);            // 1ª mitad: SUBE quedándose a la izquierda (siempre fuera de cuadro)
+   const _slide = Math.max(0, (_dirMorph-0.5)/0.5);      // 2ª mitad: ya arriba del todo, se centra → baja al aro desde arriba
+   const _offX = -7.0*(1-_slide);
+   const _offY = -13.0*(1-_rise) + 14.0*_rise;           // baja al salir, arriba al volver (trayectoria en L, nunca cruza el mapa)
+   wrapper.position.set(fx + Math.sin(t*0.15)*0.3 + _offX*_mapOut, fy + _heroLift + _offY*_mapOut, fz - _mapOut*1.5);
    // ORIENTACIÓN: interpola suave de la tangente del camino (horizontal) → vertical hacia abajo
    const tanHoriz=wtg.clone().normalize();                    // dirección del nado en el camino
    const tanVert=new THREE.Vector3(Math.sin(t*0.15)*0.15,-1,0.15).normalize(); // hacia abajo (aros)
@@ -1919,7 +1926,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    if(_mapOut > 0.02){                                        // GIRO al salir: arco lento horizontal → diagonal abajo-izquierda (gira mientras nada, no picada recta)
      const _vuelve = introT > 0.86;                           // (al volver mira hacia el centro; ocurre fuera del cuadro)
      // dir de salida DIAGONAL (x lateral fuerte = giro visible) · dir de regreso arriba-derecha
-     _faceV.set(_vuelve?2.0:-4.2, _vuelve?7.0:-4.6, _vuelve?-1.0:2.4).normalize();
+     _faceV.set(_vuelve?0.4:-4.2, _vuelve?-5.0:-4.6, _vuelve?1.2:2.4).normalize();   // salir: diagonal abajo-izq · volver: nariz ABAJO (baja al aro desde arriba)
      // el giro sigue al desplazamiento (_mapOut) → gira lento y completo mientras se va, sin snap
      wtan.copy(tanHoriz).lerp(_faceV, _mapOut).normalize();
    }
