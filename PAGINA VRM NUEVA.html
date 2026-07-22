@@ -389,8 +389,8 @@
    .ed-map-m .mx-wrap{width:100%}
    .ed-map-m .mx-wrap svg{max-height:66vh;width:122%;height:auto;margin-left:-11%}
    .ed-map-m .mx-mex{stroke-width:2.8}
-   .ed-map-m .mx-pin-lab{font-size:15px}
-   .ed-map-m .mx-pin-sub{font-size:11px}
+   .ed-map-m .mx-pin-lab{font-size:12px}
+   .ed-map-m .mx-pin-sub{font-size:9px}
    .ed-map-m .mx-grat{display:none}
  }
 
@@ -1923,12 +1923,15 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    const tanHoriz=wtg.clone().normalize();                    // dirección del nado en el camino
    const tanVert=new THREE.Vector3(Math.sin(t*0.15)*0.15,-1,0.15).normalize(); // hacia abajo (aros)
    wtan.copy(tanHoriz).lerp(tanVert, blend).normalize();      // gira gradualmente al bajar
-   if(_mapOut > 0.02){                                        // GIRO al salir: arco lento horizontal → diagonal abajo-izquierda (gira mientras nada, no picada recta)
-     const _vuelve = introT > 0.86;                           // (al volver mira hacia el centro; ocurre fuera del cuadro)
-     // dir de salida DIAGONAL (x lateral fuerte = giro visible) · dir de regreso arriba-derecha
-     _faceV.set(_vuelve?0.4:-4.2, _vuelve?-5.0:-4.6, _vuelve?1.2:2.4).normalize();   // salir: diagonal abajo-izq · volver: nariz ABAJO (baja al aro desde arriba)
-     // el giro sigue al desplazamiento (_mapOut) → gira lento y completo mientras se va, sin snap
-     wtan.copy(tanHoriz).lerp(_faceV, _mapOut).normalize();
+   if(_mapOut > 0.02){
+     if(introT > 0.86){
+       // REGRESO: baja RECTA, nariz abajo, EXACTA misma pose que tendrá en el aro (no acostada, no a medio girar)
+       wtan.set(Math.sin(t*0.15)*0.15, -1, 0.15).normalize();
+     } else {
+       // SALIDA: gira en diagonal abajo-izquierda mientras nada (arco lento, sigue a _mapOut, sin snap)
+       _faceV.set(-4.2,-4.6,2.4).normalize();
+       wtan.copy(tanHoriz).lerp(_faceV, _mapOut).normalize();
+     }
    }
    const introScale=1+(1-introT)*0.15;              // ligeramente más grande al inicio (sin dominar)
    wrapper.scale.setScalar(baseWhaleScale*introScale);   // misma escala al salir (se ve más grande al venir al frente)
@@ -1954,7 +1957,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    wrapper.position.x+=_e.x; wrapper.position.y+=_e.y; wrapper.position.z+=_e.z;
  }
  mLook.lookAt(new THREE.Vector3(0,0,0),wtan,UP);qT.setFromRotationMatrix(mLook);
- wrapper.quaternion.slerp(qT, introT<1?0.08:(qCard>0?(IS_PORTRAIT?0.10:0.06):(IS_PORTRAIT?0.10:0.05)));   // móvil: giro al ritmo del nado
+ wrapper.quaternion.slerp(qT, introT<1?((IS_PORTRAIT&&introT>0.86)?0.16:0.08):(qCard>0?(IS_PORTRAIT?0.10:0.06):(IS_PORTRAIT?0.10:0.05)));   // móvil: al bajar al aro alinea más rápido → llega RECTA
  wrapper.visible = !(introT>=1 && qCard>=window.__finalTune.whaleHideQ);   // nunca se oculta antes de tiempo
  // ── NADO: INTRO y SALIDA acoplados al SCROLL (aletas/cola avanzan al scrollear) · AROS aletea solo ──
  if(swimAction){
@@ -2434,14 +2437,14 @@ try{
   const mex=document.getElementById('mxMex'); if(!mex) return;
   const fill=document.getElementById('mxfill');
   const nets=[...document.querySelectorAll('.mx-netline')], pins=[...document.querySelectorAll('#mxPins .mx-pin')];
-  // móvil: el label de Bahía de Banderas se corta por la izquierda al hacer zoom → que se extienda hacia el interior
-  { const _isPmap=(innerHeight>innerWidth)||innerWidth<820||matchMedia('(pointer:coarse)').matches;
-    if(_isPmap){ const _bp=document.querySelector('#mxPins .mx-pin[data-thr="0.38"]');
-      if(_bp){ _bp.querySelectorAll('text').forEach(tx=>{ tx.setAttribute('text-anchor','start'); tx.setAttribute('x','411.1'); }); } } }
   const zones=[...document.querySelectorAll('.mx-z')], compass=document.getElementById('mxCompass');
   const mexLen=mex.getTotalLength(); mex.style.strokeDasharray=mexLen; mex.style.strokeDashoffset=mexLen;
   const netLens=nets.map(n=>{const l=n.getTotalLength(); n.style.strokeDasharray=l+' '+l; n.style.strokeDashoffset=l; return l;});
-  pins.forEach(p=>{p.style.opacity=0; p._ring=p.querySelector('.mx-pin-ring');});
+  pins.forEach((p,i)=>{p.style.opacity=0; p._ring=p.querySelector('.mx-pin-ring'); p._texts=[...p.querySelectorAll('text')]; p._thr=+p.dataset.thr; p._next=(i<pins.length-1)?+pins[i+1].dataset.thr:null;});
+  // móvil: el pin de Banderas queda pegado al borde izq al hacer zoom → su label se extiende a la DERECHA (interior, con espacio). Con el desvanecido por foco no choca con Guadalajara.
+  { const _isPm=(innerHeight>innerWidth)||innerWidth<820||matchMedia('(pointer:coarse)').matches;
+    if(_isPm){ const _bp=document.querySelector('#mxPins .mx-pin[data-thr="0.38"]');
+      if(_bp){ _bp.querySelectorAll('text').forEach(tx=>{ tx.setAttribute('text-anchor','start'); tx.setAttribute('x','411.1'); }); } } }
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), sm=t=>t*t*(3-2*t);
   const mapSvg=document.getElementById('mapSvg');
   if(mapSvg){ mapSvg.style.willChange='transform'; }
@@ -2450,8 +2453,8 @@ try{
   const ZK=[
     [0.00, 500, 360, 1.00],   // México completo (establecimiento)
     [0.26, 500, 360, 1.06],   // ─ hold LARGO mientras se dibuja México (muy lento)
-    [0.38, 401.1, 438.9, 2.9],// zoom LENTO a Bahía de Banderas (sede)
-    [0.45, 401.1, 438.9, 2.9],// ─ HOLD sede
+    [0.38, 401.1, 438.9, 2.3],// zoom a Bahía de Banderas (sede) — menos zoom → el label completo cabe sin cortarse
+    [0.45, 401.1, 438.9, 2.3],// ─ HOLD sede
     [0.56, 458.1, 437.3, 3.0],// paneo LENTO a Guadalajara
     [0.61, 458.1, 437.3, 3.0],// ─ HOLD Guadalajara
     [0.70, 468.1, 462.0, 3.2],// paneo LENTO a Mazamitla
@@ -2465,6 +2468,11 @@ try{
     const pc=clamp((p-0.01)/0.32,0,1); mex.style.strokeDashoffset=mexLen*(1-sm(pc));   // México se dibuja MUY LENTO durante el establecimiento
     compass.style.opacity=clamp((p-0.04)/0.12,0,1)*clamp((0.36-p)/0.05,0,1);   // visible durante el dibujo, se va al empezar el zoom
     pins.forEach(pin=>{const thr=+pin.dataset.thr, pp=clamp((p-thr)/0.05,0,1); pin.style.opacity=pp; pin._ring.setAttribute('r',(2+(1-sm(pp))*14).toFixed(1)); pin._ring.style.opacity=(pp*(1-pp)*2).toFixed(2);});
+    // móvil: SOLO se ve el label del pin ENFOCADO (los pines cercanos se desvanecen para no chocar); en el pull-back final vuelven todos
+    { const _isPl=(innerHeight>innerWidth)||innerWidth<820||matchMedia('(pointer:coarse)').matches;
+      if(_isPl){ const _wide=clamp((p-0.965)/0.025,0,1);
+        pins.forEach(pin=>{ const _ap=clamp((p-pin._thr)/0.05,0,1), _gone=pin._next!=null?clamp((p-(pin._next-0.03))/0.05,0,1):0;
+          const _o=Math.max(_ap*(1-_gone), _wide).toFixed(2); pin._texts.forEach(tx=>tx.style.opacity=_o); }); } }
     // red dorada: se dibuja en el PULL-BACK final (cuando se ve todo el mapa)
     nets.forEach((n,i)=>{const st=0.93+i*0.015, pn=clamp((p-st)/0.06,0,1); n.style.strokeDashoffset=netLens[i]*(1-sm(pn));});   // red se dibuja en el pull-back
     zones.forEach(z=>z.classList.toggle('on', p>+z.dataset.thr));
