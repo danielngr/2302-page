@@ -90,11 +90,14 @@
    #mCard .mc-photo img{width:100%;height:100%;object-fit:cover;display:block}
    #mCard .mc-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(6,20,28,.4),transparent 45%)}
    #mCard .mc-bookwrap{position:absolute;left:12px;right:12px;bottom:12px;z-index:3}
-   #mCard .mc-book{display:block;text-align:center;text-decoration:none;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+   #mCard .mc-book{display:block;text-align:center;text-decoration:none;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
      color:#0E2A3A;padding:15px;border-radius:999px;
      background:rgba(255,255,255,.5);-webkit-backdrop-filter:blur(22px) saturate(190%);backdrop-filter:blur(22px) saturate(190%);
      box-shadow:0 8px 22px rgba(0,0,0,.16),inset 0 1px 1px rgba(255,255,255,.7),inset 0 0 0 1px rgba(255,255,255,.3)}
-   #mCard .mc-meta{text-align:center;font-size:11px;letter-spacing:.06em;color:#5c7f81;margin-top:11px}
+   #mCard .mc-meta{display:none}
+   #mCard .mc-thread{width:1px;height:26px;margin:0 auto 6px;background:linear-gradient(180deg,rgba(176,138,87,0),rgba(176,138,87,.85));border-radius:1px}
+   #mCard .mc-num{margin-top:5px;font-size:12.5px;font-weight:700;letter-spacing:.03em;color:var(--teal)}
+   #mCard .mc-num b{color:#B08A57}
    /* HUD y contador más compactos en móvil */
    .hud.tr,.hud.bl{display:none}
    .count{right:14px}
@@ -417,8 +420,8 @@
    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E")}
  .bg-glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(120% 80% at 50% 28%,rgba(255,255,255,.7),transparent 58%)}
 
- #mCard .mc-photo img,#mCard .mc-pill,#mCard .mc-meta{transition:opacity .26s ease}
- #mCard.swapping .mc-photo img,#mCard.swapping .mc-pill,#mCard.swapping .mc-meta{opacity:.25}
+ #mCard .mc-photo img,#mCard .mc-pill,#mCard .mc-num,#mCard .mc-meta{transition:opacity .26s ease}
+ #mCard.swapping .mc-photo img,#mCard.swapping .mc-pill,#mCard.swapping .mc-num,#mCard.swapping .mc-meta{opacity:.25}
 
 /* ═══ PANTALLA DE ENTRADA (gate etéreo) ═══ */
 #introGate{position:fixed;inset:0;z-index:100000;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -495,9 +498,11 @@
 <div class="vrm-sub" id="vrmSub" aria-hidden="true">Vacation Rental México<span class="vs-line"></span></div>
 <canvas id="c"></canvas>
 <div id="mCard">
+  <div class="mc-thread" aria-hidden="true"></div>
   <div class="mc-pill">
     <div class="mc-tag" id="mcTag">Zona</div>
     <div class="mc-name" id="mcName">Estancia</div>
+    <div class="mc-num" id="mcNum"></div>
   </div>
   <div class="mc-photo"><img id="mcImg" alt="">
     <div class="mc-bookwrap"><a class="mc-book" id="mcBook">Ver estancias</a></div>
@@ -716,11 +721,11 @@ const WHALE_GLB='https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/balle
 
 /* datos reales (del tambor) */
 const ESTANCIAS=[
- {name:'PUNTA DE MITA',    img:'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80', tag:'Ultra-lujo · Surf',    guests:'8 estancias',  price:'desde $280'},
- {name:'LA CRUZ',          img:'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80', tag:'Marina · Encanto',     guests:'6 estancias',  price:'desde $250'},
- {name:'BUCERÍAS',         img:'https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&w=800&q=80', tag:'Pueblo · Playa',       guests:'12 estancias', price:'desde $190'},
- {name:'NUEVO VALLARTA',   img:'https://images.unsplash.com/photo-1473116763249-2faaef81ccda?auto=format&fit=crop&w=800&q=80', tag:'Familias · Golf',      guests:'18 estancias', price:'desde $190'},
- {name:'MARINA VALLARTA',  img:'https://images.unsplash.com/photo-1505228395891-9a51e7e86bf6?auto=format&fit=crop&w=800&q=80', tag:'Marina · Ciudad',      guests:'9 estancias',  price:'desde $250'},
+ {name:'PUNTA DE MITA',    short:'Punta de Mita',    img:'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80', tag:'Ultra-lujo · Surf',    guests:'8 estancias',  price:'desde $280'},
+ {name:'LA CRUZ',          short:'La Cruz',          img:'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80', tag:'Marina · Encanto',     guests:'6 estancias',  price:'desde $250'},
+ {name:'BUCERÍAS',         short:'Bucerías',         img:'https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&w=800&q=80', tag:'Pueblo · Playa',       guests:'12 estancias', price:'desde $190'},
+ {name:'NUEVO VALLARTA',   short:'Nuevo Vallarta',   img:'https://images.unsplash.com/photo-1473116763249-2faaef81ccda?auto=format&fit=crop&w=800&q=80', tag:'Familias · Golf',      guests:'18 estancias', price:'desde $190'},
+ {name:'MARINA VALLARTA',  short:'Marina Vallarta',  img:'https://images.unsplash.com/photo-1505228395891-9a51e7e86bf6?auto=format&fit=crop&w=800&q=80', tag:'Marina · Ciudad',      guests:'9 estancias',  price:'desde $250'},
 ];
 
 const canvas=$('c');
@@ -1285,8 +1290,8 @@ window.__apIdx=-1;
   document.getElementById('apMeta').innerHTML='<div><b>'+it.guests.split(' ')[0]+'</b><span>huéspedes</span></div><div><b>'+it.price+'</b><span>por noche</span></div><div><b>Directo</b><span>sin comisión</span></div>';
   window.__apIdx=0;
   const _mi=document.getElementById('mcImg'); if(_mi)_mi.src=it.img;
-  const _ms=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
-  _ms('mcTag',it.tag);_ms('mcName',it.name);_ms('mcMeta',it.guests+' · '+it.price+' / noche');
+  const _ms=(id,v,asHtml)=>{const el=document.getElementById(id);if(el){if(asHtml)el.innerHTML=v;else el.textContent=v;}};
+  _ms('mcTag',it.tag);_ms('mcName',it.name);_ms('mcNum',it.guests+' · <b>'+it.price+'</b> / noche',1);_ms('mcBook','Ver estancias en '+(it.short||it.name));
 }
 // ── DIAGNÓSTICO: expone la escena para medir desde consola ──
 window.__diag = { THREE, scene, camera, cylGroup, cylinders, wrapper, ESTANCIAS,
@@ -1864,8 +1869,8 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
      mi.dataset.cur=it.img;
      const mc=document.getElementById('mCard'); if(mc) mc.classList.add('swapping');
      const im=new Image(); im.onload=()=>{ mi.src=it.img; mi.alt=it.name;
-       const _s=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
-       _s('mcTag',it.tag); _s('mcName',it.name); _s('mcMeta',it.guests+' · '+it.price+' / noche');
+       const _s=(id,v,asHtml)=>{const el=document.getElementById(id);if(el){if(asHtml)el.innerHTML=v;else el.textContent=v;}};
+       _s('mcTag',it.tag); _s('mcName',it.name); _s('mcNum',it.guests+' · <b>'+it.price+'</b> / noche',1); _s('mcBook','Ver estancias en '+(it.short||it.name));
        if(mc) mc.classList.remove('swapping'); };
      im.src=it.img;
    }
@@ -1890,17 +1895,21 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    wWy=fy;
    const _introStart=Math.max(0, 1 - introT/0.34);
    const _heroLift = IS_PORTRAIT ? 1.6*_introStart : -2.4*_introStart;   // portrait: sube con el VRM · desktop: baja (libera la V)
-   // ── durante el MAPA (portrait): la ballena se hace acento — sube, se ladea y se encoge para que el mapa sea protagonista ──
-   const _mwRaw = IS_PORTRAIT ? (Math.max(0,Math.min(1,(introT-0.46)/0.20)) * Math.max(0,Math.min(1,(0.92-introT)/0.20))) : 0;
-   const _mapWin = _mwRaw*_mwRaw*(3-2*_mwRaw);
-   const _mapUp = _mapWin*1.8, _mapSide = _mapWin*0.8, _mapBack = _mapWin*0.6;   // excursión GENTIL y ancha (verificado: sin saltos)
-   wrapper.position.set(fx + Math.sin(t*0.15)*0.3 + _mapSide, fy + _heroLift + _mapUp, fz - _mapBack);
+   // ── durante el MAPA (portrait): la ballena SALE DEL CUADRO nadando → el mapa se ve solo, sin competir.
+   //    Regresa nadando para centrarse en el primer aro. (calibrado: pico 0.58 u/paso, sin tirones)
+   var _mapOut = 0;
+   if(IS_PORTRAIT){
+     const _o = Math.max(0,Math.min(1,(introT-0.22)/0.28))          // sale del cuadro
+              * (1 - Math.max(0,Math.min(1,(introT-0.70)/0.30)));   // vuelve a entrar
+     _mapOut = _o*_o*(3-2*_o);
+   }
+   wrapper.position.set(fx + Math.sin(t*0.15)*0.3 + _mapOut*7.0, fy + _heroLift, fz - _mapOut*8.0);
    // ORIENTACIÓN: interpola suave de la tangente del camino (horizontal) → vertical hacia abajo
    const tanHoriz=wtg.clone().normalize();                    // dirección del nado en el camino
    const tanVert=new THREE.Vector3(Math.sin(t*0.15)*0.15,-1,0.15).normalize(); // hacia abajo (aros)
    wtan.copy(tanHoriz).lerp(tanVert, blend).normalize();      // gira gradualmente al bajar
    const introScale=1+(1-introT)*0.15;              // ligeramente más grande al inicio (sin dominar)
-   wrapper.scale.setScalar(baseWhaleScale*introScale*(1 - _mapWin*0.55));   // más chica durante el mapa
+   wrapper.scale.setScalar(baseWhaleScale*introScale*(1 - _mapOut*0.78));   // se aleja nadando durante el mapa
  } else {
    // EN LOS AROS: nado original (asentándose en cada aro)
    wWy += (wyRings - wWy) * (IS_PORTRAIT?0.18:0.1);   // móvil: nado conectado al carrusel (una sola capa de suavizado dominante)
@@ -1920,7 +1929,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  }
  mLook.lookAt(new THREE.Vector3(0,0,0),wtan,UP);qT.setFromRotationMatrix(mLook);
  wrapper.quaternion.slerp(qT, introT<1?0.08:(qCard>0?(IS_PORTRAIT?0.10:0.06):(IS_PORTRAIT?0.10:0.05)));   // móvil: giro al ritmo del nado
- wrapper.visible = !(introT>=1 && qCard>=window.__finalTune.whaleHideQ);   // se oculta cuando ya salió (ajustable con F)
+ wrapper.visible = !(introT>=1 && qCard>=window.__finalTune.whaleHideQ) && !((typeof _mapOut!=='undefined'?_mapOut:0) > 0.985);   // fuera del cuadro: no render (mapa limpio + ahorra GPU)
  // ── NADO: INTRO y SALIDA acoplados al SCROLL (aletas/cola avanzan al scrollear) · AROS aletea solo ──
  if(swimAction){
    if(introT>=1 && qCard<=0){
