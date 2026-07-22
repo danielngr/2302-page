@@ -1280,7 +1280,7 @@ let mx=0,my=0;
 addEventListener('pointermove',e=>{ if(IS_MOBILE||e.pointerType==='touch') return; mx=e.clientX/innerWidth-0.5;my=e.clientY/innerHeight-0.5;},{passive:true});
 
 const TOTAL=(ESTANCIAS.length-1)*GAP;
-const mLook=new THREE.Matrix4(),qT=new THREE.Quaternion(),UP=new THREE.Vector3(0,1,0),wtan=new THREE.Vector3(),_exitUp=new THREE.Vector3();
+const mLook=new THREE.Matrix4(),qT=new THREE.Quaternion(),UP=new THREE.Vector3(0,1,0),wtan=new THREE.Vector3(),_exitUp=new THREE.Vector3(),_faceV=new THREE.Vector3();
 const cN=$('cN');$('cT').textContent='de 0'+ESTANCIAS.length;
 // pintar la primera estancia
 window.__apIdx=-1;
@@ -1899,15 +1899,20 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    //    Regresa nadando para centrarse en el primer aro. (calibrado: pico 0.58 u/paso, sin tirones)
    var _mapOut = 0;
    if(IS_PORTRAIT){
-     const _o = Math.max(0,Math.min(1,(introT-0.22)/0.34))          // se va nadando por un lado mientras baja
-              * (1 - Math.max(0,Math.min(1,(introT-0.78)/0.22)));   // regresa YA PASADO el mapa (termina en 0.80)
+     const _o = Math.max(0,Math.min(1,(introT-0.14)/0.20))          // se va ANTES del mapa: fuera del cuadro en 0.34
+              * (1 - Math.max(0,Math.min(1,(introT-0.80)/0.20)));   // regresa cuando el mapa YA terminó
      _mapOut = _o*_o*(3-2*_o);
    }
-   wrapper.position.set(fx + Math.sin(t*0.15)*0.3 + _mapOut*6.0, fy + _heroLift - _mapOut*3.0, fz - _mapOut*1.5);
+   wrapper.position.set(fx + Math.sin(t*0.15)*0.3 - _mapOut*6.5, fy + _heroLift - _mapOut*4.0, fz - _mapOut*1.0);
    // ORIENTACIÓN: interpola suave de la tangente del camino (horizontal) → vertical hacia abajo
    const tanHoriz=wtg.clone().normalize();                    // dirección del nado en el camino
    const tanVert=new THREE.Vector3(Math.sin(t*0.15)*0.15,-1,0.15).normalize(); // hacia abajo (aros)
    wtan.copy(tanHoriz).lerp(tanVert, blend).normalize();      // gira gradualmente al bajar
+   if(_mapOut > 0.02){                                        // POSE al salir: picada diagonal hacia abajo-izquierda
+     const _vuelve = introT > 0.86;                           // (al volver mira hacia el centro; ocurre fuera del cuadro)
+     _faceV.set(_vuelve?6.5:-6.5, _vuelve?4.0:-4.0, _vuelve?1.0:-1.0).normalize();
+     wtan.lerp(_faceV, _mapOut*0.85).normalize();
+   }
    const introScale=1+(1-introT)*0.15;              // ligeramente más grande al inicio (sin dominar)
    wrapper.scale.setScalar(baseWhaleScale*introScale*(1 - _mapOut*0.38));   // se va nadando por un lado
  } else {
