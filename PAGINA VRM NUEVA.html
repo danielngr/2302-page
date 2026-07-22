@@ -1916,7 +1916,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    const _dirMorph = (()=>{ const q=Math.max(0,Math.min(1,(introT-0.60)/0.22)); return q*q*(3-2*q); })();
    const _rise  = Math.min(1, _dirMorph/0.5);            // 1ª mitad: SUBE quedándose a la izquierda (siempre fuera de cuadro)
    const _slide = Math.max(0, (_dirMorph-0.5)/0.5);      // 2ª mitad: ya arriba del todo, se centra → baja al aro desde arriba
-   const _offX = -7.0*(1-_slide);
+   const _offX = -11.0*(1-_slide);                       // más lejos por la izquierda → ni la cola se asoma en la subida
    const _offY = -13.0*(1-_rise) + 14.0*_rise;           // baja al salir, arriba al volver (trayectoria en L, nunca cruza el mapa)
    wrapper.position.set(fx + Math.sin(t*0.15)*0.3 + _offX*_mapOut, fy + _heroLift + _offY*_mapOut, fz - _mapOut*1.5);
    // ORIENTACIÓN: interpola suave de la tangente del camino (horizontal) → vertical hacia abajo
@@ -2434,6 +2434,10 @@ try{
   const mex=document.getElementById('mxMex'); if(!mex) return;
   const fill=document.getElementById('mxfill');
   const nets=[...document.querySelectorAll('.mx-netline')], pins=[...document.querySelectorAll('#mxPins .mx-pin')];
+  // móvil: el label de Bahía de Banderas se corta por la izquierda al hacer zoom → que se extienda hacia el interior
+  { const _isPmap=(innerHeight>innerWidth)||innerWidth<820||matchMedia('(pointer:coarse)').matches;
+    if(_isPmap){ const _bp=document.querySelector('#mxPins .mx-pin[data-thr="0.38"]');
+      if(_bp){ _bp.querySelectorAll('text').forEach(tx=>{ tx.setAttribute('text-anchor','start'); tx.setAttribute('x','411.1'); }); } } }
   const zones=[...document.querySelectorAll('.mx-z')], compass=document.getElementById('mxCompass');
   const mexLen=mex.getTotalLength(); mex.style.strokeDasharray=mexLen; mex.style.strokeDashoffset=mexLen;
   const netLens=nets.map(n=>{const l=n.getTotalLength(); n.style.strokeDasharray=l+' '+l; n.style.strokeDashoffset=l; return l;});
