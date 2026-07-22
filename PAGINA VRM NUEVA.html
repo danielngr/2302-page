@@ -1518,6 +1518,7 @@ const _brand=$('brand'), _sb=$('searchbar');
 // justo en el borde permitido (y,z fijos). Es lineal → solución de una pasada.
 //   MARGIN_X = 1.0 sería el borde exacto; <1 deja aire para el cuerpo/cola.
 const WHALE_NDC_MARGIN_X = IS_PORTRAIT ? 0.70 : 0.80;
+let _whaleExit = 0;   // >0 mientras la ballena SALE nadando del cuadro (portrait) → suelta el clamp de borde para que sí pueda irse
 function clampWhaleToViewport(introT){
   // cámara al día antes de proyectar
   camera.updateMatrixWorld();
@@ -1531,7 +1532,7 @@ function clampWhaleToViewport(introT){
 
   // ── 1) CLAMP DE BORDE (X): la ballena nunca cruza el borde de pantalla ──
   let n = ndc(P.x, P.y, P.z);
-  if(n.w > 1e-4){
+  if(_whaleExit <= 0.02 && n.w > 1e-4){             // mientras SALE del cuadro NO la retengas: déjala nadar afuera
     window.__whaleNDC = +n.x.toFixed(3);            // debug: posición en pantalla (-1..1)
     if(Math.abs(n.x) > WHALE_NDC_MARGIN_X){
       const s = n.x < 0 ? -WHALE_NDC_MARGIN_X : WHALE_NDC_MARGIN_X;
@@ -1908,8 +1909,9 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
      _mapOut = _o*_o*(3-2*_o);
      if(window.__WE && !window.__WE.auto) _mapOut = 0;   // panel: salida automática apagada
    }
+   _whaleExit = _mapOut;   // avisa al clamp de borde que la ballena está saliendo (0 en desktop → sin efecto)
    // SALIDA: glide DIAGONAL abajo-izquierda + un poco AL FRENTE (profundidad), nunca al fondo, misma escala
-   wrapper.position.set(fx + Math.sin(t*0.15)*0.3 - _mapOut*5.0, fy + _heroLift - _mapOut*9.0, fz + _mapOut*2.6);
+   wrapper.position.set(fx + Math.sin(t*0.15)*0.3 - _mapOut*7.0, fy + _heroLift - _mapOut*13.0, fz - _mapOut*1.5);
    // ORIENTACIÓN: interpola suave de la tangente del camino (horizontal) → vertical hacia abajo
    const tanHoriz=wtg.clone().normalize();                    // dirección del nado en el camino
    const tanVert=new THREE.Vector3(Math.sin(t*0.15)*0.15,-1,0.15).normalize(); // hacia abajo (aros)
@@ -1979,6 +1981,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    // seguimiento (fase B): la cámara pasa de fija a detrás de la ballena
    let follow = Math.max(0, Math.min(1,(introT-0.5)/0.3));
    follow = follow*follow*(3 - 2*follow);
+   if(IS_PORTRAIT) follow *= (1 - _mapOut);   // móvil: mientras la ballena SALE a mostrar el mapa, la cámara NO la persigue → se queda viendo el centro y la ballena sí se va
    // aterrizaje (fase C): al final, de "detrás de la ballena" → vista frontal de aros
    let land = Math.max(0, Math.min(1,(introT-0.8)/0.2));
    land = land*land*(3 - 2*land);
