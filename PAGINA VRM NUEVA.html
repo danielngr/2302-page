@@ -39,7 +39,7 @@
  .cue .bar{width:1px;height:30px;background:linear-gradient(#4a5663,transparent);position:relative;overflow:hidden}
  .cue .bar::after{content:"";position:absolute;top:-40%;left:0;width:100%;height:40%;background:#7FA6A8;animation:drop 2s var(--e) infinite}
  @keyframes drop{0%{top:-40%}70%,100%{top:100%}}
- #story{position:relative;z-index:4;height:2000vh;pointer-events:none}
+ #story{position:relative;z-index:4;height:3000vh;pointer-events:none}
 
  /* ── VISTA DETALLE (aparece al click) ── */
  #detail{position:fixed;inset:0;z-index:8;display:flex;opacity:0;pointer-events:none;transition:opacity .5s var(--e);background:rgba(210,216,223,.55);backdrop-filter:blur(3px)}
@@ -563,7 +563,7 @@
   </div>
 </div>
 <div id="freeEd" aria-hidden="true">
-  <div class="ed-m ed-map-m" data-a="0.32" data-b="0.82">
+  <div class="ed-m ed-map-m" data-a="0.60" data-b="0.88">
   <div class="mx-vign"></div>
   <div class="mx-head">
     <div><div class="mx-eye">La red VRM</div><h2 class="mx-h">Cuatro Méxicos,<br><b>una misma</b> casa.</h2></div>
@@ -1491,7 +1491,7 @@ addEventListener('wheel',ev=>{
 
 let wWy=0;   // posición vertical suavizada de la ballena
 const baseWhaleScale=1;   // el modelo interno ya está escalado; el wrapper escala para la intro
-const INTRO_END=0.44;     // intro con más scroll: mapa lento + ESPACIO en medio antes del aro; los aros se adaptan
+const INTRO_END=0.56;     // intro largo: la ballena sale del cuadro ANTES del mapa, sin encimarse
 const RINGS_END=0.87;    // aros conservan su ritmo; la salida ocupa poco scroll pero va lenta por el TOPE de velocidad
 
 // ── Barra de reserva: poblar datos + comportamiento ──
@@ -1797,11 +1797,11 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  if(vrm3D.material) vrm3D.material.opacity = 1 - Math.max(0, Math.min(1,(introT-(IS_PORTRAIT?0.34:0.54))/0.09));   // siempre actualiza (subir rápido no lo deja atorado)
  window.__vrmGone = introT > (IS_PORTRAIT?0.44:0.60);
  window.__WE_T = introT;   // para el panel de edición
- { const _ha=document.getElementById('heroAtmos'); if(_ha){ _ha.style.opacity=Math.max(0,1-introT*1.35).toFixed(3); } }
+ { const _ha=document.getElementById('heroAtmos'); if(_ha){ _ha.style.opacity=Math.max(0,1-introT*1.55).toFixed(3); } }
  { const _vs=document.getElementById('vrmSub'); if(_vs){ _vs.style.opacity=(1-Math.max(0,Math.min(1,(introT-0.18)/0.14))).toFixed(3); } }   // subtítulo se funde con el VRM   // atmósfera etérea: fuerte en el hero, se funde al marfil al entrar
  // ── EDITORIAL del nado libre: por introT (simétrico), en pantalla ya limpia ──
  for(const el of _edMoments){ el.classList.toggle('on', introT > +el.dataset.a && introT < +el.dataset.b); }
- if(window.__mapDraw){ const _mA=IS_PORTRAIT?0.34:0.48, _mB=IS_PORTRAIT?0.80:0.88; const _mp=Math.max(0,Math.min(1,(introT-_mA)/(_mB-_mA))); window.__mapDraw(_mp); }   // móvil: el mapa termina en 0.80 → 0.80-1.0 es el ESPACIO donde vuelve la ballena
+ if(window.__mapDraw){ const _mA=IS_PORTRAIT?0.62:0.48, _mB=IS_PORTRAIT?0.86:0.88; const _mp=Math.max(0,Math.min(1,(introT-_mA)/(_mB-_mA))); window.__mapDraw(_mp); }   // móvil: el mapa termina en 0.80 → 0.80-1.0 es el ESPACIO donde vuelve la ballena
  for(const el of _exMoments){ el.classList.toggle('on', qCard > +el.dataset.a && qCard < +el.dataset.b); }
  // ── TEXTOS DE VALOR: de a uno, bien separados, después de que VRM ya no está ──
  valueMeshes.forEach((m)=>{
@@ -1888,7 +1888,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    const wtg=WHALEPATH.getTangentAt(Math.min(0.999,Math.max(0.001,introT)));
    // mezcla suave hacia la posición de aros al final de la intro
    const ringX=WORLD_SHIFT_X, ringY=wyRings;
-   let blend=Math.max(0,(introT-(IS_PORTRAIT?0.91:0.72))/(IS_PORTRAIT?0.09:0.28));        // móvil: gira al aro cuando YA regresó al cuadro
+   let blend=Math.max(0,(introT-(IS_PORTRAIT?0.93:0.72))/(IS_PORTRAIT?0.07:0.28));        // móvil: gira al aro cuando YA regresó al cuadro
    blend=blend*blend*(3-2*blend);                   // smoothstep → sin tirón
    const fx=wp.x*(1-blend)+ringX*blend;
    const fy=wp.y*(1-blend)+ringY*blend;
@@ -1900,12 +1900,13 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    //    Regresa nadando para centrarse en el primer aro. (calibrado: pico 0.58 u/paso, sin tirones)
    var _mapOut = 0;
    if(IS_PORTRAIT){
-     const _o = Math.max(0,Math.min(1,(introT-0.14)/0.20))          // se va ANTES del mapa: fuera del cuadro en 0.34
-              * (1 - Math.max(0,Math.min(1,(introT-0.80)/0.20)));   // regresa cuando el mapa YA terminó
+     const _o = Math.max(0,Math.min(1,(introT-0.42)/0.26))          // arranca al irse el VRM y el filtro; fuera en 0.59
+              * (1 - Math.max(0,Math.min(1,(introT-0.80)/0.20)));   // regresa cuando el mapa ya terminó (0.86)
      _mapOut = _o*_o*(3-2*_o);
      if(window.__WE && !window.__WE.auto) _mapOut = 0;   // panel: salida automática apagada
    }
-   wrapper.position.set(fx + Math.sin(t*0.15)*0.3 - _mapOut*6.5, fy + _heroLift - _mapOut*4.0, fz - _mapOut*1.0);
+   // se va abajo-izquierda y un poco HACIA EL FRENTE (profundidad); nunca al fondo
+   wrapper.position.set(fx + Math.sin(t*0.15)*0.3 - _mapOut*6.8, fy + _heroLift - _mapOut*4.2, fz + _mapOut*1.5);
    // ORIENTACIÓN: interpola suave de la tangente del camino (horizontal) → vertical hacia abajo
    const tanHoriz=wtg.clone().normalize();                    // dirección del nado en el camino
    const tanVert=new THREE.Vector3(Math.sin(t*0.15)*0.15,-1,0.15).normalize(); // hacia abajo (aros)
@@ -1913,10 +1914,10 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    if(_mapOut > 0.02){                                        // POSE al salir: picada diagonal hacia abajo-izquierda
      const _vuelve = introT > 0.86;                           // (al volver mira hacia el centro; ocurre fuera del cuadro)
      _faceV.set(_vuelve?6.5:-6.5, _vuelve?4.0:-4.0, _vuelve?1.0:-1.0).normalize();
-     wtan.lerp(_faceV, _mapOut*0.85).normalize();
+     wtan.lerp(_faceV, _mapOut).normalize();
    }
    const introScale=1+(1-introT)*0.15;              // ligeramente más grande al inicio (sin dominar)
-   wrapper.scale.setScalar(baseWhaleScale*introScale*(1 - _mapOut*0.38));   // se va nadando por un lado
+   wrapper.scale.setScalar(baseWhaleScale*introScale);   // misma escala al salir (se ve más grande al venir al frente)
  } else {
    // EN LOS AROS: nado original (asentándose en cada aro)
    wWy += (wyRings - wWy) * (IS_PORTRAIT?0.18:0.1);   // móvil: nado conectado al carrusel (una sola capa de suavizado dominante)
