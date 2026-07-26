@@ -1964,7 +1964,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  // riseK: 0 en introT 0.85 → 1 en introT 1.0 (el aro emerge desde abajo durante ese tramo)
  const riseK = Math.max(0, Math.min(1, (introT-0.85)/0.15));
  const riseEase = riseK*riseK*(3-2*riseK);        // smoothstep
- cylGroup.visible = introT > (IS_PORTRAIT?0.92:0.86) && rawP > 0.02;   // oculto en el hero pase lo que pase con el scroll inicial
+ cylGroup.visible = true;   // los aros SIEMPRE están renderizados (detrás del hero/secciones) → al scrollear ya están ahí, no "aparecen"
  // desplazamiento vertical de emergencia: empieza abajo (-8) y sube a su sitio (0)
  const riseOffset = (introT < 1) ? (-8*(1-riseEase)) : 0;
  // la foto lateral SOLO aparece cuando la intro terminó del todo (no durante la ballena cruzando)
@@ -2134,9 +2134,8 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
 
    // sin ballena en el intro: la cámara NO persigue nada → se queda encuadrando el VRM y aterriza a los aros
    let follow = 0;
-   // aterrizaje (fase C): al final, de "detrás de la ballena" → vista frontal de aros
-   let land = Math.max(0, Math.min(1,(introT-0.8)/0.2));
-   land = land*land*(3 - 2*land);
+   // aterrizaje: la cámara YA encuadra los aros desde el inicio (sin dive vacío) → los aros se sienten siempre presentes
+   let land = 1;
 
    const behind = new THREE.Vector3(
      _CENTERED ? 0 : (wrapper.position.x*0.55 - 0.5),   // móvil: centro EXACTO (sin offset ni seguimiento en x)
@@ -2644,13 +2643,13 @@ try{
   var raf=0;
   function upd(){
     raf=0;
+    // el hero NO se disuelve: se va con el scroll de forma natural (no "desaparece").
+    // solo un leve fundido en el último tramo para empalmar con la sección de abajo.
     var sc=window.scrollY||window.pageYOffset||0;
-    var t=sc/(innerHeight||1);                              // 0 arriba · 1 tras un viewport
-    var d=Math.max(0,Math.min(1,(t-0.5)/0.42)); d=d*d*(3-2*d);   // el hero se desvanece JUSTO al salir (sin cola en blanco)
-    vh.style.opacity=(1-d).toFixed(3);
-    vh.style.transform = d>0 ? ('scale('+(1+d*0.04).toFixed(4)+')') : 'none';
-    vh.style.filter = d>0 ? ('blur('+(d*4).toFixed(2)+'px)') : 'none';
-    vh.style.visibility = d>=0.999 ? 'hidden' : 'visible';
+    var t=sc/(innerHeight||1);
+    var d=Math.max(0,Math.min(1,(t-0.8)/0.2));   // opaco casi todo el hero; leve fade al final
+    vh.style.opacity=(1-d*0.85).toFixed(3);
+    vh.style.visibility = t>=1.05 ? 'hidden' : 'visible';
   }
   function onScroll(){ if(!raf) raf=requestAnimationFrame(upd); }
   addEventListener('scroll',onScroll,{passive:true});
