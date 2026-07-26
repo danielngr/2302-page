@@ -495,14 +495,16 @@
 @media(min-width:861px){ #vrmSign{top:50%} #vrmSign .vs-word{font-size:clamp(108px,13vw,210px)} }
 
 
-/* ===== HERO DE VIDEO + CRISTAL LÍQUIDO (portado de vrm_pagina 3) ===== */
+/* ===== HERO DE VIDEO (portado de vrm_pagina 3 · logo VRM en font, sin WebGL) ===== */
 #heroScroll{position:relative;z-index:60;height:190vh}
 @media(max-width:820px){#heroScroll{height:165vh}}
 #vHero{position:sticky;top:0;height:100svh;height:100dvh;overflow:hidden;background:#0a1420;will-change:opacity,transform,filter}
-#vHero .herovid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;filter:saturate(1.05) contrast(1.04)}
+#vHero .herovid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:0;filter:saturate(1.05) contrast(1.04);transition:opacity 1.6s ease}
 #vTint{position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(120% 90% at 50% 30%,transparent 42%,rgba(4,10,14,.5)),linear-gradient(180deg,rgba(4,10,14,.4) 0%,transparent 24%,transparent 58%,rgba(7,13,16,.85) 100%)}
-#vHero #logofallback{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;font-family:'CormorantG','Cormorant Garamond',serif;font-style:italic;font-weight:500;font-size:20vw;color:rgba(241,236,225,.12);transition:opacity .8s ease}
-#vHero #logo3d{position:absolute;inset:0;width:100%;height:100%;z-index:3;display:block}
+/* logo VRM en font (ligero, sin WebGL) */
+#vHero .v-logo{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;pointer-events:none}
+#vHero .v-logo span{font-family:'CormorantG','Cormorant Garamond',serif;font-weight:500;font-size:clamp(96px,16vw,240px);line-height:1;letter-spacing:.06em;color:#f4efe6;text-shadow:0 2px 30px rgba(0,0,0,.35),0 0 1px rgba(255,255,255,.4);opacity:.96}
+@media(max-width:760px){#vHero .v-logo span{font-size:26vw;letter-spacing:.04em}}
 #vHero .v-tag{position:absolute;left:4vw;bottom:9vh;z-index:4;max-width:40ch}
 #vHero .v-tag .eb{font-family:'Space Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:rgba(241,236,225,.82)}
 #vHero .v-tag h1{font-family:'CormorantG','Cormorant Garamond',serif;font-weight:400;font-size:clamp(38px,5.2vw,72px);line-height:1.02;margin-top:14px;text-shadow:0 4px 40px rgba(0,0,0,.5);color:#f1ece1}
@@ -546,8 +548,7 @@
 <div id="heroScroll">
   <section id="vHero">
     <div id="vTint"></div>
-    <div id="logofallback">VRM</div>
-    <canvas id="logo3d"></canvas>
+    <div class="v-logo"><span>VRM</span></div>
     <div class="v-tag">
       <div class="eb">Bahía de Banderas · México</div>
       <h1>La bahía,<br><i>como debe ser</i></h1>
@@ -2621,81 +2622,48 @@ try{
   upd();
 })();
 </script>
-<!-- ===== CRISTAL LÍQUIDO VRM (portado de vrm_pagina 3, adaptado a #vHero) ===== -->
-<script type="module">
-function hideLoader(){ /* la firma (#signGate) se cierra sola; el cristal solo revela el fallback */ }
-try{
-  const THREE=await import('three');const {FontLoader}=await import('three/addons/loaders/FontLoader.js');const {TextGeometry}=await import('three/addons/geometries/TextGeometry.js');const {RoomEnvironment}=await import('three/addons/environments/RoomEnvironment.js');
-  const canvas=document.getElementById('logo3d');const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!matchMedia('(max-width:760px)').matches});
-  canvas.addEventListener('webglcontextlost',function(ev){ev.preventDefault();},false);
-  renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(max-width:760px)').matches?0.6:2));renderer.setSize(canvas.clientWidth||innerWidth,canvas.clientHeight||innerHeight,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;
-  const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(42,(canvas.clientWidth||innerWidth)/(canvas.clientHeight||innerHeight),0.1,100);camera.position.set(0,0,11);
-  const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new RoomEnvironment(renderer),0.04).texture;
-
-  const HERO_CLIPS=[
+<!-- ===== FONDO DE VIDEO del hero (ligero, sin WebGL — crossfade por CSS) ===== -->
+<script>
+(function(){
+  var hero=document.getElementById('vHero'); if(!hero) return;
+  var SRC=[
     'https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/hero_bahia.mp4',
     'https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/hero_kling.mp4',
     'https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/hero_sunset.mp4'
   ];
-  const heroEl=document.getElementById('vHero');
-  const clipEls=HERO_CLIPS.map(src=>{const v=document.createElement('video');v.className='herovid';v.crossOrigin='anonymous';v.muted=true;v.loop=true;v.autoplay=true;v.playsInline=true;v.setAttribute('webkit-playsinline','');v.preload='auto';v.src=src;heroEl.insertBefore(v,heroEl.firstChild);return v;});
-  const clips=clipEls.map(el=>{
-    const vt=new THREE.VideoTexture(el);vt.colorSpace=THREE.SRGBColorSpace;
-    const o={el,tex:vt,ar:16/9,ready:false};
-    function readAR(){if(el.videoWidth&&el.videoHeight)o.ar=el.videoWidth/el.videoHeight;}
-    el.addEventListener('loadedmetadata',readAR);
-    el.addEventListener('canplay',()=>{o.ready=true;readAR();});
-    el.addEventListener('error',()=>{o.ready=false;});
-    if(el.readyState>=1)readAR();
-    if(el.readyState>=3)o.ready=true;
-    if(el.play)el.play().catch(()=>{});
-    return o;
+  var vids=SRC.map(function(src,i){
+    var v=document.createElement('video');
+    v.className='herovid'; v.muted=true; v.loop=true; v.autoplay=true; v.playsInline=true;
+    v.setAttribute('playsinline',''); v.setAttribute('webkit-playsinline','');
+    v.preload='auto'; v.src=src;
+    hero.insertBefore(v, hero.firstChild);
+    if(v.play) v.play().catch(function(){});
+    return v;
   });
-
-  const bgUni={texB:{value:clips[0].tex},blend:{value:0}};
-  const bgMat=new THREE.MeshBasicMaterial({map:clips[0].tex,toneMapped:false});
-  bgMat.onBeforeCompile=(sh)=>{
-    sh.uniforms.texB=bgUni.texB;sh.uniforms.blend=bgUni.blend;
-    sh.fragmentShader='uniform sampler2D texB;uniform float blend;\n'+
-      sh.fragmentShader.replace(
-        'vec4 sampledDiffuseColor = texture2D( map, vMapUv );',
-        'vec4 sampledDiffuseColor = mix( texture2D( map, vMapUv ), texture2D( texB, vMapUv ), blend );'
-      );
-  };
-  const bgPlane=new THREE.Mesh(new THREE.PlaneGeometry(1,1),bgMat);bgPlane.position.z=-6;scene.add(bgPlane);
-  function coverPlanes(){const d=camera.position.z-bgPlane.position.z,fh=2*Math.tan(camera.fov*Math.PI/360)*d,fw=fh*camera.aspect;const va=(clips[active]&&clips[active].ar)?clips[active].ar:16/9;const fr=fw/fh;let pw,ph;if(va>fr){ph=fh;pw=fh*va;}else{pw=fw;ph=fw/va;}bgPlane.scale.set(pw,ph,1);}
-  let active=0,nxt=0,fading=false,xstart=performance.now()/1000;
-  coverPlanes();
-
-  const HOLD=7.0,FADE=1.6;
-  function readyIdx(){return clips.map((o,i)=>(o.ready&&o.el.readyState>=2&&!o.el.error)?i:-1).filter(i=>i>=0);}
-  function setActive(i){active=i;bgMat.map=clips[i].tex;bgUni.blend.value=0;coverPlanes();}
-  function updateFade(now){
-    const ready=readyIdx();
-    if(clips[active]&&clips[active].el.paused)clips[active].el.play().catch(()=>{});
-    if(ready.length===0)return;
-    if(!ready.includes(active)){setActive(ready[0]);xstart=now;fading=false;return;}
-    if(ready.length===1){fading=false;xstart=now;return;}
-    if(fading&&!ready.includes(nxt)){fading=false;bgUni.blend.value=0;xstart=now;}
-    if(!fading&&now-xstart>=HOLD){const cur=ready.indexOf(active);nxt=ready[(cur+1)%ready.length];bgUni.texB.value=clips[nxt].tex;if(clips[nxt].el.play)clips[nxt].el.play().catch(()=>{});fading=true;xstart=now;}
-    if(fading){const k=Math.min((now-xstart)/FADE,1);bgUni.blend.value=k*k*(3-2*k);if(k>=1){setActive(nxt);fading=false;xstart=now;}}
-  }
-
-  const key=new THREE.DirectionalLight(0xffffff,1.3);key.position.set(4,8,10);scene.add(key);const fill=new THREE.DirectionalLight(0xbfe3ee,0.7);fill.position.set(-6,-2,4);scene.add(fill);scene.add(new THREE.AmbientLight(0x8fb0bd,0.25));
-  const _MOBH=matchMedia('(max-width:760px)').matches;
-  const mat=_MOBH
-    ? new THREE.MeshPhysicalMaterial({color:0xcfeaf5,metalness:0.1,roughness:0.12,transmission:0,clearcoat:1.0,clearcoatRoughness:0.08,envMapIntensity:1.7,iridescence:0.5,iridescenceIOR:1.3,attenuationColor:new THREE.Color(0x9fd8e6),transparent:true,opacity:0.66})
-    : new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:0.06,transmission:1.0,thickness:1.8,ior:1.46,clearcoat:1.0,clearcoatRoughness:0.1,envMapIntensity:1.1,iridescence:0.32,iridescenceIOR:1.3,attenuationColor:new THREE.Color(0x9fd8e6),attenuationDistance:3.4,transparent:true});
-  const group=new THREE.Group();scene.add(group);let mesh=null;
-  new FontLoader().load('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json',function(font){const geo=new TextGeometry('VRM',{font,size:3,height:0.9,curveSegments:26,bevelEnabled:true,bevelThickness:0.14,bevelSize:0.09,bevelSegments:10});geo.center();mesh=new THREE.Mesh(geo,mat);mesh.renderOrder=2;group.add(mesh);fit();hideLoader();var f=document.getElementById('logofallback');if(f)f.style.opacity=0;});
-  function fit(){coverPlanes();if(!mesh)return;mesh.geometry.computeBoundingBox();const bb=mesh.geometry.boundingBox,w=bb.max.x-bb.min.x;const visW=2*Math.tan(camera.fov*Math.PI/360)*camera.position.z*camera.aspect;const target=visW*(innerWidth<760?0.62:0.40);group.scale.setScalar(target/w);}
-  let mx=0,my=0,cx=0,cy=0;const coarse=matchMedia('(pointer:coarse)').matches;addEventListener('pointermove',e=>{mx=(e.clientX/innerWidth-0.5);my=(e.clientY/innerHeight-0.5);});
-  function heroResize(){var w=canvas.clientWidth||innerWidth,h=canvas.clientHeight||innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);fit();}
-  addEventListener('resize',heroResize);heroResize();
-  const clock=new THREE.Clock();
-  let heroLast=0,heroAway=false,frozen=false,heroStart=0;function loop(now){if(coarse&&frozen)return;requestAnimationFrame(loop);if(coarse&&now-heroLast<55)return;heroLast=now||0;if(!heroStart)heroStart=now;updateFade(performance.now()/1000);if(window.scrollY>innerHeight*0.9){if(!heroAway){heroAway=true;clipEls.forEach(v=>{try{v.pause()}catch(_){}})}clock.getDelta();return;}if(heroAway){heroAway=false;clipEls.forEach(v=>{try{v.play().catch(()=>{})}catch(_){}})}const t=clock.elapsedTime;cx+=(mx-cx)*0.05;cy+=(my-cy)*0.05;group.rotation.y=coarse?0.06:(Math.sin(t*0.3)*0.26+cx*0.6);group.rotation.x=coarse?0:(Math.sin(t*0.22)*0.05-cy*0.4);group.position.y=coarse?0:Math.sin(t*0.7)*0.12;renderer.render(scene,camera);if(coarse&&!frozen&&((now-heroStart>3000&&clips.some(c=>c.ready))||now-heroStart>6000)){frozen=true;clipEls.forEach(v=>{try{v.pause()}catch(_){}});}}
-  loop();setTimeout(hideLoader,4000);
-}catch(err){console.warn('Logo 3D:',err);hideLoader();}
+  function show(i){ vids.forEach(function(v,k){ v.style.opacity = k===i?'1':'0'; }); }
+  // arranca en el primero que tenga cuadro disponible
+  var active=-1;
+  function firstReady(){ for(var k=0;k<vids.length;k++){ if(vids[k].readyState>=2) return k; } return -1; }
+  function boot(){ var r=firstReady(); if(r<0){ setTimeout(boot,180); return; } active=r; show(active); }
+  boot();
+  // crossfade cada 7s hacia el siguiente clip listo
+  var HOLD=7000;
+  var timer=setInterval(function(){
+    if(active<0) return;
+    var n=active;
+    for(var step=1; step<=vids.length; step++){ var c=(active+step)%vids.length; if(vids[c].readyState>=2){ n=c; break; } }
+    if(n===active) return;
+    if(vids[n].play) vids[n].play().catch(function(){});
+    active=n; show(active);
+  }, HOLD);
+  // pausa los videos al pasar el hero (ahorra batería)
+  var away=false;
+  addEventListener('scroll', function(){
+    var past=(window.scrollY||window.pageYOffset||0)>innerHeight*0.9;
+    if(past && !away){ away=true; vids.forEach(function(v){ try{v.pause()}catch(e){} }); }
+    else if(!past && away){ away=false; if(active>=0 && vids[active].play) vids[active].play().catch(function(){}); }
+  }, {passive:true});
+})();
 </script>
 
 </body></html>
