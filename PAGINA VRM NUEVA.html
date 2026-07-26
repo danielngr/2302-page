@@ -1633,7 +1633,7 @@ addEventListener('wheel',ev=>{
 
 let wWy=0;   // posición vertical suavizada de la ballena
 const baseWhaleScale=1;   // el modelo interno ya está escalado; el wrapper escala para la intro
-const INTRO_END=IS_PORTRAIT?0.06:0.06;     // intro mínimo: los aros aparecen enseguida (sin mapa ni dive vacío)
+const INTRO_END=IS_PORTRAIT?0.12:0.12;     // los aros suben con el scroll durante este tramo (rise orgánico) y luego arranca el carrusel
 const RINGS_END=0.82;    // aros conservan su vh absoluto (con #story más corto); salida compacta
 
 // ── Barra de reserva: poblar datos + comportamiento ──
@@ -2130,36 +2130,15 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
 
  // ── CÁMARA con DOLLY ZOOM (efecto Vertigo tipo Noomo) ──
  if(introT < 1){
-   const camFixed = new THREE.Vector3(0, 0, 13);   // fija mirando VRM de frente
-
-   // sin ballena en el intro: la cámara NO persigue nada → se queda encuadrando el VRM y aterriza a los aros
-   let follow = 0;
-   // aterrizaje: la cámara YA encuadra los aros desde el inicio (sin dive vacío) → los aros se sienten siempre presentes
-   let land = 1;
-
-   const behind = new THREE.Vector3(
-     _CENTERED ? 0 : (wrapper.position.x*0.55 - 0.5),   // móvil: centro EXACTO (sin offset ni seguimiento en x)
-     wrapper.position.y*0.6 + 0.5,
-     wrapper.position.z + 6.5
-   );
-   const ringsCam = new THREE.Vector3(CAM_SHIFT_X, 0, (IS_PORTRAIT?18:_CENTERED?15:17));
-   const camBehind = camFixed.clone().lerp(behind, follow);
-   camera.position.lerpVectors(camBehind, ringsCam, land);
-   camera.position.x += mx*0.4; camera.position.y -= my*0.3;
-
-   const lookBehind = new THREE.Vector3(0,0,0).lerp(wrapper.position, follow);
-   const lookRings = new THREE.Vector3(CAM_SHIFT_X, IS_PORTRAIT?-2.8:0, 0);
-   const lookTarget = lookBehind.clone().lerp(lookRings, land);
-   camera.lookAt(lookTarget);
-
-   // ── DOLLY ZOOM: durante la 1ª mitad (VRM protagonista), el FOV se ABRE mientras
-   //    la cámara mantiene el encuadre de VRM → el mundo se retuerce alrededor (Vertigo).
-   //    Se resuelve suave hacia el FOV normal al pasar a seguir la ballena.
-   const dz = Math.max(0, Math.min(1, introT/0.5));       // 0→1 en la primera mitad
-   const dzEased = Math.sin(dz*Math.PI*0.5);              // ease-out
-   const fovHero = 34, fovWide = 48;                      // vertigo más sutil (sin ballena que justifique un ángulo tan abierto)
-   const targetFov = fovHero + (fovWide-fovHero)*dzEased*(1-land);  // se resuelve al aterrizar a los aros
-   camera.fov += (targetFov - camera.fov)*0.1;
+   // ── LOS AROS SUBEN CON EL SCROLL ──
+   // La cámara mira nivelada a una altura _yOff: los aros (en y≈0) empiezan ABAJO del encuadre
+   // y, conforme scrolleas (introT 0→1), _yOff baja a 0 y los aros se ELEVAN al centro. Orgánico.
+   const _riseE = 1 - (introT*introT*(3-2*introT));        // 1 al inicio → 0 al aterrizar (suave)
+   const _yOff = _riseE * (IS_PORTRAIT ? 9.0 : 6.5);
+   const _lookY0 = IS_PORTRAIT ? -2.8 : 0;                 // continuidad EXACTA con la fase de aros
+   camera.position.set(CAM_SHIFT_X + mx*0.4, _yOff - my*0.3, (IS_PORTRAIT?18:_CENTERED?15:17));
+   camera.lookAt(CAM_SHIFT_X, _lookY0 + _yOff, 0);
+   camera.fov += ((IS_PORTRAIT?42:34) - camera.fov)*0.1;
    camera.updateProjectionMatrix();
  } else {
    const Zbase = (IS_PORTRAIT?18:_CENTERED?15:17);
