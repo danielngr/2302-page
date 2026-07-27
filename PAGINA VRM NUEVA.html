@@ -1338,13 +1338,14 @@ canvas.addEventListener('click__disabled',e=>{
 const {gsap,ScrollTrigger,Lenis}=window;
 gsap.registerPlugin(ScrollTrigger);
 const lenis=new Lenis({
-  lerp:0.09,
-  wheelMultiplier:0.5,
+  lerp:0.085,                   // glide suave y premium
+  wheelMultiplier:0.72,         // más responsivo al input (menos pesado) sin perder suavidad
+  smoothWheel:true,
   gestureOrientation:'vertical',
   syncTouch:true,
-  syncTouchLerp:0.10,           // respuesta natural (ni pesado ni ligero)
-  touchInertiaMultiplier:18,    // glide moderado
-  touchMultiplier:0.9           // seguimiento del dedo natural
+  syncTouchLerp:0.095,          // móvil: sigue el dedo fluido
+  touchInertiaMultiplier:22,    // glide un poco más largo (sensación premium)
+  touchMultiplier:1.0           // seguimiento del dedo 1:1
 });
 window.__lenis=lenis; lenis.scrollTo(0,{immediate:true}); addEventListener('load',()=>lenis.scrollTo(0,{immediate:true}));
 lenis.on('scroll',ScrollTrigger.update);
@@ -1416,7 +1417,7 @@ if(IS_PORTRAIT){
   },{passive:true});
 }
 // límite de velocidad de la columna: aunque scrollees rapidísimo, avanza a su ritmo
-const MAX_COL_SPEED=0.32;   // progreso máx por segundo del INTRO y la SALIDA (los aros usan su propio ritmo 0.6) — más alto = intro/salida más fluidos, menos lag
+const MAX_COL_SPEED=0.42;   // progreso máx por segundo del INTRO y la SALIDA — más alto = scroll rápido no se siente frenado/laggy (súper fluido)
 
 let mx=0,my=0;
 addEventListener('pointermove',e=>{ if(IS_MOBILE||e.pointerType==='touch') return; mx=e.clientX/innerWidth-0.5;my=e.clientY/innerHeight-0.5;},{passive:true});
@@ -1900,7 +1901,8 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    // móvil en fase de aros: el carrusel controla el ritmo → seguimiento DIRECTO (sin lag) = fluido premium
    const _inRingsM = IS_PORTRAIT && SPROG>INTRO_END-0.02 && SPROG<RINGS_END+0.005;
    const _inExitM = IS_PORTRAIT && SPROG >= RINGS_END-0.02;
-   const _lerp = _gap * (_inRingsM ? 0.22 : (_inExitM ? 0.16 : 0.13));   // aros: directo · salida: conectada · INTRO: más responsivo (0.13, antes 0.07 muy laggy)
+   const _inRings = SPROG>INTRO_END-0.02 && SPROG<RINGS_END+0.005;   // aros (desktop + móvil)
+   const _lerp = _gap * (_inRings ? 0.20 : (_inExitM ? 0.16 : 0.16));   // aros: seguimiento directo y fluido · intro/salida: responsivo (súper fluido, sin lag)
    // en la SALIDA (fase final) la cámara avanza mucho más lento por scroll → sin mareo
    const _spd = (SPROG >= RINGS_END-0.02) ? MAX_COL_SPEED*(IS_PORTRAIT?1.0:0.55) : (_inRingsM ? 0.6 : MAX_COL_SPEED);   // móvil: tope = velocidad del tween del leave (verificado numéricamente)
    const _cap = _spd * dt;                                      // tope por frame
@@ -2028,62 +2030,26 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  const activeF2 = _pmB*(ESTANCIAS.length-1);
  const frac = activeF2 - Math.floor(activeF2);
  const wyRings = Math.sin(frac * Math.PI) * 3.2;
- if(introT < 1){
-   // DURANTE LA INTRO: la ballena sigue el camino 3D (llega desde atrás, rodea VRM izq→der)
-   const wp=WHALEPATH.getPointAt(Math.min(0.999,Math.max(0.001,introT)));
-   const wtg=WHALEPATH.getTangentAt(Math.min(0.999,Math.max(0.001,introT)));
-   // mezcla suave hacia la posición de aros al final de la intro
-   const ringX=WORLD_SHIFT_X, ringY=wyRings;
-   let blend=Math.max(0,(introT-(IS_PORTRAIT?0.90:0.72))/(IS_PORTRAIT?0.10:0.28));        // móvil: gira al aro cuando YA regresó al cuadro
-   blend=blend*blend*(3-2*blend);                   // smoothstep → sin tirón
-   const fx=wp.x*(1-blend)+ringX*blend;
-   const fy=wp.y*(1-blend)+ringY*blend;
-   const fz=wp.z*(1-blend)+0*blend;
-   wWy=fy;
-   const _introStart=Math.max(0, 1 - introT/0.34);
-   const _heroLift = IS_PORTRAIT ? 1.6*_introStart : -2.4*_introStart;   // portrait: sube con el VRM · desktop: baja (libera la V)
-   // ── durante el MAPA (portrait): la ballena SALE DEL CUADRO nadando → el mapa se ve solo, sin competir.
-   //    Regresa nadando para centrarse en el primer aro. (calibrado: pico 0.58 u/paso, sin tirones)
-   var _mapOut = 0;
-   if(IS_PORTRAIT){
-     // ── SALIDA (nº que puedes tocar): DIVE_OUT = introT donde ya está fuera · DIVE_BACK = introT donde empieza a volver
-     const DIVE_OUT = 0.56, DIVE_BACK = 0.86;
-     const _o = Math.max(0,Math.min(1,(introT-0.34)/(DIVE_OUT-0.34)))          // se sumerge cuando el VRM y el filtro se van
-              * (1 - Math.max(0,Math.min(1,(introT-DIVE_BACK)/(1-DIVE_BACK)))); // vuelve a subir ya terminado el mapa
-     _mapOut = _o;   // LINEAL (uniforme): la ballena sale a velocidad constante, acorde al ritmo de cola/aletas — no acelerón en medio
-     if(window.__WE && !window.__WE.auto) _mapOut = 0;   // panel: salida automática apagada
-   }
-   _whaleExit = _mapOut;   // avisa al clamp de borde que la ballena está saliendo (0 en desktop → sin efecto)
-   // SALIDA: glide DIAGONAL abajo-izquierda + un poco AL FRENTE (profundidad), nunca al fondo, misma escala
-   // dirección del "fuera de cuadro": ABAJO-IZQUIERDA al SALIR → ARRIBA al VOLVER
-   // (mientras está invisible tras el mapa se reubica al tope, así entra al aro DESDE ARRIBA, no desde abajo)
-   const _dirMorph = (()=>{ const q=Math.max(0,Math.min(1,(introT-0.60)/0.22)); return q*q*(3-2*q); })();
-   const _rise  = Math.min(1, _dirMorph/0.5);            // 1ª mitad: SUBE quedándose a la izquierda (siempre fuera de cuadro)
-   const _slide = Math.max(0, (_dirMorph-0.5)/0.5);      // 2ª mitad: ya arriba del todo, se centra → baja al aro desde arriba
-   const _offX = -11.0*(1-_slide);                       // más lejos por la izquierda → ni la cola se asoma en la subida
-   const _offY = -13.0*(1-_rise) + 14.0*_rise;           // baja al salir, arriba al volver (trayectoria en L, nunca cruza el mapa)
-   wrapper.position.set(fx + Math.sin(t*0.15)*0.3 + _offX*_mapOut, fy + _heroLift + _offY*_mapOut, fz - _mapOut*1.5);
-   // ORIENTACIÓN: interpola suave de la tangente del camino (horizontal) → vertical hacia abajo
-   const tanHoriz=wtg.clone().normalize();                    // dirección del nado en el camino
-   const tanVert=new THREE.Vector3(Math.sin(t*0.15)*0.15,-1,0.15).normalize(); // hacia abajo (aros)
-   wtan.copy(tanHoriz).lerp(tanVert, blend).normalize();      // gira gradualmente al bajar
-   if(_mapOut > 0.02){
-     if(introT > 0.86){
-       // REGRESO: baja RECTA, nariz abajo, EXACTA misma pose que tendrá en el aro (no acostada, no a medio girar)
-       wtan.set(Math.sin(t*0.15)*0.15, -1, 0.15).normalize();
-     } else {
-       // SALIDA: gira en diagonal abajo-izquierda mientras nada (arco lento, sigue a _mapOut, sin snap)
-       _faceV.set(-4.2,-4.6,2.4).normalize();
-       wtan.copy(tanHoriz).lerp(_faceV, _mapOut).normalize();
-     }
-   }
-   const introScale=1+(1-introT)*0.15;              // ligeramente más grande al inicio (sin dominar)
-   wrapper.scale.setScalar(baseWhaleScale*introScale);   // misma escala al salir (se ve más grande al venir al frente)
+if(introT < 1){
+   // ── LA BALLENA ENTRA NADANDO DESDE ARRIBA y se posiciona en el aro ──
+   // fuera de cuadro (arriba) → desciende recta, nariz abajo, a VELOCIDAD CONSTANTE (lineal)
+   const _enter = Math.max(0, Math.min(1, (introT-0.45)/0.5));   // lineal → misma velocidad todo el descenso
+   const _ringY = wyRings;
+   const _fromY = _ringY + 15.0;                                 // arranca arriba del encuadre
+   const _wy = _fromY*(1-_enter) + _ringY*_enter;
+   wWy = _wy;                                                    // continuidad con la fase de aros
+   wrapper.position.set(WORLD_SHIFT_X + Math.sin(t*0.15)*0.3 + mx*0.3, _wy, 0);
+   wtan.set(Math.sin(t*0.15)*0.15, -1, 0.15).normalize();       // nariz hacia abajo (nadando hacia el aro)
+   wrapper.scale.setScalar(baseWhaleScale);
  } else {
-   // EN LOS AROS: nado original (asentándose en cada aro)
-   wWy += (wyRings - wWy) * (IS_PORTRAIT?0.18:0.1);   // móvil: nado conectado al carrusel (una sola capa de suavizado dominante)
-   let _wx = WORLD_SHIFT_X + Math.sin(t*0.15)*0.4 + mx*0.3, _wy = wWy, _wz = 0.0;
-   wtan.set(Math.sin(t*0.15)*0.15, -1, 0.15).normalize();
+   // ── EN LOS AROS: la ballena nada con VIDA PROPIA, bien encuadrada en el aro ──
+   wWy += (wyRings - wWy) * (IS_PORTRAIT?0.18:0.12);                 // sigue el bob del carrusel (suave)
+   const _bob   = Math.sin(t*0.55)*0.40 + Math.sin(t*0.24)*0.20;    // respira arriba/abajo (dos ondas → nunca mecánico)
+   const _drift = Math.sin(t*0.15)*0.5 + Math.sin(t*0.38)*0.16;     // deriva horizontal orgánica
+   const _sway  = Math.sin(t*0.31)*0.34;                            // vaivén sutil en profundidad
+   let _wx = WORLD_SHIFT_X + _drift + mx*0.3, _wy = wWy + _bob, _wz = _sway;
+   // orientación: nariz abajo pero con CABECEO y guiñada suaves → parece nadar, no colgar rígida
+   wtan.set(Math.sin(t*0.15)*0.20 + Math.cos(t*0.27)*0.10, -1, 0.15 + Math.sin(t*0.42)*0.12).normalize();
    if(qCard>0){
      // ── SALIDA: la ballena baja RECTA vertical (nariz abajo) desde el aro; el aro sube al mismo tiempo ──
      const bIn=Math.min(1,qCard/0.34), bi=bIn*bIn*(3-2*bIn);   // entrada a la pose de salida MUY gradual (Noomo: sin brinco)
@@ -2102,13 +2068,13 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
  }
  mLook.lookAt(new THREE.Vector3(0,0,0),wtan,UP);qT.setFromRotationMatrix(mLook);
  wrapper.quaternion.slerp(qT, introT<1?((IS_PORTRAIT&&introT>0.86)?0.16:0.08):(qCard>0?(IS_PORTRAIT?0.10:0.06):(IS_PORTRAIT?0.10:0.05)));   // móvil: al bajar al aro alinea más rápido → llega RECTA
- wrapper.visible = (introT>=1) && (qCard < window.__finalTune.whaleHideQ);   // EXPERIMENTO: la ballena SOLO en los aros (oculta en todo el intro)
+ wrapper.visible = (introT > 0.45) && (qCard < window.__finalTune.whaleHideQ);   // visible desde que entra nadando por arriba (no aparece de la nada)
  // ── NADO: INTRO y SALIDA acoplados al SCROLL (aletas/cola avanzan al scrollear) · AROS aletea solo ──
  if(swimAction){
    if(introT>=1 && qCard<=0){
-     // SOLO EN LOS AROS: aletea/cola por sí sola, continua (vida propia)
+     // SOLO EN LOS AROS: aletea/cola por sí sola, continua y con RESPIRACIÓN (nunca velocidad plana)
      if(swimAction.paused) swimAction.paused=false;
-     swimAction.timeScale=1.15;
+     swimAction.timeScale = 1.06 + Math.sin(t*0.5)*0.16;   // 0.9–1.22: el nado respira, se siente vivo
      mixer.update(dt);
    } else {
      // INTRO y SALIDA: nada CONTINUAMENTE (cola/aletas SIEMPRE en movimiento) y más rápido cuando avanza más
@@ -2133,7 +2099,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) clock.ge
    // ── LOS AROS SUBEN CON EL SCROLL ──
    // La cámara mira nivelada a una altura _yOff: los aros (en y≈0) empiezan ABAJO del encuadre
    // y, conforme scrolleas (introT 0→1), _yOff baja a 0 y los aros se ELEVAN al centro. Orgánico.
-   const _riseE = 1 - (introT*introT*(3-2*introT));        // 1 al inicio → 0 al aterrizar (suave)
+   const _riseE = 1 - introT;                             // LINEAL → los aros suben a velocidad constante
    const _yOff = _riseE * (IS_PORTRAIT ? 9.0 : 6.5);
    const _lookY0 = IS_PORTRAIT ? -2.8 : 0;                 // continuidad EXACTA con la fase de aros
    camera.position.set(CAM_SHIFT_X + mx*0.4, _yOff - my*0.3, (IS_PORTRAIT?18:_CENTERED?15:17));
