@@ -6310,16 +6310,17 @@ function animate(time) {
   const t = clock.getElapsedTime();
 
   if (mixer) {
-    // Nado reactivo: crucero lento en reposo, braceo más potente al scrollear (suavizado)
-    const _y = window.scrollY || 0;
-    const _ly = window.__lastY ?? _y;
-    const yVel = Math.min(1.4, Math.abs(_y - _ly) * 0.004);
-    window.__lastY = _y;
-    const _cruise = 0.85 + Math.sin(t * 0.45) * 0.10;   // el crucero RESPIRA (aletea con vaivén, no plano)
-    window.__swimTS = (window.__swimTS ?? 0.85) + ((_cruise + yVel) - (window.__swimTS ?? 0.85)) * 0.04;
+    // ══ CONGRUENCIA ALETAS/COLA ══ el aleteo bate al ritmo de la VELOCIDAD REAL de nado:
+    // planea lento cuando glisa, bate fuerte cuando avanza. Nunca se detiene (vida en reposo).
+    const _spd = window.__whaleSpeed || 0;                       // velocidad world-space (u/s), suavizada
+    const _idle = 0.50 + Math.sin(t * 0.5) * 0.07;               // aleteo de reposo: lento y respirando
+    const _beat = _idle + Math.min(2.4, _spd * 0.85);            // + impulso proporcional al avance real
+    window.__swimTS = (window.__swimTS ?? 0.85) + (_beat - (window.__swimTS ?? 0.85)) * 0.06;
     mixer.timeScale = window.__swimTS;
     mixer.update(dt);
   }
+  // factor de flexión del cuerpo según velocidad: glisa recto / serpentea al nadar fuerte
+  const _swimFlex = 0.55 + Math.min(1.15, (window.__whaleSpeed || 0) * 0.55);
   waterTexture.update();
   bgMaterial.uniforms.uTime.value = t;
 
@@ -6377,9 +6378,10 @@ function animate(time) {
   // Estos valores SIEMPRE están activos (la ballena vive incluso quieta).
   // Amplitudes pequeñas (≤0.04u/0.03rad) para que sea sutil, no payaso.
   // ════════════════════════════════════════════════════════════════════
+  // amplitud de flex ligada a la velocidad (_swimFlex): recto al glisar, serpenteo al nadar fuerte
   const dorsalBob = (Math.sin(t * 0.55 + 1.9) + Math.sin(t * 0.31 + 0.7) * 0.5) * 0.020;
-  const tailUndulation = (Math.sin(t * 0.85 + 0.4) + Math.sin(t * 1.35 + 2.1) * 0.45) * 0.042;  // onda 2ª → serpenteo orgánico, no mecánico
-  const bodyYaw = Math.sin(t * 0.70 + 1.2) * 0.030;    // guiñada suave del cuerpo: NADA, no flota
+  const tailUndulation = (Math.sin(t * 0.85 + 0.4) + Math.sin(t * 1.35 + 2.1) * 0.45) * 0.048 * _swimFlex;  // cola: onda 2ª + escala con velocidad
+  const bodyYaw = Math.sin(t * 0.70 + 1.2) * 0.034 * _swimFlex;    // guiñada del cuerpo: NADA, no flota
   const microShimmer = Math.sin(t * 2.1 + 4.3) * 0.005;
   const cinematicRoll = Math.sin(t * 0.50 + 2.7) * 0.030;   // balanceo cinematográfico más amplio y lento
 
@@ -6459,11 +6461,29 @@ function animate(time) {
     //     en el espacio (la ballena rodea, no rota sobre su eje)
     //   - El lookahead grande (15%) hace que la rotación se distribuya
     //     a lo largo de la curva, nunca se concentra en un punto
-    const futureSp = Math.min(1.0, sp + 0.15);
+    // Rumbo = tangente REAL de avance (lookahead corto) → la cabeza SIEMPRE
+    // apunta hacia donde de verdad va. Nunca de espaldas, nunca en reversa.
+    const futureSp = Math.min(1.0, sp + 0.05);
     const futurePose = getPathPoint(WHALE_PATH, futureSp);
     swimDx = futurePose.x - heroPathPose.x;
     swimDy = futurePose.y - heroPathPose.y;
     swimDz = futurePose.z - heroPathPose.z;
+
+    // ══ GARANTÍA NO-REVERSA ══ si por suavizado/curva el rumbo se opone a la
+    // tangente inmediata del camino, lo alineamos con ella. La ballena JAMÁS
+    // retrocede: la cabeza siempre encara la dirección real de avance.
+    {
+      const nearSp = Math.min(1.0, sp + 0.015);
+      const nearPose = getPathPoint(WHALE_PATH, nearSp);
+      let tx = nearPose.x - heroPathPose.x, ty = nearPose.y - heroPathPose.y, tz = nearPose.z - heroPathPose.z;
+      const tl = Math.hypot(tx, ty, tz);
+      if (tl > 1e-5) {
+        tx /= tl; ty /= tl; tz /= tl;
+        const sl = Math.hypot(swimDx, swimDy, swimDz) || 1;
+        const dot = (swimDx * tx + swimDy * ty + swimDz * tz) / sl;
+        if (dot < 0.30) { swimDx = tx; swimDy = ty; swimDz = tz; }  // rumbo alineado con el avance
+      }
+    }
 
     // ═══════════════════════════════════════════════════════════════════
     // FROZEN HERO POSE — Ballena quieta de frente cuando NO has scrolleado
@@ -6541,6 +6561,21 @@ function animate(time) {
   whaleGroup.position.x += (finalX - whaleGroup.position.x) * posLerp;
   whaleGroup.position.y += (finalY - whaleGroup.position.y) * posLerp;
   whaleGroup.position.z += (finalZ - whaleGroup.position.z) * posLerp;
+
+  // ══ VELOCIDAD REAL DE NADO (world-space) ══ alimenta la congruencia del aleteo y la flexión del cuerpo
+  {
+    const _lp = window.__lastWhalePos;
+    if (_lp) {
+      const _dx = whaleGroup.position.x - _lp.x, _dy = whaleGroup.position.y - _lp.y, _dz = whaleGroup.position.z - _lp.z;
+      const _inst = Math.hypot(_dx, _dy, _dz) / Math.max(dt, 0.001);
+      window.__whaleSpeed = (window.__whaleSpeed || 0) + (_inst - (window.__whaleSpeed || 0)) * 0.10;  // suavizado → sin saltos
+    } else {
+      window.__lastWhalePos = { x: 0, y: 0, z: 0 };
+    }
+    window.__lastWhalePos.x = whaleGroup.position.x;
+    window.__lastWhalePos.y = whaleGroup.position.y;
+    window.__lastWhalePos.z = whaleGroup.position.z;
+  }
 
   // ════════════════════════════════════════════════════════════════════
   // APLICAR ROTACIÓN — quaternion target directo (sin capa intermedia).
