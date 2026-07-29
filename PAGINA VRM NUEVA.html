@@ -4683,8 +4683,10 @@
       .cgal-price{ margin-top:11px; font-family:var(--font-display,Georgia,serif); color:#ECE7DD; }
       .cgal-price b{ font-size:19px; font-weight:500; }
       .cgal-price span{ font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#7f90a8; font-family:var(--font-body,system-ui); }
+      /* ★ SIN backdrop-filter: 16 blurs vivos sobre el canvas WebGL fijo hacían
+         parpadear el compositor en esta sección. Fondo sólido = mismo look, cero flicker. */
       .cgal-badge{ position:absolute; top:13px; left:13px; z-index:3; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
-        color:#ECE7DD; background:rgba(4,7,14,.5); border:1px solid rgba(150,180,220,.18); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+        color:#ECE7DD; background:rgba(6,11,22,.78); border:1px solid rgba(150,180,220,.18);
         padding:5px 11px; border-radius:30px; font-family:var(--font-body,system-ui); }
       .cgal-cta{ margin-top:15px; display:inline-block; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:#ECE7DD;
         border:1px solid rgba(150,180,220,.2); padding:9px 18px; border-radius:30px; text-decoration:none;
@@ -4693,8 +4695,8 @@
       .cgal-cta:hover{ background:#E1885E; border-color:#E1885E; color:#0a0f18; }
       .cgal-ctrls{ display:flex; align-items:center; justify-content:center; gap:14px; margin-top:16px; }
       .cgal-ctrls button{ width:46px; height:46px; border-radius:50%; border:1px solid rgba(150,180,220,.16);
-        background:rgba(14,26,46,.42); color:#ECE7DD; cursor:pointer; font-size:18px; display:grid; place-items:center;
-        backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); transition:.22s cubic-bezier(.22,.61,.36,1); }
+        background:rgba(14,26,46,.78); color:#ECE7DD; cursor:pointer; font-size:18px; display:grid; place-items:center;
+        transition:.22s cubic-bezier(.22,.61,.36,1); }
       .cgal-ctrls button:hover{ border-color:#E1885E; color:#E1885E; transform:translateY(-2px); }
       .cgal-dots{ display:flex; gap:9px; align-items:center; }
       .cgal-dots i{ width:7px; height:7px; border-radius:50%; background:rgba(150,180,220,.28); cursor:pointer; transition:.25s cubic-bezier(.22,.61,.36,1); }
@@ -7114,14 +7116,14 @@ function animate(time) {
     }
     if (fOp > 0.001) {
       frontCanvas.style.opacity = String(fOp);
-      // ★ Igualar el tono con el velo: la ballena principal se ve a través del
-      // dive-veil (oscurecida por profundidad). El overlay aplica el MISMO
-      // oscurecimiento vía brightness → cero salto de tono al pasar al frente.
-      const _veilNow = Math.min(0.62, Math.max(0, (sp - 0.06) * 2.0));
-      frontCanvas.style.filter = 'brightness(' + (1 - _veilNow).toFixed(3) + ')';
+      // ★ CRISTAL BRILLANTE en la pasada — sin filtro oscuro. La ballena entra
+      // y sale de la ventana FUERA de pantalla (x ±3.8, bordes), así que el
+      // cambio de brillo respecto a su versión velada nunca ocurre a la vista:
+      // en cuadro solo se ve el cristal luminoso cruzando por delante.
       ensureFrontRenderer().render(scene, camera);
     } else if (frontCanvas.style.opacity !== '0') {
       frontCanvas.style.opacity = '0';
+      frontCanvas.style.filter = '';
     }
   }
 
