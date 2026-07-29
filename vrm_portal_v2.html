@@ -3786,6 +3786,9 @@
       'ALMAR 101': 'DELTA 2 101',
       'ALAMAR CABO 903': 'ALAMAR 903',
       'CABO 903': 'ALAMAR 903',
+      'MARITIMA GOLF LW1': 'MARITIMA GOLF LW1B',
+      'MARITIMA GOLF LW 1': 'MARITIMA GOLF LW1B',
+      'MARITIMA GOLF LW1 B': 'MARITIMA GOLF LW1B',
     };
 
     function getTmpl(depto) {
@@ -4337,7 +4340,15 @@
             function matchReg(depto){
                 // Normaliza guiones y espacios como equivalentes para que
                 // "TULES 20-105" empareje con "TULES 20 105" (y viceversa).
-                const norm = s => (s||'').toUpperCase().replace(/[-\s]+/g,' ').trim();
+                // Además aplica REG_DEPTO_ALIAS a AMBOS lados para que una variante
+                // del Sheet ("ARIA 1001", "MARITIMA GOLF LW1") empareje con el
+                // registro guardado en Supabase con el nombre canónico.
+                const canon = s => {
+                    let u = (s||'').toUpperCase().trim();
+                    if (REG_DEPTO_ALIAS.hasOwnProperty(u)) u = REG_DEPTO_ALIAS[u];
+                    return u;
+                };
+                const norm = s => canon(s).replace(/[-\s]+/g,' ').trim();
                 const d = norm(depto);
                 return todosRegistros.find(x=>{
                     const xd = norm(x.depto);
