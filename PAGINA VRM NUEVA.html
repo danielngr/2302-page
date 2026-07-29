@@ -4778,11 +4778,11 @@
       // ── COVERFLOW por índice — la casa central grande y derecha, las vecinas
       //   inclinadas con perspectiva a los lados, las lejanas apiladas y difuminadas.
       //   Robusto para 16 casas: siempre se ven ~3-5 limpias como en la referencia.
-      const GAP1  = isMob ? 205 : 300;   // separación centro → primera vecina
-      const GAP2  = isMob ? 46  : 66;    // separación de las siguientes (se apilan)
-      const ROT   = isMob ? 46  : 52;    // inclinación de las vecinas (grados)
-      const DEPTH = isMob ? 90  : 130;   // z que retroceden por paso
-      const MAXV  = 3.4;                 // cuántas se ven a cada lado antes de desvanecerse
+      const GAP1  = isMob ? 150 : 212;   // vecina PEGADA al centro (se traslapa → banda continua)
+      const GAP2  = isMob ? 38  : 56;    // las siguientes se apilan cerca
+      const ROT   = isMob ? 36  : 42;    // inclinación suave (más frontal, como la referencia)
+      const DEPTH = isMob ? 66  : 94;    // poco retroceso → cilindro continuo, centro no domina
+      const MAXV  = 3.0;                 // cuántas se ven a cada lado antes de desvanecerse
 
       let manualI = 0;     // índice objetivo (flechas/puntos/click/arrastre)
       let parF = 0;        // parallax de scroll en unidades de tarjeta (vida, no control)
@@ -4812,10 +4812,11 @@
           const x  = sign * (Math.min(ar,1)*GAP1 + Math.max(0,cl-1)*GAP2);
           const ry = -sign * Math.min(ar,1) * ROT;
           const tz = -cl * DEPTH;
-          const sc = Math.max(0.72, 1 - ar*0.07);
+          const sc = Math.max(0.82, 1 - ar*0.045);        // poca diferencia de tamaño
           c.style.transform = 'translateX('+x.toFixed(1)+'px) translateZ('+tz.toFixed(1)+'px) rotateY('+ry.toFixed(1)+'deg) scale('+sc.toFixed(3)+')';
-          c.style.opacity = (ar > MAXV+0.6 ? 0 : Math.max(0.16, 1 - ar/ (MAXV+0.8))).toFixed(2);
-          c.style.filter = 'brightness('+(0.6 + 0.4*Math.max(0,1-ar/2.2)).toFixed(2)+')';
+          // centro + primeras vecinas OPACAS (como la referencia); recién a lo lejos se desvanecen
+          c.style.opacity = (ar < 1.5 ? 1 : Math.max(0, 1 - (ar-1.5)/1.7)).toFixed(2);
+          c.style.filter = 'brightness('+(0.8 + 0.2*Math.max(0,1-ar/3)).toFixed(2)+')';
           c.style.zIndex = Math.round(200 - ar*12);
           c.classList.toggle('cgal-front', ar < 0.5);
           if(ar < best){ best = ar; frontI = i; }
