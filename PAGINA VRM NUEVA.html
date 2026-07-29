@@ -569,27 +569,27 @@
      (Antes el velo tapaba a la ballena y al subirla al frente cambiaba de tono.) */
   #dive-veil{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;
     background:linear-gradient(180deg,#04070E 0%,#02050C 100%);will-change:opacity}
-  /* Fondo de agua — siempre detrás de todo. */
-  .bg-canvas {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
-  }
-
   .whale-canvas {
     position: fixed;
     inset: 0;
-    z-index: 2;            /* sobre el velo (z1), bajo el contenido (z3+). JS lo sube en la pasada frontal. */
+    z-index: 1;            /* fondo+ballena juntos, bajo el contenido (z3+). */
     pointer-events: none;
     width: 100vw;
     height: 100vh;
     height: 100dvh;
     transition: opacity 0.6s var(--ease-soft);
-    will-change: z-index;
+  }
+
+  /* Overlay de la pasada frontal — encima de TODO, solo activo en la ventana. */
+  .whale-front {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    pointer-events: none;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    opacity: 0;
   }
 
   /* Aurora pastel + sol blanco central — AHORA renderizada dentro de Three.js
@@ -4356,14 +4356,15 @@
     <div class="loader-meta">Vacation Rental México</div>
   </div>
 
-  <!-- ★ Fondo de agua (god rays + caustics) — canvas PROPIO, siempre detrás de todo (z0). -->
-  <canvas class="bg-canvas" id="bg-canvas" aria-hidden="true"></canvas>
-
-  <!-- ★ Ballena — canvas TRANSPARENTE e independiente. Su z-index se anima:
-       normalmente z1 (detrás del contenido), y en UN momento del scroll sube por
-       ENCIMA DE TODO (nav, whatsapp, texto) para la pasada frontal. Como es el MISMO
-       render en ambos estados, NO cambia la textura: solo cambia la capa de composición. -->
+  <!-- ★ Canvas ÚNICO opaco (fondo de agua + ballena en el MISMO contexto, como
+       el pipeline original estable). El velo de profundidad se aplica DENTRO
+       del render, entre el fondo y la ballena → tono continuo sin capas extra. -->
   <canvas class="whale-canvas" id="whale-canvas"></canvas>
+
+  <!-- ★ Overlay de la PASADA FRONTAL — canvas transparente por ENCIMA de todo,
+       que solo se dibuja durante la ventana de la pasada (mismo render de la
+       ballena → idéntica textura). Fuera de la ventana: opacity 0 y sin render. -->
+  <canvas class="whale-front" id="whale-front" aria-hidden="true"></canvas>
 
   <!-- Velo de inmersión: el fondo se hunde a aguas profundas al scrollear (z2: sobre ballena z1, bajo contenido z3) -->
   <div id="dive-veil" aria-hidden="true"></div>
@@ -5075,36 +5076,42 @@ const camera = new THREE.PerspectiveCamera(
 // Cámara más alejada en mobile para que la ballena entre completa
 camera.position.set(0, 0.5, isMobile ? 13 : 9);
 
-// ★ Renderer de la BALLENA — alpha:true para que el canvas sea TRANSPARENTE
-// (solo se ve la ballena; el resto deja pasar lo que haya detrás: el fondo de
-// agua cuando está en z1, o el contenido cuando sube por encima en la pasada).
+// ★ Renderer PRINCIPAL — canvas ÚNICO Y OPACO (fondo de agua + ballena en el
+// mismo contexto WebGL, como el pipeline original que siempre fue estable).
+// Cero canvas transparentes en estado normal = cero parpadeo de composición.
 const renderer = new THREE.WebGLRenderer({
   canvas,
   antialias: true,
-  alpha: true,
   powerPreference: 'high-performance'
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setClearColor(0x000000, 0);          // fondo transparente
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 
-// ★ Renderer del FONDO de agua — su propio canvas OPACO, siempre detrás (z0).
-// Separar el fondo de la ballena es lo que permite componer la ballena sola
-// sobre el HTML sin arrastrar el fondo.
-const bgCanvas = document.getElementById('bg-canvas');
-const bgRenderer = new THREE.WebGLRenderer({
-  canvas: bgCanvas,
+// ★ Renderer de la PASADA FRONTAL — overlay transparente que SOLO se dibuja
+// durante la ventana de la pasada (~5% del scroll). El resto del tiempo está
+// a opacity 0 y sin renderizar: no participa en la composición.
+const frontCanvas = document.getElementById('whale-front');
+const frontRenderer = new THREE.WebGLRenderer({
+  canvas: frontCanvas,
   antialias: true,
+  alpha: true,
   powerPreference: 'high-performance'
 });
-bgRenderer.setSize(window.innerWidth, window.innerHeight);
-bgRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-bgRenderer.outputColorSpace = THREE.SRGBColorSpace;
-bgRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-bgRenderer.toneMappingExposure = 1.05;
+frontRenderer.setSize(window.innerWidth, window.innerHeight);
+frontRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+frontRenderer.setClearColor(0x000000, 0);
+frontRenderer.outputColorSpace = THREE.SRGBColorSpace;
+frontRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+frontRenderer.toneMappingExposure = 1.05;
+
+// ★ VELO INTERNO — quad negro que se dibuja ENTRE el fondo y la ballena:
+// oscurece SOLO el agua (profundidad) y la ballena queda siempre brillante.
+const dimScene = new THREE.Scene();
+const dimMat = new THREE.MeshBasicMaterial({ color: 0x02050C, transparent: true, opacity: 0, depthTest: false, depthWrite: false });
+dimScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), dimMat));
 
 /* ============================================================
    ENVIRONMENT MAP — Canvas procedural pasado por PMREMGenerator
@@ -5852,11 +5859,16 @@ const FRONT_PASS_IN   = 0.615;   // entra por la izquierda → sube por encima d
 const FRONT_PASS_OUT  = 0.700;   // sale por la derecha → vuelve detrás del contenido
 window.__whaleInFront = false;
 
-// NOTA: el composer (bloom/CA) queda declarado por compatibilidad pero ya
-// NO se usa para renderizar — la ballena se dibuja nativa sobre alpha para
-// que el canvas sea realmente transparente. El fondo va en su propio canvas.
+// ★ PIPELINE ORIGINAL RESTAURADO: composer en el canvas único opaco —
+// fondo → velo interno (oscurece solo el agua) → ballena → bloom → CA.
+// Es exactamente el camino de render que siempre fue estable, con el velo
+// como pase intermedio para el tono continuo de la ballena.
 const bgRenderPass = new RenderPass(bgScene, bgCamera);
 composer.addPass(bgRenderPass);
+
+const dimPass = new RenderPass(dimScene, bgCamera);
+dimPass.clear = false;
+composer.addPass(dimPass);
 
 const renderPass = new RenderPass(scene, camera);
 renderPass.clear = false;
@@ -7084,33 +7096,39 @@ function animate(time) {
     aurora.style.opacity = String(Math.max(0, Math.min(1, auroraOp)));
   }
 
-  // Velo de inmersión: se oscurece con el scroll (superficie → profundidad)
+  // Velo de inmersión: AHORA se aplica DENTRO del render (dimScene, entre el
+  // fondo y la ballena). El div DOM queda neutralizado para no velar la ballena.
   const dv = window.__diveVeil || (window.__diveVeil = document.getElementById('dive-veil'));
-  if (dv) dv.style.opacity = String(Math.min(0.62, Math.max(0, (sp - 0.06) * 2.0)));
+  if (dv && dv.style.opacity !== '0') dv.style.opacity = '0';
 
   canvas.style.opacity = '1';
 
   // ════════════════════════════════════════════════════════════════════
-  // RENDER — dos canvas independientes:
-  //   1) bgRenderer → fondo de agua (canvas opaco, siempre z0, detrás de todo)
-  //   2) renderer   → SOLO la ballena sobre transparente (canvas z1..top)
-  // La ballena se compone sobre lo que tenga detrás (fondo o contenido) según
-  // su z-index. El render es IDÉNTICO en ambos estados → nunca cambia la textura.
+  // RENDER — pipeline ORIGINAL (composer, canvas único opaco):
+  // fondo → velo interno (solo el agua) → ballena → bloom → aberración.
   // ════════════════════════════════════════════════════════════════════
-  bgRenderer.render(bgScene, bgCamera);
-  renderer.render(scene, camera);
+  dimMat.opacity = Math.min(0.62, Math.max(0, (sp - 0.06) * 2.0));
+  composer.render();
 
   // ════════════════════════════════════════════════════════════════════
-  // ★ PASADA FRONTAL — subir el canvas de la ballena por ENCIMA DE TODO
+  // ★ PASADA FRONTAL — overlay transparente por ENCIMA de todo, solo en la
+  // ventana. Renderiza la MISMA escena/cámara → textura idéntica; el fade
+  // en los bordes de la ventana hace la transición imperceptible.
   // ════════════════════════════════════════════════════════════════════
-  // En la ventana de scroll de la embestida (CH5), el canvas de la ballena
-  // sube su z-index por arriba de nav (99999) y whatsapp (9990) → la ballena
-  // cruza literalmente por delante de TODO. Fuera de la ventana vuelve a z1
-  // (detrás del contenido). Al ser el MISMO render, no hay salto de textura.
-  const inFrontPass = (sp > FRONT_PASS_IN && sp < FRONT_PASS_OUT);
-  if (inFrontPass !== window.__whaleInFront) {
-    window.__whaleInFront = inFrontPass;
-    canvas.style.zIndex = inFrontPass ? '2147483000' : '2';
+  {
+    let fOp = 0;
+    const FADE = 0.014;
+    if (sp > FRONT_PASS_IN && sp < FRONT_PASS_OUT) {
+      const eIn = Math.min(1, (sp - FRONT_PASS_IN) / FADE);
+      const eOut = Math.min(1, (FRONT_PASS_OUT - sp) / FADE);
+      fOp = Math.min(eIn, eOut);
+    }
+    if (fOp > 0.001) {
+      frontCanvas.style.opacity = String(fOp);
+      frontRenderer.render(scene, camera);
+    } else if (frontCanvas.style.opacity !== '0') {
+      frontCanvas.style.opacity = '0';
+    }
   }
 
   requestAnimationFrame(animate);
@@ -7132,7 +7150,7 @@ window.addEventListener('resize', () => {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
-  bgRenderer.setSize(w, h);
+  frontRenderer.setSize(w, h);
   composer.setSize(w, h);
   bgMaterial.uniforms.uResolution.value.set(w, h);
 });
