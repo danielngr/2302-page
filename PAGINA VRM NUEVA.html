@@ -564,10 +564,8 @@
   }
   /* No body background extra — confiamos en var(--ink) directo */
 
-  /* ★ z1: el velo oscurece SOLO el agua de fondo (z0). La ballena vive en z2,
-     por ENCIMA del velo → su brillo es idéntico delante o detrás del contenido.
-     (Antes el velo tapaba a la ballena y al subirla al frente cambiaba de tono.) */
-  #dive-veil{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;
+  /* EXACTO a index6: velo z2 sobre la ballena (z1), bajo el contenido (z3+). */
+  #dive-veil{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;
     background:linear-gradient(180deg,#04070E 0%,#02050C 100%);will-change:opacity}
   .whale-canvas {
     position: fixed;
@@ -5107,11 +5105,7 @@ frontRenderer.outputColorSpace = THREE.SRGBColorSpace;
 frontRenderer.toneMapping = THREE.ACESFilmicToneMapping;
 frontRenderer.toneMappingExposure = 1.05;
 
-// ★ VELO INTERNO — quad negro que se dibuja ENTRE el fondo y la ballena:
-// oscurece SOLO el agua (profundidad) y la ballena queda siempre brillante.
-const dimScene = new THREE.Scene();
-const dimMat = new THREE.MeshBasicMaterial({ color: 0x02050C, transparent: true, opacity: 0, depthTest: false, depthWrite: false });
-dimScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), dimMat));
+// (velo interno eliminado — el velo vuelve a ser el div DOM, exacto a index6)
 
 /* ============================================================
    ENVIRONMENT MAP — Canvas procedural pasado por PMREMGenerator
@@ -5644,27 +5638,26 @@ const PHYSICAL_PARAMS = {
   // ★ Color base: AZUL fuerte saturado (más vibrante que antes)
   color: 0x70a8d8,
   
-  // ★ TRANSMISSION DESACTIVADA — su pase interno hace un GRAB del framebuffer
-  // cada frame; sobre el canvas transparente ese grab es inestable en GPU real
-  // (parpadeo de colores). El look cristal se mantiene por envMap + iridescencia
-  // + clearcoat + facetas: en fondo oscuro la contribución del vidrio era ~nula.
-  transmission: 0.0,
+  // ★ TRANSMISIÓN 0.30 — bajamos para que el AZUL del cristal domine
+  // Si transmission es muy alto, el cristal se vuelve "vidrio transparente"
+  // y pierde el color. Bajando se mantiene el cuerpo azul saturado.
+  transmission: 0.30,
+  thickness: 1.2,
   ior: 1.7,
+  attenuationColor: 0x3070a8,    // ★ azul profundo saturado — el cristal SE TIÑE azul fuerte por dentro
+  attenuationDistance: 0.7,       // ★ menor distancia = tinte más concentrado
   
-  // ★ IRIDESCENCIA CALMADA — con el modelo SIEMPRE animado (aletas/cola), el
-  // skinning cambia los normales de las facetas cada frame; con iridescence
-  // alta y rango ancho el TONO saltaba por faceta (estrobo de colores).
-  // Menos intensidad + rango angosto = sheen iridiscente estable, sin popping.
-  iridescence: 0.40,
+  // ★ IRIDESCENCIA — flash arcoíris sutil en las facetas
+  iridescence: 0.7,
   iridescenceIOR: 1.4,
-  iridescenceThicknessRange: [360, 560],
-
-  // ★ CLEARCOAT con micro-rugosidad — brillos un pelo más anchos y estables
+  iridescenceThicknessRange: [300, 700],
+  
+  // ★ CLEARCOAT máximo — barniz perfecto sobre las facetas
   clearcoat: 1.0,
-  clearcoatRoughness: 0.06,
-
-  metalness: 0.30,                // reflejos definidos sobre azul saturado
-  roughness: 0.11,                // ★ subido de 0.05: highlights menos "aguja" → sin titileo
+  clearcoatRoughness: 0.0,
+  
+  metalness: 0.30,                // ★ subido — reflejos más definidos sobre azul saturado
+  roughness: 0.05,
   
   // ★ NO normalMap — las facetas reales del flat shading reemplazan al normal
   // map procedural. Combinar ambos ensucia el look (compiten por simular relieve).
@@ -5862,16 +5855,9 @@ const FRONT_PASS_IN   = 0.615;   // entra por la izquierda → sube por encima d
 const FRONT_PASS_OUT  = 0.700;   // sale por la derecha → vuelve detrás del contenido
 window.__whaleInFront = false;
 
-// ★ PIPELINE ORIGINAL RESTAURADO: composer en el canvas único opaco —
-// fondo → velo interno (oscurece solo el agua) → ballena → bloom → CA.
-// Es exactamente el camino de render que siempre fue estable, con el velo
-// como pase intermedio para el tono continuo de la ballena.
+// ★ PIPELINE EXACTO A index6: fondo → ballena → bloom → CA en el composer.
 const bgRenderPass = new RenderPass(bgScene, bgCamera);
 composer.addPass(bgRenderPass);
-
-const dimPass = new RenderPass(dimScene, bgCamera);
-dimPass.clear = false;
-composer.addPass(dimPass);
 
 const renderPass = new RenderPass(scene, camera);
 renderPass.clear = false;
@@ -5883,10 +5869,9 @@ composer.addPass(renderPass);
 // brillantes (chispas) pero NO en zonas amplias de iridescencia.
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.16,   // ★ bajado de 0.26: el bloom acompaña, no estroboscopea
-  0.75,   // radio un poco más amplio = glow suave, no chispa dura
-  0.92    // ★ umbral subido de 0.84: los destellos de facetas animadas ya no
-          //   entran/salen del bloom cada frame (eso era parte del parpadeo)
+  0.26,   // strength bajado — sin flash cegador
+  0.65,   // radius bajado — más localizado
+  0.84    // threshold alto — solo los highlights más puntuales brillan
 );
 composer.addPass(bloomPass);
 
@@ -7047,21 +7032,8 @@ function animate(time) {
   // Una vez completo: opacity 1.0 siempre, la ballena nunca desaparece.
   // ════════════════════════════════════════════════════════════════════
   if (whaleMaterials.length > 0) {
-    // ★ FIX PALPITEO: `transparent:true` + `transmission` = doble pase de
-    // transparencia donde el ORDEN de dibujado se reordena por profundidad
-    // CADA frame → con los micro-movimientos el orden voltea y el blending
-    // cambia de golpe (colores palpitando). transparent solo se usa durante
-    // el fade del reveal; al completarse, el material vuelve a OPACO (el
-    // vidrio sigue siendo vidrio vía transmission, que tiene su propio pase).
-    const _needsFade = revealProgress < 0.999;
     for (let i = 0; i < whaleMaterials.length; i++) {
-      const m = whaleMaterials[i];
-      m.opacity = revealProgress;
-      if (m.transparent !== _needsFade) {
-        m.transparent = _needsFade;
-        m.depthWrite = true;
-        m.needsUpdate = true;
-      }
+      whaleMaterials[i].opacity = revealProgress;
     }
   }
 
@@ -7100,10 +7072,10 @@ function animate(time) {
     aurora.style.opacity = String(Math.max(0, Math.min(1, auroraOp)));
   }
 
-  // Velo de inmersión: AHORA se aplica DENTRO del render (dimScene, entre el
-  // fondo y la ballena). El div DOM queda neutralizado para no velar la ballena.
+  // Velo de inmersión (EXACTO a index6): se oscurece con el scroll, POR ENCIMA
+  // de la ballena — superficie → profundidad, como siempre estuvo estable.
   const dv = window.__diveVeil || (window.__diveVeil = document.getElementById('dive-veil'));
-  if (dv && dv.style.opacity !== '0') dv.style.opacity = '0';
+  if (dv) dv.style.opacity = String(Math.min(0.62, Math.max(0, (sp - 0.06) * 2.0)));
 
   canvas.style.opacity = '1';
 
@@ -7111,7 +7083,6 @@ function animate(time) {
   // RENDER — pipeline ORIGINAL (composer, canvas único opaco):
   // fondo → velo interno (solo el agua) → ballena → bloom → aberración.
   // ════════════════════════════════════════════════════════════════════
-  dimMat.opacity = Math.min(0.62, Math.max(0, (sp - 0.06) * 2.0));
   composer.render();
 
   // ════════════════════════════════════════════════════════════════════
@@ -7129,6 +7100,11 @@ function animate(time) {
     }
     if (fOp > 0.001) {
       frontCanvas.style.opacity = String(fOp);
+      // ★ Igualar el tono con el velo: la ballena principal se ve a través del
+      // dive-veil (oscurecida por profundidad). El overlay aplica el MISMO
+      // oscurecimiento vía brightness → cero salto de tono al pasar al frente.
+      const _veilNow = Math.min(0.62, Math.max(0, (sp - 0.06) * 2.0));
+      frontCanvas.style.filter = 'brightness(' + (1 - _veilNow).toFixed(3) + ')';
       frontRenderer.render(scene, camera);
     } else if (frontCanvas.style.opacity !== '0') {
       frontCanvas.style.opacity = '0';
