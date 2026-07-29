@@ -566,30 +566,27 @@
 
   #dive-veil{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;
     background:linear-gradient(180deg,#04070E 0%,#02050C 100%);will-change:opacity}
+  /* Fondo de agua — siempre detrás de todo. */
+  .bg-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+  }
+
   .whale-canvas {
     position: fixed;
     inset: 0;
-    z-index: 1;
+    z-index: 1;            /* estado normal: detrás del contenido. JS lo sube en la pasada frontal. */
     pointer-events: none;
     width: 100vw;
     height: 100vh;
     height: 100dvh;
     transition: opacity 0.6s var(--ease-soft);
-  }
-
-  /* ★ Front-pass canvas: la ballena pasa por DELANTE de todo el contenido
-     en un momento del scroll. z-index 60 = sobre secciones (z3-5) y sobre el
-     velo, pero bajo nav (99999) y whatsapp (9990). Opacidad controlada por JS. */
-  .whale-front {
-    position: fixed;
-    inset: 0;
-    z-index: 60;
-    pointer-events: none;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
-    opacity: 0;
-    will-change: opacity;
+    will-change: z-index;
   }
 
   /* Aurora pastel + sol blanco central — AHORA renderizada dentro de Three.js
@@ -4356,12 +4353,14 @@
     <div class="loader-meta">Vacation Rental México</div>
   </div>
 
-  <canvas class="whale-canvas" id="whale-canvas"></canvas>
+  <!-- ★ Fondo de agua (god rays + caustics) — canvas PROPIO, siempre detrás de todo (z0). -->
+  <canvas class="bg-canvas" id="bg-canvas" aria-hidden="true"></canvas>
 
-  <!-- ★ Front-pass: SEGUNDO canvas que renderiza SOLO la ballena por ENCIMA de TODO
-       el contenido HTML (reviews, secciones) en un único momento climático del scroll.
-       z-index alto (sobre contenido z3-5), pero bajo nav/whatsapp. pointer-events:none. -->
-  <canvas class="whale-front" id="whale-front" aria-hidden="true"></canvas>
+  <!-- ★ Ballena — canvas TRANSPARENTE e independiente. Su z-index se anima:
+       normalmente z1 (detrás del contenido), y en UN momento del scroll sube por
+       ENCIMA DE TODO (nav, whatsapp, texto) para la pasada frontal. Como es el MISMO
+       render en ambos estados, NO cambia la textura: solo cambia la capa de composición. -->
+  <canvas class="whale-canvas" id="whale-canvas"></canvas>
 
   <!-- Velo de inmersión: el fondo se hunde a aguas profundas al scrollear (z2: sobre ballena z1, bajo contenido z3) -->
   <div id="dive-veil" aria-hidden="true"></div>
@@ -4911,16 +4910,37 @@ const camera = new THREE.PerspectiveCamera(
 // Cámara más alejada en mobile para que la ballena entre completa
 camera.position.set(0, 0.5, isMobile ? 13 : 9);
 
+// ★ Renderer de la BALLENA — alpha:true para que el canvas sea TRANSPARENTE
+// (solo se ve la ballena; el resto deja pasar lo que haya detrás: el fondo de
+// agua cuando está en z1, o el contenido cuando sube por encima en la pasada).
 const renderer = new THREE.WebGLRenderer({
   canvas,
   antialias: true,
+  alpha: true,
+  premultipliedAlpha: false,
   powerPreference: 'high-performance'
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x000000, 0);          // fondo transparente
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
+
+// ★ Renderer del FONDO de agua — su propio canvas OPACO, siempre detrás (z0).
+// Separar el fondo de la ballena es lo que permite componer la ballena sola
+// sobre el HTML sin arrastrar el fondo.
+const bgCanvas = document.getElementById('bg-canvas');
+const bgRenderer = new THREE.WebGLRenderer({
+  canvas: bgCanvas,
+  antialias: true,
+  powerPreference: 'high-performance'
+});
+bgRenderer.setSize(window.innerWidth, window.innerHeight);
+bgRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+bgRenderer.outputColorSpace = THREE.SRGBColorSpace;
+bgRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+bgRenderer.toneMappingExposure = 1.05;
 
 /* ============================================================
    ENVIRONMENT MAP — Canvas procedural pasado por PMREMGenerator
@@ -5660,53 +5680,24 @@ composer.setSize(window.innerWidth, window.innerHeight);
 composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 /* ════════════════════════════════════════════════════════════════════
-   ★ FRONT-PASS — la ballena pasa por DELANTE de TODO el contenido
-   ────────────────────────────────────────────────────────────────────
-   Segundo renderer sobre un canvas transparente (#whale-front, z-index 60)
-   que dibuja ÚNICAMENTE la ballena por encima del HTML. Usamos THREE.Layers:
-   la ballena vive en la capa 0 (render normal, detrás del contenido) y
-   TAMBIÉN en la capa 1. Una cámara clon con layers.set(1) renderiza solo lo
-   que esté en la capa 1 → solo la ballena, sin burbujas ni fondo. Las luces
-   siguen en capa 0, y como la ballena comparte la capa 0, se ilumina igual.
-   Se activa en UNA ventana de scroll (la embestida frontal, CH5) con un
-   fade de opacidad. Fuera de esa ventana el canvas está a opacity:0 y no
-   renderizamos, así que no cuesta rendimiento el resto del tiempo.
+   ★ PASADA FRONTAL — ventana de scroll donde la ballena sube por encima
+   de TODO el contenido. Como el fondo y la ballena viven en canvas
+   distintos, basta con animar el z-index del canvas de la ballena: sube
+   sobre nav/whatsapp/texto en esta ventana y vuelve a z1 fuera de ella.
+   Mismo render → sin cambio de textura. (Ver el bloque RENDER del loop.)
    ════════════════════════════════════════════════════════════════════ */
-const WHALE_FRONT_LAYER = 1;
-const frontCanvas = document.getElementById('whale-front');
-const frontRenderer = new THREE.WebGLRenderer({
-  canvas: frontCanvas,
-  antialias: true,
-  alpha: true,
-  powerPreference: 'high-performance'
-});
-frontRenderer.setSize(window.innerWidth, window.innerHeight);
-frontRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-frontRenderer.setClearColor(0x000000, 0);      // fondo transparente
-frontRenderer.outputColorSpace = THREE.SRGBColorSpace;
-frontRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-frontRenderer.toneMappingExposure = 1.05;
+const FRONT_PASS_IN   = 0.585;   // la ballena empieza a subir al frente
+const FRONT_PASS_OUT  = 0.690;   // vuelve detrás del contenido
+window.__whaleInFront = false;
 
-// Cámara clon: copia la cámara principal cada frame pero solo ve la capa 1.
-const frontCam = camera.clone();
-frontCam.layers.set(WHALE_FRONT_LAYER);
-
-// Ventana de scroll donde ocurre la pasada frontal (embestida CH5).
-// La ballena viene de frente hacia la cámara → momento ideal para taparlo todo.
-const FRONT_PASS_IN   = 0.585;   // empieza a aparecer
-const FRONT_PASS_PEAK = 0.635;   // opacidad máxima (ballena enorme y frontal)
-const FRONT_PASS_OUT  = 0.690;   // desaparece
-let frontLayerEnabled = false;   // se activa una vez que la ballena carga
-
-// ★ PRIMER pass: fondo animado de agua (god rays + caustics + sparkles)
-// Se renderiza SIN limpiar el canvas (clear=true) y luego el renderPass
-// principal renderiza encima la ballena SIN limpiar (clear=false) para
-// preservar el fondo de abajo.
+// NOTA: el composer (bloom/CA) queda declarado por compatibilidad pero ya
+// NO se usa para renderizar — la ballena se dibuja nativa sobre alpha para
+// que el canvas sea realmente transparente. El fondo va en su propio canvas.
 const bgRenderPass = new RenderPass(bgScene, bgCamera);
 composer.addPass(bgRenderPass);
 
 const renderPass = new RenderPass(scene, camera);
-renderPass.clear = false;  // ★ NO limpiar — preservar el fondo de abajo
+renderPass.clear = false;
 composer.addPass(renderPass);
 
 // Bloom — los highlights de Swarovski son puntuales y muy brillantes
@@ -6506,18 +6497,28 @@ function animate(time) {
   scrollProgress += (scrollTarget - scrollProgress) * scrollSmoothing;
   window.__vrmScroll = scrollProgress;
 
-  // ══ SEGUIDOR CON TOPE DE VELOCIDAD ══ la ballena tiene ritmo PROPIO.
-  // Scroll rápido ya no la arrastra feo por el circuito: su avance está
-  // topado (base 0.16/s) con alcance adaptativo (+gap·0.55) → si te vas
-  // volando al fondo, ella termina su recorrido en ~1.5s de nado elegante,
-  // siempre a velocidad de ballena, nunca a velocidad de scroll.
+  // ══ SEGUIDOR POR RESORTE CRÍTICAMENTE AMORTIGUADO ══
+  // La ballena tiene INERCIA propia. En vez de un tope lineal (que da tirones
+  // al scrollear rápido), usamos un resorte crítico: acelera y DESACELERA
+  // suave hacia el objetivo, sin rebote. Da igual qué tan rápido scrollees:
+  // la ballena arranca con peso, alcanza una velocidad de crucero (topada) y
+  // se posa con suavidad en el punto destino. Nunca teletransporta ni salta.
+  //   • OMEGA = frecuencia natural (qué tan "ansioso" es el resorte)
+  //   • VMAX  = velocidad de crucero máxima (unidades-de-camino / s) →
+  //             en un flick al fondo, recorre el circuito a ritmo de ballena.
   window.__whaleSp = window.__whaleSp ?? 0;
+  window.__whaleSpVel = window.__whaleSpVel ?? 0;
   {
-    const _gapSp = scrollProgress - window.__whaleSp;
-    const _maxRate = 0.16 + Math.abs(_gapSp) * 0.55;
-    const _want = _gapSp * Math.min(1, dt * 3.2);
-    const _capSp = _maxRate * dt;
-    window.__whaleSp += Math.max(-_capSp, Math.min(_capSp, _want));
+    const _target = scrollProgress;
+    const OMEGA = 3.2;
+    const VMAX = 0.60;   // velocidad de crucero: en un flick, glisa el circuito en ~1.8s (calmo, no frenético)
+    const _dtc = Math.min(dt, 0.033);                 // clamp dt → estable en frames lentos
+    const _x = window.__whaleSp - _target;
+    const _accel = -2 * OMEGA * window.__whaleSpVel - OMEGA * OMEGA * _x;  // ζ=1, crítico
+    window.__whaleSpVel += _accel * _dtc;
+    window.__whaleSpVel = Math.max(-VMAX, Math.min(VMAX, window.__whaleSpVel));
+    window.__whaleSp += window.__whaleSpVel * _dtc;
+    window.__whaleSp = Math.max(0, Math.min(1, window.__whaleSp));
   }
   const sp = window.__whaleSp;
 
@@ -6610,82 +6611,59 @@ function animate(time) {
   let swimDx, swimDy, swimDz;
 
   if (revealProgress < 1.0) {
-    // REVEAL: ballena viene del fondo hacia adelante. Como REVEAL_FROM
-    // tiene la misma (x, y) que el hero pose y solo difiere en Z (-8 → 4.5),
-    // la dirección de natación durante TODO el reveal es exactamente
-    // (0, 0, positivo) = frontal hacia la cámara.
-    //
-    // No necesitamos blend de orientación porque la entry direction
-    // YA ES la frontal — la ballena emerge nadando hacia el usuario,
-    // y al aterrizar ya está mirando al frente sin cambio de orientación.
-    // Reveal: nada por su propio rumbo (el mismo de la pose hero) → congruencia
+    // REVEAL: la ballena emerge del fondo nadando hacia la cámara. Su rumbo
+    // durante todo el reveal es el mismo de la pose hero (frontal 3/4).
     swimDx = HERO_HEADING.dx;
     swimDy = HERO_HEADING.dy;
     swimDz = HERO_HEADING.dz;
   } else {
-    // En scroll: mirar hacia donde estará dentro de 15% (ventana grande).
-    // 
-    // EL PATH ESTÁ DISEÑADO para que el lookAt natural funcione
-    // correctamente todo el viaje:
-    //   - Las direcciones de natación cambian suavemente entre keyframes
-    //   - Los cambios de orientación grandes se logran con ARCOS FÍSICOS
-    //     en el espacio (la ballena rodea, no rota sobre su eje)
-    //   - El lookahead grande (15%) hace que la rotación se distribuya
-    //     a lo largo de la curva, nunca se concentra en un punto
-    // Rumbo = tangente REAL de avance (lookahead corto) → la cabeza SIEMPRE
-    // apunta hacia donde de verdad va. Nunca de espaldas, nunca en reversa.
-    const futureSp = Math.min(1.0, sp + 0.05);
-    const futurePose = getPathPoint(WHALE_PATH, futureSp);
-    swimDx = futurePose.x - heroPathPose.x;
-    swimDy = futurePose.y - heroPathPose.y;
-    swimDz = futurePose.z - heroPathPose.z;
+    // ═══════════════════════════════════════════════════════════════════
+    // RUMBO = DIRECCIÓN REAL DE AVANCE POR EL CIRCUITO
+    // ───────────────────────────────────────────────────────────────────
+    // La cabeza apunta EXACTAMENTE hacia donde la ballena se está moviendo.
+    // Tomamos la TANGENTE del camino (diferencia central, suave y continua)
+    // y la multiplicamos por el SENTIDO real del avance (signo de la
+    // velocidad del resorte): si scrolleas hacia abajo avanza de frente; si
+    // scrolleas hacia arriba, se da la vuelta con elegancia y nada hacia el
+    // otro lado. Nunca va de espaldas ni "en reversa", porque por
+    // construcción la cabeza SIEMPRE encara su vector de movimiento real.
+    // Sin clamps duros, sin saltos → los giros salen naturales.
+    // ═══════════════════════════════════════════════════════════════════
+    // Sentido de avance con zona muerta (evita parpadeo cuando está casi quieta)
+    if (window.__whaleSpVel > 0.010) window.__whaleTravelDir = 1;
+    else if (window.__whaleSpVel < -0.010) window.__whaleTravelDir = -1;
+    const travelDir = window.__whaleTravelDir || 1;
 
-    // ══ GARANTÍA NO-REVERSA ══ si por suavizado/curva el rumbo se opone a la
-    // tangente inmediata del camino, lo alineamos con ella. La ballena JAMÁS
-    // retrocede: la cabeza siempre encara la dirección real de avance.
-    {
-      const nearSp = Math.min(1.0, sp + 0.015);
-      const nearPose = getPathPoint(WHALE_PATH, nearSp);
-      let tx = nearPose.x - heroPathPose.x, ty = nearPose.y - heroPathPose.y, tz = nearPose.z - heroPathPose.z;
-      const tl = Math.hypot(tx, ty, tz);
-      if (tl > 1e-5) {
-        tx /= tl; ty /= tl; tz /= tl;
-        const sl = Math.hypot(swimDx, swimDy, swimDz) || 1;
-        const dot = (swimDx * tx + swimDy * ty + swimDz * tz) / sl;
-        if (dot < 0.30) { swimDx = tx; swimDy = ty; swimDz = tz; }  // rumbo alineado con el avance
-      }
-    }
+    const EPS = 0.012;
+    const pAhead = getPathPoint(WHALE_PATH, Math.min(1.0, sp + EPS));
+    const pBehind = getPathPoint(WHALE_PATH, Math.max(0.0, sp - EPS));
+    swimDx = (pAhead.x - pBehind.x) * travelDir;
+    swimDy = (pAhead.y - pBehind.y) * travelDir;
+    swimDz = (pAhead.z - pBehind.z) * travelDir;
 
     // ═══════════════════════════════════════════════════════════════════
-    // FROZEN HERO POSE — Ballena quieta de frente cuando NO has scrolleado
+    // POSE HERO CONGELADA — de frente mientras no has scrolleado
     // ═══════════════════════════════════════════════════════════════════
-    // Después del reveal, mientras sp < 0.05 (usuario aún no ha scrolleado),
-    // la cabeza queda FROZEN apuntando a +Z (frontal). El path normal pide
-    // mirar hacia el fondo (z negativo), pero eso causaría que la ballena
-    // gire 180° apenas aterriza. Lo congelamos.
-    //
-    // Entre sp 0.05 y 0.20 hay un blend gradual: la ballena pasa de
-    // "mirar frontal" a "mirar hacia donde va en el path". El blend es
-    // suave (smootherstep) para que el giro se distribuya en 15% del scroll
-    // y nunca se vea brusco.
-    //
-    // A partir de sp=0.20: swim direction del path puro.
+    // Con sp < 0.05 la cabeza queda frontal (3/4). Entre 0.05 y 0.20 hace un
+    // blend suave (smootherstep) hacia el rumbo del circuito, para que el
+    // primer giro se reparta en el scroll y no salte al aterrizar.
     const FREEZE_END = 0.05;
     const BLEND_END = 0.20;
     if (sp < BLEND_END) {
-      const swimFrontal = HERO_HEADING;   // pose 3/4 sostenida (no frontal plana)
+      const swimFrontal = HERO_HEADING;
       let frontalWeight;
       if (sp < FREEZE_END) {
-        frontalWeight = 1.0;  // completamente frontal
+        frontalWeight = 1.0;
       } else {
         const blendT = (sp - FREEZE_END) / (BLEND_END - FREEZE_END);
-        // smootherstep para transición sin esquinas perceptibles
         const eb = blendT * blendT * blendT * (blendT * (blendT * 6 - 15) + 10);
         frontalWeight = 1 - eb;
       }
-      swimDx = swimDx * (1 - frontalWeight) + swimFrontal.dx * frontalWeight;
-      swimDy = swimDy * (1 - frontalWeight) + swimFrontal.dy * frontalWeight;
-      swimDz = swimDz * (1 - frontalWeight) + swimFrontal.dz * frontalWeight;
+      // normalizar el rumbo del circuito antes de mezclar (para que el peso sea real)
+      const _sl = Math.hypot(swimDx, swimDy, swimDz) || 1;
+      swimDx = (swimDx / _sl) * (1 - frontalWeight) + swimFrontal.dx * frontalWeight;
+      swimDy = (swimDy / _sl) * (1 - frontalWeight) + swimFrontal.dy * frontalWeight;
+      swimDz = (swimDz / _sl) * (1 - frontalWeight) + swimFrontal.dz * frontalWeight;
     }
   }
 
@@ -6757,24 +6735,28 @@ function animate(time) {
   // ════════════════════════════════════════════════════════════════════
   _whaleQuatFinal.copy(_whaleQuatTarget);
 
-  // Banking calculado con ventana grande
+  // Banking — la ballena se inclina HACIA el interior de la curva (como un
+  // avión que vira). Se calcula del cambio de rumbo en la DIRECCIÓN REAL de
+  // avance (respeta el sentido del resorte) y se amplía para dar drama
+  // cinematográfico a los virajes anchos.
   let dynamicBank = 0;
   if (revealProgress >= 1.0) {
-    const midSp = Math.min(1.0, sp + 0.10);
-    const farSp = Math.min(1.0, sp + 0.20);
+    const _td = window.__whaleTravelDir || 1;
+    const midSp = Math.max(0.0, Math.min(1.0, sp + 0.09 * _td));
+    const farSp = Math.max(0.0, Math.min(1.0, sp + 0.18 * _td));
     const midPose = getPathPoint(WHALE_PATH, midSp);
     const farPose = getPathPoint(WHALE_PATH, farSp);
-    const dxNow = midPose.x - heroPathPose.x;
-    const dzNow = midPose.z - heroPathPose.z;
-    const dxFar = farPose.x - midPose.x;
-    const dzFar = farPose.z - midPose.z;
+    const dxNow = (midPose.x - heroPathPose.x) * _td;
+    const dzNow = (midPose.z - heroPathPose.z) * _td;
+    const dxFar = (farPose.x - midPose.x) * _td;
+    const dzFar = (farPose.z - midPose.z) * _td;
     const yawNow = Math.atan2(dxNow, dzNow);
     const yawFar = Math.atan2(dxFar, dzFar);
     let yawDelta = yawFar - yawNow;
     while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
     while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
-    const BANK_INTENSITY = 0.85;
-    const BANK_MAX = Math.PI / 9;
+    const BANK_INTENSITY = 1.15;          // ↑ más peralte = viraje más dramático
+    const BANK_MAX = Math.PI / 6.5;       // ↑ tope de peralte (~28°)
     dynamicBank = -yawDelta * BANK_INTENSITY;
     if (dynamicBank > BANK_MAX) dynamicBank = BANK_MAX;
     if (dynamicBank < -BANK_MAX) dynamicBank = -BANK_MAX;
@@ -6816,7 +6798,7 @@ function animate(time) {
   if (revealProgress < 1.0) {
     MAX_ANGULAR_SPEED = 1.2;
   } else {
-    MAX_ANGULAR_SPEED = isMobile ? 1.4 : 1.1;   // el sp topado acota la demanda → giro elegante incluso en el viraje
+    MAX_ANGULAR_SPEED = isMobile ? 1.5 : 1.25;   // ↑ ligeramente: el giro de la embestida (180°) sigue el camino sin quedarse corto, pero suave
   }
   const dotProduct = Math.abs(
     whaleGroup.quaternion.x * _whaleQuatFinal.x +
@@ -6893,72 +6875,27 @@ function animate(time) {
 
   canvas.style.opacity = '1';
 
-  composer.render();
+  // ════════════════════════════════════════════════════════════════════
+  // RENDER — dos canvas independientes:
+  //   1) bgRenderer → fondo de agua (canvas opaco, siempre z0, detrás de todo)
+  //   2) renderer   → SOLO la ballena sobre transparente (canvas z1..top)
+  // La ballena se compone sobre lo que tenga detrás (fondo o contenido) según
+  // su z-index. El render es IDÉNTICO en ambos estados → nunca cambia la textura.
+  // ════════════════════════════════════════════════════════════════════
+  bgRenderer.render(bgScene, bgCamera);
+  renderer.render(scene, camera);
 
   // ════════════════════════════════════════════════════════════════════
-  // ★ FRONT-PASS — la ballena por DELANTE de todo el contenido
+  // ★ PASADA FRONTAL — subir el canvas de la ballena por ENCIMA DE TODO
   // ════════════════════════════════════════════════════════════════════
-  // Activar la capa 1 en la ballena una sola vez, cuando ya cargó.
-  if (!frontLayerEnabled && modelLoaded) {
-    whaleGroup.traverse((o) => {
-      if (o.layers) o.layers.enable(WHALE_FRONT_LAYER);
-    });
-    frontLayerEnabled = true;
-  }
-
-  if (frontLayerEnabled) {
-    // Opacidad triangular dentro de la ventana [IN → PEAK → OUT].
-    let frontOp = 0;
-    if (sp > FRONT_PASS_IN && sp < FRONT_PASS_OUT) {
-      if (sp < FRONT_PASS_PEAK) {
-        frontOp = (sp - FRONT_PASS_IN) / (FRONT_PASS_PEAK - FRONT_PASS_IN);
-      } else {
-        frontOp = 1 - (sp - FRONT_PASS_PEAK) / (FRONT_PASS_OUT - FRONT_PASS_PEAK);
-      }
-      // easeInOut suave para que el "swoosh" entre y salga orgánico.
-      frontOp = frontOp < 0.5
-        ? 2 * frontOp * frontOp
-        : 1 - Math.pow(-2 * frontOp + 2, 2) / 2;
-      // Cap a 0.92: en el pico deja un susurro de translucidez para que la
-      // ballena "planee" etérea sobre el contenido en vez de taparlo del todo.
-      frontOp = Math.max(0, Math.min(0.92, frontOp * 0.92));
-    }
-    frontCanvas.style.opacity = String(frontOp);
-
-    if (frontOp > 0.001) {
-      // Clonar el estado de la cámara principal, pero manteniendo solo capa 1.
-      frontCam.position.copy(camera.position);
-      frontCam.quaternion.copy(camera.quaternion);
-      frontCam.fov = camera.fov;
-      frontCam.aspect = camera.aspect;
-      frontCam.updateProjectionMatrix();
-
-      // ★ FIX CRISTAL NEGRO: el material usa `transmission` (vidrio real) que
-      // necesita ver la escena por detrás para refractarla. En el pase frontal
-      // aislado no hay fondo → el vidrio se renderiza NEGRO. Solución: durante
-      // este único frame apagamos transmission (el cristal se vuelve un sólido
-      // azul iluminado por el envMap = luminoso, no negro) y le damos un leve
-      // emissive para compensar la falta del bloom pass. Restauramos después
-      // para no afectar el render principal (que sí conserva el vidrio).
-      for (let i = 0; i < whaleMaterials.length; i++) {
-        const m = whaleMaterials[i];
-        m.__savedTransmission = m.transmission;
-        m.__savedEmissiveInt = m.emissiveIntensity;
-        m.transmission = 0.0;
-        m.emissive.setHex(0x2a5a86);      // azul profundo — glow sutil
-        m.emissiveIntensity = 0.22;
-        m.envMapIntensity = 2.1;          // reflejos más vivos sin el bloom
-      }
-      frontRenderer.render(scene, frontCam);
-      // Restaurar el vidrio para el render principal
-      for (let i = 0; i < whaleMaterials.length; i++) {
-        const m = whaleMaterials[i];
-        m.transmission = m.__savedTransmission;
-        m.emissiveIntensity = m.__savedEmissiveInt || 0.0;
-        m.emissive.setHex(0x000000);
-        m.envMapIntensity = 1.6;
-      }
-    }
+  // En la ventana de scroll de la embestida (CH5), el canvas de la ballena
+  // sube su z-index por arriba de nav (99999) y whatsapp (9990) → la ballena
+  // cruza literalmente por delante de TODO. Fuera de la ventana vuelve a z1
+  // (detrás del contenido). Al ser el MISMO render, no hay salto de textura.
+  const inFrontPass = (sp > FRONT_PASS_IN && sp < FRONT_PASS_OUT);
+  if (inFrontPass !== window.__whaleInFront) {
+    window.__whaleInFront = inFrontPass;
+    canvas.style.zIndex = inFrontPass ? '2147483000' : '1';
   }
 
   requestAnimationFrame(animate);
@@ -6980,10 +6917,8 @@ window.addEventListener('resize', () => {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
+  bgRenderer.setSize(w, h);
   composer.setSize(w, h);
-  frontRenderer.setSize(w, h);
-  frontCam.aspect = w / h;
-  frontCam.updateProjectionMatrix();
   bgMaterial.uniforms.uResolution.value.set(w, h);
 });
 
