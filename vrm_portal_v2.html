@@ -3732,7 +3732,7 @@
         if(ov) { ov.style.display = 'none'; }
             setTimeout(() => {
                 requestAnimationFrame(async () => {
-                    if(!DATA.length){ await cargarReviewsSupabase(); }
+                    await cargarReviewsSupabase();
                     rvInit();
                     window.dispatchEvent(new Event('resize'));
                 });
@@ -7680,34 +7680,39 @@
 
     // ══ REVIEWS ══════════════════════════════════════════════
     let DATA=[];
-    let _reviewsCargadas=false;
+    let _reviewsPromise=null;
     // ── Reviews desde Supabase (reemplaza el array embebido de 1,005 reviews) ──
-    async function cargarReviewsSupabase(force){
-        if(_reviewsCargadas && !force) return DATA;
+    async function _fetchReviews(){
         const cols='fecha,depto,huesped,general,llegada,limpieza,veracidad,comunicacion,ubicacion,calidad,comentario';
-        try{
-            let all=[], from=0, page=1000, total=null;
-            while(true){
-                const res=await fetch(`${SUPABASE_URL}/rest/v1/reviews?select=${cols}&order=fecha.desc&limit=${page}&offset=${from}`,{
-                    headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,Prefer:'count=exact'}
-                });
-                if(!res.ok){ throw new Error('HTTP '+res.status+' '+(await res.text())); }
-                const cr=res.headers.get('content-range');
-                if(cr && cr.indexOf('/')>-1){ const t=parseInt(cr.split('/')[1],10); if(!isNaN(t)) total=t; }
-                const chunk=await res.json();
-                if(!Array.isArray(chunk) || chunk.length===0) break;
-                all=all.concat(chunk);
-                from+=chunk.length;
-                if(total!=null && from>=total) break;
-                if(chunk.length<page && total==null) break;
-            }
-            DATA.length=0; DATA.push(...all);
-            _reviewsCargadas=true;
-            filtered=[...DATA];
-            console.log('✅ '+DATA.length+' reviews cargadas desde Supabase');
-            if(document.getElementById('mod-reviews') && document.getElementById('mod-reviews').classList.contains('active') && typeof rvInit==='function') rvInit();
-        }catch(e){ console.error('❌ Error cargando reviews desde Supabase:',e); }
+        let all=[], from=0, page=1000, total=null;
+        while(true){
+            const res=await fetch(`${SUPABASE_URL}/rest/v1/reviews?select=${cols}&order=fecha.desc&limit=${page}&offset=${from}`,{
+                headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,Prefer:'count=exact'}
+            });
+            if(!res.ok){ throw new Error('HTTP '+res.status+' '+(await res.text())); }
+            const cr=res.headers.get('content-range');
+            if(cr && cr.indexOf('/')>-1){ const t=parseInt(cr.split('/')[1],10); if(!isNaN(t)) total=t; }
+            const chunk=await res.json();
+            if(!Array.isArray(chunk) || chunk.length===0) break;
+            all=all.concat(chunk);
+            from+=chunk.length;
+            if(total!=null && from>=total) break;
+            if(chunk.length<page && total==null) break;
+        }
+        DATA.length=0; DATA.push(...all);
+        filtered=[...DATA];
+        console.log('✅ '+DATA.length+' reviews cargadas desde Supabase');
+        if(document.getElementById('mod-reviews') && document.getElementById('mod-reviews').classList.contains('active') && typeof rvInit==='function') rvInit();
         return DATA;
+    }
+    // Cache de promesa: una sola carga compartida entre el bootstrap y la apertura del módulo
+    // (evita el render en blanco por timing y el doble fetch).
+    function cargarReviewsSupabase(force){
+        if(force) _reviewsPromise=null;
+        if(!_reviewsPromise){
+            _reviewsPromise=_fetchReviews().catch(e=>{ console.error('❌ Error cargando reviews desde Supabase:',e); _reviewsPromise=null; return DATA; });
+        }
+        return _reviewsPromise;
     }
 
     // Datos de ingresos Airbnb (mes, depto, bruto, neto, noches, occ%, ADR, RevPAR)
@@ -8055,6 +8060,28 @@ const VRM_SCRAPER_JS = `(async function VRM_Scraper() {
   }
 
   console.log(\`%c📊 Total: \${all.length}\`, 'font-size:14px;font-weight:bold;color:#22D37D');
+
+  // ── Subir DIRECTO a Supabase (upsert; ignora duplicados por dedup_key). Corre dentro de tu sesión de Airbnb. ──
+  try {
+    var SUPA_URL='https://grsykedeppdwenpfxlfh.supabase.co';
+    var SUPA_KEY='sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm';
+    var COLS=['fecha','depto','huesped','general','llegada','limpieza','veracidad','comunicacion','ubicacion','calidad','comentario'];
+    var limpio = all.map(function(r){ var o={}; COLS.forEach(function(k){ o[k]=(r[k]!==undefined?r[k]:null); }); return o; });
+    var subidas=0, loteErr=0;
+    for (var si=0; si<limpio.length; si+=200) {
+      try {
+        var resp = await fetch(SUPA_URL+'/rest/v1/reviews?on_conflict=dedup_key', {
+          method:'POST',
+          headers:{ 'apikey':SUPA_KEY, 'Authorization':'Bearer '+SUPA_KEY, 'Content-Type':'application/json', 'Prefer':'resolution=ignore-duplicates,return=minimal' },
+          body: JSON.stringify(limpio.slice(si, si+200))
+        });
+        if (resp.ok) { subidas += limpio.slice(si, si+200).length; }
+        else { loteErr++; console.warn('Lote Supabase fallo:', resp.status, await resp.text()); }
+      } catch(e2) { loteErr++; console.warn('Error subiendo lote a Supabase:', e2); }
+    }
+    console.log('%c☁️ Supabase: '+subidas+' filas enviadas'+(loteErr?(' · '+loteErr+' lotes con error, revisa arriba'):' · recarga el portal para verlas'), 'font-size:15px;font-weight:bold;color:#22D37D');
+  } catch(eSupa) { console.warn('No se pudo subir a Supabase (queda el JSON de respaldo):', eSupa); }
+
   const json = JSON.stringify(all, null, 2);
   const fecha = new Date().toISOString().slice(0, 10);
   const blob = new Blob([json], {type:'application/json'});
@@ -8127,8 +8154,8 @@ async function actualizarReviews() {
           <li>Cuando cargue la página, presiona <b>F12</b> → pestaña <b>Console</b></li>
           <li><b>Pega</b> (Ctrl+V) y <b>Enter</b></li>
           <li>Deja correr ~2-5 min sin tocar la pestaña</li>
-          <li>Se descargará <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;font-size:11px">vrm_reviews_${hoy}.json</code></li>
-          <li>Vuelve aquí y clic en <b>"Importar JSON"</b></li>
+          <li>Al terminar verás <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;font-size:11px">☁️ Supabase: N filas enviadas</code> — <b>se sube solo</b></li>
+          <li>Regresa aquí y <b>recarga el portal</b> (F5). ¡Listo! <span style="color:var(--text-tertiary)">(el JSON se descarga solo como respaldo; "Importar JSON" queda por si acaso)</span></li>
         </ol>
 
         <div style="display:flex;gap:10px;flex-wrap:wrap">
