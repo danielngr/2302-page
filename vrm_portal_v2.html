@@ -8075,19 +8075,22 @@ const VRM_SCRAPER_JS = `(async () => {
   if(ignoradas.length) console.log('   ignoradas:',ignoradas);
   if(!filas.length){ console.log('%c✔️ Sin filas mapeables para subir.','font-weight:bold;color:#E8A838'); return; }
 
-  // 4) Upsert a Supabase (ignora duplicados por dedup_key)
-  var subidas=0, loteErr=0;
+  // 4) Upsert a Supabase (ignora duplicados por dedup_key). return=representation → solo devuelve las REALMENTE insertadas.
+  var enviadas=0, insertadas=0, loteErr=0;
   for(var s=0;s<filas.length;s+=200){
+    var lote=filas.slice(s,s+200);
     try{
       var resp=await fetch(SUPA_URL+'/rest/v1/reviews?on_conflict=dedup_key',{
         method:'POST',
-        headers:{apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY,'Content-Type':'application/json',Prefer:'resolution=ignore-duplicates,return=minimal'},
-        body:JSON.stringify(filas.slice(s,s+200))});
-      if(resp.ok) subidas+=filas.slice(s,s+200).length;
+        headers:{apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY,'Content-Type':'application/json',Prefer:'resolution=ignore-duplicates,return=representation'},
+        body:JSON.stringify(lote)});
+      if(resp.ok){ enviadas+=lote.length; var body=await resp.json(); insertadas+=(Array.isArray(body)?body.length:0); }
       else { loteErr++; console.warn('lote Supabase fallo:',resp.status,await resp.text()); }
     }catch(e){ loteErr++; console.warn('error lote:',e); }
   }
-  console.log('%c☁️ Supabase: '+subidas+' filas enviadas'+(loteErr?(' · '+loteErr+' lotes con error'):'')+' · recarga el portal (F5)','font-size:16px;font-weight:bold;color:#22D37D');
+  var yaEstaban=enviadas-insertadas;
+  console.log('%c☁️ Supabase: '+insertadas+' reviews NUEVAS insertadas'+(yaEstaban>0?(' · '+yaEstaban+' ya estaban (ignoradas)'):'')+(loteErr?(' · '+loteErr+' lotes con error'):''),'font-size:16px;font-weight:bold;color:#22D37D');
+  console.log('%c'+(insertadas>0?'👉 Recarga el portal (F5) para verlas.':'✔️ Ya estabas al día, nada nuevo.'),'font-size:13px;color:#C8A96E');
 })();`;
 
 async function copiarScraperManual(btn) {
