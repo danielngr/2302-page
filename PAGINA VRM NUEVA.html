@@ -5117,6 +5117,12 @@ function ensureFrontRenderer() {
     frontRenderer.outputColorSpace = THREE.SRGBColorSpace;
     frontRenderer.toneMapping = THREE.ACESFilmicToneMapping;
     frontRenderer.toneMappingExposure = 1.05;
+    // ★ envMap propio del contexto del overlay → el cristal se ve IGUAL de
+    // brillante que el principal (con reflejos), no opaco.
+    const fp = new THREE.PMREMGenerator(frontRenderer);
+    fp.compileEquirectangularShader();
+    frontEnvMap = fp.fromEquirectangular(envTexture).texture;
+    fp.dispose();
   }
   return frontRenderer;
 }
@@ -5461,11 +5467,13 @@ function makeEnvironmentTexture() {
 // pre-filtrado que MeshPhysicalMaterial necesita para iridescencia/reflexión correcta
 const pmremGenerator = new THREE.PMREMGenerator(renderer);
 pmremGenerator.compileEquirectangularShader();
-const envTexture = makeEnvironmentTexture();
+const envTexture = makeEnvironmentTexture();   // ★ conservada: el overlay frontal la reusa
 const envMap = pmremGenerator.fromEquirectangular(envTexture).texture;
 scene.environment = envMap;
-envTexture.dispose();
 pmremGenerator.dispose();
+// envTexture NO se descarta: el frontRenderer genera su PROPIO envMap con ella
+// (una textura de PMREM vive en UN solo contexto WebGL; el overlay tiene el suyo).
+let frontEnvMap = null;
 
 /* ============================================================
    ILUMINACIÓN COMPLEMENTARIA — Cyan/azul cristal hielo (Swarovski)
@@ -5474,6 +5482,9 @@ pmremGenerator.dispose();
    puro. Esto hace que el cristal lea como SWAROVSKI (azul facetado)
    en lugar de cuarzo amatista (violeta).
    ============================================================ */
+// ★ LUCES DIRECTAS REFORZADAS — reemplazan el brillo que aportaba el env alto,
+// pero SIN parpadeo: la iluminación difusa direccional es continua con el
+// normal, no salta por faceta. Mismo cristal brillante, estable.
 scene.add(new THREE.AmbientLight(0x4878a0, 0.50));  // ambient azul medio submarino (subido ligeramente para compensar)
 
 // Key light: blanco azulado frío desde MUY arriba (los god rays son la fuente)
@@ -5867,8 +5878,8 @@ composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
    sobre nav/whatsapp/texto en esta ventana y vuelve a z1 fuera de ella.
    Mismo render → sin cambio de textura. (Ver el bloque RENDER del loop.)
    ════════════════════════════════════════════════════════════════════ */
-const FRONT_PASS_IN   = 0.615;   // entra por la izquierda → sube por encima de todo
-const FRONT_PASS_OUT  = 0.700;   // sale por la derecha → vuelve detrás del contenido
+const FRONT_PASS_IN   = 0.492;   // ★ experiencia: opacidad frontal sube MIENTRAS sigue fuera (der)
+const FRONT_PASS_OUT  = 0.588;   // se apaga sólo cuando YA salió por la izquierda
 window.__whaleInFront = false;
 
 // ★ PIPELINE EXACTO A index6: fondo → ballena → bloom → CA en el composer.
@@ -6329,56 +6340,48 @@ const CAMERA_HERO = {
 // scroll mínimo → todo lento, premium, con peso.
 
 const WHALE_PATH = [
-  // ═══ CIRCUITO v2 — diseñado desde cero, coreografiado a las SECCIONES
-  //     medidas (hero 0–.14 · cards .14–.35 · direct .35–.47 · exp .47–.62 ·
-  //     reviews .62–.98 · cierre .98). Un solo trazo continuo en forma de
-  //     "S" espacial: dos arcos anchos alternados (izq → der → izq), cero
-  //     reversas, cero cúspides. La profundidad hace la dramaturgia:
-  //     cerca (hero) → clavado → fondo ambiente → ascenso → CERCA (momento)
-  //     → despedida serena al centro.
+  // ═══ CIRCUITO v6 — TRAZADO POR EL USUARIO (editor de recorrido) ═══
+  //   El "por dónde" es del usuario; la física (velocidad estable, giros al
+  //   avance, sin cúspides) la pongo yo. Recorrido:
+  //   hero: centro→izq · carrusel: SALE por la izquierda · por qué: regresa al
+  //   fondo · experiencia: PASADA FRONTAL por la derecha · reseñas/final: al
+  //   fondo, centro. Altura (y) con defaults suaves (el editor no la capturó).
   //
-  // ═══ v3 — VOCABULARIO VARIADO: ningún capítulo repite el movimiento del
-  //     anterior. Clavado con remontada → planeo con BARREL ROLL 360° →
-  //     respiro al fondo → EMBESTIDA de frente → viraje cerrado → ASCENSIÓN.
-  //
-  // CH1 · HERO — pose 3/4 heroica junto al título, majestuosa, casi quieta
-  _kf(0.00,  1.60,  0.10,  3.00),   // ★ apertura: 3/4, flanco visible
-  _kf(0.05,  1.20, -0.05,  3.25),
-  _kf(0.09,  0.45, -0.30,  3.10),   // arranca el impulso…
-  // CH2 · ZAMBULLIDA DE SALIDA — se lanza en picada abajo-izquierda y SALE
-  //       DEL CUADRO: el carrusel queda limpio, sin distraer la decisión
-  _kf(0.13, -0.75, -1.65,  2.60),
-  _kf(0.165,-1.95, -3.60,  1.95),   // ★ cruza el borde inferior…
-  _kf(0.20, -2.35, -5.20,  1.30),   // …y desaparece por completo
-  // CH3 · TRAVESÍA OCULTA — nada muy por debajo del encuadre y CERCA de cámara
-  //       (donde el cono de visión es angosto): invisible durante todo el
-  //       carrusel; los virajes de rumbo ocurren aquí, sin verse
-  _kf(0.27, -1.20, -6.10, -0.40),
-  _kf(0.34,  0.20, -6.40, -2.40),
-  // CH4 · REAPARICIÓN LEJANA — justo al cerrar el carrusel asoma pequeña al
-  //       fondo, subiendo serena: presencia sutil que no compite con el contenido
-  _kf(0.41,  0.80, -4.50, -4.70),
-  _kf(0.46, -0.20, -1.60, -5.90),   // sube YA inclinándose a la izquierda
-  // CH5 · RESPIRO + VUELTA AMPLIA — serena al fondo, pequeña; UNA sola curva
-  //       continua hacia la izquierda (sin horquillas: el rumbo nunca se invierte)
-  _kf(0.50, -1.30,  0.00, -5.95),
-  _kf(0.53, -2.60,  0.20, -5.50),
-  _kf(0.57, -4.50,  0.25, -4.00),
-  _kf(0.595,-5.20,  0.12, -1.50),   // extremo izquierdo, acercándose, ya encarando +X
-  // CH6 · LA PASADA LATERAL — cruza DE IZQUIERDA A DERECHA, de perfil, POR
-  //       ENCIMA DE TODO (tramo del z-index elevado: FRONT_PASS_IN..OUT)
-  _kf(0.62, -3.80,  0.05,  0.45),   // entra cerca por la izquierda  ← front-pass IN
-  _kf(0.655, 0.00, -0.10,  0.95),   // ★ centro, gigante, flanco completo cruzando
-  _kf(0.69,  3.80,  0.05,  0.45),   // sale cerca por la derecha     ← front-pass OUT
-  // CH7 · SALIDA + CLAVADO FINAL — sale por la derecha, regresa en UNA curva
-  //       amplia y lejana, y se despide CLAVÁNDOSE al centro: al final solo
-  //       queda LA COLA visible asomando por el borde inferior (ancla final)
-  _kf(0.73,  5.40,  0.50, -2.20),   // sale del cuadro por la derecha
-  _kf(0.79,  4.60,  1.30, -4.40),   // vira lejos, ya pequeña
-  _kf(0.855, 2.20,  1.90, -4.60),   // regresa alto por el fondo
-  _kf(0.92,  0.30,  1.50, -1.90),   // se acerca al centro, la nariz empieza a caer
-  _kf(0.962, 0.05, -0.80,  0.70),   // picada final por el centro, cerca
-  _kf(1.00,  0.00, -4.30,  1.50)    // ★ ancla: cuerpo hundido, SOLO la cola en cuadro
+  // CH1 · HERO — centro, deriva a la izquierda (a la altura del título)
+  _kf(0.00, -0.02,  0.55, -1.30),
+  _kf(0.06, -0.90,  0.42, -1.35),
+  _kf(0.10, -2.40,  0.28, -1.25),
+  // CH2 · CARRUSEL — nada a la izquierda y SALE COMPLETO de cuadro (superficial
+  //       = cono angosto → sale limpio), desaparece durante todo el carrusel
+  _kf(0.14, -5.20,  0.10, -1.00),   // grande, saliendo por el borde
+  _kf(0.18, -9.20,  0.02, -0.80),   // ★ FUERA por completo
+  _kf(0.25,-10.40,  0.00, -1.40),   // desaparecida
+  _kf(0.31, -9.80,  0.05, -2.60),   // sigue fuera, empieza a hundirse
+  // CH3 · POR QUÉ — reaparece DIMINUTA al fondo y cruza hacia la derecha
+  _kf(0.37, -5.60,  0.05, -4.80),   // reaparece deep-izq, chica
+  _kf(0.42, -0.50,  0.05, -5.30),   // centro, al fondo
+  _kf(0.46,  4.60,  0.08, -4.20),   // hacia la derecha, al fondo
+  // CH3b · SALIDA DERECHA + ENCARE — SALE COMPLETO por la derecha y vuelve al
+  //       frente por el borde ya rumbo a la izquierda (el giro ocurre fuera)
+  _kf(0.485,10.60,  0.06, -1.80),   // ★ FUERA por completo a la derecha (gira aquí)
+  _kf(0.50,  8.30,  0.02, -0.20),   // aún fuera; la opacidad frontal ya llegó a 1
+  // CH4 · EXPERIENCIA · PASADA FRONTAL — cruza de DERECHA a IZQUIERDA por
+  //       encima de TODO, ya moviéndose a la izquierda (sin giro en cuadro)
+  _kf(0.515, 3.00, -0.02,  0.75),   // ★ entra en cuadro YA opaca al 100%  ← visible
+  _kf(0.535,-0.20,  0.00,  0.95),   // ★ centro, gigante, al frente de TODO
+  _kf(0.555,-3.30,  0.05,  0.55),   // ★ cruzando a la izquierda
+  // CH5 · SALIDA IZQUIERDA COMPLETA — SALE de cuadro por la izq y recién
+  //       oculta se hunde y curva de regreso (la recesión no se ve)
+  _kf(0.575,-9.60,  0.10, -0.10),   // ★ FUERA por completo a la izquierda  ← visible fin
+  _kf(0.62,-10.60,  0.18, -2.20),   // desaparecida, hundiéndose
+  _kf(0.68, -5.50,  0.24, -6.20),   // reaparece MUY al fondo (diminuta, discreta)
+  // CH6 · RESEÑAS — al fondo lejano, pequeña: presencia sutil, no compite
+  _kf(0.78, -1.40,  0.22, -6.80),
+  _kf(0.85,  0.00,  0.30, -3.60),   // se acerca al centro para la despedida
+  // CH7 · ANCLA FINAL — se clava de nariz en el centro: al final SOLO la cola
+  //       queda asomando por el borde inferior (como el dibujo del usuario)
+  _kf(0.93,  0.00, -0.70,  0.50),   // ★ nariz abajo, al centro, cerca
+  _kf(1.00,  0.00, -4.10,  1.30)    // ★ ANCLA: cuerpo hundido, SOLO la cola en cuadro
 ];
 
 // ══ BARREL ROLL coreografiado ══ una vuelta completa (360°) durante el
@@ -6712,8 +6715,8 @@ function animate(time) {
   window.__whaleSpVel = window.__whaleSpVel ?? 0;
   {
     const _target = scrollProgress;
-    const OMEGA = 3.2;
-    const VMAX = 0.48;   // velocidad de crucero: en un flick, glisa el circuito en ~2.1s (calmo, giros con aire)
+    const OMEGA = 5.0;   // resorte más ceñido: la ballena sigue el scroll de cerca (menos lag)
+    const VMAX = 1.1;    // crucero más ágil: la pasada frontal coincide con la sección de experiencia
     const _dtc = Math.min(dt, 0.033);                 // clamp dt → estable en frames lentos
     const _x = window.__whaleSp - _target;
     const _accel = -2 * OMEGA * window.__whaleSpVel - OMEGA * OMEGA * _x;  // ζ=1, crítico
@@ -6722,7 +6725,15 @@ function animate(time) {
     window.__whaleSp += window.__whaleSpVel * _dtc;
     window.__whaleSp = Math.max(0, Math.min(1, window.__whaleSp));
   }
-  const sp = window.__whaleSp;
+  // ═══════════════════════════════════════════════════════════════════
+  // ★★★ RESET DEL NADO — MODO BASE LIMPIA ★★★
+  // Coreografía COMPLETA desactivada (path, giros, pasada frontal, ancla).
+  // La ballena queda en su pose hero con respiración/vida sutil: el punto
+  // cero estable desde el que se reconstruirá el nado con el GLB real.
+  // Para reactivar el nado: WHALE_SWIM_ENABLED = true.
+  // ═══════════════════════════════════════════════════════════════════
+  const WHALE_SWIM_ENABLED = true;   // ★ nado del usuario ACTIVADO
+  const sp = WHALE_SWIM_ENABLED ? window.__whaleSp : 0;
 
   // ════════════════════════════════════════════════════════════════════
   // GATING — el reveal arranca cuando modelLoaded === true
@@ -6751,20 +6762,22 @@ function animate(time) {
   // Estos valores SIEMPRE están activos (la ballena vive incluso quieta).
   // Amplitudes pequeñas (≤0.04u/0.03rad) para que sea sutil, no payaso.
   // ════════════════════════════════════════════════════════════════════
-  // amplitud de flex ligada a la velocidad (_swimFlex): recto al glisar, serpenteo al nadar fuerte
-  // ★ FRECUENCIAS DE MAMÍFERO GRANDE — todas LENTAS (< 1 rad/s) y desfasadas.
-  // Sin componentes rápidas: el "temblor de servo" (2.1 rad/s) desaparece; la
-  // vida viene de ondas amplias y pausadas que se cruzan sin repetirse nunca.
-  const dorsalBob = (Math.sin(t * 0.38 + 1.9) + Math.sin(t * 0.23 + 0.7) * 0.6) * 0.022;
-  const tailUndulation = (Math.sin(t * 0.62 + 0.4) + Math.sin(t * 0.94 + 2.1) * 0.45) * 0.052 * _swimFlex;  // cola: onda 2ª + escala con velocidad
-  const bodyYaw = Math.sin(t * 0.48 + 1.2) * 0.036 * _swimFlex;    // guiñada del cuerpo: NADA, no flota
-  const microShimmer = 0;   // eliminado: era el micro-temblor robótico
-  const cinematicRoll = Math.sin(t * 0.34 + 2.7) * 0.030;   // balanceo cinematográfico amplio y lento
+  // ★★★ VIDA DE REPOSO EXACTA A index6 (versión estable, jitter 0.98) ★★★
+  // CAUSA DEL PARPADEO IDENTIFICADA: yo había atado la amplitud de la cola y
+  // el bodyYaw a `_swimFlex` (= f(__whaleSpeed) = posición÷dt). Con framerate
+  // variable en GPU real, esa velocidad tiembla → la amplitud tiembla cada
+  // frame → la ballena se sacude → los reflejos se barren = parpadeo.
+  // Amplitudes CONSTANTES (sin dependencia de dt) = movimiento estable.
+  const dorsalBob = Math.sin(t * 0.55 + 1.9) * 0.018;
+  const tailUndulation = Math.sin(t * 0.85 + 0.4) * 0.025;
+  const bodyYaw = 0;
+  const microShimmer = Math.sin(t * 2.1 + 4.3) * 0.005;
+  const cinematicRoll = Math.sin(t * 0.62 + 2.7) * 0.022;
 
-  // Drift orgánico de posición (Perlin approx con suma de senos) — más vivo
-  const driftX = (Math.sin(t * 0.37 + 1.1) + Math.sin(t * 0.29 + 4.2) * 0.6) * 0.034;
-  const driftY = (Math.sin(t * 0.33 + 2.7) + Math.sin(t * 0.27 + 0.8) * 0.6) * 0.028;
-  const driftZ = (Math.sin(t * 0.41 + 3.3) + Math.sin(t * 0.23 + 1.7) * 0.5) * 0.038;
+  // Drift orgánico de posición (index6 exacto)
+  const driftX = (Math.sin(t * 0.37 + 1.1) + Math.sin(t * 0.29 + 4.2) * 0.6) * 0.030;
+  const driftY = (Math.sin(t * 0.33 + 2.7) + Math.sin(t * 0.27 + 0.8) * 0.6) * 0.024;
+  const driftZ = (Math.sin(t * 0.41 + 3.3) + Math.sin(t * 0.23 + 1.7) * 0.5) * 0.034;
 
   const breath = 1.0 + Math.sin(t * 0.38) * 0.005;
 
@@ -7031,11 +7044,14 @@ function animate(time) {
   // = servo robótico) con un salto de régimen al llegar. Ahora la TASA de giro
   // tiene su propia inercia: acelera suave al iniciar el viraje y frena suave
   // al terminarlo (ease-in/ease-out físico). Cero pasos mecánicos.
-  const _wantRate = Math.min(MAX_ANGULAR_SPEED, angleToTarget * 3.4);
-  window.__whaleAngRate = (window.__whaleAngRate || 0)
-    + (_wantRate - window.__whaleAngRate) * Math.min(1, dt * 2.8);
-  const _stepAng = Math.min(angleToTarget, window.__whaleAngRate * dt);
-  const slerpFactor = angleToTarget > 1e-4 ? (_stepAng / angleToTarget) : 1;
+  // Slerp con velocidad angular limitada (index6 exacto, estable)
+  const maxRotationThisFrame = MAX_ANGULAR_SPEED * dt;
+  let slerpFactor;
+  if (angleToTarget > maxRotationThisFrame && angleToTarget > 0.001) {
+    slerpFactor = maxRotationThisFrame / angleToTarget;
+  } else {
+    slerpFactor = Math.min(1, dt * 4.0);
+  }
   whaleGroup.quaternion.slerp(_whaleQuatFinal, slerpFactor);
 
   // ════════════════════════════════════════════════════════════════════
@@ -7108,7 +7124,7 @@ function animate(time) {
   // ════════════════════════════════════════════════════════════════════
   {
     let fOp = 0;
-    const FADE = 0.014;
+    const FADE = 0.009;   // sube a opacidad 1 en ~sp0.501 (ballena aún fuera) → entra ya sólida
     if (sp > FRONT_PASS_IN && sp < FRONT_PASS_OUT) {
       const eIn = Math.min(1, (sp - FRONT_PASS_IN) / FADE);
       const eOut = Math.min(1, (FRONT_PASS_OUT - sp) / FADE);
@@ -7116,11 +7132,14 @@ function animate(time) {
     }
     if (fOp > 0.001) {
       frontCanvas.style.opacity = String(fOp);
-      // ★ CRISTAL BRILLANTE en la pasada — sin filtro oscuro. La ballena entra
-      // y sale de la ventana FUERA de pantalla (x ±3.8, bordes), así que el
-      // cambio de brillo respecto a su versión velada nunca ocurre a la vista:
-      // en cuadro solo se ve el cristal luminoso cruzando por delante.
-      ensureFrontRenderer().render(scene, camera);
+      const fr = ensureFrontRenderer();
+      // ★ Cristal BRILLANTE: usamos el envMap del contexto del overlay durante
+      // este render (los reflejos hacen el cristal luminoso, no opaco), y lo
+      // restauramos enseguida para el render principal del siguiente frame.
+      const _mainEnv = scene.environment;
+      if (frontEnvMap) scene.environment = frontEnvMap;
+      fr.render(scene, camera);
+      scene.environment = _mainEnv;
     } else if (frontCanvas.style.opacity !== '0') {
       frontCanvas.style.opacity = '0';
       frontCanvas.style.filter = '';
@@ -7152,6 +7171,7 @@ window.addEventListener('resize', () => {
 });
 
 animate();
+
 </script>
 
 
