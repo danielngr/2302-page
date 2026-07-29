@@ -4663,7 +4663,7 @@
          scroll de la página. Centro libre: la ballena cruza por detrás/en medio. -->
     <style>
       .cgal-wrap{ position:relative; margin:30px auto 4px; max-width:1500px; padding:0 clamp(10px,2vw,28px); }
-      .cgal-stage{ position:relative; height:min(74vh,660px); min-height:440px; perspective:1900px; display:grid; place-items:center; touch-action:pan-y; cursor:grab; }
+      .cgal-stage{ position:relative; height:min(76vh,680px); min-height:460px; perspective:2000px; display:grid; place-items:center; touch-action:pan-y; cursor:grab; }
       .cgal-stage:active{ cursor:grabbing; }
       .cgal-ring{ position:relative; width:1px; height:1px; transform-style:preserve-3d; will-change:transform; }
       .cgal-card{ position:absolute; width:300px; height:400px; left:-150px; top:-200px;
@@ -4743,7 +4743,7 @@
       if(!stage||!ring) return;
       const N = HOMES.length, ANG = 360/N;
       const isMob = matchMedia('(max-width:640px)').matches;
-      const R = isMob ? 420 : 620;   // radio de la rueda (cilindro fiel al componente)
+      const R = isMob ? 360 : 500;   // radio del cilindro (menor → vecinas se traslapan con el centro)
 
       // construir tarjetas
       const cards = HOMES.map((h,i)=>{
@@ -4775,50 +4775,41 @@
       // re-aplicar traducciones a las tarjetas nuevas (respeta EN/ES y el switch de idioma)
       if(window.VRM_applyI18n) window.VRM_applyI18n();
 
-      // ── COVERFLOW por índice — la casa central grande y derecha, las vecinas
-      //   inclinadas con perspectiva a los lados, las lejanas apiladas y difuminadas.
-      //   Robusto para 16 casas: siempre se ven ~3-5 limpias como en la referencia.
-      const GAP1  = isMob ? 150 : 212;   // vecina PEGADA al centro (se traslapa → banda continua)
-      const GAP2  = isMob ? 38  : 56;    // las siguientes se apilan cerca
-      const ROT   = isMob ? 36  : 42;    // inclinación suave (más frontal, como la referencia)
-      const DEPTH = isMob ? 66  : 94;    // poco retroceso → cilindro continuo, centro no domina
-      const MAXV  = 3.0;                 // cuántas se ven a cada lado antes de desvanecerse
+      // ── CILINDRO VIRTUALIZADO (transformación EXACTA del componente) ──
+      //   Cada tarjeta se monta en el cilindro con rotateY(θ)·translateZ(R), al
+      //   espaciado de la referencia (SPACING°). Solo se ve la ventana frontal;
+      //   al girar, las 16 casas entran/salen. La del frente grande y opaca, las
+      //   vecinas inclinadas con la perspectiva, las lejanas fantasmas → idéntico.
+      const SPACING = isMob ? 34 : 40;   // grados entre casas (inclinación fuerte como la referencia)
+      const VISDEG  = 104;               // se ven ±VISDEG del frente; el resto oculto
 
-      let manualI = 0;     // índice objetivo (flechas/puntos/click/arrastre)
-      let parF = 0;        // parallax de scroll en unidades de tarjeta (vida, no control)
-      let pos = 0;         // índice fraccional actual (suavizado)
-      let justDragged = false;
-
+      let manualI = 0, parF = 0, pos = 0, justDragged = false;
       function focus(i){ let cur=((Math.round(manualI)%N)+N)%N; let d=i-cur; while(d>N/2)d-=N; while(d<-N/2)d+=N; manualI = Math.round(manualI)+d; }
 
-      // parallax de scroll (±0.4 tarjeta) — vida al cruzar la sección, sin secuestrar el scroll
       const section = document.getElementById('properties') || stage;
       function updateParallax(){
         const r = section.getBoundingClientRect();
         const vh = window.innerHeight || 800;
         const p = Math.max(0, Math.min(1, (vh - r.top) / (vh + r.height)));
-        parF = (p - 0.5) * 0.8;
+        parF = (p - 0.5) * 0.38;   // ±0.19 casa de vida al hacer scroll (sutil)
       }
       window.addEventListener('scroll', updateParallax, {passive:true});
       updateParallax();
 
       function layout(){
-        const target = manualI + parF;
-        pos += (target - pos) * 0.12;
+        pos += (manualI + parF - pos) * 0.12;
         let frontI = 0, best = 1e9;
         cards.forEach((c,i)=>{
-          let r = i - pos; while(r> N/2) r-=N; while(r< -N/2) r+=N;   // ruta más corta (continuidad de anillo)
-          const ar = Math.abs(r), sign = r<0?-1:1, cl = Math.min(ar, MAXV);
-          const x  = sign * (Math.min(ar,1)*GAP1 + Math.max(0,cl-1)*GAP2);
-          const ry = -sign * Math.min(ar,1) * ROT;
-          const tz = -cl * DEPTH;
-          const sc = Math.max(0.82, 1 - ar*0.045);        // poca diferencia de tamaño
-          c.style.transform = 'translateX('+x.toFixed(1)+'px) translateZ('+tz.toFixed(1)+'px) rotateY('+ry.toFixed(1)+'deg) scale('+sc.toFixed(3)+')';
-          // centro + primeras vecinas OPACAS (como la referencia); recién a lo lejos se desvanecen
-          c.style.opacity = (ar < 1.5 ? 1 : Math.max(0, 1 - (ar-1.5)/1.7)).toFixed(2);
-          c.style.filter = 'brightness('+(0.8 + 0.2*Math.max(0,1-ar/3)).toFixed(2)+')';
-          c.style.zIndex = Math.round(200 - ar*12);
-          c.classList.toggle('cgal-front', ar < 0.5);
+          let r = i - pos; while(r> N/2) r-=N; while(r< -N/2) r+=N;   // casa más cercana por ambos lados (anillo)
+          const angle = r * SPACING, ar = Math.abs(angle);
+          if(ar > VISDEG){ c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
+          // ★ transformación EXACTA del componente: montada en el cilindro
+          c.style.transform = 'rotateY('+angle.toFixed(2)+'deg) translateZ('+R+'px)';
+          // centro + vecinas 100% OPACAS (como la referencia); solo los fantasmas lejanos se desvanecen
+          c.style.opacity = (ar < 50 ? 1 : Math.max(0, 1 - (ar-50)/52)).toFixed(2);
+          c.style.zIndex = Math.round(400 - ar);
+          c.style.pointerEvents = (ar < SPACING*0.5) ? 'auto' : 'none';
+          c.classList.toggle('cgal-front', ar < SPACING*0.5);
           if(ar < best){ best = ar; frontI = i; }
         });
         dots.forEach((d,i)=>d.classList.toggle('on', i===frontI));
