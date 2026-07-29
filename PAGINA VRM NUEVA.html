@@ -577,6 +577,21 @@
     transition: opacity 0.6s var(--ease-soft);
   }
 
+  /* ★ Front-pass canvas: la ballena pasa por DELANTE de todo el contenido
+     en un momento del scroll. z-index 60 = sobre secciones (z3-5) y sobre el
+     velo, pero bajo nav (99999) y whatsapp (9990). Opacidad controlada por JS. */
+  .whale-front {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    opacity: 0;
+    will-change: opacity;
+  }
+
   /* Aurora pastel + sol blanco central — AHORA renderizada dentro de Three.js
      como scene.background, no como CSS. Mantenemos el div en el DOM para no
      romper el JS que escribe aurora.style.opacity, pero lo ocultamos. */
@@ -4343,6 +4358,11 @@
 
   <canvas class="whale-canvas" id="whale-canvas"></canvas>
 
+  <!-- ★ Front-pass: SEGUNDO canvas que renderiza SOLO la ballena por ENCIMA de TODO
+       el contenido HTML (reviews, secciones) en un único momento climático del scroll.
+       z-index alto (sobre contenido z3-5), pero bajo nav/whatsapp. pointer-events:none. -->
+  <canvas class="whale-front" id="whale-front" aria-hidden="true"></canvas>
+
   <!-- Velo de inmersión: el fondo se hunde a aguas profundas al scrollear (z2: sobre ballena z1, bajo contenido z3) -->
   <div id="dive-veil" aria-hidden="true"></div>
 
@@ -5592,6 +5612,41 @@ loadGLB();
 const bubbles = [];  // array vacío para compatibilidad con loop
 
 /* ============================================================
+   PALABRA FANTASMA EN EL MUNDO 3D — "Settle" vive DENTRO del agua.
+   La ballena la cruza DE VERDAD: llega desde el fondo por DETRÁS de
+   las letras y, al embestir hacia el cristal, emerge por DELANTE.
+   Oclusión física por depth-test → el efecto 3D es real, no blending.
+   ============================================================ */
+const GHOST3D = { plane: null, mat: null };
+(function buildGhostWord() {
+  const cv = document.createElement('canvas');
+  cv.width = 2048; cv.height = 640;
+  const g = cv.getContext('2d');
+  const draw = () => {
+    g.clearRect(0, 0, cv.width, cv.height);
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = 'italic 400 340px Boska, "Times New Roman", serif';
+    g.fillStyle = 'rgba(255,255,255,0.92)';
+    g.fillText('Settle', cv.width / 2, cv.height / 2 + 20);
+    if (GHOST3D.mat) GHOST3D.mat.map.needsUpdate = true;
+  };
+  draw();
+  try { document.fonts.load('italic 400 340px Boska').then(draw); } catch (e) {}
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex, transparent: true, opacity: 0,
+    depthTest: true, depthWrite: false, fog: false
+  });
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(10.8, 3.375), mat);
+  plane.position.set(0, 0.3, -2.2);   // profundidad REAL: la embestida la cruza en ~sp 0.615
+  plane.renderOrder = 6;              // se dibuja tras la ballena → el depth-test decide quién tapa a quién
+  plane.visible = false;
+  scene.add(plane);
+  GHOST3D.plane = plane; GHOST3D.mat = mat;
+})();
+
+/* ============================================================
    POST-PROCESSING: BLOOM
    Esto da el "glow" tipo fénix
    ============================================================ */
@@ -5603,6 +5658,45 @@ const bubbles = [];  // array vacío para compatibilidad con loop
 const composer = new EffectComposer(renderer);
 composer.setSize(window.innerWidth, window.innerHeight);
 composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+/* ════════════════════════════════════════════════════════════════════
+   ★ FRONT-PASS — la ballena pasa por DELANTE de TODO el contenido
+   ────────────────────────────────────────────────────────────────────
+   Segundo renderer sobre un canvas transparente (#whale-front, z-index 60)
+   que dibuja ÚNICAMENTE la ballena por encima del HTML. Usamos THREE.Layers:
+   la ballena vive en la capa 0 (render normal, detrás del contenido) y
+   TAMBIÉN en la capa 1. Una cámara clon con layers.set(1) renderiza solo lo
+   que esté en la capa 1 → solo la ballena, sin burbujas ni fondo. Las luces
+   siguen en capa 0, y como la ballena comparte la capa 0, se ilumina igual.
+   Se activa en UNA ventana de scroll (la embestida frontal, CH5) con un
+   fade de opacidad. Fuera de esa ventana el canvas está a opacity:0 y no
+   renderizamos, así que no cuesta rendimiento el resto del tiempo.
+   ════════════════════════════════════════════════════════════════════ */
+const WHALE_FRONT_LAYER = 1;
+const frontCanvas = document.getElementById('whale-front');
+const frontRenderer = new THREE.WebGLRenderer({
+  canvas: frontCanvas,
+  antialias: true,
+  alpha: true,
+  powerPreference: 'high-performance'
+});
+frontRenderer.setSize(window.innerWidth, window.innerHeight);
+frontRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+frontRenderer.setClearColor(0x000000, 0);      // fondo transparente
+frontRenderer.outputColorSpace = THREE.SRGBColorSpace;
+frontRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+frontRenderer.toneMappingExposure = 1.05;
+
+// Cámara clon: copia la cámara principal cada frame pero solo ve la capa 1.
+const frontCam = camera.clone();
+frontCam.layers.set(WHALE_FRONT_LAYER);
+
+// Ventana de scroll donde ocurre la pasada frontal (embestida CH5).
+// La ballena viene de frente hacia la cámara → momento ideal para taparlo todo.
+const FRONT_PASS_IN   = 0.585;   // empieza a aparecer
+const FRONT_PASS_PEAK = 0.635;   // opacidad máxima (ballena enorme y frontal)
+const FRONT_PASS_OUT  = 0.690;   // desaparece
+let frontLayerEnabled = false;   // se activa una vez que la ballena carga
 
 // ★ PRIMER pass: fondo animado de agua (god rays + caustics + sparkles)
 // Se renderiza SIN limpiar el canvas (clear=true) y luego el renderPass
@@ -6369,6 +6463,23 @@ function animate(time) {
   waterTexture.update();
   bgMaterial.uniforms.uTime.value = t;
 
+  // Palabra fantasma 3D — misma ventana que tenía en DOM (0.48–0.70),
+  // ahora con oclusión real: detrás → la ballena emerge por DELANTE.
+  if (GHOST3D.plane) {
+    const gT = window.__vrmScroll || 0;
+    const gA = 0.48, gPk = 0.58, gB = 0.70;
+    let gO = 0, gP = 0;
+    if (gT > gA && gT < gB) {
+      if (gT < gPk) { const k = (gT - gA) / (gPk - gA); gP = -1 + k; gO = k; }
+      else { const k = (gT - gPk) / (gB - gPk); gP = k; gO = 1 - k; }
+      gO = gO * gO * (3 - 2 * gO);
+    }
+    GHOST3D.plane.visible = gO > 0.01;
+    GHOST3D.mat.opacity = gO * 0.34;
+    GHOST3D.plane.position.x = -gP * 1.6;   // el mismo paseo lateral que hacía en DOM
+    GHOST3D.plane.rotation.y = -gP * 0.22;  // y su leve giro 3D
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   // SCROLL SMOOTHING — Adaptativo entre desktop y mobile
   // 
@@ -6783,6 +6894,46 @@ function animate(time) {
   canvas.style.opacity = '1';
 
   composer.render();
+
+  // ════════════════════════════════════════════════════════════════════
+  // ★ FRONT-PASS — la ballena por DELANTE de todo el contenido
+  // ════════════════════════════════════════════════════════════════════
+  // Activar la capa 1 en la ballena una sola vez, cuando ya cargó.
+  if (!frontLayerEnabled && modelLoaded) {
+    whaleGroup.traverse((o) => {
+      if (o.layers) o.layers.enable(WHALE_FRONT_LAYER);
+    });
+    frontLayerEnabled = true;
+  }
+
+  if (frontLayerEnabled) {
+    // Opacidad triangular dentro de la ventana [IN → PEAK → OUT].
+    let frontOp = 0;
+    if (sp > FRONT_PASS_IN && sp < FRONT_PASS_OUT) {
+      if (sp < FRONT_PASS_PEAK) {
+        frontOp = (sp - FRONT_PASS_IN) / (FRONT_PASS_PEAK - FRONT_PASS_IN);
+      } else {
+        frontOp = 1 - (sp - FRONT_PASS_PEAK) / (FRONT_PASS_OUT - FRONT_PASS_PEAK);
+      }
+      // easeInOut suave para que el "swoosh" entre y salga orgánico.
+      frontOp = frontOp < 0.5
+        ? 2 * frontOp * frontOp
+        : 1 - Math.pow(-2 * frontOp + 2, 2) / 2;
+      frontOp = Math.max(0, Math.min(1, frontOp));
+    }
+    frontCanvas.style.opacity = String(frontOp);
+
+    if (frontOp > 0.001) {
+      // Clonar el estado de la cámara principal, pero manteniendo solo capa 1.
+      frontCam.position.copy(camera.position);
+      frontCam.quaternion.copy(camera.quaternion);
+      frontCam.fov = camera.fov;
+      frontCam.aspect = camera.aspect;
+      frontCam.updateProjectionMatrix();
+      frontRenderer.render(scene, frontCam);
+    }
+  }
+
   requestAnimationFrame(animate);
 }
 
@@ -6803,6 +6954,9 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
   composer.setSize(w, h);
+  frontRenderer.setSize(w, h);
+  frontCam.aspect = w / h;
+  frontCam.updateProjectionMatrix();
   bgMaterial.uniforms.uResolution.value.set(w, h);
 });
 
@@ -6868,6 +7022,7 @@ animate();
 
     words.forEach((word) => {
       const key = word.dataset.anchor;
+      if (key === 'casas') { word.style.display = 'none'; return; }   // "Settle" ahora vive DENTRO del 3D (oclusión real)
       const range = RANGES[key];
       if (!range) return;
 
