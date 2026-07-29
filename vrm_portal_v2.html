@@ -3786,9 +3786,6 @@
       'ALMAR 101': 'DELTA 2 101',
       'ALAMAR CABO 903': 'ALAMAR 903',
       'CABO 903': 'ALAMAR 903',
-      'MARITIMA GOLF LW1': 'MARITIMA GOLF LW1B',
-      'MARITIMA GOLF LW 1': 'MARITIMA GOLF LW1B',
-      'MARITIMA GOLF LW1 B': 'MARITIMA GOLF LW1B',
     };
 
     function getTmpl(depto) {
@@ -4340,15 +4337,7 @@
             function matchReg(depto){
                 // Normaliza guiones y espacios como equivalentes para que
                 // "TULES 20-105" empareje con "TULES 20 105" (y viceversa).
-                // Además aplica REG_DEPTO_ALIAS a AMBOS lados para que una variante
-                // del Sheet ("ARIA 1001", "MARITIMA GOLF LW1") empareje con el
-                // registro guardado en Supabase con el nombre canónico.
-                const canon = s => {
-                    let u = (s||'').toUpperCase().trim();
-                    if (REG_DEPTO_ALIAS.hasOwnProperty(u)) u = REG_DEPTO_ALIAS[u];
-                    return u;
-                };
-                const norm = s => canon(s).replace(/[-\s]+/g,' ').trim();
+                const norm = s => (s||'').toUpperCase().replace(/[-\s]+/g,' ').trim();
                 const d = norm(depto);
                 return todosRegistros.find(x=>{
                     const xd = norm(x.depto);
@@ -7894,214 +7883,211 @@ function runSim(){
 // ======== MAIN DASHBOARD ========
 
 // Scraper de Airbnb como string (se copia al portapapeles)
-const VRM_SCRAPER_JS = `(async function VRM_Scraper() {
-  'use strict';
-  console.clear();
-  console.log('%c🏨 VRM Scraper v4 (fetch mode)', 'font-size:16px;font-weight:bold;color:#C8A96E');
-  const SLEEP = ms => new Promise(r => setTimeout(r, ms));
-  const all = [];
-  const vistos = new Set();
-  let pag = 1;
-
-  // En la página de lista, cada review tiene un contenedor con el botón "Ver detalles".
-  // Ese botón NO tiene href. Pero el review tiene un ID interno. Lo extraemos monitoreando clicks.
-  // Mejor: en vez de clickear, buscamos el ID embebido en el DOM.
-
-  async function scrollearYEsperar() {
-    const h = document.documentElement.scrollHeight;
-    for (let y = 0; y <= h; y += 400) {
-      window.scrollTo(0, y);
-      await SLEEP(150);
-    }
-    window.scrollTo(0, 0);
-    await SLEEP(600);
+const VRM_SCRAPER_JS = `(async () => {
+  // ═══ VRM INCREMENTAL FETCHER (API interna) → Supabase ═══
+  if (location.host.indexOf('airbnb') === -1) { alert('Abre esto en la pagina de evaluaciones de Airbnb primero.'); return; }
+  var SUPA_URL='https://grsykedeppdwenpfxlfh.supabase.co';
+  var SUPA_KEY='sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm';
+  var HASH_LIST='015be4eeaa5e444fa22bc0bf82688aa0f21028c3836b2e442c537a904c9d5e14';
+  var HASH_DETAIL='9b32dd76b3eb7502b5eb35037b57d12b264e18011ad62edb2423b86e520dee19';
+  var API_KEY='d306zoyjsyarp7ifhu67rjxn52tv0t20';
+  var USER_ID=btoa('User:579063823');
+  var LIMIT=50, PAUSA_LISTA=500, PAUSA_DETALLE=350, BUFFER_DIAS=7;
+  var MAP={
+    "1080717529518285207":"ALAMAR 503",
+    "1657681927716949600":"ALAMAR 903",
+    "852396653671420365":"ALBATROS 301 A",
+    "12871731":"AMAPA",
+    "1452241861310582944":"AMOARA",
+    "49907877":"ARCANO",
+    "589865379716619123":"ARIA 1010",
+    "1161972055615199873":"ARIA 1013",
+    "701504534483670439":"ARIA 812",
+    "1164074077600462805":"ARIA 906",
+    "1574047110057492209":"ARIA PH 1001",
+    "1253868938903227918":"BOLONGO 0N",
+    "1023507574440292184":"BOLONGO 211",
+    "1483418374242300943":"BOLONGO 3N",
+    "1345375257343327140":"BOLONGO G13",
+    "1472528202305348233":"BOLONGO L05",
+    "1481239025409203766":"BVG B-505",
+    "858123745082271628":"COBALTO",
+    "1421119722340624479":"DELTA 2 101",
+    "1048822155579324142":"GD 103A",
+    "1116114906832295918":"GD 202B",
+    "1462434980513643841":"GD 303A",
+    "1036940109396502647":"GD 501B",
+    "1111969859662483395":"GD 501E",
+    "1699418959420936418":"GD A101",
+    "1654558588281449950":"MARALMA",
+    "1125449020384217133":"MARINA SOL",
+    "854188554225887584":"MARITIMA 10I",
+    "855367938161174766":"MARITIMA 6S",
+    "853906119133932532":"MARITIMA 9S",
+    "1557370404264543943":"MARITIMA GOLF 2L",
+    "1558136286058284651":"MARITIMA GOLF 2M",
+    "1457313438964081513":"MARITIMA GOLF LW1",
+    "1579118621312644666":"MARITIMA PHN",
+    "1386484717036724614":"MARSALA",
+    "42415494":"MASCOTA",
+    "1323226550739081628":"MIO",
+    "1598635657771248017":"NAUTICO 1G",
+    "48940380":"NAUTICO 3G",
+    "1476243692607285114":"NAUTICO 9C",
+    "1526196597084048181":"NAUTICO 9E",
+    "1287365426420112512":"NAUTICO NV",
+    "1457380966110894261":"PALMARES",
+    "579083157710759881":"PENINSULA 19E",
+    "40564738":"PLAYA ESMERALDA",
+    "50301850":"PUERTARENA",
+    "45069352":"QUERENCIA",
+    "1682001558208744611":"QUIYA 2403",
+    "1274119771076010127":"QUIYA 2701",
+    "832050786901178335":"RINCON 104",
+    "30566977":"RINCON 403",
+    "35126640":"RINCON 502",
+    "973236086889059581":"TULES 15-143",
+    "1222748920207036278":"TULES 19-1301",
+    "1546460025868486386":"TULES 20-105",
+    "1360381457266550264":"VENETIAN T3 1010",
+    "1168310808848234201":"VENETIAN T3 1903",
+    "1167698333806216560":"VENETIAN T3 905",
+    "1166168480181397839":"VENETIAN T3 906",
+    "1512477662915282082":"XIKIRI",
+    "1177870598555940571":"ZANTAMAR",
+    "1708869043259349740":"ZANTAMAR 109B",
+    "548461085262371539":"ZOHO"
+  };
+  var HDRS={ 'content-type':'application/json','x-airbnb-api-key':API_KEY,
+    'x-airbnb-graphql-platform':'web','x-airbnb-graphql-platform-client':'minimalist-niobe',
+    'x-csrf-without-token':'1' };
+  var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+  var MESES={ene:1,feb:2,mar:3,abr:4,may:5,jun:6,jul:7,ago:8,sep:9,sept:9,oct:10,nov:11,dic:12};
+  function parseCheckout(subtitle){
+    if(!subtitle) return null;
+    var t=subtitle.toLowerCase().replace(/–|—/g,'-');
+    var partes=t.split('-'); var salida=partes[partes.length-1];
+    var dia=(salida.match(/(\\d{1,2})/)||[])[1];
+    var mes=null, anio=(salida.match(/(20\\d{2})/)||[])[1], k;
+    for(k in MESES){ if(salida.indexOf(k)>-1){mes=MESES[k];break;} }
+    if(!mes){ for(k in MESES){ if(t.indexOf(k)>-1){mes=MESES[k];break;} } }
+    if(!anio) anio=(t.match(/(20\\d{2})/)||[])[1];
+    if(!dia||!mes||!anio) return null;
+    return anio+'-'+String(mes).padStart(2,'0')+'-'+String(dia).padStart(2,'0');
   }
+  var CAT_MAP={CHECKIN:'llegada',CLEANLINESS:'limpieza',ACCURACY:'veracidad',COMMUNICATION:'comunicacion',LOCATION:'ubicacion',VALUE:'calidad'};
 
-  function btnSiguiente() {
-    return [...document.querySelectorAll('button,a,[role="button"]')].find(b => {
-      const lbl = (b.getAttribute('aria-label') || '').toLowerCase();
-      return (lbl.includes('siguiente') || lbl.includes('next')) && !b.disabled;
-    });
-  }
-
-  // Captura los datos visibles en la card (sin abrir detalle)
-  function extractCards() {
-    // Cada review está en un contenedor. Los encuentro buscando el botón "Ver detalles"
-    // y subiendo al contenedor que contiene todos los datos visibles.
-    const btns = [...document.querySelectorAll('button')]
-      .filter(b => b.textContent.trim() === 'Ver detalles');
-
-    return btns.map(btn => {
-      // Subir hasta encontrar el contenedor de la review completa
-      let card = btn;
-      for (let i = 0; i < 8; i++) {
-        if (card.parentElement) card = card.parentElement;
-        const txt = card.innerText || '';
-        if (txt.includes('Calidad general') && txt.length > 100 && txt.length < 3000) break;
-      }
-      return { btn, card };
-    });
-  }
-
-  // Extrae huésped, fecha, depto, comentario y general★ de la card
-  function parseCard(cardEl) {
-    const txt = (cardEl.innerText || '').trim();
-    const lines = txt.split('\\n').map(s => s.trim()).filter(Boolean);
-    const data = { huesped:null, depto:null, fecha:null, general:null, comentario:null };
-
-    // Línea 0 suele ser el nombre
-    if (lines[0] && lines[0].length < 60 && !/\\d/.test(lines[0])) data.huesped = lines[0];
-
-    // Fecha: "20–23 de abr de 2026" → tomamos la segunda fecha (checkout)
-    const fm = txt.match(/(\\d{1,2})\\s*[–-]\\s*(\\d{1,2})\\s+de\\s+(\\w+)\\s+de\\s+(\\d{4})/);
-    if (fm) {
-      const MESES = {ene:'01',feb:'02',mar:'03',abr:'04',may:'05',jun:'06',jul:'07',ago:'08',sep:'09',oct:'10',nov:'11',dic:'12'};
-      const mes = MESES[fm[3].slice(0,3).toLowerCase()];
-      if (mes) data.fecha = \`\${fm[4]}-\${mes}-\${fm[2].padStart(2,'0')}\`;
+  // 0) Fecha de corte = ultima fecha en Supabase - buffer
+  var corte='2026-01-01';
+  try{
+    var rc=await fetch(SUPA_URL+'/rest/v1/reviews?select=fecha&order=fecha.desc&limit=1',{headers:{apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY}});
+    var arr=await rc.json();
+    if(Array.isArray(arr)&&arr.length&&arr[0].fecha){
+      var d=new Date(arr[0].fecha+'T00:00:00'); d.setDate(d.getDate()-BUFFER_DIAS);
+      corte=d.toISOString().slice(0,10);
     }
+  }catch(e){ console.warn('No pude leer ultima fecha de Supabase, jalo todo 2026:',e); }
+  console.log('%c🔎 VRM: jalando reviews desde '+corte,'font-size:14px;font-weight:bold;color:#C8A96E');
 
-    // Depto: viene después de "•" en la línea de fechas
-    const dm = txt.match(/•\\s*([^\\n]+)/);
-    if (dm) data.depto = dm[1].trim();
-
-    // General rating: buscar "Calidad general ★ N"
-    const gm = txt.match(/Calidad general\\s*★?\\s*(\\d)/i);
-    if (gm) data.general = parseInt(gm[1]);
-
-    // Comentario: líneas posteriores (más largas)
-    const textoLargo = lines.filter(l => l.length > 40 && !l.startsWith('Calidad') && !l.includes('Ver detalles'));
-    if (textoLargo.length) data.comentario = textoLargo.join(' ').trim();
-
-    return data;
-  }
-
-  // Abre el detalle, extrae subcategorías, y vuelve
-  async function extractDetalle(btn, cardData) {
-    btn.scrollIntoView({block:'center', behavior:'instant'});
-    await SLEEP(200);
-    const urlAntes = location.href;
-    btn.click();
-    await SLEEP(1800);
-
-    const data = { ...cardData,
-      limpieza:null, veracidad:null, llegada:null,
-      comunicacion:null, ubicacion:null, calidad:null };
-
-    // Ahora buscamos las subcategorías en la nueva vista (detalle)
-    const pageTxt = document.body.innerText;
-    const subLabels = {
-      limpieza: /Limpieza\\s*★?\\s*(\\d)/i,
-      veracidad: /(?:Veracidad|Exactitud)\\s*★?\\s*(\\d)/i,
-      llegada: /Llegada\\s*★?\\s*(\\d)/i,
-      comunicacion: /Comunicaci[óo]n\\s*★?\\s*(\\d)/i,
-      ubicacion: /Ubicaci[óo]n\\s*★?\\s*(\\d)/i,
-      calidad: /(?:Valor|Calidad-precio|Calidad)\\s*★?\\s*(\\d)/i,
-    };
-    for (const [k, re] of Object.entries(subLabels)) {
-      const m = pageTxt.match(re);
-      if (m) { const n = parseInt(m[1]); if (n>=1 && n<=5) data[k] = n; }
-    }
-
-    // General de la página de detalle (por si no se capturó de la card)
-    if (!data.general) {
-      const gm = pageTxt.match(/Calidad general\\s*★?\\s*(\\d)/i);
-      if (gm) data.general = parseInt(gm[1]);
-    }
-
-    // Comentario completo del detalle
-    const comentarioEl = document.body.innerText.match(/Evaluaci[óo]n p[úu]blica[\\s\\S]*?★?\\s*\\d?\\s*\\n([\\s\\S]+?)(?=Escribe una respuesta|Nota de|Revisa los detalles|$)/);
-    if (comentarioEl && comentarioEl[1]) data.comentario = comentarioEl[1].trim().slice(0, 2000);
-
-    // Cerrar el detalle: back en el historial O clic en botón "Cerrar"/flecha
-    const cerrarBtn = [...document.querySelectorAll('button')].find(b => {
-      const lbl = (b.getAttribute('aria-label') || '').toLowerCase();
-      return lbl === 'cerrar' || lbl === 'close' || b.textContent.trim() === '×';
-    });
-    if (cerrarBtn) {
-      cerrarBtn.click();
-    } else if (location.href !== urlAntes) {
-      history.back();
-    } else {
-      document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',which:27,keyCode:27}));
-    }
-    await SLEEP(1400);
-    return data;
-  }
-
-  while (pag <= 80) {
-    await scrollearYEsperar();
-    const cards = extractCards();
-    console.log(\`→ Página \${pag}: \${cards.length} reviews encontradas\`);
-
-    if (cards.length === 0) {
-      console.warn('Sin reviews en esta página, deteniendo');
-      break;
-    }
-
-    for (let i = 0; i < cards.length; i++) {
-      const cardData = parseCard(cards[i].card);
-      // Si no se pudo abrir el detalle, usamos solo los datos de la card
-      let full;
-      try {
-        full = await extractDetalle(cards[i].btn, cardData);
-      } catch(e) {
-        console.warn('Error en detalle:', e);
-        full = cardData;
-      }
-
-      const key = \`\${full.huesped||''}|\${full.fecha||''}|\${full.depto||''}\`.toLowerCase();
-      if (!vistos.has(key) && full.huesped) {
-        vistos.add(key);
-        all.push(full);
-        console.log(\`  ✓ \${full.huesped} — \${full.fecha||'??'} — \${full.general||'?'}★ \${full.limpieza?'| L'+full.limpieza:''}\`);
-      } else {
-        console.log(\`  ~ duplicado ignorado: \${full.huesped||'???'}\`);
+  // FASE 1: lista (se detiene al pasar el corte)
+  var nuevos=[];
+  for(var page=0;page<60;page++){
+    var offset=page*LIMIT;
+    var variables={request:{clientName:'web-performance-dash-reviews-search',
+      arguments:{metricType:'QUALITY',groupBys:['RATING_CATEGORY'],groupByValues:['overall']},
+      componentArguments:[{componentName:'RECENT_REVIEWS_SECTION',arguments:{offset:offset,limit:LIMIT}}],
+      useStubbedData:false}};
+    var ext={persistedQuery:{version:1,sha256Hash:HASH_LIST}};
+    var url=location.origin+'/api/v3/ReviewsSectionQuery/'+HASH_LIST+
+      '?operationName=ReviewsSectionQuery&locale=es-419&currency=MXN'+
+      '&variables='+encodeURIComponent(JSON.stringify(variables))+
+      '&extensions='+encodeURIComponent(JSON.stringify(ext));
+    var json;
+    try{
+      var r=await fetch(url,{credentials:'include',headers:HDRS});
+      if(!r.ok){ console.warn('lista HTTP '+r.status); break; }
+      json=await r.json();
+    }catch(e){ console.warn('red:',e); await sleep(2500); page--; continue; }
+    var comp=(((((json||{}).data||{}).porygon||{}).getPerformanceComponents||{}).components||[])[0];
+    var revs=(comp||{}).reviews||[];
+    if(!revs.length) break;
+    var algunoNuevo=false;
+    for(var a=0;a<revs.length;a++){
+      var rv=revs[a]; var fecha=parseCheckout(rv.subtitle);
+      if(!fecha) continue;
+      if(fecha>=corte){
+        algunoNuevo=true;
+        nuevos.push({id:rv.id,huesped:rv.title||null,fecha:fecha,
+          general:parseInt((((rv.metricUnits||[])[0]||{}).valueString)||'')||null,
+          comentario:rv.comment||'',listingId:null,
+          llegada:null,limpieza:null,veracidad:null,comunicacion:null,ubicacion:null,calidad:null});
       }
     }
+    console.log('  offset '+offset+': +'+revs.length+' · nuevas: '+nuevos.length);
+    if(!algunoNuevo) break;
+    await sleep(PAUSA_LISTA);
+  }
+  if(!nuevos.length){ console.log('%c✔️ Nada nuevo. Ya estas al dia.','font-size:15px;font-weight:bold;color:#22D37D'); return; }
+  console.log('%c✅ Fase 1: '+nuevos.length+' reviews nuevas','font-weight:bold;color:#22D37D');
 
-    // Avanzar a la siguiente página (puede que después de back() el botón haya cambiado)
-    await SLEEP(800);
-    const next = btnSiguiente();
-    if (!next) { console.log('✅ No hay más páginas'); break; }
-    next.scrollIntoView({block:'center'});
-    await SLEEP(300);
-    next.click();
-    pag++;
-    await SLEEP(2800);
+  // FASE 2: detalle (solo las nuevas) → subcategorias + listingId
+  var fallos=0;
+  for(var i=0;i<nuevos.length;i++){
+    var rev=nuevos[i];
+    var v2={reviewId:btoa('StayListingReview:'+rev.id),userId:USER_ID};
+    var e2={persistedQuery:{version:1,sha256Hash:HASH_DETAIL}};
+    var url2=location.origin+'/api/v3/HostReviewsSingleReviewRefreshedDesignQuery/'+HASH_DETAIL+
+      '?operationName=HostReviewsSingleReviewRefreshedDesignQuery&locale=es-419&currency=MXN'+
+      '&variables='+encodeURIComponent(JSON.stringify(v2))+
+      '&extensions='+encodeURIComponent(JSON.stringify(e2));
+    try{
+      var rd=await fetch(url2,{credentials:'include',headers:HDRS});
+      if(!rd.ok) throw new Error('HTTP '+rd.status);
+      var jd=await rd.json();
+      var stats=((((((jd||{}).data||{}).presentation||{}).hostReviews||{}).ratingStatsAndReview)||{});
+      var det=stats.review;
+      if(det){
+        if(det.rating!=null) rev.general=det.rating;
+        if(det.comment!=null) rev.comentario=det.comment;
+        var lid=(det.staySupplyListing||{}).id;
+        if(lid){ try{ rev.listingId=atob(lid).split(':')[1]||null; }catch(e){} }
+        var cats=stats.categoryStatsWithTagStats||[];
+        for(var c=0;c<cats.length;c++){
+          var campo=CAT_MAP[cats[c].category];
+          if(campo){ var val=(cats[c].categoryRating||{}).value; rev[campo]=(val!=null?val:null); }
+        }
+      }
+    }catch(e){ fallos++; if(fallos<=5) console.warn('detalle fallo '+rev.huesped+':',e); await sleep(1200); }
+    if((i+1)%20===0) console.log('  detalle '+(i+1)+'/'+nuevos.length);
+    await sleep(PAUSA_DETALLE);
   }
 
-  console.log(\`%c📊 Total: \${all.length}\`, 'font-size:14px;font-weight:bold;color:#22D37D');
+  // 3) Traducir listingId→depto y filtrar
+  var filas=[], ignoradas=[];
+  for(var f=0;f<nuevos.length;f++){
+    var x=nuevos[f]; var dep=x.listingId?MAP[x.listingId]:null;
+    if(!dep){ ignoradas.push((x.huesped||'?')+' ('+(x.listingId||'sin-id')+')'); continue; }
+    filas.push({fecha:x.fecha,depto:dep,huesped:x.huesped,general:x.general,
+      llegada:x.llegada,limpieza:x.limpieza,veracidad:x.veracidad,
+      comunicacion:x.comunicacion,ubicacion:x.ubicacion,calidad:x.calidad,comentario:x.comentario});
+  }
+  console.log('🔁 '+filas.length+' listas para Supabase · '+ignoradas.length+' ignoradas (listing fuera de mapeo)'+(fallos?(' · '+fallos+' detalles fallaron'):''));
+  if(ignoradas.length) console.log('   ignoradas:',ignoradas);
+  if(!filas.length){ console.log('%c✔️ Sin filas mapeables para subir.','font-weight:bold;color:#E8A838'); return; }
 
-  // ── Subir DIRECTO a Supabase (upsert; ignora duplicados por dedup_key). Corre dentro de tu sesión de Airbnb. ──
-  try {
-    var SUPA_URL='https://grsykedeppdwenpfxlfh.supabase.co';
-    var SUPA_KEY='sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm';
-    var COLS=['fecha','depto','huesped','general','llegada','limpieza','veracidad','comunicacion','ubicacion','calidad','comentario'];
-    var limpio = all.map(function(r){ var o={}; COLS.forEach(function(k){ o[k]=(r[k]!==undefined?r[k]:null); }); return o; });
-    var subidas=0, loteErr=0;
-    for (var si=0; si<limpio.length; si+=200) {
-      try {
-        var resp = await fetch(SUPA_URL+'/rest/v1/reviews?on_conflict=dedup_key', {
-          method:'POST',
-          headers:{ 'apikey':SUPA_KEY, 'Authorization':'Bearer '+SUPA_KEY, 'Content-Type':'application/json', 'Prefer':'resolution=ignore-duplicates,return=minimal' },
-          body: JSON.stringify(limpio.slice(si, si+200))
-        });
-        if (resp.ok) { subidas += limpio.slice(si, si+200).length; }
-        else { loteErr++; console.warn('Lote Supabase fallo:', resp.status, await resp.text()); }
-      } catch(e2) { loteErr++; console.warn('Error subiendo lote a Supabase:', e2); }
-    }
-    console.log('%c☁️ Supabase: '+subidas+' filas enviadas'+(loteErr?(' · '+loteErr+' lotes con error, revisa arriba'):' · recarga el portal para verlas'), 'font-size:15px;font-weight:bold;color:#22D37D');
-  } catch(eSupa) { console.warn('No se pudo subir a Supabase (queda el JSON de respaldo):', eSupa); }
-
-  const json = JSON.stringify(all, null, 2);
-  const fecha = new Date().toISOString().slice(0, 10);
-  const blob = new Blob([json], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = \`vrm_reviews_\${fecha}.json\`;
-  a.click();
-  window.__vrm_reviews = all;
-  console.log('💾 Descargado. También en window.__vrm_reviews');
+  // 4) Upsert a Supabase (ignora duplicados por dedup_key)
+  var subidas=0, loteErr=0;
+  for(var s=0;s<filas.length;s+=200){
+    try{
+      var resp=await fetch(SUPA_URL+'/rest/v1/reviews?on_conflict=dedup_key',{
+        method:'POST',
+        headers:{apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY,'Content-Type':'application/json',Prefer:'resolution=ignore-duplicates,return=minimal'},
+        body:JSON.stringify(filas.slice(s,s+200))});
+      if(resp.ok) subidas+=filas.slice(s,s+200).length;
+      else { loteErr++; console.warn('lote Supabase fallo:',resp.status,await resp.text()); }
+    }catch(e){ loteErr++; console.warn('error lote:',e); }
+  }
+  console.log('%c☁️ Supabase: '+subidas+' filas enviadas'+(loteErr?(' · '+loteErr+' lotes con error'):'')+' · recarga el portal (F5)','font-size:16px;font-weight:bold;color:#22D37D');
 })();`;
 
 async function copiarScraperManual(btn) {
@@ -8164,7 +8150,7 @@ async function actualizarReviews() {
           <li>Clic en <b>"Abrir Airbnb"</b> abajo</li>
           <li>Cuando cargue la página, presiona <b>F12</b> → pestaña <b>Console</b></li>
           <li><b>Pega</b> (Ctrl+V) y <b>Enter</b></li>
-          <li>Deja correr ~2-5 min sin tocar la pestaña</li>
+          <li>Corre en ~30 seg – 1 min (usa la API interna de Airbnb: rápido y solo jala lo nuevo)</li>
           <li>Al terminar verás <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;font-size:11px">☁️ Supabase: N filas enviadas</code> — <b>se sube solo</b></li>
           <li>Regresa aquí y <b>recarga el portal</b> (F5). ¡Listo! <span style="color:var(--text-tertiary)">(el JSON se descarga solo como respaldo; "Importar JSON" queda por si acaso)</span></li>
         </ol>
