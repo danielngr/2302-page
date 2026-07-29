@@ -6356,14 +6356,15 @@ const WHALE_PATH = [
   _kf(0.62, -3.80,  0.05,  0.45),   // entra cerca por la izquierda  ← front-pass IN
   _kf(0.655, 0.00, -0.10,  0.95),   // ★ centro, gigante, flanco completo cruzando
   _kf(0.69,  3.80,  0.05,  0.45),   // sale cerca por la derecha     ← front-pass OUT
-  // CH7 · SALIDA Y ASCENSIÓN — sale por la derecha y regresa en UNA curva
-  //       amplia y lejana (el viraje se reparte en mucho recorrido: jamás
-  //       hay horquilla visible, ni siquiera con scroll rápido)
+  // CH7 · SALIDA + CLAVADO FINAL — sale por la derecha, regresa en UNA curva
+  //       amplia y lejana, y se despide CLAVÁNDOSE al centro: al final solo
+  //       queda LA COLA visible asomando por el borde inferior (ancla final)
   _kf(0.73,  5.40,  0.50, -2.20),   // sale del cuadro por la derecha
-  _kf(0.79,  4.60,  1.15, -4.40),   // vira lejos, ya pequeña
-  _kf(0.86,  2.60,  1.75, -5.20),
-  _kf(0.93,  0.90,  2.15, -5.30),
-  _kf(1.00, -0.30,  2.45, -5.10)    // cierre: alto, centrada, ascendiendo
+  _kf(0.79,  4.60,  1.30, -4.40),   // vira lejos, ya pequeña
+  _kf(0.855, 2.20,  1.90, -4.60),   // regresa alto por el fondo
+  _kf(0.92,  0.30,  1.50, -1.90),   // se acerca al centro, la nariz empieza a caer
+  _kf(0.962, 0.05, -0.80,  0.70),   // picada final por el centro, cerca
+  _kf(1.00,  0.00, -4.30,  1.50)    // ★ ancla: cuerpo hundido, SOLO la cola en cuadro
 ];
 
 // ══ BARREL ROLL coreografiado ══ una vuelta completa (360°) durante el
@@ -6478,6 +6479,16 @@ const _kfArc = WHALE_PATH.map((_, i) => {
   return i0 >= _wcDivs ? _wcTotal : _wcLens[i0] + (_wcLens[Math.min(_wcDivs, i0 + 1)] - _wcLens[i0]) * fr;
 });
 
+// ★ TANGENTES DEL MAPEO sp→arco (Catmull-Rom): con el mapeo LINEAL por tramos
+// la VELOCIDAD saltaba en cada keyframe (micro-tirón robótico). Con Hermite
+// cúbico la velocidad varía con continuidad C1 → el nado acelera y desacelera
+// como un ser vivo, nunca a escalones.
+const _kfTan = WHALE_PATH.map((_, i) => {
+  const iPrev = Math.max(0, i - 1), iNext = Math.min(WHALE_PATH.length - 1, i + 1);
+  const dsp = WHALE_PATH[iNext].sp - WHALE_PATH[iPrev].sp;
+  return dsp > 1e-6 ? (_kfArc[iNext] - _kfArc[iPrev]) / dsp : 0;
+});
+
 function getPathPoint(path, sp) {
   let prevIdx = 0;
   let nextIdx = path.length - 1;
@@ -6489,8 +6500,13 @@ function getPathPoint(path, sp) {
     }
   }
   const range = path[nextIdx].sp - path[prevIdx].sp;
-  const localT = range > 0 ? (sp - path[prevIdx].sp) / range : 0;   // LINEAL → sin pulsos
-  const s = _kfArc[prevIdx] + (_kfArc[nextIdx] - _kfArc[prevIdx]) * Math.max(0, Math.min(1, localT));
+  const tt = Math.max(0, Math.min(1, range > 0 ? (sp - path[prevIdx].sp) / range : 0));
+  // Hermite cúbico sobre (sp → arco): velocidad continua entre capítulos
+  const s0 = _kfArc[prevIdx], s1 = _kfArc[nextIdx];
+  const m0 = _kfTan[prevIdx] * range, m1 = _kfTan[nextIdx] * range;
+  const t2 = tt * tt, t3 = t2 * tt;
+  let s = (2*t3 - 3*t2 + 1) * s0 + (t3 - 2*t2 + tt) * m0 + (-2*t3 + 3*t2) * s1 + (t3 - t2) * m1;
+  if (s < s0) s = s0; else if (s > s1) s = s1;   // monotonicidad garantizada
   const pos = _whaleCurve.getPointAt(Math.max(0, Math.min(1, s / _wcTotal)));
   return { x: pos.x, y: pos.y, z: pos.z };
 }
@@ -6722,11 +6738,14 @@ function animate(time) {
   // Amplitudes pequeñas (≤0.04u/0.03rad) para que sea sutil, no payaso.
   // ════════════════════════════════════════════════════════════════════
   // amplitud de flex ligada a la velocidad (_swimFlex): recto al glisar, serpenteo al nadar fuerte
-  const dorsalBob = (Math.sin(t * 0.55 + 1.9) + Math.sin(t * 0.31 + 0.7) * 0.5) * 0.020;
-  const tailUndulation = (Math.sin(t * 0.85 + 0.4) + Math.sin(t * 1.35 + 2.1) * 0.45) * 0.048 * _swimFlex;  // cola: onda 2ª + escala con velocidad
-  const bodyYaw = Math.sin(t * 0.70 + 1.2) * 0.034 * _swimFlex;    // guiñada del cuerpo: NADA, no flota
-  const microShimmer = Math.sin(t * 2.1 + 4.3) * 0.005;
-  const cinematicRoll = Math.sin(t * 0.50 + 2.7) * 0.030;   // balanceo cinematográfico más amplio y lento
+  // ★ FRECUENCIAS DE MAMÍFERO GRANDE — todas LENTAS (< 1 rad/s) y desfasadas.
+  // Sin componentes rápidas: el "temblor de servo" (2.1 rad/s) desaparece; la
+  // vida viene de ondas amplias y pausadas que se cruzan sin repetirse nunca.
+  const dorsalBob = (Math.sin(t * 0.38 + 1.9) + Math.sin(t * 0.23 + 0.7) * 0.6) * 0.022;
+  const tailUndulation = (Math.sin(t * 0.62 + 0.4) + Math.sin(t * 0.94 + 2.1) * 0.45) * 0.052 * _swimFlex;  // cola: onda 2ª + escala con velocidad
+  const bodyYaw = Math.sin(t * 0.48 + 1.2) * 0.036 * _swimFlex;    // guiñada del cuerpo: NADA, no flota
+  const microShimmer = 0;   // eliminado: era el micro-temblor robótico
+  const cinematicRoll = Math.sin(t * 0.34 + 2.7) * 0.030;   // balanceo cinematográfico amplio y lento
 
   // Drift orgánico de posición (Perlin approx con suma de senos) — más vivo
   const driftX = (Math.sin(t * 0.37 + 1.1) + Math.sin(t * 0.29 + 4.2) * 0.6) * 0.034;
@@ -6994,15 +7013,15 @@ function animate(time) {
   );
   const clampedDot = Math.max(-1, Math.min(1, dotProduct));
   const angleToTarget = 2 * Math.acos(clampedDot);
-  const maxRotationThisFrame = MAX_ANGULAR_SPEED * dt;
-  let slerpFactor;
-  if (angleToTarget > maxRotationThisFrame && angleToTarget > 0.001) {
-    slerpFactor = maxRotationThisFrame / angleToTarget;
-  } else {
-    // Ángulo pequeño — slerp responsivo para que respiración y secondary
-    // motion se apliquen casi instantáneamente (la ballena se ve viva).
-    slerpFactor = Math.min(1, dt * 4.0);
-  }
+  // ★ INERCIA ANGULAR — antes: velocidad angular CONSTANTE al girar (tasa fija
+  // = servo robótico) con un salto de régimen al llegar. Ahora la TASA de giro
+  // tiene su propia inercia: acelera suave al iniciar el viraje y frena suave
+  // al terminarlo (ease-in/ease-out físico). Cero pasos mecánicos.
+  const _wantRate = Math.min(MAX_ANGULAR_SPEED, angleToTarget * 3.4);
+  window.__whaleAngRate = (window.__whaleAngRate || 0)
+    + (_wantRate - window.__whaleAngRate) * Math.min(1, dt * 2.8);
+  const _stepAng = Math.min(angleToTarget, window.__whaleAngRate * dt);
+  const slerpFactor = angleToTarget > 1e-4 ? (_stepAng / angleToTarget) : 1;
   whaleGroup.quaternion.slerp(_whaleQuatFinal, slerpFactor);
 
   // ════════════════════════════════════════════════════════════════════
