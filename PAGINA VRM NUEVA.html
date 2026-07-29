@@ -6331,24 +6331,23 @@ const WHALE_PATH = [
   _kf(0.00,  1.60,  0.10,  3.00),   // ★ apertura: 3/4, flanco visible
   _kf(0.05,  1.20, -0.05,  3.25),
   _kf(0.09,  0.45, -0.30,  3.10),   // arranca el impulso…
-  // CH2 · ASCENSO EN PARÁBOLA — sube en arco hacia arriba-izquierda ganando
-  //       altura; al coronar el vértice la nariz baja SOLA (física del arco)
-  _kf(0.125,-0.70,  0.70,  2.60),
-  _kf(0.16, -0.55,  2.30,  1.90),
-  _kf(0.19,  0.15,  3.00,  1.35),   // ★ vértice sobre el centro: se vuelca al clavado
-  // CH3 · CLAVADO VERTICAL — cae en picada, CABEZA ABAJO, por el CENTRO del
-  //       carrusel (x≈0, z cercano): pasa por dentro del anillo como la foto
-  _kf(0.23,  0.28,  1.30,  1.18),
-  _kf(0.27,  0.16, -0.60,  1.10),   // ★ atraviesa el corazón del carrusel, vertical
-  _kf(0.305, 0.02, -2.30,  1.02),
-  // CH4 · PULL-OUT EN J — al fondo del clavado curva hacia la profundidad y
-  //       glisa alejándose (la salida natural de una picada)
-  _kf(0.35, -0.55, -3.05, -0.50),
-  _kf(0.40, -1.10, -2.25, -2.70),
-  _kf(0.455,-0.50, -1.00, -4.70),
+  // CH2 · ZAMBULLIDA DE SALIDA — se lanza en picada abajo-izquierda y SALE
+  //       DEL CUADRO: el carrusel queda limpio, sin distraer la decisión
+  _kf(0.13, -0.75, -1.65,  2.60),
+  _kf(0.165,-1.95, -3.60,  1.95),   // ★ cruza el borde inferior…
+  _kf(0.20, -2.35, -5.20,  1.30),   // …y desaparece por completo
+  // CH3 · TRAVESÍA OCULTA — nada muy por debajo del encuadre y CERCA de cámara
+  //       (donde el cono de visión es angosto): invisible durante todo el
+  //       carrusel; los virajes de rumbo ocurren aquí, sin verse
+  _kf(0.27, -1.20, -6.10, -0.40),
+  _kf(0.34,  0.20, -6.40, -2.40),
+  // CH4 · REAPARICIÓN LEJANA — justo al cerrar el carrusel asoma pequeña al
+  //       fondo, subiendo serena: presencia sutil que no compite con el contenido
+  _kf(0.41,  0.80, -4.50, -4.70),
+  _kf(0.46, -0.20, -1.60, -5.90),   // sube YA inclinándose a la izquierda
   // CH5 · RESPIRO + VUELTA AMPLIA — serena al fondo, pequeña; UNA sola curva
   //       continua hacia la izquierda (sin horquillas: el rumbo nunca se invierte)
-  _kf(0.50, -1.00,  0.05, -6.00),
+  _kf(0.50, -1.30,  0.00, -5.95),
   _kf(0.53, -2.60,  0.20, -5.50),
   _kf(0.57, -4.50,  0.25, -4.00),
   _kf(0.595,-5.20,  0.12, -1.50),   // extremo izquierdo, acercándose, ya encarando +X
@@ -6357,10 +6356,13 @@ const WHALE_PATH = [
   _kf(0.62, -3.80,  0.05,  0.45),   // entra cerca por la izquierda  ← front-pass IN
   _kf(0.655, 0.00, -0.10,  0.95),   // ★ centro, gigante, flanco completo cruzando
   _kf(0.69,  3.80,  0.05,  0.45),   // sale cerca por la derecha     ← front-pass OUT
-  // CH7 · SALIDA Y ASCENSIÓN — se aleja por la derecha y sube a despedirse en alto
-  _kf(0.73,  5.20,  0.35, -1.80),   // sale del cuadro por la derecha
-  _kf(0.80,  3.00,  1.20, -3.90),
-  _kf(0.90,  0.90,  1.95, -4.80),
+  // CH7 · SALIDA Y ASCENSIÓN — sale por la derecha y regresa en UNA curva
+  //       amplia y lejana (el viraje se reparte en mucho recorrido: jamás
+  //       hay horquilla visible, ni siquiera con scroll rápido)
+  _kf(0.73,  5.40,  0.50, -2.20),   // sale del cuadro por la derecha
+  _kf(0.79,  4.60,  1.15, -4.40),   // vira lejos, ya pequeña
+  _kf(0.86,  2.60,  1.75, -5.20),
+  _kf(0.93,  0.90,  2.15, -5.30),
   _kf(1.00, -0.30,  2.45, -5.10)    // cierre: alto, centrada, ascendiendo
 ];
 
@@ -6681,7 +6683,7 @@ function animate(time) {
   {
     const _target = scrollProgress;
     const OMEGA = 3.2;
-    const VMAX = 0.60;   // velocidad de crucero: en un flick, glisa el circuito en ~1.8s (calmo, no frenético)
+    const VMAX = 0.48;   // velocidad de crucero: en un flick, glisa el circuito en ~2.1s (calmo, giros con aire)
     const _dtc = Math.min(dt, 0.033);                 // clamp dt → estable en frames lentos
     const _x = window.__whaleSp - _target;
     const _accel = -2 * OMEGA * window.__whaleSpVel - OMEGA * OMEGA * _x;  // ζ=1, crítico
@@ -6977,7 +6979,12 @@ function animate(time) {
   if (revealProgress < 1.0) {
     MAX_ANGULAR_SPEED = 1.2;
   } else {
-    MAX_ANGULAR_SPEED = isMobile ? 1.5 : 1.25;   // ↑ ligeramente: el giro de la embestida (180°) sigue el camino sin quedarse corto, pero suave
+    // ★ LÍMITE ADAPTATIVO A LA VELOCIDAD REAL: nadando lento gira lento
+    // (majestuosa); nadando rápido gira rápido y con peralte (como un animal
+    // que se lanza). Así la cabeza NUNCA se desfasa de la trayectoria — el
+    // giro de la vuelta se ve bien a CUALQUIER velocidad de scroll.
+    const _ws = window.__whaleSpeed || 0;
+    MAX_ANGULAR_SPEED = (isMobile ? 1.5 : 1.25) + Math.min(5.0, _ws * 0.45);
   }
   const dotProduct = Math.abs(
     whaleGroup.quaternion.x * _whaleQuatFinal.x +
