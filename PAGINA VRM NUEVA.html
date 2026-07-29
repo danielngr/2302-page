@@ -5082,7 +5082,6 @@ const renderer = new THREE.WebGLRenderer({
   canvas,
   antialias: true,
   alpha: true,
-  premultipliedAlpha: false,
   powerPreference: 'high-performance'
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -5638,14 +5637,12 @@ const PHYSICAL_PARAMS = {
   // ★ Color base: AZUL fuerte saturado (más vibrante que antes)
   color: 0x70a8d8,
   
-  // ★ TRANSMISIÓN 0.30 — bajamos para que el AZUL del cristal domine
-  // Si transmission es muy alto, el cristal se vuelve "vidrio transparente"
-  // y pierde el color. Bajando se mantiene el cuerpo azul saturado.
-  transmission: 0.30,
-  thickness: 1.2,
+  // ★ TRANSMISSION DESACTIVADA — su pase interno hace un GRAB del framebuffer
+  // cada frame; sobre el canvas transparente ese grab es inestable en GPU real
+  // (parpadeo de colores). El look cristal se mantiene por envMap + iridescencia
+  // + clearcoat + facetas: en fondo oscuro la contribución del vidrio era ~nula.
+  transmission: 0.0,
   ior: 1.7,
-  attenuationColor: 0x3070a8,    // ★ azul profundo saturado — el cristal SE TIÑE azul fuerte por dentro
-  attenuationDistance: 0.7,       // ★ menor distancia = tinte más concentrado
   
   // ★ IRIDESCENCIA — flash arcoíris sutil en las facetas
   iridescence: 0.7,
