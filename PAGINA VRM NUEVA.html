@@ -6919,7 +6919,9 @@ function animate(time) {
       frontOp = frontOp < 0.5
         ? 2 * frontOp * frontOp
         : 1 - Math.pow(-2 * frontOp + 2, 2) / 2;
-      frontOp = Math.max(0, Math.min(1, frontOp));
+      // Cap a 0.92: en el pico deja un susurro de translucidez para que la
+      // ballena "planee" etérea sobre el contenido en vez de taparlo del todo.
+      frontOp = Math.max(0, Math.min(0.92, frontOp * 0.92));
     }
     frontCanvas.style.opacity = String(frontOp);
 
@@ -6930,7 +6932,32 @@ function animate(time) {
       frontCam.fov = camera.fov;
       frontCam.aspect = camera.aspect;
       frontCam.updateProjectionMatrix();
+
+      // ★ FIX CRISTAL NEGRO: el material usa `transmission` (vidrio real) que
+      // necesita ver la escena por detrás para refractarla. En el pase frontal
+      // aislado no hay fondo → el vidrio se renderiza NEGRO. Solución: durante
+      // este único frame apagamos transmission (el cristal se vuelve un sólido
+      // azul iluminado por el envMap = luminoso, no negro) y le damos un leve
+      // emissive para compensar la falta del bloom pass. Restauramos después
+      // para no afectar el render principal (que sí conserva el vidrio).
+      for (let i = 0; i < whaleMaterials.length; i++) {
+        const m = whaleMaterials[i];
+        m.__savedTransmission = m.transmission;
+        m.__savedEmissiveInt = m.emissiveIntensity;
+        m.transmission = 0.0;
+        m.emissive.setHex(0x2a5a86);      // azul profundo — glow sutil
+        m.emissiveIntensity = 0.22;
+        m.envMapIntensity = 2.1;          // reflejos más vivos sin el bloom
+      }
       frontRenderer.render(scene, frontCam);
+      // Restaurar el vidrio para el render principal
+      for (let i = 0; i < whaleMaterials.length; i++) {
+        const m = whaleMaterials[i];
+        m.transmission = m.__savedTransmission;
+        m.emissiveIntensity = m.__savedEmissiveInt || 0.0;
+        m.emissive.setHex(0x000000);
+        m.envMapIntensity = 1.6;
+      }
     }
   }
 
