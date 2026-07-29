@@ -7034,8 +7034,21 @@ function animate(time) {
   // Una vez completo: opacity 1.0 siempre, la ballena nunca desaparece.
   // ════════════════════════════════════════════════════════════════════
   if (whaleMaterials.length > 0) {
+    // ★ FIX PALPITEO: `transparent:true` + `transmission` = doble pase de
+    // transparencia donde el ORDEN de dibujado se reordena por profundidad
+    // CADA frame → con los micro-movimientos el orden voltea y el blending
+    // cambia de golpe (colores palpitando). transparent solo se usa durante
+    // el fade del reveal; al completarse, el material vuelve a OPACO (el
+    // vidrio sigue siendo vidrio vía transmission, que tiene su propio pase).
+    const _needsFade = revealProgress < 0.999;
     for (let i = 0; i < whaleMaterials.length; i++) {
-      whaleMaterials[i].opacity = revealProgress;
+      const m = whaleMaterials[i];
+      m.opacity = revealProgress;
+      if (m.transparent !== _needsFade) {
+        m.transparent = _needsFade;
+        m.depthWrite = true;
+        m.needsUpdate = true;
+      }
     }
   }
 
