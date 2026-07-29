@@ -4656,18 +4656,158 @@
       </p>
     </div>
 
-    <!-- ====== VRM DRUM — carrusel 3D de estancias (iframe AISLADO: cero conflicto de IDs/CSS con el resto) ====== -->
+    <!-- ====== GALERÍA CIRCULAR VRM — rueda 3D ligera (CSS puro, sin iframe) ======
+         Portada del componente "circular-gallery" adaptada a vanilla. Controlada
+         por arrastre / flechas / puntos (para poder leer cada casa) con una leve
+         rotación de parallax ligada al scroll de la sección — NUNCA secuestra el
+         scroll de la página. Centro libre: la ballena cruza por detrás/en medio. -->
     <style>
-      .vrm-drum-embed{ margin:34px auto 6px; max-width:1820px; padding:0 clamp(8px,2vw,28px); }
-      .vrm-drum-hint{ text-align:center; margin-top:14px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; opacity:.5; font-family:var(--font-body,system-ui); }
-      @media (max-width:640px){ .vrm-drum-embed{ padding:0 8px; } .vrm-drum-embed iframe{ height:62vh; min-height:360px; border-radius:12px; } }
+      .cgal-wrap{ position:relative; margin:30px auto 4px; max-width:1500px; padding:0 clamp(10px,2vw,28px); }
+      .cgal-stage{ position:relative; height:min(74vh,660px); min-height:440px; perspective:1900px; display:grid; place-items:center; touch-action:pan-y; cursor:grab; }
+      .cgal-stage:active{ cursor:grabbing; }
+      .cgal-ring{ position:relative; width:1px; height:1px; transform-style:preserve-3d; }
+      .cgal-card{ position:absolute; width:270px; height:372px; left:-135px; top:-186px;
+        border-radius:16px; overflow:hidden; background:#0a1220; border:1px solid rgba(150,180,220,.14);
+        box-shadow:0 30px 70px -32px rgba(0,0,0,.85); will-change:transform,opacity,filter; }
+      .cgal-photo{ position:absolute; inset:0; background-size:cover; background-position:center; }
+      .cgal-photo::after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(4,7,14,0) 34%,rgba(4,7,14,.35) 58%,rgba(4,7,14,.92) 100%); }
+      .cgal-info{ position:absolute; left:0; right:0; bottom:0; padding:20px; z-index:2; }
+      .cgal-eye{ font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:#e9a583; margin-bottom:8px; font-family:var(--font-body,system-ui); }
+      .cgal-name{ font-family:var(--font-display,Georgia,serif); font-weight:400; font-size:24px; line-height:1.04; color:#ECE7DD; margin:0; }
+      .cgal-name em{ font-style:italic; }
+      .cgal-meta{ display:flex; gap:12px; margin-top:11px; font-size:11px; color:#9db0c8; letter-spacing:.02em; font-family:var(--font-body,system-ui); }
+      .cgal-meta b{ font-weight:400; color:#9db0c8; }
+      .cgal-cta{ margin-top:15px; display:inline-block; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:#ECE7DD;
+        border:1px solid rgba(150,180,220,.2); padding:9px 18px; border-radius:30px; text-decoration:none;
+        opacity:0; transform:translateY(8px); transition:.28s cubic-bezier(.22,.61,.36,1); font-family:var(--font-body,system-ui); }
+      .cgal-card.cgal-front .cgal-cta{ opacity:1; transform:none; }
+      .cgal-cta:hover{ background:#E1885E; border-color:#E1885E; color:#0a0f18; }
+      .cgal-ctrls{ display:flex; align-items:center; justify-content:center; gap:14px; margin-top:16px; }
+      .cgal-ctrls button{ width:46px; height:46px; border-radius:50%; border:1px solid rgba(150,180,220,.16);
+        background:rgba(14,26,46,.42); color:#ECE7DD; cursor:pointer; font-size:18px; display:grid; place-items:center;
+        backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); transition:.22s cubic-bezier(.22,.61,.36,1); }
+      .cgal-ctrls button:hover{ border-color:#E1885E; color:#E1885E; transform:translateY(-2px); }
+      .cgal-dots{ display:flex; gap:9px; align-items:center; }
+      .cgal-dots i{ width:7px; height:7px; border-radius:50%; background:rgba(150,180,220,.28); cursor:pointer; transition:.25s cubic-bezier(.22,.61,.36,1); }
+      .cgal-dots i.on{ background:#E1885E; width:22px; border-radius:4px; }
+      .cgal-hint{ text-align:center; margin-top:14px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; opacity:.5; font-family:var(--font-body,system-ui); }
+      @media (max-width:640px){
+        .cgal-stage{ height:62vh; min-height:380px; perspective:1400px; }
+        .cgal-card{ width:210px; height:290px; left:-105px; top:-145px; }
+        .cgal-name{ font-size:20px; }
+      }
     </style>
-    <div class="vrm-drum-embed">
-      <iframe id="vrmDrumFrame" src="drum_integrado.html?embed=1" title="Estancias VRM — carrusel 3D" loading="lazy" scrolling="no"
-              allowtransparency="true" style="width:100%;height:min(88vh,940px);min-height:460px;border:0;display:block;background:transparent;will-change:transform;transform:translateZ(0);backface-visibility:hidden;contain:layout paint style;overscroll-behavior:contain"></iframe>
-      <script>(function(){var f=document.getElementById('vrmDrumFrame');if(f&&window.VRM_LANG&&f.src.indexOf('lang=')<0){f.src=f.src+(f.src.indexOf('?')<0?'?':'&')+'lang='+window.VRM_LANG;}})();</script>
-      <p class="vrm-drum-hint" data-i18n="drum.hint.outer">Arrastrá para girar · tocá una estancia para abrirla</p>
+    <div class="cgal-wrap">
+      <div class="cgal-stage" id="cgalStage" aria-roledescription="carrusel" aria-label="Estancias destacadas">
+        <div class="cgal-ring" id="cgalRing"></div>
+      </div>
+      <div class="cgal-ctrls">
+        <button type="button" id="cgalPrev" aria-label="Anterior">‹</button>
+        <div class="cgal-dots" id="cgalDots"></div>
+        <button type="button" id="cgalNext" aria-label="Siguiente">›</button>
+      </div>
+      <p class="cgal-hint" data-i18n="drum.hint.outer">Arrastrá para girar · tocá una estancia para abrirla</p>
     </div>
+
+    <script>
+    (function(){
+      // ── Datos de las 4 casas destacadas (texto vía i18n existente feat.X) ──
+      // Reemplazá `grad` por tu foto real así:  photo:'url("https://.../casa.jpg")'
+      const HOMES = [
+        { key:'feat.1', g:4,  b:2, ba:2, href:'property.html', photo:'linear-gradient(155deg,#1c4a6e,#0c2338 60%,#0a3b46)' },
+        { key:'feat.2', g:6,  b:3, ba:3, href:'property.html', photo:'linear-gradient(155deg,#274a3c,#122d26 60%,#0c2440)' },
+        { key:'feat.3', g:6,  b:3, ba:3, href:'property.html', photo:'linear-gradient(155deg,#2f3a5e,#181a38 60%,#0d2140)' },
+        { key:'feat.4', g:12, b:6, ba:6, href:'property.html', photo:'linear-gradient(155deg,#6a4433,#31201c 60%,#141a2c)' },
+      ];
+      const stage = document.getElementById('cgalStage');
+      const ring  = document.getElementById('cgalRing');
+      const dotsEl= document.getElementById('cgalDots');
+      if(!stage||!ring) return;
+      const N = HOMES.length, ANG = 360/N;
+      const isMob = matchMedia('(max-width:640px)').matches;
+      const R = isMob ? 300 : 420;   // radio de la rueda
+
+      // construir tarjetas
+      const cards = HOMES.map((h,i)=>{
+        const c = document.createElement('div');
+        c.className='cgal-card'; c.dataset.i=i;
+        c.innerHTML =
+          '<div class="cgal-photo" style="background-image:'+h.photo+'"></div>'+
+          '<div class="cgal-info">'+
+            '<div class="cgal-eye" data-i18n="'+h.key+'.eyebrow"></div>'+
+            '<h3 class="cgal-name" data-i18n-html="'+h.key+'.title.full"></h3>'+
+            '<div class="cgal-meta">'+
+              '<span>'+h.g+' <b data-i18n="feat.guests"></b></span>'+
+              '<span>'+h.b+' <b data-i18n="feat.bedrooms"></b></span>'+
+              '<span>'+h.ba+' <b data-i18n="feat.baths"></b></span>'+
+            '</div>'+
+            '<a class="cgal-cta" href="'+h.href+'" data-i18n="feat.cta"></a>'+
+          '</div>';
+        c.addEventListener('click', (e)=>{ if(justDragged){ e.preventDefault(); return; } if(!c.classList.contains('cgal-front')){ e.preventDefault(); focus(i); } });
+        ring.appendChild(c); return c;
+      });
+      // puntos
+      const dots = HOMES.map((_,i)=>{ const d=document.createElement('i'); d.addEventListener('click',()=>focus(i)); dotsEl.appendChild(d); return d; });
+      // re-aplicar traducciones a las tarjetas nuevas (respeta EN/ES y el switch de idioma)
+      if(window.VRM_applyI18n) window.VRM_applyI18n();
+
+      // ── estado de rotación ──
+      let manual = 0;        // rotación por control (arrastre/flechas/puntos), imantada a múltiplos de ANG
+      let rot = 0;           // rotación aplicada (suavizada)
+      let parallax = 0;      // pequeño offset por scroll de la sección (vida, no control)
+      let justDragged = false;
+
+      function focus(i){ manual = -i*ANG; }
+      function nearestIndex(){ return ((Math.round(-manual/ANG)%N)+N)%N; }
+
+      // parallax de scroll (±16°) — la sección al pasar por el viewport da vida a la rueda
+      const section = document.getElementById('properties') || stage;
+      function updateParallax(){
+        const r = section.getBoundingClientRect();
+        const vh = window.innerHeight || 800;
+        const p = Math.max(0, Math.min(1, (vh - r.top) / (vh + r.height))); // 0..1 al cruzar
+        parallax = (p - 0.5) * 32; // ±16°
+      }
+      window.addEventListener('scroll', updateParallax, {passive:true});
+      updateParallax();
+
+      // ── loop de layout ──
+      function layout(){
+        const targetRot = manual + parallax;
+        rot += (targetRot - rot) * 0.12;
+        let frontI = 0, frontDot = 1e9;
+        cards.forEach((c,i)=>{
+          let rel = ((i*ANG + rot)%360+360)%360;      // 0 = al frente
+          const relS = rel>180 ? rel-360 : rel;        // [-180,180]
+          const depth = (Math.cos(rel*Math.PI/180)+1)/2; // 1 frente .. 0 atrás
+          const x = Math.sin(rel*Math.PI/180)*R;
+          const z = Math.cos(rel*Math.PI/180)*R;
+          c.style.transform = 'translate3d('+x.toFixed(1)+'px,0,'+z.toFixed(1)+'px) rotateY('+(-relS).toFixed(1)+'deg) scale('+(0.7+depth*0.42).toFixed(3)+')';
+          c.style.opacity = (0.22+depth*0.78).toFixed(2);
+          c.style.filter = 'brightness('+(0.55+depth*0.55).toFixed(2)+') blur('+((1-depth)*2).toFixed(1)+'px)';
+          c.style.zIndex = Math.round(depth*100);
+          const ad = Math.abs(relS);
+          c.classList.toggle('cgal-front', ad < ANG*0.5);
+          if(ad < frontDot){ frontDot = ad; frontI = i; }
+        });
+        dots.forEach((d,i)=>d.classList.toggle('on', i===frontI));
+        requestAnimationFrame(layout);
+      }
+      layout();
+
+      // ── arrastre (no captura el scroll de la página) ──
+      let down=false, lastX=0, moved=0;
+      function ps(e){ down=true; moved=0; lastX=(e.touches?e.touches[0].clientX:e.clientX); }
+      function pm(e){ if(!down) return; const x=(e.touches?e.touches[0].clientX:e.clientX); const dx=x-lastX; lastX=x; moved+=Math.abs(dx); manual += dx*0.28; }
+      function pe(){ if(!down) return; down=false; manual = Math.round(manual/ANG)*ANG; if(moved>6){ justDragged=true; setTimeout(()=>justDragged=false,80);} }
+      stage.addEventListener('mousedown',ps); window.addEventListener('mousemove',pm); window.addEventListener('mouseup',pe);
+      stage.addEventListener('touchstart',ps,{passive:true}); stage.addEventListener('touchmove',pm,{passive:true}); stage.addEventListener('touchend',pe);
+
+      // flechas
+      document.getElementById('cgalNext').addEventListener('click',()=>{ manual -= ANG; });
+      document.getElementById('cgalPrev').addEventListener('click',()=>{ manual += ANG; });
+    })();
+    </script>
 
   </section>
 
