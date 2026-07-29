@@ -564,7 +564,10 @@
   }
   /* No body background extra — confiamos en var(--ink) directo */
 
-  #dive-veil{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;
+  /* ★ z1: el velo oscurece SOLO el agua de fondo (z0). La ballena vive en z2,
+     por ENCIMA del velo → su brillo es idéntico delante o detrás del contenido.
+     (Antes el velo tapaba a la ballena y al subirla al frente cambiaba de tono.) */
+  #dive-veil{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;
     background:linear-gradient(180deg,#04070E 0%,#02050C 100%);will-change:opacity}
   /* Fondo de agua — siempre detrás de todo. */
   .bg-canvas {
@@ -580,7 +583,7 @@
   .whale-canvas {
     position: fixed;
     inset: 0;
-    z-index: 1;            /* estado normal: detrás del contenido. JS lo sube en la pasada frontal. */
+    z-index: 2;            /* sobre el velo (z1), bajo el contenido (z3+). JS lo sube en la pasada frontal. */
     pointer-events: none;
     width: 100vw;
     height: 100vh;
@@ -6327,25 +6330,30 @@ const WHALE_PATH = [
   // CH1 · HERO — pose 3/4 heroica junto al título, majestuosa, casi quieta
   _kf(0.00,  1.60,  0.10,  3.00),   // ★ apertura: 3/4, flanco visible
   _kf(0.05,  1.20, -0.05,  3.25),
-  _kf(0.09,  0.55, -0.35,  3.20),   // arranca el impulso…
-  // CH2 · EL CLAVADO (headline) — se lanza en parábola profunda y REMONTA
-  _kf(0.13, -0.60, -1.30,  2.30),
-  _kf(0.165,-1.60, -2.30,  1.10),
-  _kf(0.20, -2.40, -2.60, -0.30),   // fondo del clavado: pull-up con impulso
-  // CH3 · PLANEO + BARREL ROLL (cards) — glide recto cruzando, girando 360° sobre sí
-  _kf(0.245,-1.20, -2.20, -1.30),
-  _kf(0.29,  0.40, -1.75, -2.10),   // ← aquí gira en tonel (roll coreografiado)
-  _kf(0.34,  1.90, -1.30, -2.90),
-  // CH4 · RESPIRO — se hunde al fondo, sereno: contraste de tempo (contraste de tamaño)
-  _kf(0.40,  1.90, -0.35, -5.40),
-  _kf(0.455, 0.80,  0.00, -6.70),
-  _kf(0.50, -0.40,  0.25, -6.90),   // suspendida al fondo, pequeña
-  // CH5 · ARCO DE APROXIMACIÓN — rodea al fondo-izquierda y encara a la DERECHA
-  //       (el giro de 180° para encarar la pasada ocurre lejos, fuera de cuadro)
-  _kf(0.55, -4.60,  0.25, -4.80),
-  _kf(0.59, -5.20,  0.12, -1.60),   // extremo izquierdo, acercándose, ya girando a +X
-  // CH6 · LA PASADA LATERAL — cruza DE IZQUIERDA A DERECHA, de perfil, POR ENCIMA
-  //       DE TODO (este es el tramo del z-index elevado: FRONT_PASS_IN..OUT)
+  _kf(0.09,  0.45, -0.30,  3.10),   // arranca el impulso…
+  // CH2 · ASCENSO EN PARÁBOLA — sube en arco hacia arriba-izquierda ganando
+  //       altura; al coronar el vértice la nariz baja SOLA (física del arco)
+  _kf(0.125,-0.70,  0.70,  2.60),
+  _kf(0.16, -0.55,  2.30,  1.90),
+  _kf(0.19,  0.15,  3.00,  1.35),   // ★ vértice sobre el centro: se vuelca al clavado
+  // CH3 · CLAVADO VERTICAL — cae en picada, CABEZA ABAJO, por el CENTRO del
+  //       carrusel (x≈0, z cercano): pasa por dentro del anillo como la foto
+  _kf(0.23,  0.28,  1.30,  1.18),
+  _kf(0.27,  0.16, -0.60,  1.10),   // ★ atraviesa el corazón del carrusel, vertical
+  _kf(0.305, 0.02, -2.30,  1.02),
+  // CH4 · PULL-OUT EN J — al fondo del clavado curva hacia la profundidad y
+  //       glisa alejándose (la salida natural de una picada)
+  _kf(0.35, -0.55, -3.05, -0.50),
+  _kf(0.40, -1.10, -2.25, -2.70),
+  _kf(0.455,-0.50, -1.00, -4.70),
+  // CH5 · RESPIRO + VUELTA AMPLIA — serena al fondo, pequeña; UNA sola curva
+  //       continua hacia la izquierda (sin horquillas: el rumbo nunca se invierte)
+  _kf(0.50, -1.00,  0.05, -6.00),
+  _kf(0.53, -2.60,  0.20, -5.50),
+  _kf(0.57, -4.50,  0.25, -4.00),
+  _kf(0.595,-5.20,  0.12, -1.50),   // extremo izquierdo, acercándose, ya encarando +X
+  // CH6 · LA PASADA LATERAL — cruza DE IZQUIERDA A DERECHA, de perfil, POR
+  //       ENCIMA DE TODO (tramo del z-index elevado: FRONT_PASS_IN..OUT)
   _kf(0.62, -3.80,  0.05,  0.45),   // entra cerca por la izquierda  ← front-pass IN
   _kf(0.655, 0.00, -0.10,  0.95),   // ★ centro, gigante, flanco completo cruzando
   _kf(0.69,  3.80,  0.05,  0.45),   // sale cerca por la derecha     ← front-pass OUT
@@ -6360,11 +6368,10 @@ const WHALE_PATH = [
 // planeo del CH3 — suave por smootherstep, entra y sale en cero exacto.
 // Se calcula del progreso YA suavizado y topado → siempre elegante.
 function scriptedRoll(sp) {
-  const A = 0.22, B = 0.335;
-  if (sp <= A || sp >= B) return 0;
-  const k = (sp - A) / (B - A);
-  const e = k * k * k * (k * (k * 6 - 15) + 10);
-  return e * Math.PI * 2;
+  // Desactivado: el circuito v4 tiene un CLAVADO VERTICAL en 0.19-0.30 y un
+  // roll coreografiado ahí rompería la naturalidad. El drama ahora viene de la
+  // parábola + picada + pasada lateral, todo con física congruente.
+  return 0;
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -6918,11 +6925,20 @@ function animate(time) {
     let yawDelta = yawFar - yawNow;
     while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
     while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
-    const BANK_INTENSITY = 1.15;          // ↑ más peralte = viraje más dramático
-    const BANK_MAX = Math.PI / 6.5;       // ↑ tope de peralte (~28°)
+    const BANK_INTENSITY = 1.15;          // peralte dramático en virajes anchos
+    const BANK_MAX = Math.PI / 6.5;       // tope de peralte (~28°)
     dynamicBank = -yawDelta * BANK_INTENSITY;
     if (dynamicBank > BANK_MAX) dynamicBank = BANK_MAX;
     if (dynamicBank < -BANK_MAX) dynamicBank = -BANK_MAX;
+    // ★ ATENUACIÓN VERTICAL: en la parábola/clavado el movimiento es casi
+    // vertical → dx/dz son diminutos y el atan2 se vuelve ruido. El peralte
+    // se escala por la fracción HORIZONTAL del avance: picada = alas niveladas
+    // (como un ave que se lanza), viraje ancho = peralte completo.
+    const dyNow = (midPose.y - heroPathPose.y) * _td;
+    const _horiz = Math.hypot(dxNow, dzNow);
+    const _total = Math.hypot(dxNow, dyNow, dzNow) || 1;
+    const _hf = Math.min(1, (_horiz / _total) * 1.35);
+    dynamicBank *= _hf * _hf;             // curva suave: vertical → sin banking
   }
 
   // Banking con lerp moderado — responsivo sin jitter
@@ -7058,7 +7074,7 @@ function animate(time) {
   const inFrontPass = (sp > FRONT_PASS_IN && sp < FRONT_PASS_OUT);
   if (inFrontPass !== window.__whaleInFront) {
     window.__whaleInFront = inFrontPass;
-    canvas.style.zIndex = inFrontPass ? '2147483000' : '1';
+    canvas.style.zIndex = inFrontPass ? '2147483000' : '2';
   }
 
   requestAnimationFrame(animate);
