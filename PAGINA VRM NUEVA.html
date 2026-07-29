@@ -5651,17 +5651,20 @@ const PHYSICAL_PARAMS = {
   transmission: 0.0,
   ior: 1.7,
   
-  // ★ IRIDESCENCIA — flash arcoíris sutil en las facetas
-  iridescence: 0.7,
+  // ★ IRIDESCENCIA CALMADA — con el modelo SIEMPRE animado (aletas/cola), el
+  // skinning cambia los normales de las facetas cada frame; con iridescence
+  // alta y rango ancho el TONO saltaba por faceta (estrobo de colores).
+  // Menos intensidad + rango angosto = sheen iridiscente estable, sin popping.
+  iridescence: 0.40,
   iridescenceIOR: 1.4,
-  iridescenceThicknessRange: [300, 700],
-  
-  // ★ CLEARCOAT máximo — barniz perfecto sobre las facetas
+  iridescenceThicknessRange: [360, 560],
+
+  // ★ CLEARCOAT con micro-rugosidad — brillos un pelo más anchos y estables
   clearcoat: 1.0,
-  clearcoatRoughness: 0.0,
-  
-  metalness: 0.30,                // ★ subido — reflejos más definidos sobre azul saturado
-  roughness: 0.05,
+  clearcoatRoughness: 0.06,
+
+  metalness: 0.30,                // reflejos definidos sobre azul saturado
+  roughness: 0.11,                // ★ subido de 0.05: highlights menos "aguja" → sin titileo
   
   // ★ NO normalMap — las facetas reales del flat shading reemplazan al normal
   // map procedural. Combinar ambos ensucia el look (compiten por simular relieve).
@@ -5880,9 +5883,10 @@ composer.addPass(renderPass);
 // brillantes (chispas) pero NO en zonas amplias de iridescencia.
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.26,   // strength bajado — sin flash cegador
-  0.65,   // radius bajado — más localizado
-  0.84    // threshold alto — solo los highlights más puntuales brillan
+  0.16,   // ★ bajado de 0.26: el bloom acompaña, no estroboscopea
+  0.75,   // radio un poco más amplio = glow suave, no chispa dura
+  0.92    // ★ umbral subido de 0.84: los destellos de facetas animadas ya no
+          //   entran/salen del bloom cada frame (eso era parte del parpadeo)
 );
 composer.addPass(bloomPass);
 
