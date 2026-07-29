@@ -4665,10 +4665,11 @@
       .cgal-wrap{ position:relative; margin:30px auto 4px; max-width:1500px; padding:0 clamp(10px,2vw,28px); }
       .cgal-stage{ position:relative; height:min(74vh,660px); min-height:440px; perspective:1900px; display:grid; place-items:center; touch-action:pan-y; cursor:grab; }
       .cgal-stage:active{ cursor:grabbing; }
-      .cgal-ring{ position:relative; width:1px; height:1px; transform-style:preserve-3d; }
-      .cgal-card{ position:absolute; width:270px; height:372px; left:-135px; top:-186px;
+      .cgal-ring{ position:relative; width:1px; height:1px; transform-style:preserve-3d; will-change:transform; }
+      .cgal-card{ position:absolute; width:300px; height:400px; left:-150px; top:-200px;
         border-radius:16px; overflow:hidden; background:#0a1220; border:1px solid rgba(150,180,220,.14);
-        box-shadow:0 30px 70px -32px rgba(0,0,0,.85); will-change:transform,opacity,filter; }
+        box-shadow:0 30px 70px -32px rgba(0,0,0,.85); will-change:opacity,filter;
+        backface-visibility:hidden; -webkit-backface-visibility:hidden; }
       .cgal-photo{ position:absolute; inset:0; background-size:cover; background-position:center; }
       .cgal-photo::after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(4,7,14,0) 34%,rgba(4,7,14,.35) 58%,rgba(4,7,14,.92) 100%); }
       .cgal-info{ position:absolute; left:0; right:0; bottom:0; padding:20px; z-index:2; }
@@ -4677,6 +4678,12 @@
       .cgal-name em{ font-style:italic; }
       .cgal-meta{ display:flex; gap:12px; margin-top:11px; font-size:11px; color:#9db0c8; letter-spacing:.02em; font-family:var(--font-body,system-ui); }
       .cgal-meta b{ font-weight:400; color:#9db0c8; }
+      .cgal-price{ margin-top:11px; font-family:var(--font-display,Georgia,serif); color:#ECE7DD; }
+      .cgal-price b{ font-size:19px; font-weight:500; }
+      .cgal-price span{ font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#7f90a8; font-family:var(--font-body,system-ui); }
+      .cgal-badge{ position:absolute; top:13px; left:13px; z-index:3; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
+        color:#ECE7DD; background:rgba(4,7,14,.5); border:1px solid rgba(150,180,220,.18); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+        padding:5px 11px; border-radius:30px; font-family:var(--font-body,system-ui); }
       .cgal-cta{ margin-top:15px; display:inline-block; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:#ECE7DD;
         border:1px solid rgba(150,180,220,.2); padding:9px 18px; border-radius:30px; text-decoration:none;
         opacity:0; transform:translateY(8px); transition:.28s cubic-bezier(.22,.61,.36,1); font-family:var(--font-body,system-ui); }
@@ -4692,8 +4699,8 @@
       .cgal-dots i.on{ background:#E1885E; width:22px; border-radius:4px; }
       .cgal-hint{ text-align:center; margin-top:14px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; opacity:.5; font-family:var(--font-body,system-ui); }
       @media (max-width:640px){
-        .cgal-stage{ height:62vh; min-height:380px; perspective:1400px; }
-        .cgal-card{ width:210px; height:290px; left:-105px; top:-145px; }
+        .cgal-stage{ height:62vh; min-height:380px; perspective:1300px; }
+        .cgal-card{ width:224px; height:300px; left:-112px; top:-150px; }
         .cgal-name{ font-size:20px; }
       }
     </style>
@@ -4711,13 +4718,24 @@
 
     <script>
     (function(){
-      // ── Datos de las 4 casas destacadas (texto vía i18n existente feat.X) ──
-      // Reemplazá `grad` por tu foto real así:  photo:'url("https://.../casa.jpg")'
+      // ── Los 16 departamentos con sus fotos REALES (extraídas de property.html) ──
       const HOMES = [
-        { key:'feat.1', g:4,  b:2, ba:2, href:'property.html', photo:'linear-gradient(155deg,#1c4a6e,#0c2338 60%,#0a3b46)' },
-        { key:'feat.2', g:6,  b:3, ba:3, href:'property.html', photo:'linear-gradient(155deg,#274a3c,#122d26 60%,#0c2440)' },
-        { key:'feat.3', g:6,  b:3, ba:3, href:'property.html', photo:'linear-gradient(155deg,#2f3a5e,#181a38 60%,#0d2140)' },
-        { key:'feat.4', g:12, b:6, ba:6, href:'property.html', photo:'linear-gradient(155deg,#6a4433,#31201c 60%,#141a2c)' },
+        { id:"2005", name:"Vallarta Gardens 2005", loc:"La Cruz de Huanacaxtle, Nayarit", g:4, b:2, ba:2, price:170, view:"Jardín tropical", cover:"https://i.imgur.com/NW3AAU9.jpeg" },
+        { id:"2302", name:"Vallarta Gardens 2302", loc:"La Cruz de Huanacaxtle, Nayarit", g:6, b:2, ba:2, price:300, view:"Vista al mar", cover:"https://i.imgur.com/e8ObYP6.jpeg" },
+        { id:"2403", name:"Vallarta Gardens 2403", loc:"La Cruz de Huanacaxtle, Nayarit", g:6, b:2, ba:2, price:300, view:"Vista al mar", cover:"https://i.imgur.com/RV3b2sb.jpeg" },
+        { id:"2701", name:"Vallarta Gardens 2701", loc:"La Cruz de Huanacaxtle, Nayarit", g:6, b:2, ba:2, price:350, view:"Vista al mar", cover:"https://i.imgur.com/v7Jfx8c.jpeg" },
+        { id:"2705", name:"Vallarta Gardens 2705", loc:"La Cruz de Huanacaxtle, Nayarit", g:6, b:2, ba:2, price:215, view:"Vista a la alberca", cover:"https://i.imgur.com/JEMtBLw.jpeg" },
+        { id:"2801", name:"Vallarta Gardens 2801", loc:"La Cruz de Huanacaxtle, Nayarit", g:6, b:2, ba:2, price:350, view:"Vista al mar", cover:"https://i.imgur.com/NXIn7od.jpeg" },
+        { id:"2905", name:"Vallarta Gardens 2905", loc:"La Cruz de Huanacaxtle, Nayarit", g:2, b:1, ba:1, price:145, view:"Vista al mar", cover:"https://i.imgur.com/DlXUH02.jpeg" },
+        { id:"3004", name:"Vallarta Gardens 3004", loc:"La Cruz de Huanacaxtle, Nayarit", g:6, b:2, ba:2, price:250, view:"Vista panorámica", cover:"https://i.imgur.com/JV7Bscs.jpeg" },
+        { id:"6S", name:"Marítima 6S", loc:"Nuevo Vallarta · Flamingos", g:8, b:3, ba:2, price:170, view:"Vista al jardín", cover:"https://i.imgur.com/HtlrbEg.jpeg" },
+        { id:"9S", name:"Marítima 9S", loc:"Nuevo Vallarta · Flamingos", g:8, b:3, ba:3, price:170, view:"Vista a la bahía", cover:"https://i.imgur.com/sgXZxMP.jpeg" },
+        { id:"10I", name:"Marítima 10I", loc:"Nuevo Vallarta · Flamingos", g:10, b:4, ba:3, price:370, view:"Vista a la bahía", cover:"https://i.imgur.com/uwI3GD7.jpeg" },
+        { id:"PHN", name:"Marítima Penthouse", loc:"Nuevo Vallarta · Flamingos", g:12, b:6, ba:4, price:500, view:"Vista panorámica", cover:"https://i.imgur.com/xhooPKT.jpeg" },
+        { id:"211", name:"Bolongo 211", loc:"Punta de Mita · Riviera Nayarit", g:7, b:3, ba:3, price:220, view:"Vista al jardín", cover:"https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/a2cbb607-d8f6-476d-b001-46d7baf3104c.jpeg?im_w=720" },
+        { id:"3N", name:"Bolongo 3N", loc:"Punta de Mita · Riviera Nayarit", g:4, b:2, ba:2, price:185, view:"Vista al jardín", cover:"https://a0.muscache.com/im/pictures/hosting/Hosting-1483418374242300943/original/5bdb38b9-52f2-4a2d-8e95-43b8fd972de7.jpeg?im_w=720" },
+        { id:"G13", name:"Bolongo G13", loc:"Punta de Mita · Riviera Nayarit", g:10, b:4, ba:3, price:280, view:"Vista al mar", cover:"https://i.imgur.com/ThY3A8L.jpeg" },
+        { id:"L05", name:"Bolongo L05", loc:"Punta de Mita · Riviera Nayarit", g:10, b:4, ba:4, price:295, view:"Vista al mar", cover:"https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/d4b94467-3074-4e98-a72c-e22aabce372b.jpeg?im_w=720" },
       ];
       const stage = document.getElementById('cgalStage');
       const ring  = document.getElementById('cgalRing');
@@ -4725,23 +4743,29 @@
       if(!stage||!ring) return;
       const N = HOMES.length, ANG = 360/N;
       const isMob = matchMedia('(max-width:640px)').matches;
-      const R = isMob ? 300 : 420;   // radio de la rueda
+      const R = isMob ? 420 : 620;   // radio de la rueda (cilindro fiel al componente)
 
       // construir tarjetas
       const cards = HOMES.map((h,i)=>{
         const c = document.createElement('div');
         c.className='cgal-card'; c.dataset.i=i;
+        // separar "Complejo" (itálica) del código de unidad (ej. "Vallarta Gardens" · "2302")
+        const _sp = h.name.lastIndexOf(' ');
+        const _complex = _sp>0 ? h.name.slice(0,_sp) : h.name;
+        const _unit = _sp>0 ? h.name.slice(_sp+1) : '';
         c.innerHTML =
-          '<div class="cgal-photo" style="background-image:'+h.photo+'"></div>'+
+          '<div class="cgal-photo" style="background-image:url(&quot;'+h.cover+'&quot;)"></div>'+
+          (h.view ? '<div class="cgal-badge">'+h.view+'</div>' : '')+
           '<div class="cgal-info">'+
-            '<div class="cgal-eye" data-i18n="'+h.key+'.eyebrow"></div>'+
-            '<h3 class="cgal-name" data-i18n-html="'+h.key+'.title.full"></h3>'+
+            '<div class="cgal-eye">'+h.loc+'</div>'+
+            '<h3 class="cgal-name"><em>'+_complex+'</em> '+_unit+'</h3>'+
             '<div class="cgal-meta">'+
               '<span>'+h.g+' <b data-i18n="feat.guests"></b></span>'+
               '<span>'+h.b+' <b data-i18n="feat.bedrooms"></b></span>'+
               '<span>'+h.ba+' <b data-i18n="feat.baths"></b></span>'+
             '</div>'+
-            '<a class="cgal-cta" href="'+h.href+'" data-i18n="feat.cta"></a>'+
+            (h.price ? '<div class="cgal-price"><b>$'+h.price+'</b> <span data-i18n="feat.price.unit">USD · night</span></div>' : '')+
+            '<a class="cgal-cta" href="property.html?id='+encodeURIComponent(h.id)+'" data-i18n="feat.cta"></a>'+
           '</div>';
         c.addEventListener('click', (e)=>{ if(justDragged){ e.preventDefault(); return; } if(!c.classList.contains('cgal-front')){ e.preventDefault(); focus(i); } });
         ring.appendChild(c); return c;
@@ -4751,44 +4775,50 @@
       // re-aplicar traducciones a las tarjetas nuevas (respeta EN/ES y el switch de idioma)
       if(window.VRM_applyI18n) window.VRM_applyI18n();
 
-      // ── estado de rotación ──
-      let manual = 0;        // rotación por control (arrastre/flechas/puntos), imantada a múltiplos de ANG
-      let rot = 0;           // rotación aplicada (suavizada)
-      let parallax = 0;      // pequeño offset por scroll de la sección (vida, no control)
+      // ── COVERFLOW por índice — la casa central grande y derecha, las vecinas
+      //   inclinadas con perspectiva a los lados, las lejanas apiladas y difuminadas.
+      //   Robusto para 16 casas: siempre se ven ~3-5 limpias como en la referencia.
+      const GAP1  = isMob ? 205 : 300;   // separación centro → primera vecina
+      const GAP2  = isMob ? 46  : 66;    // separación de las siguientes (se apilan)
+      const ROT   = isMob ? 46  : 52;    // inclinación de las vecinas (grados)
+      const DEPTH = isMob ? 90  : 130;   // z que retroceden por paso
+      const MAXV  = 3.4;                 // cuántas se ven a cada lado antes de desvanecerse
+
+      let manualI = 0;     // índice objetivo (flechas/puntos/click/arrastre)
+      let parF = 0;        // parallax de scroll en unidades de tarjeta (vida, no control)
+      let pos = 0;         // índice fraccional actual (suavizado)
       let justDragged = false;
 
-      function focus(i){ manual = -i*ANG; }
-      function nearestIndex(){ return ((Math.round(-manual/ANG)%N)+N)%N; }
+      function focus(i){ let cur=((Math.round(manualI)%N)+N)%N; let d=i-cur; while(d>N/2)d-=N; while(d<-N/2)d+=N; manualI = Math.round(manualI)+d; }
 
-      // parallax de scroll (±16°) — la sección al pasar por el viewport da vida a la rueda
+      // parallax de scroll (±0.4 tarjeta) — vida al cruzar la sección, sin secuestrar el scroll
       const section = document.getElementById('properties') || stage;
       function updateParallax(){
         const r = section.getBoundingClientRect();
         const vh = window.innerHeight || 800;
-        const p = Math.max(0, Math.min(1, (vh - r.top) / (vh + r.height))); // 0..1 al cruzar
-        parallax = (p - 0.5) * 32; // ±16°
+        const p = Math.max(0, Math.min(1, (vh - r.top) / (vh + r.height)));
+        parF = (p - 0.5) * 0.8;
       }
       window.addEventListener('scroll', updateParallax, {passive:true});
       updateParallax();
 
-      // ── loop de layout ──
       function layout(){
-        const targetRot = manual + parallax;
-        rot += (targetRot - rot) * 0.12;
-        let frontI = 0, frontDot = 1e9;
+        const target = manualI + parF;
+        pos += (target - pos) * 0.12;
+        let frontI = 0, best = 1e9;
         cards.forEach((c,i)=>{
-          let rel = ((i*ANG + rot)%360+360)%360;      // 0 = al frente
-          const relS = rel>180 ? rel-360 : rel;        // [-180,180]
-          const depth = (Math.cos(rel*Math.PI/180)+1)/2; // 1 frente .. 0 atrás
-          const x = Math.sin(rel*Math.PI/180)*R;
-          const z = Math.cos(rel*Math.PI/180)*R;
-          c.style.transform = 'translate3d('+x.toFixed(1)+'px,0,'+z.toFixed(1)+'px) rotateY('+(-relS).toFixed(1)+'deg) scale('+(0.7+depth*0.42).toFixed(3)+')';
-          c.style.opacity = (0.22+depth*0.78).toFixed(2);
-          c.style.filter = 'brightness('+(0.55+depth*0.55).toFixed(2)+') blur('+((1-depth)*2).toFixed(1)+'px)';
-          c.style.zIndex = Math.round(depth*100);
-          const ad = Math.abs(relS);
-          c.classList.toggle('cgal-front', ad < ANG*0.5);
-          if(ad < frontDot){ frontDot = ad; frontI = i; }
+          let r = i - pos; while(r> N/2) r-=N; while(r< -N/2) r+=N;   // ruta más corta (continuidad de anillo)
+          const ar = Math.abs(r), sign = r<0?-1:1, cl = Math.min(ar, MAXV);
+          const x  = sign * (Math.min(ar,1)*GAP1 + Math.max(0,cl-1)*GAP2);
+          const ry = -sign * Math.min(ar,1) * ROT;
+          const tz = -cl * DEPTH;
+          const sc = Math.max(0.72, 1 - ar*0.07);
+          c.style.transform = 'translateX('+x.toFixed(1)+'px) translateZ('+tz.toFixed(1)+'px) rotateY('+ry.toFixed(1)+'deg) scale('+sc.toFixed(3)+')';
+          c.style.opacity = (ar > MAXV+0.6 ? 0 : Math.max(0.16, 1 - ar/ (MAXV+0.8))).toFixed(2);
+          c.style.filter = 'brightness('+(0.6 + 0.4*Math.max(0,1-ar/2.2)).toFixed(2)+')';
+          c.style.zIndex = Math.round(200 - ar*12);
+          c.classList.toggle('cgal-front', ar < 0.5);
+          if(ar < best){ best = ar; frontI = i; }
         });
         dots.forEach((d,i)=>d.classList.toggle('on', i===frontI));
         requestAnimationFrame(layout);
@@ -4798,14 +4828,14 @@
       // ── arrastre (no captura el scroll de la página) ──
       let down=false, lastX=0, moved=0;
       function ps(e){ down=true; moved=0; lastX=(e.touches?e.touches[0].clientX:e.clientX); }
-      function pm(e){ if(!down) return; const x=(e.touches?e.touches[0].clientX:e.clientX); const dx=x-lastX; lastX=x; moved+=Math.abs(dx); manual += dx*0.28; }
-      function pe(){ if(!down) return; down=false; manual = Math.round(manual/ANG)*ANG; if(moved>6){ justDragged=true; setTimeout(()=>justDragged=false,80);} }
+      function pm(e){ if(!down) return; const x=(e.touches?e.touches[0].clientX:e.clientX); const dx=x-lastX; lastX=x; moved+=Math.abs(dx); manualI -= dx*0.006*(isMob?1.6:1); }
+      function pe(){ if(!down) return; down=false; manualI = Math.round(manualI); if(moved>6){ justDragged=true; setTimeout(()=>justDragged=false,80);} }
       stage.addEventListener('mousedown',ps); window.addEventListener('mousemove',pm); window.addEventListener('mouseup',pe);
       stage.addEventListener('touchstart',ps,{passive:true}); stage.addEventListener('touchmove',pm,{passive:true}); stage.addEventListener('touchend',pe);
 
       // flechas
-      document.getElementById('cgalNext').addEventListener('click',()=>{ manual -= ANG; });
-      document.getElementById('cgalPrev').addEventListener('click',()=>{ manual += ANG; });
+      document.getElementById('cgalNext').addEventListener('click',()=>{ manualI = Math.round(manualI)+1; });
+      document.getElementById('cgalPrev').addEventListener('click',()=>{ manualI = Math.round(manualI)-1; });
     })();
     </script>
 
