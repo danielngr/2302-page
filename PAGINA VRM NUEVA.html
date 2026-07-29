@@ -4798,23 +4798,30 @@
       window.addEventListener('scroll', updateParallax, {passive:true});
       updateParallax();
 
+      // ★ LOOP CONSCIENTE DE REPOSO: solo escribe estilos cuando la rueda se
+      // está moviendo de verdad. En reposo, cero invalidaciones de layout →
+      // el compositor queda libre para el canvas 3D (sin jank ni parpadeo).
+      let _lastPos = 1e9;
       function layout(){
         pos += (manualI + parF - pos) * 0.12;
-        let frontI = 0, best = 1e9;
-        cards.forEach((c,i)=>{
-          let r = i - pos; while(r> N/2) r-=N; while(r< -N/2) r+=N;   // casa más cercana por ambos lados (anillo)
-          const angle = r * SPACING, ar = Math.abs(angle);
-          if(ar > VISDEG){ c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
-          // ★ transformación EXACTA del componente: montada en el cilindro
-          c.style.transform = 'rotateY('+angle.toFixed(2)+'deg) translateZ('+R+'px)';
-          // centro + vecinas 100% OPACAS (como la referencia); solo los fantasmas lejanos se desvanecen
-          c.style.opacity = (ar < 50 ? 1 : Math.max(0, 1 - (ar-50)/52)).toFixed(2);
-          c.style.zIndex = Math.round(400 - ar);
-          c.style.pointerEvents = (ar < SPACING*0.5) ? 'auto' : 'none';
-          c.classList.toggle('cgal-front', ar < SPACING*0.5);
-          if(ar < best){ best = ar; frontI = i; }
-        });
-        dots.forEach((d,i)=>d.classList.toggle('on', i===frontI));
+        if (Math.abs(pos - _lastPos) > 0.0004) {
+          _lastPos = pos;
+          let frontI = 0, best = 1e9;
+          cards.forEach((c,i)=>{
+            let r = i - pos; while(r> N/2) r-=N; while(r< -N/2) r+=N;   // casa más cercana por ambos lados (anillo)
+            const angle = r * SPACING, ar = Math.abs(angle);
+            if(ar > VISDEG){ c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
+            // ★ transformación EXACTA del componente: montada en el cilindro
+            c.style.transform = 'rotateY('+angle.toFixed(2)+'deg) translateZ('+R+'px)';
+            // centro + vecinas 100% OPACAS (como la referencia); solo los fantasmas lejanos se desvanecen
+            c.style.opacity = (ar < 50 ? 1 : Math.max(0, 1 - (ar-50)/52)).toFixed(2);
+            c.style.zIndex = Math.round(400 - ar);
+            c.style.pointerEvents = (ar < SPACING*0.5) ? 'auto' : 'none';
+            c.classList.toggle('cgal-front', ar < SPACING*0.5);
+            if(ar < best){ best = ar; frontI = i; }
+          });
+          dots.forEach((d,i)=>d.classList.toggle('on', i===frontI));
+        }
         requestAnimationFrame(layout);
       }
       layout();
@@ -5088,22 +5095,29 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 
-// ★ Renderer de la PASADA FRONTAL — overlay transparente que SOLO se dibuja
-// durante la ventana de la pasada (~5% del scroll). El resto del tiempo está
-// a opacity 0 y sin renderizar: no participa en la composición.
+// ★ Renderer de la PASADA FRONTAL — creación LAZY: el segundo contexto WebGL
+// NO existe hasta que el scroll entra por primera vez a la ventana de la
+// pasada. En navegación normal la página tiene EXACTAMENTE los mismos
+// contextos que la versión estable (cero costo extra de composición).
 const frontCanvas = document.getElementById('whale-front');
-const frontRenderer = new THREE.WebGLRenderer({
-  canvas: frontCanvas,
-  antialias: true,
-  alpha: true,
-  powerPreference: 'high-performance'
-});
-frontRenderer.setSize(window.innerWidth, window.innerHeight);
-frontRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-frontRenderer.setClearColor(0x000000, 0);
-frontRenderer.outputColorSpace = THREE.SRGBColorSpace;
-frontRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-frontRenderer.toneMappingExposure = 1.05;
+let frontRenderer = null;
+function ensureFrontRenderer() {
+  if (!frontRenderer) {
+    frontRenderer = new THREE.WebGLRenderer({
+      canvas: frontCanvas,
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance'
+    });
+    frontRenderer.setSize(window.innerWidth, window.innerHeight);
+    frontRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    frontRenderer.setClearColor(0x000000, 0);
+    frontRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    frontRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+    frontRenderer.toneMappingExposure = 1.05;
+  }
+  return frontRenderer;
+}
 
 // (velo interno eliminado — el velo vuelve a ser el div DOM, exacto a index6)
 
@@ -7105,7 +7119,7 @@ function animate(time) {
       // oscurecimiento vía brightness → cero salto de tono al pasar al frente.
       const _veilNow = Math.min(0.62, Math.max(0, (sp - 0.06) * 2.0));
       frontCanvas.style.filter = 'brightness(' + (1 - _veilNow).toFixed(3) + ')';
-      frontRenderer.render(scene, camera);
+      ensureFrontRenderer().render(scene, camera);
     } else if (frontCanvas.style.opacity !== '0') {
       frontCanvas.style.opacity = '0';
     }
@@ -7130,7 +7144,7 @@ window.addEventListener('resize', () => {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
-  frontRenderer.setSize(w, h);
+  if (frontRenderer) frontRenderer.setSize(w, h);
   composer.setSize(w, h);
   bgMaterial.uniforms.uResolution.value.set(w, h);
 });
