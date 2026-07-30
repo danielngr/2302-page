@@ -4299,10 +4299,11 @@
     // ── Render días (tabs HOY/AYER/MAÑANA/+4DÍAS) ──────────────
     function renderDias() {
         const body = document.getElementById('lista-body');
-        if(!window._sheetRows || !todosRegistros.length) {
+        if(!todosRegistros.length) {
             body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando...</div>`;
             return;
         }
+        if(!window._sheetRows) window._sheetRows = []; // el Sheet es opcional; si no cargó, pintamos los registros igual
         const MESES_L = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
         const q = (document.getElementById('buscar')?.value||"").toLowerCase();
 
@@ -6726,14 +6727,19 @@
     // ── Entradas del sheet (solo data loader) ──────────────────
     async function cargarEntradas() {
         try {
-            const res = await fetch(SHEET_CSV);
+            const _ctrl = new AbortController();
+            const _to = setTimeout(() => _ctrl.abort(), 8000); // 8s máx: si el Sheet cuelga, no congelamos la vista
+            const res = await fetch(SHEET_CSV, { signal: _ctrl.signal, cache: "no-store" });
+            clearTimeout(_to);
             const text = await res.text();
             const rows = text.split('\n').map(r=>r.split(','));
             window._sheetRows = rows;
             calcularStatsHoy(rows);
             renderTodo();
         } catch(e) {
-            console.error("Sheet error:", e);
+            console.error("Sheet error (se sigue sin el Sheet):", e);
+            if(!window._sheetRows) window._sheetRows = [];
+            renderTodo();
         }
     }
 
