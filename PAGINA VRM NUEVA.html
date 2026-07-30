@@ -4855,14 +4855,34 @@
         if (Math.abs(pos - _lastPos) > 0.0004) {
           _lastPos = pos;
           let frontI = 0, best = 1e9;
+          const _vw = window.innerWidth || 390;
           cards.forEach((c,i)=>{
             let r = i - pos; while(r> N/2) r-=N; while(r< -N/2) r+=N;   // casa más cercana por ambos lados (anillo)
+            const _ph = c.firstElementChild;
+            // ═══ MÓVIL: COVERFLOW — vecinas empujadas ATRÁS y al costado (nunca
+            //     cruzan la foto central). Mismo espíritu de rueda que en PC. ═══
+            if (isMob) {
+              const arr = Math.abs(r);
+              if (arr > 1.6) { c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
+              if(_ph && _ph.dataset.cover){ const _u=_ph.dataset.cover; _ph.style.backgroundImage='url("'+_u+'")'; c.style.setProperty('--cover','url("'+_u+'")'); _ph.removeAttribute('data-cover'); }
+              const rc = Math.max(-1, Math.min(1, r));
+              const k = Math.min(arr, 1);
+              const tx = r * _vw * 0.66;               // desplazamiento lateral (la siguiente asoma)
+              const rotY = -rc * 40;                   // inclinación de rueda
+              const tz = -k * 180;                     // ★ ATRÁS: nunca se mete frente al centro
+              const sc = 1 - k * 0.06;
+              c.style.transform = 'translateX('+tx.toFixed(1)+'px) translateZ('+tz.toFixed(0)+'px) rotateY('+rotY.toFixed(1)+'deg) scale('+sc.toFixed(3)+')';
+              c.style.opacity = arr < 0.5 ? '1' : Math.max(0, 1 - (arr - 0.5) * 1.05).toFixed(2);
+              c.style.zIndex = String(Math.round(100 - arr * 10));
+              c.style.pointerEvents = arr < 0.5 ? 'auto' : 'none';
+              c.classList.toggle('cgal-front', arr < 0.5);
+              if (arr < best){ best = arr; frontI = i; }
+              return;
+            }
+            // ═══ DESKTOP: cilindro 3D (rueda exacta del componente) ═══
             const angle = r * SPACING, ar = Math.abs(angle);
             if(ar > VISDEG){ c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
-            // ★ LAZY: foto + ambiente del glass solo cuando la tarjeta entra a la ventana visible
-            const _ph = c.firstElementChild;
             if(_ph && _ph.dataset.cover){ const _u=_ph.dataset.cover; _ph.style.backgroundImage='url("'+_u+'")'; c.style.setProperty('--cover','url("'+_u+'")'); _ph.removeAttribute('data-cover'); }
-            // ★ RUEDA 3D — igual que en PC, a escala en móvil (R/SPACING/perspective)
             c.style.transform = 'rotateY('+angle.toFixed(2)+'deg) translateZ('+R+'px)';
             c.style.opacity = (ar < 50 ? 1 : Math.max(0, 1 - (ar-50)/52)).toFixed(2);
             c.style.zIndex = Math.round(400 - ar);
@@ -4881,7 +4901,7 @@
       // ── arrastre (no captura el scroll de la página) ──
       let down=false, lastX=0, moved=0;
       function ps(e){ down=true; moved=0; lastX=(e.touches?e.touches[0].clientX:e.clientX); wake(); }
-      function pm(e){ if(!down) return; const x=(e.touches?e.touches[0].clientX:e.clientX); const dx=x-lastX; lastX=x; moved+=Math.abs(dx); manualI -= dx*(isMob ? 0.010 : 0.006); wake(); }
+      function pm(e){ if(!down) return; const x=(e.touches?e.touches[0].clientX:e.clientX); const dx=x-lastX; lastX=x; moved+=Math.abs(dx); manualI -= dx*(isMob ? 1/((window.innerWidth||390)*0.66) : 0.006); wake(); }
       function pe(){ if(!down) return; down=false; manualI = Math.round(manualI); if(moved>6){ justDragged=true; setTimeout(()=>justDragged=false,80);} wake(); }
       stage.addEventListener('mousedown',ps); window.addEventListener('mousemove',pm); window.addEventListener('mouseup',pe);
       stage.addEventListener('touchstart',ps,{passive:true}); stage.addEventListener('touchmove',pm,{passive:true}); stage.addEventListener('touchend',pe);
