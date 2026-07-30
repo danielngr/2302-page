@@ -4789,12 +4789,30 @@
       const ring  = document.getElementById('cgalRing');
       const dotsEl= document.getElementById('cgalDots');
       if(!stage||!ring) return;
-      const N = HOMES.length, ANG = 360/N;
       const isMob = matchMedia('(max-width:640px)').matches;
       const R = isMob ? 240 : 500;   // radio del cilindro (móvil a escala)
+      // ── CILINDRO VIRTUALIZADO (transformación EXACTA del componente) ──
+      //   Cada tarjeta se monta en el cilindro con rotateY(θ)·translateZ(R), al
+      //   espaciado de la referencia (SPACING°). Solo se ve la ventana frontal;
+      //   al girar, las casas ACTIVAS entran/salen. La del frente grande y opaca,
+      //   las vecinas inclinadas con la perspectiva, las lejanas fantasmas.
+      // ★ móvil: MUCHO más ángulo entre tarjetas → las vecinas se abren y NO se
+      //   amontonan sobre la del centro. Desktop se queda como estaba.
+      const SPACING = isMob ? 56 : 40;   // grados entre casas (móvil: rueda a escala)
+      const VISDEG  = isMob ? 72 : 104;  // móvil: solo ±1 vecina visible (inclinada); el resto oculto
 
-      // construir tarjetas
-      const cards = HOMES.map((h,i)=>{
+      // ── ESTADO MUTABLE — el filtro RECONSTRUYE la rueda con un subconjunto ──
+      let activeHomes = HOMES.slice();
+      let N = activeHomes.length, ANG = 360/(N||1);
+      let cards = [], dots = [];
+      let manualI = 0, parF = 0, pos = 0, posVel = 0, justDragged = false;
+      let velIdx = 0, lastMoveT = 0, _lastFrameT = 0;   // física del deslizamiento
+      var _lastPos = 1e9, _running = false, _rafId = 0;   // var → sin TDZ
+
+      function focus(i){ if(N<=0) return; let cur=((Math.round(manualI)%N)+N)%N; let d=i-cur; while(d>N/2)d-=N; while(d<-N/2)d+=N; manualI = Math.round(manualI)+d; wake(); }
+
+      // ── crea UNA tarjeta a partir de un HOME ──
+      function makeCard(h, i){
         const c = document.createElement('div');
         c.className='cgal-card'; c.dataset.i=i;
         // separar "Complejo" (itálica) del código de unidad (ej. "Vallarta Gardens" · "2302")
@@ -4816,28 +4834,88 @@
             (h.price ? '<div class="cgal-price"><b>$'+h.price+'</b> <span data-i18n="feat.price.unit">USD · night</span></div>' : '')+
             '<a class="cgal-cta" href="vrm_property.html?id='+encodeURIComponent(h.id)+'" data-i18n="feat.cta"></a>'+
           '</div>';
-        c.addEventListener('click', (e)=>{ if(justDragged){ e.preventDefault(); return; } if(!c.classList.contains('cgal-front')){ e.preventDefault(); focus(i); } });
-        ring.appendChild(c); return c;
-      });
-      // puntos
-      const dots = HOMES.map((_,i)=>{ const d=document.createElement('i'); d.addEventListener('click',()=>focus(i)); dotsEl.appendChild(d); return d; });
-      // re-aplicar traducciones a las tarjetas nuevas (respeta EN/ES y el switch de idioma)
-      if(window.VRM_applyI18n) window.VRM_applyI18n();
+        c.addEventListener('click', (e)=>{ if(justDragged){ e.preventDefault(); return; } if(!c.classList.contains('cgal-front')){ e.preventDefault(); focus(Number(c.dataset.i)); } });
+        return c;
+      }
 
-      // ── CILINDRO VIRTUALIZADO (transformación EXACTA del componente) ──
-      //   Cada tarjeta se monta en el cilindro con rotateY(θ)·translateZ(R), al
-      //   espaciado de la referencia (SPACING°). Solo se ve la ventana frontal;
-      //   al girar, las 16 casas entran/salen. La del frente grande y opaca, las
-      //   vecinas inclinadas con la perspectiva, las lejanas fantasmas → idéntico.
-      // ★ móvil: MUCHO más ángulo entre tarjetas → las vecinas se abren y NO se
-      //   amontonan sobre la del centro (la del frente queda sola, con un asomo
-      //   sutil a cada lado). Desktop se queda como estaba.
-      const SPACING = isMob ? 56 : 40;   // grados entre casas (móvil: rueda a escala)
-      const VISDEG  = isMob ? 72 : 104;  // móvil: solo ±1 vecina visible (inclinada); el resto oculto
+      // ── panel "sin resultados" cuando el filtro no deja ninguna casa ──
+      const wrapEl  = stage.closest('.cgal-wrap') || stage.parentElement;
+      const ctrlsEl = wrapEl ? wrapEl.querySelector('.cgal-ctrls') : null;
+      const hintEl  = wrapEl ? wrapEl.querySelector('.cgal-hint')  : null;
+      let noResEl = null;
+      function showNoResults(show){
+        if (!wrapEl) return;
+        if (show){
+          if (!noResEl){
+            noResEl = document.createElement('div');
+            noResEl.className = 'cgal-noresults';
+            noResEl.style.cssText = 'text-align:center;padding:56px 22px;color:#9db0c8;font-family:var(--font-body,system-ui);';
+            wrapEl.appendChild(noResEl);
+          }
+          const isES = (document.documentElement.lang||'en').startsWith('es');
+          noResEl.innerHTML =
+            '<div style="font-family:var(--font-display,Georgia,serif);font-size:24px;color:#ECE7DD;margin-bottom:8px;">'+
+              (isES?'Ninguna casa coincide':'No homes match')+'</div>'+
+            '<div style="font-size:13px;margin-bottom:18px;line-height:1.5;">'+
+              (isES?'Prueba con otras fechas, menos huéspedes u otra zona.':'Try different dates, fewer guests or another area.')+'</div>'+
+            '<button type="button" class="cgal-noresults-btn" style="cursor:pointer;font-family:var(--font-body,system-ui);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#ECE7DD;background:transparent;border:1px solid rgba(150,180,220,.3);padding:11px 22px;border-radius:30px;">'+
+              (isES?'Ver todas':'Show all')+'</button>';
+          const btn = noResEl.querySelector('.cgal-noresults-btn');
+          if (btn) btn.addEventListener('click', ()=>{ if(window.VRM_clearHeroFilters){ window.VRM_clearHeroFilters(); } else if(window.VRM_resetCatalog){ window.VRM_resetCatalog(); } });
+          noResEl.style.display = 'block';
+        } else if (noResEl){
+          noResEl.style.display = 'none';
+        }
+      }
 
-      let manualI = 0, parF = 0, pos = 0, posVel = 0, justDragged = false;
-      let velIdx = 0, lastMoveT = 0, _lastFrameT = 0;   // física del deslizamiento
-      function focus(i){ let cur=((Math.round(manualI)%N)+N)%N; let d=i-cur; while(d>N/2)d-=N; while(d<-N/2)d+=N; manualI = Math.round(manualI)+d; wake(); }
+      // ── (RE)CONSTRUYE la rueda con un subconjunto de casas ──
+      function buildRing(homes){
+        activeHomes = (homes && homes.length!==undefined) ? homes.slice() : HOMES.slice();
+        N = activeHomes.length; ANG = 360/(N||1);
+        ring.innerHTML=''; dotsEl.innerHTML='';
+        cards = activeHomes.map((h,i)=>{ const c=makeCard(h,i); ring.appendChild(c); return c; });
+        dots  = activeHomes.map((_,i)=>{ const d=document.createElement('i'); d.addEventListener('click',()=>focus(i)); dotsEl.appendChild(d); return d; });
+        // re-aplicar traducciones a las tarjetas nuevas (respeta EN/ES y el switch de idioma)
+        if(window.VRM_applyI18n) window.VRM_applyI18n();
+        manualI=0; pos=0; posVel=0; velIdx=0; _lastPos=1e9; _lastFrameT=0;
+        const empty = (N===0);
+        stage.style.display = empty ? 'none' : '';
+        if (ctrlsEl) ctrlsEl.style.display = empty ? 'none' : '';
+        if (hintEl)  hintEl.style.display  = empty ? 'none' : '';
+        showNoResults(empty);
+        if (!empty) wake();
+      }
+
+      // ── API DE FILTRO: reconstruye la rueda SOLO con las casas que coinciden ──
+      async function VRM_filterCatalog(criteria){
+        criteria = criteria || {};
+        const g = parseInt(criteria.guests,10) > 0 ? parseInt(criteria.guests,10) : 0;
+        const z = String(criteria.zone||'').trim().toLowerCase();
+        const ci = criteria.checkin || null, co = criteria.checkout || null;
+        // 1) filtros deterministas: capacidad (huéspedes) + zona
+        let list = HOMES.filter(h => {
+          if (g && (Number(h.g)||0) < g) return false;
+          if (z && String(h.loc||'').toLowerCase().indexOf(z) === -1) return false;
+          return true;
+        });
+        // 2) disponibilidad real por fechas (async, si Supabase está disponible)
+        if (ci && co && typeof window.isUnitAvailableInRange === 'function') {
+          try {
+            if (typeof window.preloadAvailability === 'function') {
+              await window.preloadAvailability(list.map(h=>h.id));
+            }
+            const oks = await Promise.all(list.map(async h => {
+              try { return await window.isUnitAvailableInRange(h.id, ci, co); }
+              catch(_){ return true; }   // fail-open: en error de red no penalizamos
+            }));
+            list = list.filter((h,idx)=>oks[idx]);
+          } catch(_){}
+        }
+        buildRing(list);
+        return list.length;
+      }
+      window.VRM_filterCatalog = VRM_filterCatalog;
+      window.VRM_resetCatalog  = function(){ buildRing(HOMES); };
 
       const section = document.getElementById('properties') || stage;
       function updateParallax(){
@@ -4848,14 +4926,12 @@
         if (!isMob && typeof wake === 'function') wake();   // el parallax mueve la rueda → despierta el loop
       }
       window.addEventListener('scroll', updateParallax, {passive:true});
-      updateParallax();
 
       // ★ LOOP CONSCIENTE DE REPOSO: solo escribe estilos cuando la rueda se
       // está moviendo de verdad. En reposo, cero invalidaciones de layout →
       // el compositor queda libre para el canvas 3D (sin jank ni parpadeo).
-      var _lastPos = 1e9, _running = false, _rafId = 0;   // var → sin TDZ (wake() puede llamarse en init)
       // ★ despierta el loop de la rueda; si ya corre, no hace nada
-      function wake(){ if(!_running){ _running = true; window.__cgalBusy = true; _rafId = requestAnimationFrame(layout); } }
+      function wake(){ if(N<=0) return; if(!_running){ _running = true; window.__cgalBusy = true; _rafId = requestAnimationFrame(layout); } }
       function layout(ts){
         // ★ FÍSICA DEL DESLIZAMIENTO — independiente de los FPS:
         const now = ts || performance.now();
@@ -4918,7 +4994,6 @@
         }
         _rafId = requestAnimationFrame(layout);
       }
-      wake();
 
       // ── arrastre (no captura el scroll de la página) ──
       let down=false, lastX=0, moved=0;
@@ -4940,8 +5015,12 @@
       stage.addEventListener('touchstart',ps,{passive:true}); stage.addEventListener('touchmove',pm,{passive:true}); stage.addEventListener('touchend',pe);
 
       // flechas
-      document.getElementById('cgalNext').addEventListener('click',()=>{ manualI = Math.round(manualI)+1; wake(); });
-      document.getElementById('cgalPrev').addEventListener('click',()=>{ manualI = Math.round(manualI)-1; wake(); });
+      document.getElementById('cgalNext').addEventListener('click',()=>{ if(N>0){ manualI = Math.round(manualI)+1; wake(); } });
+      document.getElementById('cgalPrev').addEventListener('click',()=>{ if(N>0){ manualI = Math.round(manualI)-1; wake(); } });
+
+      // ── ARRANQUE: construye la rueda completa y engancha el parallax ──
+      buildRing(HOMES);
+      updateParallax();
     })();
     </script>
 
@@ -9229,12 +9308,18 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     }
 
     try {
-      await filterProperties({
-        guests: guests > 0 ? guests : null,
-        zone,
-        checkin: checkin || null,
-        checkout: checkout || null
-      });
+      // El catálogo real es la rueda circular (VRM_filterCatalog). Reconstruye
+      // la rueda dejando SOLO las casas que cumplen huéspedes + zona (+ fechas
+      // si Supabase está disponible). filterProperties() legacy apuntaba a
+      // .prop-card que ya no existen, por eso el filtro "no hacía nada".
+      if (window.VRM_filterCatalog) {
+        await window.VRM_filterCatalog({
+          guests: guests > 0 ? guests : null,
+          zone,
+          checkin: checkin || null,
+          checkout: checkout || null
+        });
+      }
     } finally {
       // Restaurar botón pase lo que pase
       $submit.disabled = false;
@@ -9501,7 +9586,9 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     if ($zone) $zone.value = '';
     try { sessionStorage.removeItem('vrm_search_intent'); } catch (_) {}
     syncHeroDisplay();
-    // Mostrar todas las cards
+    // Mostrar TODAS las casas de nuevo en la rueda circular (catálogo real)
+    if (window.VRM_resetCatalog) window.VRM_resetCatalog();
+    // (legacy) por si quedaran .prop-card/.prop-feature de versiones previas
     document.querySelectorAll('.prop-card, .prop-feature').forEach(c => {
       c.classList.remove('filtered-out');
       c.style.removeProperty('display');
