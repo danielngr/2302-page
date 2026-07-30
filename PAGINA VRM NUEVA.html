@@ -4678,6 +4678,7 @@
       .cgal-eye{ font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:#e9a583; margin-bottom:8px; font-family:var(--font-body,system-ui); }
       .cgal-name{ font-family:var(--font-display,Georgia,serif); font-weight:400; font-size:24px; line-height:1.04; color:#ECE7DD; margin:0; }
       .cgal-name em{ font-style:italic; }
+      .cgal-seam{ display:none; }   /* costura terracota: solo en móvil (dos tarjetas) */
       .cgal-meta{ display:flex; gap:12px; margin-top:11px; font-size:11px; color:#9db0c8; letter-spacing:.02em; font-family:var(--font-body,system-ui); }
       .cgal-meta b{ font-weight:400; color:#9db0c8; }
       .cgal-price{ margin-top:11px; font-family:var(--font-display,Georgia,serif); color:#ECE7DD; }
@@ -4703,12 +4704,47 @@
       .cgal-dots i.on{ background:#E1885E; width:22px; border-radius:4px; }
       .cgal-hint{ text-align:center; margin-top:14px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; opacity:.5; font-family:var(--font-body,system-ui); }
       @media (max-width:640px){
-        /* ★ móvil = carrusel PLANO "una casa a la vez": tarjeta central grande
-           y limpia, la siguiente apenas asomando. Sin cilindro 3D apretado. */
-        .cgal-stage{ height:min(64vh,540px); min-height:430px; perspective:none; }
-        .cgal-card{ width:min(74vw,310px); height:min(58vh,440px); left:calc(min(74vw,310px) * -0.5); top:calc(min(58vh,440px) * -0.5); border-radius:20px; }
-        .cgal-name{ font-size:21px; }
-        .cgal-photo{ border-radius:20px; }
+        /* ★ MÓVIL = DOS TARJETAS: foto grande (vertical) arriba + tarjeta glass
+           separada debajo (que retoma los colores de la foto). Sin cilindro. */
+        .cgal-stage{ height:min(80vh,660px); min-height:540px; perspective:1300px; }
+        .cgal-card{ width:min(64vw,290px); height:min(76vh,600px);
+          left:calc(min(64vw,290px) * -0.5); top:calc(min(76vh,600px) * -0.5);
+          background:transparent; border:none; box-shadow:none; border-radius:0; overflow:visible;
+          display:flex; flex-direction:column; }
+        /* tarjeta 1 · foto grande */
+        .cgal-photo{ position:relative; inset:auto; flex:1 1 auto; border-radius:22px; overflow:hidden;
+          box-shadow:0 26px 52px -24px rgba(0,0,0,.75); border:1px solid rgba(255,255,255,.06); }
+        .cgal-photo::after{ display:none; }   /* foto limpia, sin velo */
+        /* tarjeta 2 · glass separada, con ambiente de la foto */
+        .cgal-info{ position:relative; inset:auto; left:auto; right:auto; bottom:auto; margin-top:11px;
+          padding:15px 18px 16px; border-radius:22px; overflow:hidden; text-align:center; flex:0 0 auto;
+          border:1px solid rgba(255,255,255,.14);
+          box-shadow:0 24px 48px -22px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.12); }
+        .cgal-info::before{ content:""; position:absolute; inset:0; z-index:0;
+          background:var(--cover,#16273c) center/cover; transform:scale(1.5);
+          filter:blur(36px) brightness(.5) saturate(1.4); }
+        .cgal-info::after{ content:""; position:absolute; inset:0; z-index:0;
+          background:linear-gradient(180deg,rgba(9,14,24,.42),rgba(7,11,19,.80)); }
+        .cgal-info > *{ position:relative; z-index:1; }
+        .cgal-badge{ display:none; }   /* sin pill en móvil */
+        .cgal-eye{ color:#efa274; font-size:10.5px; letter-spacing:.2em; margin-bottom:0; }
+        .cgal-name{ font-size:23px; color:#fff; margin:7px 0 0; }
+        .cgal-seam{ display:block; width:48px; height:2px; background:#E1885E; opacity:.92; border-radius:2px;
+          margin:10px auto 10px; box-shadow:0 0 14px rgba(225,136,94,.55); }
+        .cgal-meta{ justify-content:center; margin-top:0; margin-bottom:11px; color:#dbe6f4; font-size:12px; }
+        .cgal-meta b{ color:#dbe6f4; }
+        .cgal-price{ margin-top:0; margin-bottom:12px; }
+        .cgal-price b{ color:#fff; } .cgal-price span{ color:#c4d2e4; }
+        .cgal-cta{ opacity:1; transform:none; display:flex; align-items:center; justify-content:center;
+          width:100%; margin-top:0; padding:15px 22px; border:none; border-radius:100px;
+          color:#2a1206; font-weight:700; letter-spacing:.16em; font-size:12px;
+          background:linear-gradient(135deg,#f0a878,#E1885E 54%,#d5744a);
+          box-shadow:0 13px 28px -8px rgba(225,136,94,.6),0 2px 0 rgba(255,255,255,.25) inset;
+          position:relative; overflow:hidden; }
+        .cgal-cta::after{ content:""; position:absolute; top:0; left:-60%; width:38%; height:100%;
+          background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent); transform:skewX(-20deg);
+          animation:cgalsheen 4s ease-in-out infinite; }
+        @keyframes cgalsheen{0%,72%{left:-60%}88%{left:135%}100%{left:135%}}
       }
     </style>
     <div class="cgal-wrap">
@@ -4750,7 +4786,7 @@
       if(!stage||!ring) return;
       const N = HOMES.length, ANG = 360/N;
       const isMob = matchMedia('(max-width:640px)').matches;
-      const R = isMob ? 300 : 500;   // radio del cilindro
+      const R = isMob ? 240 : 500;   // radio del cilindro (móvil a escala)
 
       // construir tarjetas
       const cards = HOMES.map((h,i)=>{
@@ -4766,6 +4802,7 @@
           '<div class="cgal-info">'+
             '<div class="cgal-eye">'+h.loc+'</div>'+
             '<h3 class="cgal-name"><em>'+_complex+'</em> '+_unit+'</h3>'+
+            '<div class="cgal-seam"></div>'+
             '<div class="cgal-meta">'+
               '<span>'+h.g+' <b data-i18n="feat.guests"></b></span>'+
               '<span>'+h.b+' <b data-i18n="feat.bedrooms"></b></span>'+
@@ -4790,8 +4827,8 @@
       // ★ móvil: MUCHO más ángulo entre tarjetas → las vecinas se abren y NO se
       //   amontonan sobre la del centro (la del frente queda sola, con un asomo
       //   sutil a cada lado). Desktop se queda como estaba.
-      const SPACING = isMob ? 45 : 40;   // grados entre casas
-      const VISDEG  = isMob ? 66 : 104;  // móvil: solo ±1 vecina visible; el resto oculto
+      const SPACING = isMob ? 56 : 40;   // grados entre casas (móvil: rueda a escala)
+      const VISDEG  = isMob ? 72 : 104;  // móvil: solo ±1 vecina visible (inclinada); el resto oculto
 
       let manualI = 0, parF = 0, pos = 0, justDragged = false;
       function focus(i){ let cur=((Math.round(manualI)%N)+N)%N; let d=i-cur; while(d>N/2)d-=N; while(d<-N/2)d+=N; manualI = Math.round(manualI)+d; wake(); }
@@ -4818,30 +4855,14 @@
         if (Math.abs(pos - _lastPos) > 0.0004) {
           _lastPos = pos;
           let frontI = 0, best = 1e9;
-          const _mobStep = (window.innerWidth || 390) * 0.70;   // px por casa en móvil (deja asomar la siguiente)
           cards.forEach((c,i)=>{
             let r = i - pos; while(r> N/2) r-=N; while(r< -N/2) r+=N;   // casa más cercana por ambos lados (anillo)
-            const _ph = c.firstElementChild;
-            // ═══ MÓVIL: carrusel PLANO (una casa a la vez, la siguiente asoma) ═══
-            if (isMob) {
-              const ar = Math.abs(r);
-              if (ar > 1.55) { c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
-              if(_ph && _ph.dataset.cover){ _ph.style.backgroundImage='url("'+_ph.dataset.cover+'")'; _ph.removeAttribute('data-cover'); }
-              const isC = ar < 0.5;
-              const sc = isC ? 1 : 0.82;                     // vecinas un poco más chicas
-              c.style.transform = 'translateX('+(r*_mobStep).toFixed(1)+'px) scale('+sc+')';
-              c.style.opacity = isC ? '1' : Math.max(0, 0.5 - (ar-0.5)*0.42).toFixed(2);  // vecinas atenuadas → el centro manda
-              c.style.zIndex = String(Math.round(100 - ar*10));
-              c.style.pointerEvents = isC ? 'auto' : 'none';
-              c.classList.toggle('cgal-front', isC);
-              if (ar < best){ best = ar; frontI = i; }
-              return;
-            }
-            // ═══ DESKTOP: cilindro 3D (transformación exacta del componente) ═══
             const angle = r * SPACING, ar = Math.abs(angle);
             if(ar > VISDEG){ c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
-            // ★ LAZY: la foto (externa) solo se descarga cuando la tarjeta entra a la ventana visible
-            if(_ph && _ph.dataset.cover){ _ph.style.backgroundImage='url("'+_ph.dataset.cover+'")'; _ph.removeAttribute('data-cover'); }
+            // ★ LAZY: foto + ambiente del glass solo cuando la tarjeta entra a la ventana visible
+            const _ph = c.firstElementChild;
+            if(_ph && _ph.dataset.cover){ const _u=_ph.dataset.cover; _ph.style.backgroundImage='url("'+_u+'")'; c.style.setProperty('--cover','url("'+_u+'")'); _ph.removeAttribute('data-cover'); }
+            // ★ RUEDA 3D — igual que en PC, a escala en móvil (R/SPACING/perspective)
             c.style.transform = 'rotateY('+angle.toFixed(2)+'deg) translateZ('+R+'px)';
             c.style.opacity = (ar < 50 ? 1 : Math.max(0, 1 - (ar-50)/52)).toFixed(2);
             c.style.zIndex = Math.round(400 - ar);
@@ -4860,7 +4881,7 @@
       // ── arrastre (no captura el scroll de la página) ──
       let down=false, lastX=0, moved=0;
       function ps(e){ down=true; moved=0; lastX=(e.touches?e.touches[0].clientX:e.clientX); wake(); }
-      function pm(e){ if(!down) return; const x=(e.touches?e.touches[0].clientX:e.clientX); const dx=x-lastX; lastX=x; moved+=Math.abs(dx); manualI -= dx*(isMob ? 1/((window.innerWidth||390)*0.70) : 0.006); wake(); }
+      function pm(e){ if(!down) return; const x=(e.touches?e.touches[0].clientX:e.clientX); const dx=x-lastX; lastX=x; moved+=Math.abs(dx); manualI -= dx*(isMob ? 0.010 : 0.006); wake(); }
       function pe(){ if(!down) return; down=false; manualI = Math.round(manualI); if(moved>6){ justDragged=true; setTimeout(()=>justDragged=false,80);} wake(); }
       stage.addEventListener('mousedown',ps); window.addEventListener('mousemove',pm); window.addEventListener('mouseup',pe);
       stage.addEventListener('touchstart',ps,{passive:true}); stage.addEventListener('touchmove',pm,{passive:true}); stage.addEventListener('touchend',pe);
@@ -6691,20 +6712,45 @@ let revealStartTime = null;
 // Bloom calmado — sin flash dramático. Solo iridiscencia natural.
 bloomPass.strength = 0.26;
 
-// ★ OPTIMIZACIÓN MÓVIL — control de cadencia del render:
-//   • En móvil topamos a ~32fps: renderizar a 60fps calienta el doble sin que
-//     el ojo lo note en una animación tan orgánica. Saltar frames = mitad de GPU.
-//   • Si la pestaña está oculta, NO renderizamos nada (cero calor en segundo plano).
-//   • El requestAnimationFrame se agenda SIEMPRE arriba para no cortar el loop.
+// ★ OPTIMIZACIÓN MÓVIL — RESOLUCIÓN ADAPTATIVA (técnica de Noomo y estudios
+//   que mueven GLB pesados en el teléfono). En vez de bajar la calidad a mano
+//   o topar los fps (lo que se siente robótico), medimos si el equipo SOSTIENE
+//   una tasa fluida y sólo entonces escalamos la RESOLUCIÓN de render:
+//     • el teléfono va fluido con holgura → sube resolución (más nítido)
+//     • le empieza a costar → baja resolución (mantiene la fluidez, no calienta)
+//   El cristal (transmission), el bloom y la aberración renderizan a esa
+//   resolución, así que escalarla recorta su coste de forma proporcional —
+//   sin que el ojo note pérdida a tamaño móvil. En segundo plano: no renderiza.
 let __lastHeavy = 0;
-const __frameCapMs = isMobile ? (1000 / 32) : 0;   // 0 = sin tope (desktop)
+const __dprFloor = 1.0;
+const __dprCap = DPR_MAIN;                       // tope = el cap por dispositivo (1.5 móvil / 2 desktop)
+let __dpr = isMobile ? Math.min(1.25, __dprCap) : __dprCap;
+let __emaFrame = 1000 / 52;                      // media móvil del intervalo real entre frames
+let __govCooldown = 60;
+function __applyDPR(v){
+  __dpr = Math.max(__dprFloor, Math.min(__dprCap, +v.toFixed(3)));
+  renderer.setPixelRatio(__dpr);
+  composer.setPixelRatio(__dpr);
+  if (frontRenderer) frontRenderer.setPixelRatio(Math.min(__dpr, 1.25));
+}
+if (isMobile) __applyDPR(__dpr);
+// gobernador: banda muerta 40–57fps → estable (sin oscilar la resolución)
+function __governResolution(frameMs){
+  __emaFrame += (frameMs - __emaFrame) * 0.08;
+  if (__govCooldown > 0){ __govCooldown--; return; }
+  const DOWN = 1000 / 40;   // >25.0ms (por debajo de 40fps) → le cuesta
+  const UP   = 1000 / 57;   // <17.5ms (por encima de 57fps) → hay margen de sobra
+  if (__emaFrame > DOWN && __dpr > __dprFloor){ __applyDPR(__dpr - 0.12); __govCooldown = 45; }
+  else if (__emaFrame < UP && __dpr < __dprCap){ __applyDPR(__dpr + 0.10); __govCooldown = 45; }
+}
 function animate(time) {
   requestAnimationFrame(animate);
   const now = time || performance.now();
   if (lenis) lenis.raf(now);                        // scroll suave cada frame igual
-  if (document.hidden) return;                      // en segundo plano: nada de 3D
-  if (__frameCapMs && (now - __lastHeavy) < __frameCapMs) return;  // móvil: salta frames extra
+  if (document.hidden){ __lastHeavy = now; return; } // en segundo plano: nada de 3D
+  const _frameMs = Math.min(now - __lastHeavy, 100); // intervalo real (clamp anti-picos de carga)
   __lastHeavy = now;
+  if (isMobile) __governResolution(_frameMs);
   const dt = Math.min(clock.getDelta(), 0.05);      // clamp → sin salto al volver del bg
   const t = clock.getElapsedTime();
 
@@ -6835,11 +6881,14 @@ function animate(time) {
   // variable en GPU real, esa velocidad tiembla → la amplitud tiembla cada
   // frame → la ballena se sacude → los reflejos se barren = parpadeo.
   // Amplitudes CONSTANTES (sin dependencia de dt) = movimiento estable.
-  const dorsalBob = Math.sin(t * 0.55 + 1.9) * 0.018;
-  const tailUndulation = Math.sin(t * 0.85 + 0.4) * 0.025;
-  const bodyYaw = 0;
-  const microShimmer = Math.sin(t * 2.1 + 4.3) * 0.005;
-  const cinematicRoll = Math.sin(t * 0.62 + 2.7) * 0.022;
+  // ★ ONDULACIÓN ORGÁNICA — capas de 2 frecuencias con fases desfasadas para
+  //   que el cuerpo ondee como un ser vivo (no un seno único = robótico). Todo
+  //   es función de t (amplitud CONSTANTE) → sigue sin reintroducir el parpadeo.
+  const dorsalBob = (Math.sin(t * 0.55 + 1.9) + 0.45 * Math.sin(t * 0.93 + 0.6)) * 0.019; // cabeceo
+  const tailUndulation = (Math.sin(t * 0.68 + 0.4) + 0.55 * Math.sin(t * 1.13 + 2.3)) * 0.030; // coleo (yaw) más vivo
+  const bodyYaw = Math.sin(t * 0.24 + 3.1) * 0.012;                                      // deriva lenta de rumbo (glisa)
+  const microShimmer = Math.sin(t * 1.9 + 4.3) * 0.006;
+  const cinematicRoll = (Math.sin(t * 0.5 + 2.7) + 0.40 * Math.sin(t * 0.86 + 1.1)) * 0.026; // alabeo con respiración
 
   // Drift orgánico de posición (index6 exacto)
   const driftX = (Math.sin(t * 0.37 + 1.1) + Math.sin(t * 0.29 + 4.2) * 0.6) * 0.030;
@@ -7107,18 +7156,19 @@ function animate(time) {
   );
   const clampedDot = Math.max(-1, Math.min(1, dotProduct));
   const angleToTarget = 2 * Math.acos(clampedDot);
-  // ★ INERCIA ANGULAR — antes: velocidad angular CONSTANTE al girar (tasa fija
-  // = servo robótico) con un salto de régimen al llegar. Ahora la TASA de giro
-  // tiene su propia inercia: acelera suave al iniciar el viraje y frena suave
-  // al terminarlo (ease-in/ease-out físico). Cero pasos mecánicos.
-  // Slerp con velocidad angular limitada (index6 exacto, estable)
-  const maxRotationThisFrame = MAX_ANGULAR_SPEED * dt;
-  let slerpFactor;
-  if (angleToTarget > maxRotationThisFrame && angleToTarget > 0.001) {
-    slerpFactor = maxRotationThisFrame / angleToTarget;
-  } else {
-    slerpFactor = Math.min(1, dt * 4.0);
-  }
+  // ★ INERCIA ANGULAR REAL — antes: al girar rotaba a TASA CONSTANTE (un servo)
+  //   y saltaba de régimen al llegar → se sentía robótico. Ahora la velocidad
+  //   angular tiene su propia inercia:
+  //     • la velocidad DESEADA es proporcional al hueco → frena sola cerca del
+  //       objetivo (ease-out orgánico, sin el salto de régimen)
+  //     • esa velocidad se suaviza hacia la deseada → arranca el viraje con peso
+  //       y acelera de a poco (ease-in). Cero pasos mecánicos.
+  const _gap = angleToTarget;
+  const _desiredAngVel = Math.min(MAX_ANGULAR_SPEED, _gap * 3.2);
+  window.__whaleAngVel = (window.__whaleAngVel || 0)
+    + (_desiredAngVel - (window.__whaleAngVel || 0)) * Math.min(1, dt * 3.0);
+  const _rotThisFrame = Math.min(_gap, window.__whaleAngVel * dt);
+  const slerpFactor = _gap > 0.0001 ? _rotThisFrame / _gap : 1;
   whaleGroup.quaternion.slerp(_whaleQuatFinal, slerpFactor);
 
   // ════════════════════════════════════════════════════════════════════
