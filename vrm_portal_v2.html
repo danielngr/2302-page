@@ -3811,7 +3811,7 @@
     // ── Cargar Supabase ─────────────────────────────────────────
     async function cargarRegistros() {
         try {
-            const fields = 'id,depto,nombre,fecha_entrada,fecha_salida,num_adultos,num_menores,pdf_generado,tipo_formato,template,ocupantes,telefono,email,num_mascotas,vehiculo_modelo,vehiculo_placas,foto_id,firma,created_at';
+            const fields = 'id,depto,nombre,fecha_entrada,fecha_salida,num_adultos,num_menores,pdf_generado,tipo_formato,template,ocupantes,telefono,email,num_mascotas,vehiculo_modelo,vehiculo_placas,created_at'; // foto_id/firma se cargan bajo demanda (traerFotoFirma) — eran ~7MB en la lista
             // Solo últimos 60 días en carga inicial — mucho más rápido
             const hoy = new Date();
             const hace60 = new Date(hoy); hace60.setDate(hoy.getDate()-60);
@@ -5297,10 +5297,26 @@
       return s;
     }
 
+    // Trae foto_id/firma (base64 pesado) SOLO de este registro, bajo demanda. Cachea en r.
+    async function traerFotoFirma(r) {
+        if(!r || r._ffLoaded) return r;
+        if(r.foto_id || r.firma) { r._ffLoaded = true; return r; }
+        try {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin?id=eq.${r.id}&select=foto_id,firma`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            });
+            const a = await res.json();
+            if(Array.isArray(a) && a[0]) { r.foto_id = a[0].foto_id||null; r.firma = a[0].firma||null; }
+        } catch(e){ console.warn('No se pudo traer foto/firma:', e); }
+        r._ffLoaded = true;
+        return r;
+    }
+
     async function enviarPDFporCorreo(id) {
       if(bloquearEnvioSiStandalone()) return;
       const r = todosRegistros.find(x=>x.id===id);
       if(!r) return;
+      await traerFotoFirma(r);
 
       const deptoUp = normalizarDepto(r.depto||'');
       const configKey = Object.keys(CORREO_PDF_MAP).find(k => {
@@ -5530,6 +5546,7 @@
       if(bloquearEnvioSiStandalone()) return;
       const r = todosRegistros.find(x=>x.id===id);
       if(!r) return;
+      await traerFotoFirma(r);
 
       const config = getCorreoMsg(r.depto);
       if(!config) { toast("❌ No hay correo configurado para " + r.depto); return; }
@@ -5811,9 +5828,10 @@
     }
 
     // ── Generar formato ─────────────────────────────────────────
-    function generarFormato(id) {
+    async function generarFormato(id) {
         const r = todosRegistros.find(x=>x.id===id);
         if(!r) return;
+        await traerFotoFirma(r);
         const ocupantes = Array.isArray(r.ocupantes)?r.ocupantes:[];
         const idioma = getIdiomaRegistro(id);
         const datos = {
