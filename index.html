@@ -223,7 +223,7 @@
       
       // Experience
       'experience.eyebrow': '— The bay, lived',
-      'experience.text.pri': 'Banderas Bay,',
+      'experience.text.pri': 'Banderas Bay',
       'experience.text.sec': 'done right.',
       'experience.caption': '70 curated homes along Puerto Vallarta and Riviera Nayarit. Booked through the people who actually live here.',
       'experience.stat1.num': '2018',
@@ -382,7 +382,7 @@
       
       // Experience
       'experience.eyebrow': '— La bahía, vivida',
-      'experience.text.pri': 'Bahía de Banderas,',
+      'experience.text.pri': 'Bahía de Banderas',
       'experience.text.sec': 'bien hecho.',
       'experience.caption': '70 casas curadas a lo largo de Puerto Vallarta y Riviera Nayarit. Reservadas a través de las personas que viven aquí.',
       'experience.stat1.num': '2018',
@@ -564,17 +564,30 @@
   }
   /* No body background extra — confiamos en var(--ink) directo */
 
+  /* EXACTO a index6: velo z2 sobre la ballena (z1), bajo el contenido (z3+). */
   #dive-veil{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;
     background:linear-gradient(180deg,#04070E 0%,#02050C 100%);will-change:opacity}
   .whale-canvas {
     position: fixed;
     inset: 0;
-    z-index: 1;
+    z-index: 1;            /* fondo+ballena juntos, bajo el contenido (z3+). */
     pointer-events: none;
     width: 100vw;
     height: 100vh;
     height: 100dvh;
     transition: opacity 0.6s var(--ease-soft);
+  }
+
+  /* Overlay de la pasada frontal — encima de TODO, solo activo en la ventana. */
+  .whale-front {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    pointer-events: none;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    opacity: 0;
   }
 
   /* Aurora pastel + sol blanco central — AHORA renderizada dentro de Three.js
@@ -1706,7 +1719,10 @@
     color: var(--paper);
   }
   .reimagine-text .sec {
-    display: block;
+    /* ★ "done right." desactivado: el degradado con background-clip:text no se
+       aplica sobre los <span> del split-text → salía invisible y dejaba la coma
+       huérfana. Titular limpio = solo "Banderas Bay". */
+    display: none;
     background: linear-gradient(180deg, var(--paper) 0%, var(--aurora-2) 35%, var(--gold-bright) 70%, var(--coral) 100%);
     -webkit-background-clip: text;
     background-clip: text;
@@ -1772,9 +1788,15 @@
     line-height: 1.6;
   }
   @media (max-width: 768px) {
-    .section-block { padding: 100px 24px; }
+    .section-block { padding: 74px 22px; }
     .philosophy-title { margin-bottom: 64px; }
-    .stats { grid-template-columns: 1fr; gap: 56px; }
+    /* ★ stats móvil: fila compacta de 3 (no tres números gigantes dispersos) */
+    .stats { grid-template-columns: repeat(3, 1fr); gap: 10px; padding-top: 30px; }
+    .stat-item { align-items: center; text-align: center; }
+    .stat-num { font-size: 33px; margin-bottom: 8px; }
+    .stat-label { font-size: 8.5px; letter-spacing: 0.14em; line-height: 1.45; }
+    /* ★ ghost words fuera en móvil (chocaban con el contenido) */
+    .whale-anchor-overlay { display: none !important; }
   }
 
   /* ─── WHY DIRECT — 3 razones concretas (alta conversión) ─── */
@@ -2545,6 +2567,10 @@
      • Opacity controlada por scroll → aparece/desaparece en momentos clave
      ============================================================= */
   .whale-anchor-overlay {
+    /* ★ palabras-fantasma DOM ("Arrive"/"Stay") desactivadas: se encimaban con
+       los títulos de las secciones (Featured stays / Hand-picked…) tanto en
+       desktop como en móvil. El sitio queda más limpio sin ellas. */
+    display: none !important;
     position: fixed;
     inset: 0;
     pointer-events: none;
@@ -3764,7 +3790,7 @@
     .nav-mark { font-size: 14px; }
 
     /* === SECTION BLOCK general === */
-    .section-block { min-height: auto; padding: 100px 24px; }
+    .section-block { min-height: auto; padding: 74px 22px; }
 
     /* === REIMAGINE === */
     .reimagine-text {
@@ -3783,12 +3809,11 @@
       line-height: 1.08;
     }
     .stats {
-      flex-direction: column;
-      gap: 32px !important;
-      margin-top: 60px !important;
+      gap: 10px !important;
+      margin-top: 44px !important;
     }
-    .stat-item { text-align: center; }
-    .stat-num { font-size: 56px !important; }
+    .stat-item { text-align: center; align-items: center; }
+    .stat-num { font-size: 33px !important; }
 
     /* === PROPIEDADES INTRO === */
     .properties-intro {
@@ -4341,7 +4366,15 @@
     <div class="loader-meta">Vacation Rental México</div>
   </div>
 
+  <!-- ★ Canvas ÚNICO opaco (fondo de agua + ballena en el MISMO contexto, como
+       el pipeline original estable). El velo de profundidad se aplica DENTRO
+       del render, entre el fondo y la ballena → tono continuo sin capas extra. -->
   <canvas class="whale-canvas" id="whale-canvas"></canvas>
+
+  <!-- ★ Overlay de la PASADA FRONTAL — canvas transparente por ENCIMA de todo,
+       que solo se dibuja durante la ventana de la pasada (mismo render de la
+       ballena → idéntica textura). Fuera de la ventana: opacity 0 y sin render. -->
+  <canvas class="whale-front" id="whale-front" aria-hidden="true"></canvas>
 
   <!-- Velo de inmersión: el fondo se hunde a aguas profundas al scrollear (z2: sobre ballena z1, bajo contenido z3) -->
   <div id="dive-veil" aria-hidden="true"></div>
@@ -4637,18 +4670,280 @@
       </p>
     </div>
 
-    <!-- ====== VRM DRUM — carrusel 3D de estancias (iframe AISLADO: cero conflicto de IDs/CSS con el resto) ====== -->
+    <!-- ====== GALERÍA CIRCULAR VRM — rueda 3D ligera (CSS puro, sin iframe) ======
+         Portada del componente "circular-gallery" adaptada a vanilla. Controlada
+         por arrastre / flechas / puntos (para poder leer cada casa) con una leve
+         rotación de parallax ligada al scroll de la sección — NUNCA secuestra el
+         scroll de la página. Centro libre: la ballena cruza por detrás/en medio. -->
     <style>
-      .vrm-drum-embed{ margin:34px auto 6px; max-width:1820px; padding:0 clamp(8px,2vw,28px); }
-      .vrm-drum-hint{ text-align:center; margin-top:14px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; opacity:.5; font-family:var(--font-body,system-ui); }
-      @media (max-width:640px){ .vrm-drum-embed{ padding:0 8px; } .vrm-drum-embed iframe{ height:62vh; min-height:360px; border-radius:12px; } }
+      .cgal-wrap{ position:relative; margin:30px auto 4px; max-width:1500px; padding:0 clamp(10px,2vw,28px); }
+      .cgal-stage{ position:relative; height:min(76vh,680px); min-height:460px; perspective:2000px; display:grid; place-items:center; touch-action:pan-y; cursor:grab; }
+      .cgal-stage:active{ cursor:grabbing; }
+      .cgal-ring{ position:relative; width:1px; height:1px; transform-style:preserve-3d; will-change:transform; }
+      .cgal-card{ position:absolute; width:300px; height:400px; left:-150px; top:-200px;
+        border-radius:16px; overflow:hidden; background:#0a1220; border:1px solid rgba(150,180,220,.14);
+        box-shadow:0 30px 70px -32px rgba(0,0,0,.85); will-change:transform,opacity;
+        backface-visibility:hidden; -webkit-backface-visibility:hidden; }
+      .cgal-photo{ position:absolute; inset:0; background-size:cover; background-position:center; }
+      .cgal-photo::after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(4,7,14,0) 34%,rgba(4,7,14,.35) 58%,rgba(4,7,14,.92) 100%); }
+      .cgal-info{ position:absolute; left:0; right:0; bottom:0; padding:20px; z-index:2; }
+      .cgal-eye{ font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:#e9a583; margin-bottom:8px; font-family:var(--font-body,system-ui); }
+      .cgal-name{ font-family:var(--font-display,Georgia,serif); font-weight:400; font-size:24px; line-height:1.04; color:#ECE7DD; margin:0; }
+      .cgal-name em{ font-style:italic; }
+      .cgal-seam{ display:none; }   /* costura terracota: solo en móvil (dos tarjetas) */
+      .cgal-meta{ display:flex; gap:12px; margin-top:11px; font-size:11px; color:#9db0c8; letter-spacing:.02em; font-family:var(--font-body,system-ui); }
+      .cgal-meta b{ font-weight:400; color:#9db0c8; }
+      .cgal-price{ margin-top:11px; font-family:var(--font-display,Georgia,serif); color:#ECE7DD; }
+      .cgal-price b{ font-size:19px; font-weight:500; }
+      .cgal-price span{ font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#7f90a8; font-family:var(--font-body,system-ui); }
+      /* ★ SIN backdrop-filter: 16 blurs vivos sobre el canvas WebGL fijo hacían
+         parpadear el compositor en esta sección. Fondo sólido = mismo look, cero flicker. */
+      .cgal-badge{ position:absolute; top:13px; left:13px; z-index:3; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
+        color:#ECE7DD; background:rgba(6,11,22,.78); border:1px solid rgba(150,180,220,.18);
+        padding:5px 11px; border-radius:30px; font-family:var(--font-body,system-ui); }
+      .cgal-cta{ margin-top:15px; display:inline-block; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:#ECE7DD;
+        border:1px solid rgba(150,180,220,.2); padding:9px 18px; border-radius:30px; text-decoration:none;
+        opacity:0; transform:translateY(8px); transition:.28s cubic-bezier(.22,.61,.36,1); font-family:var(--font-body,system-ui); }
+      .cgal-card.cgal-front .cgal-cta{ opacity:1; transform:none; }
+      .cgal-cta:hover{ background:#E1885E; border-color:#E1885E; color:#0a0f18; }
+      .cgal-ctrls{ display:flex; align-items:center; justify-content:center; gap:14px; margin-top:16px; }
+      .cgal-ctrls button{ width:46px; height:46px; border-radius:50%; border:1px solid rgba(150,180,220,.16);
+        background:rgba(14,26,46,.78); color:#ECE7DD; cursor:pointer; font-size:18px; display:grid; place-items:center;
+        transition:.22s cubic-bezier(.22,.61,.36,1); }
+      .cgal-ctrls button:hover{ border-color:#E1885E; color:#E1885E; transform:translateY(-2px); }
+      .cgal-dots{ display:flex; gap:9px; align-items:center; }
+      .cgal-dots i{ width:7px; height:7px; border-radius:50%; background:rgba(150,180,220,.28); cursor:pointer; transition:.25s cubic-bezier(.22,.61,.36,1); }
+      .cgal-dots i.on{ background:#E1885E; width:22px; border-radius:4px; }
+      .cgal-hint{ text-align:center; margin-top:14px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; opacity:.5; font-family:var(--font-body,system-ui); }
+      @media (max-width:640px){
+        /* ★ MÓVIL = DOS TARJETAS: foto grande (vertical) arriba + tarjeta glass
+           separada debajo (que retoma los colores de la foto). Sin cilindro. */
+        .cgal-stage{ height:min(80vh,660px); min-height:540px; perspective:1300px; }
+        .cgal-card{ width:min(64vw,290px); height:min(76vh,600px);
+          left:calc(min(64vw,290px) * -0.5); top:calc(min(76vh,600px) * -0.5);
+          background:transparent; border:none; box-shadow:none; border-radius:0; overflow:visible;
+          display:flex; flex-direction:column; }
+        /* tarjeta 1 · foto grande — sombra LIGERA (las sombras grandes re-compositan
+           en cada frame al mover = jank). Sin filtros. */
+        .cgal-photo{ position:relative; inset:auto; flex:1 1 auto; border-radius:22px; overflow:hidden;
+          box-shadow:0 12px 26px -16px rgba(0,0,0,.6); border:1px solid rgba(255,255,255,.06); }
+        .cgal-photo::after{ display:none; }   /* foto limpia, sin velo */
+        /* tarjeta 2 · glass SÓLIDO (sin blur en vivo — era lo que trababa la GPU).
+           Degradado oscuro elegante + borde fino + brillo superior = look glass barato. */
+        .cgal-info{ position:relative; inset:auto; left:auto; right:auto; bottom:auto; margin-top:11px;
+          padding:15px 18px 16px; border-radius:22px; overflow:hidden; text-align:center; flex:0 0 auto;
+          background:linear-gradient(180deg, rgba(19,29,46,.95), rgba(10,16,27,.97));
+          border:1px solid rgba(255,255,255,.10);
+          box-shadow:0 12px 26px -16px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.10); }
+        .cgal-badge{ display:none; }   /* sin pill en móvil */
+        .cgal-eye{ color:#efa274; font-size:10.5px; letter-spacing:.2em; margin-bottom:0; }
+        .cgal-name{ font-size:23px; color:#fff; margin:7px 0 0; }
+        .cgal-seam{ display:block; width:48px; height:2px; background:#E1885E; opacity:.92; border-radius:2px;
+          margin:10px auto 10px; box-shadow:0 0 14px rgba(225,136,94,.55); }
+        .cgal-meta{ justify-content:center; margin-top:0; margin-bottom:11px; color:#dbe6f4; font-size:12px; }
+        .cgal-meta b{ color:#dbe6f4; }
+        .cgal-price{ margin-top:0; margin-bottom:12px; }
+        .cgal-price b{ color:#fff; } .cgal-price span{ color:#c4d2e4; }
+        .cgal-cta{ opacity:1; transform:none; display:flex; align-items:center; justify-content:center;
+          width:100%; margin-top:0; padding:15px 22px; border:none; border-radius:100px;
+          color:#2a1206; font-weight:700; letter-spacing:.16em; font-size:12px;
+          background:linear-gradient(135deg,#f0a878,#E1885E 54%,#d5744a);
+          box-shadow:0 8px 18px -8px rgba(225,136,94,.55),0 2px 0 rgba(255,255,255,.25) inset; }
+        /* (sin animación de destello en móvil: repintaba cada frame = jank) */
+      }
     </style>
-    <div class="vrm-drum-embed">
-      <iframe id="vrmDrumFrame" src="drum_integrado.html?embed=1" title="Estancias VRM — carrusel 3D" loading="lazy" scrolling="no"
-              allowtransparency="true" style="width:100%;height:min(88vh,940px);min-height:460px;border:0;display:block;background:transparent;will-change:transform;transform:translateZ(0);backface-visibility:hidden;contain:layout paint style;overscroll-behavior:contain"></iframe>
-      <script>(function(){var f=document.getElementById('vrmDrumFrame');if(f&&window.VRM_LANG&&f.src.indexOf('lang=')<0){f.src=f.src+(f.src.indexOf('?')<0?'?':'&')+'lang='+window.VRM_LANG;}})();</script>
-      <p class="vrm-drum-hint" data-i18n="drum.hint.outer">Arrastrá para girar · tocá una estancia para abrirla</p>
+    <div class="cgal-wrap">
+      <div class="cgal-stage" id="cgalStage" aria-roledescription="carrusel" aria-label="Estancias destacadas">
+        <div class="cgal-ring" id="cgalRing"></div>
+      </div>
+      <div class="cgal-ctrls">
+        <button type="button" id="cgalPrev" aria-label="Anterior">‹</button>
+        <div class="cgal-dots" id="cgalDots"></div>
+        <button type="button" id="cgalNext" aria-label="Siguiente">›</button>
+      </div>
+      <p class="cgal-hint" data-i18n="drum.hint.outer">Arrastrá para girar · tocá una estancia para abrirla</p>
     </div>
+
+    <script>
+    (function(){
+      // ── Los 16 departamentos con sus fotos REALES (extraídas de property.html) ──
+      const HOMES = [
+        { id:"2005", name:"Vallarta Gardens 2005", loc:"La Cruz de Huanacaxtle, Nayarit", g:4, b:2, ba:2, price:170, view:"Jardín tropical", cover:"https://i.imgur.com/NW3AAU9.jpeg" },
+        { id:"2302", name:"Vallarta Gardens 2302", loc:"La Cruz de Huanacaxtle, Nayarit", g:6, b:2, ba:2, price:300, view:"Vista al mar", cover:"https://i.imgur.com/e8ObYP6.jpeg" },
+        { id:"2403", name:"Vallarta Gardens 2403", loc:"La Cruz de Huanacaxtle, Nayarit", g:6, b:2, ba:2, price:300, view:"Vista al mar", cover:"https://i.imgur.com/RV3b2sb.jpeg" },
+        { id:"2701", name:"Vallarta Gardens 2701", loc:"La Cruz de Huanacaxtle, Nayarit", g:6, b:2, ba:2, price:350, view:"Vista al mar", cover:"https://i.imgur.com/v7Jfx8c.jpeg" },
+        { id:"2705", name:"Vallarta Gardens 2705", loc:"La Cruz de Huanacaxtle, Nayarit", g:6, b:2, ba:2, price:215, view:"Vista a la alberca", cover:"https://i.imgur.com/JEMtBLw.jpeg" },
+        { id:"2801", name:"Vallarta Gardens 2801", loc:"La Cruz de Huanacaxtle, Nayarit", g:6, b:2, ba:2, price:350, view:"Vista al mar", cover:"https://i.imgur.com/NXIn7od.jpeg" },
+        { id:"2905", name:"Vallarta Gardens 2905", loc:"La Cruz de Huanacaxtle, Nayarit", g:2, b:1, ba:1, price:145, view:"Vista al mar", cover:"https://i.imgur.com/DlXUH02.jpeg" },
+        { id:"3004", name:"Vallarta Gardens 3004", loc:"La Cruz de Huanacaxtle, Nayarit", g:6, b:2, ba:2, price:250, view:"Vista panorámica", cover:"https://i.imgur.com/JV7Bscs.jpeg" },
+        { id:"6S", name:"Marítima 6S", loc:"Nuevo Vallarta · Flamingos", g:8, b:3, ba:2, price:170, view:"Vista al jardín", cover:"https://i.imgur.com/HtlrbEg.jpeg" },
+        { id:"9S", name:"Marítima 9S", loc:"Nuevo Vallarta · Flamingos", g:8, b:3, ba:3, price:170, view:"Vista a la bahía", cover:"https://i.imgur.com/sgXZxMP.jpeg" },
+        { id:"10I", name:"Marítima 10I", loc:"Nuevo Vallarta · Flamingos", g:10, b:4, ba:3, price:370, view:"Vista a la bahía", cover:"https://i.imgur.com/uwI3GD7.jpeg" },
+        { id:"PHN", name:"Marítima Penthouse", loc:"Nuevo Vallarta · Flamingos", g:12, b:6, ba:4, price:500, view:"Vista panorámica", cover:"https://i.imgur.com/xhooPKT.jpeg" },
+        { id:"211", name:"Bolongo 211", loc:"Punta de Mita · Riviera Nayarit", g:7, b:3, ba:3, price:220, view:"Vista al jardín", cover:"https://a0.muscache.com/im/pictures/miso/Hosting-1023507574440292184/original/a2cbb607-d8f6-476d-b001-46d7baf3104c.jpeg?im_w=720" },
+        { id:"3N", name:"Bolongo 3N", loc:"Punta de Mita · Riviera Nayarit", g:4, b:2, ba:2, price:185, view:"Vista al jardín", cover:"https://a0.muscache.com/im/pictures/hosting/Hosting-1483418374242300943/original/5bdb38b9-52f2-4a2d-8e95-43b8fd972de7.jpeg?im_w=720" },
+        { id:"G13", name:"Bolongo G13", loc:"Punta de Mita · Riviera Nayarit", g:10, b:4, ba:3, price:280, view:"Vista al mar", cover:"https://i.imgur.com/ThY3A8L.jpeg" },
+        { id:"L05", name:"Bolongo L05", loc:"Punta de Mita · Riviera Nayarit", g:10, b:4, ba:4, price:295, view:"Vista al mar", cover:"https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTQ3MjUyODIwMjMwNTM0ODIzMw==/original/d4b94467-3074-4e98-a72c-e22aabce372b.jpeg?im_w=720" },
+      ];
+      const stage = document.getElementById('cgalStage');
+      const ring  = document.getElementById('cgalRing');
+      const dotsEl= document.getElementById('cgalDots');
+      if(!stage||!ring) return;
+      const N = HOMES.length, ANG = 360/N;
+      const isMob = matchMedia('(max-width:640px)').matches;
+      const R = isMob ? 240 : 500;   // radio del cilindro (móvil a escala)
+
+      // construir tarjetas
+      const cards = HOMES.map((h,i)=>{
+        const c = document.createElement('div');
+        c.className='cgal-card'; c.dataset.i=i;
+        // separar "Complejo" (itálica) del código de unidad (ej. "Vallarta Gardens" · "2302")
+        const _sp = h.name.lastIndexOf(' ');
+        const _complex = _sp>0 ? h.name.slice(0,_sp) : h.name;
+        const _unit = _sp>0 ? h.name.slice(_sp+1) : '';
+        c.innerHTML =
+          '<div class="cgal-photo" data-cover="'+String(h.cover).replace(/"/g,'&quot;')+'"></div>'+
+          (h.view ? '<div class="cgal-badge">'+h.view+'</div>' : '')+
+          '<div class="cgal-info">'+
+            '<div class="cgal-eye">'+h.loc+'</div>'+
+            '<h3 class="cgal-name"><em>'+_complex+'</em> '+_unit+'</h3>'+
+            '<div class="cgal-seam"></div>'+
+            '<div class="cgal-meta">'+
+              '<span>'+h.g+' <b data-i18n="feat.guests"></b></span>'+
+              '<span>'+h.b+' <b data-i18n="feat.bedrooms"></b></span>'+
+              '<span>'+h.ba+' <b data-i18n="feat.baths"></b></span>'+
+            '</div>'+
+            (h.price ? '<div class="cgal-price"><b>$'+h.price+'</b> <span data-i18n="feat.price.unit">USD · night</span></div>' : '')+
+            '<a class="cgal-cta" href="vrm_property.html?id='+encodeURIComponent(h.id)+'" data-i18n="feat.cta"></a>'+
+          '</div>';
+        c.addEventListener('click', (e)=>{ if(justDragged){ e.preventDefault(); return; } if(!c.classList.contains('cgal-front')){ e.preventDefault(); focus(i); } });
+        ring.appendChild(c); return c;
+      });
+      // puntos
+      const dots = HOMES.map((_,i)=>{ const d=document.createElement('i'); d.addEventListener('click',()=>focus(i)); dotsEl.appendChild(d); return d; });
+      // re-aplicar traducciones a las tarjetas nuevas (respeta EN/ES y el switch de idioma)
+      if(window.VRM_applyI18n) window.VRM_applyI18n();
+
+      // ── CILINDRO VIRTUALIZADO (transformación EXACTA del componente) ──
+      //   Cada tarjeta se monta en el cilindro con rotateY(θ)·translateZ(R), al
+      //   espaciado de la referencia (SPACING°). Solo se ve la ventana frontal;
+      //   al girar, las 16 casas entran/salen. La del frente grande y opaca, las
+      //   vecinas inclinadas con la perspectiva, las lejanas fantasmas → idéntico.
+      // ★ móvil: MUCHO más ángulo entre tarjetas → las vecinas se abren y NO se
+      //   amontonan sobre la del centro (la del frente queda sola, con un asomo
+      //   sutil a cada lado). Desktop se queda como estaba.
+      const SPACING = isMob ? 56 : 40;   // grados entre casas (móvil: rueda a escala)
+      const VISDEG  = isMob ? 72 : 104;  // móvil: solo ±1 vecina visible (inclinada); el resto oculto
+
+      let manualI = 0, parF = 0, pos = 0, posVel = 0, justDragged = false;
+      let velIdx = 0, lastMoveT = 0, _lastFrameT = 0;   // física del deslizamiento
+      function focus(i){ let cur=((Math.round(manualI)%N)+N)%N; let d=i-cur; while(d>N/2)d-=N; while(d<-N/2)d+=N; manualI = Math.round(manualI)+d; wake(); }
+
+      const section = document.getElementById('properties') || stage;
+      function updateParallax(){
+        const r = section.getBoundingClientRect();
+        const vh = window.innerHeight || 800;
+        const p = Math.max(0, Math.min(1, (vh - r.top) / (vh + r.height)));
+        parF = isMob ? 0 : (p - 0.5) * 0.38;   // desktop: ±0.19 de vida al scrollear · móvil: fija (centrada)
+        if (!isMob && typeof wake === 'function') wake();   // el parallax mueve la rueda → despierta el loop
+      }
+      window.addEventListener('scroll', updateParallax, {passive:true});
+      updateParallax();
+
+      // ★ LOOP CONSCIENTE DE REPOSO: solo escribe estilos cuando la rueda se
+      // está moviendo de verdad. En reposo, cero invalidaciones de layout →
+      // el compositor queda libre para el canvas 3D (sin jank ni parpadeo).
+      var _lastPos = 1e9, _running = false, _rafId = 0;   // var → sin TDZ (wake() puede llamarse en init)
+      // ★ despierta el loop de la rueda; si ya corre, no hace nada
+      function wake(){ if(!_running){ _running = true; window.__cgalBusy = true; _rafId = requestAnimationFrame(layout); } }
+      function layout(ts){
+        // ★ FÍSICA DEL DESLIZAMIENTO — independiente de los FPS:
+        const now = ts || performance.now();
+        let dt = _lastFrameT ? (now - _lastFrameT) / 1000 : 0.016;
+        _lastFrameT = now;
+        if (dt > 0.05) dt = 0.05;                          // clamp anti-saltos
+        const _target = manualI + parF;
+        if (down) {
+          pos += (_target - pos) * Math.min(1, dt * 26);   // sigue el dedo 1:1, responsivo
+          posVel = 0;
+        } else {
+          // resorte CRÍTICAMENTE AMORTIGUADO → asienta mantecoso, sin rebote
+          const W = 9.5;
+          posVel += (W * W * (_target - pos) - 2 * W * posVel) * dt;
+          pos += posVel * dt;
+        }
+        if (Math.abs(pos - _lastPos) > 0.0004) {
+          _lastPos = pos;
+          let frontI = 0, best = 1e9;
+          const _vw = window.innerWidth || 390;
+          cards.forEach((c,i)=>{
+            let r = i - pos; while(r> N/2) r-=N; while(r< -N/2) r+=N;   // casa más cercana por ambos lados (anillo)
+            const _ph = c.firstElementChild;
+            // ═══ MÓVIL: COVERFLOW — vecinas empujadas ATRÁS y al costado (nunca
+            //     cruzan la foto central). Mismo espíritu de rueda que en PC. ═══
+            if (isMob) {
+              const arr = Math.abs(r);
+              if (arr > 1.6) { c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
+              if(_ph && _ph.dataset.cover){ const _u=_ph.dataset.cover; _ph.style.backgroundImage='url("'+_u+'")'; c.style.setProperty('--cover','url("'+_u+'")'); _ph.removeAttribute('data-cover'); }
+              const rc = Math.max(-1, Math.min(1, r));
+              const k = Math.min(arr, 1);
+              const tx = r * _vw * 0.66;               // desplazamiento lateral (la siguiente asoma)
+              const rotY = -rc * 40;                   // inclinación de rueda
+              const tz = -k * 180;                     // ★ ATRÁS: nunca se mete frente al centro
+              const sc = 1 - k * 0.06;
+              c.style.transform = 'translateX('+tx.toFixed(1)+'px) translateZ('+tz.toFixed(0)+'px) rotateY('+rotY.toFixed(1)+'deg) scale('+sc.toFixed(3)+')';
+              c.style.opacity = arr < 0.5 ? '1' : Math.max(0, 1 - (arr - 0.5) * 1.05).toFixed(2);
+              c.style.zIndex = String(Math.round(100 - arr * 10));
+              c.style.pointerEvents = arr < 0.5 ? 'auto' : 'none';
+              c.classList.toggle('cgal-front', arr < 0.5);
+              if (arr < best){ best = arr; frontI = i; }
+              return;
+            }
+            // ═══ DESKTOP: cilindro 3D (rueda exacta del componente) ═══
+            const angle = r * SPACING, ar = Math.abs(angle);
+            if(ar > VISDEG){ c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
+            if(_ph && _ph.dataset.cover){ const _u=_ph.dataset.cover; _ph.style.backgroundImage='url("'+_u+'")'; c.style.setProperty('--cover','url("'+_u+'")'); _ph.removeAttribute('data-cover'); }
+            c.style.transform = 'rotateY('+angle.toFixed(2)+'deg) translateZ('+R+'px)';
+            c.style.opacity = (ar < 50 ? 1 : Math.max(0, 1 - (ar-50)/52)).toFixed(2);
+            c.style.zIndex = Math.round(400 - ar);
+            c.style.pointerEvents = (ar < SPACING*0.5) ? 'auto' : 'none';
+            c.classList.toggle('cgal-front', ar < SPACING*0.5);
+            if(ar < best){ best = ar; frontI = i; }
+          });
+          dots.forEach((d,i)=>d.classList.toggle('on', i===frontI));
+        }
+        // ★ duerme cuando ya se posó (posición Y velocidad casi cero) → cero rAF en reposo
+        if (!down && Math.abs(_target - pos) < 0.0009 && Math.abs(posVel) < 0.03) {
+          pos = _target; _running = false; window.__cgalBusy = false; _lastFrameT = 0; return;
+        }
+        _rafId = requestAnimationFrame(layout);
+      }
+      wake();
+
+      // ── arrastre (no captura el scroll de la página) ──
+      let down=false, lastX=0, moved=0;
+      function ps(e){ down=true; moved=0; velIdx=0; lastMoveT=performance.now(); lastX=(e.touches?e.touches[0].clientX:e.clientX); wake(); }
+      function pm(e){ if(!down) return;
+        const x=(e.touches?e.touches[0].clientX:e.clientX); const now=performance.now();
+        const dx=x-lastX; lastX=x; moved+=Math.abs(dx);
+        const factor = isMob ? 1/((window.innerWidth||390)*0.66) : 0.006;
+        const dIdx = -dx*factor; manualI += dIdx;
+        const mdt = Math.max(0.001,(now-lastMoveT)/1000); lastMoveT=now;
+        velIdx = velIdx*0.6 + (dIdx/mdt)*0.4;                 // velocidad suavizada (casas/seg)
+        wake(); }
+      function pe(){ if(!down) return; down=false;
+        // ★ MOMENTUM: un flick rápido arrastra varias casas y desacelera (tope ±4)
+        const throw_ = Math.max(-4, Math.min(4, velIdx*0.16));
+        manualI = Math.round(manualI + throw_); velIdx=0;
+        if(moved>6){ justDragged=true; setTimeout(()=>justDragged=false,80);} wake(); }
+      stage.addEventListener('mousedown',ps); window.addEventListener('mousemove',pm); window.addEventListener('mouseup',pe);
+      stage.addEventListener('touchstart',ps,{passive:true}); stage.addEventListener('touchmove',pm,{passive:true}); stage.addEventListener('touchend',pe);
+
+      // flechas
+      document.getElementById('cgalNext').addEventListener('click',()=>{ manualI = Math.round(manualI)+1; wake(); });
+      document.getElementById('cgalPrev').addEventListener('click',()=>{ manualI = Math.round(manualI)-1; wake(); });
+    })();
+    </script>
 
   </section>
 
@@ -4695,7 +4990,7 @@
     <div class="section-block-inner">
       <div class="section-eyebrow reveal" data-i18n="experience.eyebrow">— The bay, lived</div>
       <p class="reimagine-text reveal" data-split-text data-split-stagger="35" data-split-trigger="scroll">
-        <span class="pri" data-i18n="experience.text.pri">Banderas Bay,</span>
+        <span class="pri" data-i18n="experience.text.pri">Banderas Bay</span>
         <span class="sec" data-i18n="experience.text.sec">done right.</span>
       </p>
       <p class="reimagine-caption reveal reveal-d2" data-i18n="experience.caption">70 curated homes along Puerto Vallarta and Riviera Nayarit. Booked through the people who actually live here.</p>
@@ -4788,7 +5083,6 @@
   </section>
 
   <section class="final" id="final">
-    <canvas id="shellsCanvas" aria-hidden="true"></canvas>
     <h2 class="final-title reveal" data-i18n-html="final.title.combined">We'll send you<br><em>elsewhere if we should.</em></h2>
     <div class="final-actions reveal reveal-d1">
       <a href="#properties" class="btn btn-primary">
@@ -4882,6 +5176,13 @@ const scene = new THREE.Scene();
 const isPortrait = window.innerHeight > window.innerWidth;
 const isMobile = window.innerWidth < 768;
 
+// ★ OPTIMIZACIÓN MÓVIL — el mayor generador de calor es renderizar millones de
+//   píxeles cada frame. En móvil capamos el device-pixel-ratio: en un teléfono
+//   3x, DPR 1.5 renderiza ~4× MENOS píxeles que 3.0 → mucho menos GPU/calor,
+//   y a esa densidad el cristal orgánico se sigue viendo nítido. Desktop intacto.
+const DPR_MAIN = Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2);
+const DPR_FRONT = Math.min(window.devicePixelRatio, isMobile ? 1.0 : 2);
+
 const camera = new THREE.PerspectiveCamera(
   isMobile ? 58 : 45,                          // FOV más amplio en mobile = ve más escena
   window.innerWidth / window.innerHeight,
@@ -4891,16 +5192,51 @@ const camera = new THREE.PerspectiveCamera(
 // Cámara más alejada en mobile para que la ballena entre completa
 camera.position.set(0, 0.5, isMobile ? 13 : 9);
 
+// ★ Renderer PRINCIPAL — canvas ÚNICO Y OPACO (fondo de agua + ballena en el
+// mismo contexto WebGL, como el pipeline original que siempre fue estable).
+// Cero canvas transparentes en estado normal = cero parpadeo de composición.
 const renderer = new THREE.WebGLRenderer({
   canvas,
   antialias: true,
   powerPreference: 'high-performance'
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(DPR_MAIN);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
+
+// ★ Renderer de la PASADA FRONTAL — creación LAZY: el segundo contexto WebGL
+// NO existe hasta que el scroll entra por primera vez a la ventana de la
+// pasada. En navegación normal la página tiene EXACTAMENTE los mismos
+// contextos que la versión estable (cero costo extra de composición).
+const frontCanvas = document.getElementById('whale-front');
+let frontRenderer = null;
+function ensureFrontRenderer() {
+  if (!frontRenderer) {
+    frontRenderer = new THREE.WebGLRenderer({
+      canvas: frontCanvas,
+      antialias: !isMobile,               // ★ móvil: sin MSAA en el overlay (transitorio) = menos calor
+      alpha: true,
+      powerPreference: 'high-performance'
+    });
+    frontRenderer.setSize(window.innerWidth, window.innerHeight);
+    frontRenderer.setPixelRatio(DPR_FRONT);   // ★ móvil: DPR 1.0 en la pasada frontal
+    frontRenderer.setClearColor(0x000000, 0);
+    frontRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    frontRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+    frontRenderer.toneMappingExposure = 1.05;
+    // ★ envMap propio del contexto del overlay → el cristal se ve IGUAL de
+    // brillante que el principal (con reflejos), no opaco.
+    const fp = new THREE.PMREMGenerator(frontRenderer);
+    fp.compileEquirectangularShader();
+    frontEnvMap = fp.fromEquirectangular(envTexture).texture;
+    fp.dispose();
+  }
+  return frontRenderer;
+}
+
+// (velo interno eliminado — el velo vuelve a ser el div DOM, exacto a index6)
 
 /* ============================================================
    ENVIRONMENT MAP — Canvas procedural pasado por PMREMGenerator
@@ -5240,11 +5576,13 @@ function makeEnvironmentTexture() {
 // pre-filtrado que MeshPhysicalMaterial necesita para iridescencia/reflexión correcta
 const pmremGenerator = new THREE.PMREMGenerator(renderer);
 pmremGenerator.compileEquirectangularShader();
-const envTexture = makeEnvironmentTexture();
+const envTexture = makeEnvironmentTexture();   // ★ conservada: el overlay frontal la reusa
 const envMap = pmremGenerator.fromEquirectangular(envTexture).texture;
 scene.environment = envMap;
-envTexture.dispose();
 pmremGenerator.dispose();
+// envTexture NO se descarta: el frontRenderer genera su PROPIO envMap con ella
+// (una textura de PMREM vive en UN solo contexto WebGL; el overlay tiene el suyo).
+let frontEnvMap = null;
 
 /* ============================================================
    ILUMINACIÓN COMPLEMENTARIA — Cyan/azul cristal hielo (Swarovski)
@@ -5253,6 +5591,9 @@ pmremGenerator.dispose();
    puro. Esto hace que el cristal lea como SWAROVSKI (azul facetado)
    en lugar de cuarzo amatista (violeta).
    ============================================================ */
+// ★ LUCES DIRECTAS REFORZADAS — reemplazan el brillo que aportaba el env alto,
+// pero SIN parpadeo: la iluminación difusa direccional es continua con el
+// normal, no salta por faceta. Mismo cristal brillante, estable.
 scene.add(new THREE.AmbientLight(0x4878a0, 0.50));  // ambient azul medio submarino (subido ligeramente para compensar)
 
 // Key light: blanco azulado frío desde MUY arriba (los god rays son la fuente)
@@ -5569,6 +5910,19 @@ function loadGLB() {
       }
 
       modelLoaded = true;
+
+      // ★ PRE-CALENTAR el overlay frontal AHORA que la ballena real ya está en
+      //   la escena: crea el 2º contexto WebGL, su envMap y compila el shader
+      //   del cristal en ese contexto. Así el primer paso de ATRÁS→ENFRENTE no
+      //   tiene tirón (el hitch era la creación perezosa en pleno scroll).
+      try {
+        const _fr = ensureFrontRenderer();
+        const _me = scene.environment;
+        if (frontEnvMap) scene.environment = frontEnvMap;
+        _fr.render(scene, camera);          // 1ª compilación de shaders (invisible)
+        scene.environment = _me;
+        frontCanvas.style.opacity = '0';    // sigue oculto hasta la ventana real
+      } catch (e) { /* si falla, cae al modo perezoso de siempre */ }
     },
     (progress) => {
       if (progress.lengthComputable) {
@@ -5592,6 +5946,41 @@ loadGLB();
 const bubbles = [];  // array vacío para compatibilidad con loop
 
 /* ============================================================
+   PALABRA FANTASMA EN EL MUNDO 3D — "Settle" vive DENTRO del agua.
+   La ballena la cruza DE VERDAD: llega desde el fondo por DETRÁS de
+   las letras y, al embestir hacia el cristal, emerge por DELANTE.
+   Oclusión física por depth-test → el efecto 3D es real, no blending.
+   ============================================================ */
+const GHOST3D = { plane: null, mat: null };
+(function buildGhostWord() {
+  const cv = document.createElement('canvas');
+  cv.width = 2048; cv.height = 640;
+  const g = cv.getContext('2d');
+  const draw = () => {
+    g.clearRect(0, 0, cv.width, cv.height);
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = 'italic 400 340px Boska, "Times New Roman", serif';
+    g.fillStyle = 'rgba(255,255,255,0.92)';
+    g.fillText('Settle', cv.width / 2, cv.height / 2 + 20);
+    if (GHOST3D.mat) GHOST3D.mat.map.needsUpdate = true;
+  };
+  draw();
+  try { document.fonts.load('italic 400 340px Boska').then(draw); } catch (e) {}
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex, transparent: true, opacity: 0,
+    depthTest: true, depthWrite: false, fog: false
+  });
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(10.8, 3.375), mat);
+  plane.position.set(0, 0.3, -2.2);   // profundidad REAL: la embestida la cruza en ~sp 0.615
+  plane.renderOrder = 6;              // se dibuja tras la ballena → el depth-test decide quién tapa a quién
+  plane.visible = false;
+  scene.add(plane);
+  GHOST3D.plane = plane; GHOST3D.mat = mat;
+})();
+
+/* ============================================================
    POST-PROCESSING: BLOOM
    Esto da el "glow" tipo fénix
    ============================================================ */
@@ -5602,17 +5991,25 @@ const bubbles = [];  // array vacío para compatibilidad con loop
    ============================================================ */
 const composer = new EffectComposer(renderer);
 composer.setSize(window.innerWidth, window.innerHeight);
-composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+composer.setPixelRatio(DPR_MAIN);
 
-// ★ PRIMER pass: fondo animado de agua (god rays + caustics + sparkles)
-// Se renderiza SIN limpiar el canvas (clear=true) y luego el renderPass
-// principal renderiza encima la ballena SIN limpiar (clear=false) para
-// preservar el fondo de abajo.
+/* ════════════════════════════════════════════════════════════════════
+   ★ PASADA FRONTAL — ventana de scroll donde la ballena sube por encima
+   de TODO el contenido. Como el fondo y la ballena viven en canvas
+   distintos, basta con animar el z-index del canvas de la ballena: sube
+   sobre nav/whatsapp/texto en esta ventana y vuelve a z1 fuera de ella.
+   Mismo render → sin cambio de textura. (Ver el bloque RENDER del loop.)
+   ════════════════════════════════════════════════════════════════════ */
+const FRONT_PASS_IN   = 0.485;   // ★ experiencia: opacidad frontal sube MIENTRAS sigue fuera (der)
+const FRONT_PASS_OUT  = 0.635;   // se apaga sólo cuando YA salió por completo por la izquierda
+window.__whaleInFront = false;
+
+// ★ PIPELINE EXACTO A index6: fondo → ballena → bloom → CA en el composer.
 const bgRenderPass = new RenderPass(bgScene, bgCamera);
 composer.addPass(bgRenderPass);
 
 const renderPass = new RenderPass(scene, camera);
-renderPass.clear = false;  // ★ NO limpiar — preservar el fondo de abajo
+renderPass.clear = false;
 composer.addPass(renderPass);
 
 // Bloom — los highlights de Swarovski son puntuales y muy brillantes
@@ -6065,33 +6462,62 @@ const CAMERA_HERO = {
 // scroll mínimo → todo lento, premium, con peso.
 
 const WHALE_PATH = [
-  // ═══ RUTA OPTIMIZADA (nado natural): avance continuo, sin reversas.
-  // Arcos amplios con giros ≤90° espaciados; la profundidad (z) hace el
-  // trabajo dramático. Capítulos: hero cerca → bajo el tambor LEJOS →
-  // cruce de fondo → EL MOMENTO cerca (stats) → salida → regreso al cierre.
-  _kf(0.00,  0.0,  0.00,  4.50),   // pose hero icónica
-  _kf(0.04,  0.0, -0.05,  4.45),
-  _kf(0.08,  0.1, -0.15,  4.30),   // fin del hero
-  _kf(0.13,  0.7, -0.70,  3.20),   // inicia inmersión: baja-derecha en arco
-  _kf(0.18,  1.5, -1.40,  1.80),
-  _kf(0.24,  2.2, -2.00, -0.50),   // se hunde (el velo oscurece con ella)
-  _kf(0.30,  1.8, -2.20, -3.50),   // vira en arco amplio hacia el fondo
-  _kf(0.36,  0.2, -1.90, -5.60),   // pasa LEJOS y abajo (zona del tambor: no compite)
-  _kf(0.42, -1.6, -1.20, -6.80),
-  _kf(0.48, -2.8, -0.30, -7.20),   // llega al fondo izquierdo
-  _kf(0.54, -2.2,  0.20, -7.20),   // cruce de fondo, presencia ambiente →
-  _kf(0.60, -0.8,  0.50, -7.00),
-  _kf(0.66,  0.9,  0.50, -6.20),
-  _kf(0.71,  2.3,  0.20, -4.00),   // asciende por la derecha, se acerca
-  _kf(0.75,  2.9, -0.30, -1.20),
-  _kf(0.79,  1.6, -0.50,  1.20),   // ★ EL MOMENTO: pasa cerca y grande (stats)
-  _kf(0.83, -0.2,  0.20,  1.00),
-  _kf(0.87, -1.8,  0.90, -1.20),   // sale arriba-izquierda ganando fondo (reviews respiran)
-  _kf(0.91, -2.2,  1.20, -3.60),
-  _kf(0.95, -1.2,  0.60, -4.40),   // regreso final: desciende al centro…
-  _kf(0.98, -0.3, -0.40, -3.40),
-  _kf(1.00,  0.1, -1.20, -2.20)    // …hacia el cierre (el río de conchas la espera)
+  // ═══ CIRCUITO v6 — TRAZADO POR EL USUARIO (editor de recorrido) ═══
+  //   El "por dónde" es del usuario; la física (velocidad estable, giros al
+  //   avance, sin cúspides) la pongo yo. Recorrido:
+  //   hero: centro→izq · carrusel: SALE por la izquierda · por qué: regresa al
+  //   fondo · experiencia: PASADA FRONTAL por la derecha · reseñas/final: al
+  //   fondo, centro. Altura (y) con defaults suaves (el editor no la capturó).
+  //
+  // CH1 · HERO — centro, deriva a la izquierda (a la altura del título)
+  _kf(0.00, -0.02,  0.55, -1.30),
+  _kf(0.06, -0.90,  0.42, -1.35),
+  _kf(0.10, -2.40,  0.28, -1.25),
+  // CH2 · CARRUSEL — nada a la izquierda y SALE COMPLETO de cuadro (superficial
+  //       = cono angosto → sale limpio), desaparece durante todo el carrusel
+  _kf(0.14, -5.20,  0.10, -1.00),   // grande, saliendo por el borde
+  _kf(0.18, -9.20,  0.02, -0.80),   // ★ FUERA por completo
+  _kf(0.25,-10.40,  0.00, -1.40),   // desaparecida
+  _kf(0.31, -9.80,  0.05, -2.60),   // sigue fuera, empieza a hundirse
+  // CH3 · POR QUÉ — reaparece DIMINUTA al fondo y cruza hacia la derecha
+  _kf(0.37, -5.60,  0.05, -4.80),   // reaparece deep-izq, chica
+  _kf(0.42, -0.50,  0.05, -5.30),   // centro, al fondo
+  _kf(0.46,  4.60,  0.08, -4.20),   // hacia la derecha, al fondo
+  // CH3b · SALIDA DERECHA + ENCARE — SALE COMPLETO por la derecha y vuelve al
+  //       frente por el borde ya rumbo a la izquierda (el giro ocurre fuera)
+  _kf(0.485,10.20,  0.06, -1.60),   // ★ FUERA por completo a la derecha (gira aquí)
+  _kf(0.50,  8.40,  0.02, -0.10),   // aún fuera; la opacidad frontal ya llegó a 1
+  // CH4 · EXPERIENCIA · PASADA FRONTAL — cruce LENTO y suave de DER→IZQ por
+  //       encima de TODO. Repartido en MÁS scroll → la ballena no "zumba":
+  //       pasos de X cortos y parejos en la zona visible (sin tirón lateral).
+  _kf(0.52,  4.80,  0.00,  0.60),   // entra por el borde derecho, grande     ← visible
+  _kf(0.54,  2.10, -0.02,  0.92),   // se acerca al centro, despacio
+  _kf(0.555,-0.20,  0.00,  0.98),   // ★ CENTRO, gigante, al frente de TODO
+  _kf(0.575,-2.70,  0.02,  0.85),   // cruza suave hacia la izquierda
+  _kf(0.60, -5.60,  0.06,  0.35),   // saliendo por el borde izquierdo
+  // CH5 · SALIDA IZQUIERDA COMPLETA — SALE de cuadro por la izq y recién
+  //       oculta se hunde y curva de regreso (la recesión no se ve)
+  _kf(0.625,-10.20, 0.10, -0.20),   // ★ FUERA por completo a la izquierda  ← visible fin
+  _kf(0.66,-10.80,  0.18, -2.60),   // desaparecida, hundiéndose
+  _kf(0.68, -5.50,  0.24, -6.20),   // reaparece MUY al fondo (diminuta, discreta)
+  // CH6 · RESEÑAS — al fondo lejano, pequeña: presencia sutil, no compite
+  _kf(0.78, -1.40,  0.22, -6.80),
+  _kf(0.85,  0.00,  0.30, -3.60),   // se acerca al centro para la despedida
+  // CH7 · ANCLA FINAL — se clava de nariz en el centro: al final SOLO la cola
+  //       queda asomando por el borde inferior (como el dibujo del usuario)
+  _kf(0.93,  0.00, -0.70,  0.50),   // ★ nariz abajo, al centro, cerca
+  _kf(1.00,  0.00, -4.10,  1.30)    // ★ ANCLA: cuerpo hundido, SOLO la cola en cuadro
 ];
+
+// ══ BARREL ROLL coreografiado ══ una vuelta completa (360°) durante el
+// planeo del CH3 — suave por smootherstep, entra y sale en cero exacto.
+// Se calcula del progreso YA suavizado y topado → siempre elegante.
+function scriptedRoll(sp) {
+  // Desactivado: el circuito v4 tiene un CLAVADO VERTICAL en 0.19-0.30 y un
+  // roll coreografiado ahí rompería la naturalidad. El drama ahora viene de la
+  // parábola + picada + pasada lateral, todo con física congruente.
+  return 0;
+}
 
 // ════════════════════════════════════════════════════════════════════════
 // APERTURA CINEMATOGRÁFICA — Emergencia lenta de la niebla del agua
@@ -6112,10 +6538,17 @@ const WHALE_PATH = [
 //
 // La sensación visual: ballena emerge de las profundidades del agua,
 // nadando directamente hacia el observador. Cinematográfica y natural.
+// Rumbo de la pose hero (3/4): cámara-izquierda con leve descenso. La ballena
+// muestra el flanco y la cabeza en diagonal — compone CON el título, no lo tapa.
+const HERO_HEADING = { dx: -0.48 * _xScale, dy: -0.10, dz: 0.87 };
+
+// La entrada viene por la MISMA línea del rumbo: nada desde la lejanía
+// (pequeña, derecha-fondo) directo a su pose junto al título. Al aterrizar
+// ya está orientada — cero giro residual, congruencia total.
 const REVEAL_FROM = {
-  x: 0.0,                  // centrada con el logo
-  y: 0.0 + _logoYWorld,    // misma altura que el logo
-  z: -8.0,                 // muy al fondo, casi invisible al inicio
+  x: (1.60 + 5.28) * _xScale,     // pose hero + 11u contra el rumbo
+  y: 0.10 + 1.10 + _logoYWorld,
+  z: 3.00 - 9.57,
 };
 
 // ════════════════════════════════════════════════════════════════════════
@@ -6148,7 +6581,7 @@ whaleGroup.scale.setScalar(0);
   // está orientada a -Z después del rotation.y=-PI/2, un lookAt en +z
   // hace que mire hacia el espectador (correcto para entrar al cristal).
   const initEye = new THREE.Vector3(REVEAL_FROM.x, REVEAL_FROM.y, REVEAL_FROM.z);
-  const initTarget = new THREE.Vector3(0, _logoYWorld, 0); // hacia la pose hero
+  const initTarget = new THREE.Vector3(1.60 * _xScale, 0.10 + _logoYWorld, 3.00); // hacia la pose hero (por su rumbo)
   const initMat = new THREE.Matrix4().lookAt(initEye, initTarget, _whaleUp);
   whaleGroup.quaternion.setFromRotationMatrix(initMat);
   // Inicializar el smoothed target con el mismo valor para evitar slerp
@@ -6171,11 +6604,33 @@ function easeInOutCubic(t) {
 const _whaleVecs = WHALE_PATH.map(p => new THREE.Vector3(p.x, p.y, p.z));
 const _whaleCurve = new THREE.CatmullRomCurve3(_whaleVecs, false, 'catmullrom', 0.3);
 
-/**
- * Obtiene posición en el path para un sp dado (0..1).
- * Usa smootherstep dentro de cada segmento → velocidad suavizada cerca
- * de los keyframes. No devuelve roll (el roll se calcula del banking).
- */
+// ══ PARAMETRIZACIÓN POR LONGITUD DE ARCO ══
+// El defecto del sistema anterior: smootherstep POR SEGMENTO hacía que la
+// ballena frenara y acelerara en CADA keyframe (pulso visible al scrollear).
+// Ahora: cada segmento avanza LINEAL en longitud de arco real de la curva →
+// velocidad constante dentro del capítulo, y el ritmo entre capítulos lo
+// decide la coreografía (distancia/Δsp), no un artefacto matemático.
+// "Cada scroll es un avance concreto": misma cantidad de scroll = misma
+// cantidad de nado.
+const _wcDivs = 600;
+const _wcLens = _whaleCurve.getLengths(_wcDivs);
+const _wcTotal = _wcLens[_wcDivs];
+const _kfArc = WHALE_PATH.map((_, i) => {
+  const t = i / (WHALE_PATH.length - 1);
+  const fi = t * _wcDivs, i0 = Math.floor(fi), fr = fi - i0;
+  return i0 >= _wcDivs ? _wcTotal : _wcLens[i0] + (_wcLens[Math.min(_wcDivs, i0 + 1)] - _wcLens[i0]) * fr;
+});
+
+// ★ TANGENTES DEL MAPEO sp→arco (Catmull-Rom): con el mapeo LINEAL por tramos
+// la VELOCIDAD saltaba en cada keyframe (micro-tirón robótico). Con Hermite
+// cúbico la velocidad varía con continuidad C1 → el nado acelera y desacelera
+// como un ser vivo, nunca a escalones.
+const _kfTan = WHALE_PATH.map((_, i) => {
+  const iPrev = Math.max(0, i - 1), iNext = Math.min(WHALE_PATH.length - 1, i + 1);
+  const dsp = WHALE_PATH[iNext].sp - WHALE_PATH[iPrev].sp;
+  return dsp > 1e-6 ? (_kfArc[iNext] - _kfArc[iPrev]) / dsp : 0;
+});
+
 function getPathPoint(path, sp) {
   let prevIdx = 0;
   let nextIdx = path.length - 1;
@@ -6187,9 +6642,14 @@ function getPathPoint(path, sp) {
     }
   }
   const range = path[nextIdx].sp - path[prevIdx].sp;
-  const localT = range > 0 ? smootherstep((sp - path[prevIdx].sp) / range) : 0;
-  const tCurve = (prevIdx + localT) / (path.length - 1);
-  const pos = _whaleCurve.getPoint(Math.max(0, Math.min(1, tCurve)));
+  const tt = Math.max(0, Math.min(1, range > 0 ? (sp - path[prevIdx].sp) / range : 0));
+  // Hermite cúbico sobre (sp → arco): velocidad continua entre capítulos
+  const s0 = _kfArc[prevIdx], s1 = _kfArc[nextIdx];
+  const m0 = _kfTan[prevIdx] * range, m1 = _kfTan[nextIdx] * range;
+  const t2 = tt * tt, t3 = t2 * tt;
+  let s = (2*t3 - 3*t2 + 1) * s0 + (t3 - 2*t2 + tt) * m0 + (-2*t3 + 3*t2) * s1 + (t3 - t2) * m1;
+  if (s < s0) s = s0; else if (s > s1) s = s1;   // monotonicidad garantizada
+  const pos = _whaleCurve.getPointAt(Math.max(0, Math.min(1, s / _wcTotal)));
   return { x: pos.x, y: pos.y, z: pos.z };
 }
 
@@ -6304,23 +6764,74 @@ let revealStartTime = null;
 // Bloom calmado — sin flash dramático. Solo iridiscencia natural.
 bloomPass.strength = 0.26;
 
+// ★ OPTIMIZACIÓN MÓVIL — cadencia + resolución (estable, sin trabar):
+//   • Tope de ~40fps en móvil: acota el trabajo de la GPU (el cristal/transmission
+//     es caro) y deja aire para que el carrusel y el scroll vayan fluidos.
+//   • MIENTRAS SE USA EL CARRUSEL, la ballena baja a ~14fps: le cede la GPU al
+//     carrusel para que el arrastre sea mantecoso (se restablece al soltar).
+//   • Resolución adaptativa SÓLO HACIA ABAJO (arranca nítida y sólo baja si el
+//     equipo de verdad no sostiene ~28fps) → cambios rarísimos = cero tirones
+//     por reasignar el buffer. En segundo plano no renderiza.
+let __lastHeavy = 0;
+const __dprFloor = 1.0;
+const __dprCap = DPR_MAIN;                        // 1.5 móvil / 2 desktop
+let __dpr = __dprCap;                             // arranca nítido
+let __emaFrame = 1000 / 40;
+let __govCooldown = 90;
+function __applyDPR(v){
+  __dpr = Math.max(__dprFloor, Math.min(__dprCap, +v.toFixed(3)));
+  renderer.setPixelRatio(__dpr);
+  composer.setPixelRatio(__dpr);
+  if (frontRenderer) frontRenderer.setPixelRatio(Math.min(__dpr, 1.25));
+}
+if (isMobile) __applyDPR(__dpr);
+// gobernador SÓLO-BAJA: si el intervalo real sostiene >36ms (por debajo de ~28fps)
+// baja un escalón de resolución; nunca sube → nunca oscila (estable).
+function __governResolution(frameMs){
+  __emaFrame += (frameMs - __emaFrame) * 0.05;
+  if (__govCooldown > 0){ __govCooldown--; return; }
+  if (__emaFrame > (1000 / 40) * 1.5 && __dpr > __dprFloor){ __applyDPR(__dpr - 0.15); __govCooldown = 150; }
+}
 function animate(time) {
-  if (lenis) lenis.raf(time || performance.now());
-  const dt = clock.getDelta();
+  requestAnimationFrame(animate);
+  const now = time || performance.now();
+  if (lenis) lenis.raf(now);                        // scroll suave cada frame igual
+  if (document.hidden){ __lastHeavy = now; return; } // en segundo plano: nada de 3D
+  // ★ tope de fps: normal ~40 · durante uso del carrusel ~14 (le cede la GPU)
+  const _capMs = isMobile ? (window.__cgalBusy ? (1000 / 14) : (1000 / 40)) : 0;
+  if (_capMs && (now - __lastHeavy) < _capMs) return;
+  const _frameMs = Math.min(now - __lastHeavy, 100); // intervalo real (clamp anti-picos)
+  __lastHeavy = now;
+  if (isMobile && !window.__cgalBusy) __governResolution(_frameMs);  // no medir bajo throttle del carrusel
+  const dt = Math.min(clock.getDelta(), 0.05);      // clamp → sin salto al volver del bg
   const t = clock.getElapsedTime();
 
   if (mixer) {
-    // Nado reactivo: crucero lento en reposo, braceo más potente al scrollear (suavizado)
-    const _y = window.scrollY || 0;
-    const _ly = window.__lastY ?? _y;
-    const yVel = Math.min(1.4, Math.abs(_y - _ly) * 0.004);
-    window.__lastY = _y;
-    window.__swimTS = (window.__swimTS ?? 0.85) + ((0.85 + yVel) - (window.__swimTS ?? 0.85)) * 0.04;
+    // ══ CONGRUENCIA ALETAS/COLA ══ el aleteo bate al ritmo de la VELOCIDAD REAL de nado:
+    // planea lento cuando glisa, bate fuerte cuando avanza. Nunca se detiene (vida en reposo).
+    const _spd = window.__whaleSpeed || 0;                       // velocidad world-space (u/s), suavizada
+    const _idle = 0.50 + Math.sin(t * 0.5) * 0.07;               // aleteo de reposo: lento y respirando
+    const _beat = _idle + Math.min(2.4, _spd * 0.85);            // + impulso proporcional al avance real
+    window.__swimTS = (window.__swimTS ?? 0.85) + (_beat - (window.__swimTS ?? 0.85)) * 0.06;
     mixer.timeScale = window.__swimTS;
     mixer.update(dt);
   }
-  waterTexture.update();
+  // factor de flexión del cuerpo según velocidad: glisa recto / serpentea al nadar fuerte
+  const _swimFlex = 0.55 + Math.min(1.15, (window.__whaleSpeed || 0) * 0.55);
+  // ★ móvil: la textura de agua (cáusticas) se recalcula en canvas cada frame →
+  //   la actualizamos en frames alternos (queda igual de fluida, mitad de CPU).
+  window.__wtick = (window.__wtick || 0) + 1;
+  if (!isMobile || (window.__wtick & 1)) waterTexture.update();
   bgMaterial.uniforms.uTime.value = t;
+
+  // Palabra fantasma 3D — misma ventana que tenía en DOM (0.48–0.70),
+  // ahora con oclusión real: detrás → la ballena emerge por DELANTE.
+  if (GHOST3D.plane) {
+    // ★ palabra-fantasma 3D "Settle" DESACTIVADA (desktop + móvil): se colaba por
+    //   detrás del titular "Banderas Bay" (su "S" curva) y su entrada lateral se
+    //   veía mal. Fuera para un look limpio, igual que "Arrive"/"Stay".
+    GHOST3D.plane.visible = false;
+  }
 
   // ═══════════════════════════════════════════════════════════════════
   // SCROLL SMOOTHING — Adaptativo entre desktop y mobile
@@ -6347,7 +6858,39 @@ function animate(time) {
   const scrollSmoothing = isMobile ? 0.09 : (lenis ? 0.20 : 0.12);
   scrollProgress += (scrollTarget - scrollProgress) * scrollSmoothing;
   window.__vrmScroll = scrollProgress;
-  const sp = scrollProgress;
+
+  // ══ SEGUIDOR POR RESORTE CRÍTICAMENTE AMORTIGUADO ══
+  // La ballena tiene INERCIA propia. En vez de un tope lineal (que da tirones
+  // al scrollear rápido), usamos un resorte crítico: acelera y DESACELERA
+  // suave hacia el objetivo, sin rebote. Da igual qué tan rápido scrollees:
+  // la ballena arranca con peso, alcanza una velocidad de crucero (topada) y
+  // se posa con suavidad en el punto destino. Nunca teletransporta ni salta.
+  //   • OMEGA = frecuencia natural (qué tan "ansioso" es el resorte)
+  //   • VMAX  = velocidad de crucero máxima (unidades-de-camino / s) →
+  //             en un flick al fondo, recorre el circuito a ritmo de ballena.
+  window.__whaleSp = window.__whaleSp ?? 0;
+  window.__whaleSpVel = window.__whaleSpVel ?? 0;
+  {
+    const _target = scrollProgress;
+    const OMEGA = 4.5;   // resorte ceñido pero con algo de peso: sigue el scroll sin lag notorio
+    const VMAX = 0.9;    // crucero calmado: la pasada frontal cruza con soltura, sin "zumbar"
+    const _dtc = Math.min(dt, 0.033);                 // clamp dt → estable en frames lentos
+    const _x = window.__whaleSp - _target;
+    const _accel = -2 * OMEGA * window.__whaleSpVel - OMEGA * OMEGA * _x;  // ζ=1, crítico
+    window.__whaleSpVel += _accel * _dtc;
+    window.__whaleSpVel = Math.max(-VMAX, Math.min(VMAX, window.__whaleSpVel));
+    window.__whaleSp += window.__whaleSpVel * _dtc;
+    window.__whaleSp = Math.max(0, Math.min(1, window.__whaleSp));
+  }
+  // ═══════════════════════════════════════════════════════════════════
+  // ★★★ RESET DEL NADO — MODO BASE LIMPIA ★★★
+  // Coreografía COMPLETA desactivada (path, giros, pasada frontal, ancla).
+  // La ballena queda en su pose hero con respiración/vida sutil: el punto
+  // cero estable desde el que se reconstruirá el nado con el GLB real.
+  // Para reactivar el nado: WHALE_SWIM_ENABLED = true.
+  // ═══════════════════════════════════════════════════════════════════
+  const WHALE_SWIM_ENABLED = true;   // ★ nado del usuario ACTIVADO
+  const sp = WHALE_SWIM_ENABLED ? window.__whaleSp : 0;
 
   // ════════════════════════════════════════════════════════════════════
   // GATING — el reveal arranca cuando modelLoaded === true
@@ -6376,15 +6919,25 @@ function animate(time) {
   // Estos valores SIEMPRE están activos (la ballena vive incluso quieta).
   // Amplitudes pequeñas (≤0.04u/0.03rad) para que sea sutil, no payaso.
   // ════════════════════════════════════════════════════════════════════
-  const dorsalBob = Math.sin(t * 0.55 + 1.9) * 0.018;
-  const tailUndulation = Math.sin(t * 0.85 + 0.4) * 0.025;
-  const microShimmer = Math.sin(t * 2.1 + 4.3) * 0.005;
-  const cinematicRoll = Math.sin(t * 0.62 + 2.7) * 0.022;
+  // ★★★ VIDA DE REPOSO EXACTA A index6 (versión estable, jitter 0.98) ★★★
+  // CAUSA DEL PARPADEO IDENTIFICADA: yo había atado la amplitud de la cola y
+  // el bodyYaw a `_swimFlex` (= f(__whaleSpeed) = posición÷dt). Con framerate
+  // variable en GPU real, esa velocidad tiembla → la amplitud tiembla cada
+  // frame → la ballena se sacude → los reflejos se barren = parpadeo.
+  // Amplitudes CONSTANTES (sin dependencia de dt) = movimiento estable.
+  // ★ ONDULACIÓN ORGÁNICA — capas de 2 frecuencias con fases desfasadas para
+  //   que el cuerpo ondee como un ser vivo (no un seno único = robótico). Todo
+  //   es función de t (amplitud CONSTANTE) → sigue sin reintroducir el parpadeo.
+  const dorsalBob = (Math.sin(t * 0.55 + 1.9) + 0.45 * Math.sin(t * 0.93 + 0.6)) * 0.019; // cabeceo
+  const tailUndulation = (Math.sin(t * 0.68 + 0.4) + 0.55 * Math.sin(t * 1.13 + 2.3)) * 0.030; // coleo (yaw) más vivo
+  const bodyYaw = Math.sin(t * 0.24 + 3.1) * 0.012;                                      // deriva lenta de rumbo (glisa)
+  const microShimmer = Math.sin(t * 1.9 + 4.3) * 0.006;
+  const cinematicRoll = (Math.sin(t * 0.5 + 2.7) + 0.40 * Math.sin(t * 0.86 + 1.1)) * 0.026; // alabeo con respiración
 
-  // Drift orgánico de posición (Perlin approx con suma de senos)
-  const driftX = (Math.sin(t * 0.37 + 1.1) + Math.sin(t * 0.29 + 4.2) * 0.6) * 0.025;
-  const driftY = (Math.sin(t * 0.33 + 2.7) + Math.sin(t * 0.27 + 0.8) * 0.6) * 0.020;
-  const driftZ = Math.sin(t * 0.41 + 3.3) * 0.030;
+  // Drift orgánico de posición (index6 exacto)
+  const driftX = (Math.sin(t * 0.37 + 1.1) + Math.sin(t * 0.29 + 4.2) * 0.6) * 0.030;
+  const driftY = (Math.sin(t * 0.33 + 2.7) + Math.sin(t * 0.27 + 0.8) * 0.6) * 0.024;
+  const driftZ = (Math.sin(t * 0.41 + 3.3) + Math.sin(t * 0.23 + 1.7) * 0.5) * 0.034;
 
   const breath = 1.0 + Math.sin(t * 0.38) * 0.005;
 
@@ -6436,63 +6989,59 @@ function animate(time) {
   let swimDx, swimDy, swimDz;
 
   if (revealProgress < 1.0) {
-    // REVEAL: ballena viene del fondo hacia adelante. Como REVEAL_FROM
-    // tiene la misma (x, y) que el hero pose y solo difiere en Z (-8 → 4.5),
-    // la dirección de natación durante TODO el reveal es exactamente
-    // (0, 0, positivo) = frontal hacia la cámara.
-    //
-    // No necesitamos blend de orientación porque la entry direction
-    // YA ES la frontal — la ballena emerge nadando hacia el usuario,
-    // y al aterrizar ya está mirando al frente sin cambio de orientación.
-    swimDx = 0;
-    swimDy = 0;
-    swimDz = 1;
+    // REVEAL: la ballena emerge del fondo nadando hacia la cámara. Su rumbo
+    // durante todo el reveal es el mismo de la pose hero (frontal 3/4).
+    swimDx = HERO_HEADING.dx;
+    swimDy = HERO_HEADING.dy;
+    swimDz = HERO_HEADING.dz;
   } else {
-    // En scroll: mirar hacia donde estará dentro de 15% (ventana grande).
-    // 
-    // EL PATH ESTÁ DISEÑADO para que el lookAt natural funcione
-    // correctamente todo el viaje:
-    //   - Las direcciones de natación cambian suavemente entre keyframes
-    //   - Los cambios de orientación grandes se logran con ARCOS FÍSICOS
-    //     en el espacio (la ballena rodea, no rota sobre su eje)
-    //   - El lookahead grande (15%) hace que la rotación se distribuya
-    //     a lo largo de la curva, nunca se concentra en un punto
-    const futureSp = Math.min(1.0, sp + 0.15);
-    const futurePose = getPathPoint(WHALE_PATH, futureSp);
-    swimDx = futurePose.x - heroPathPose.x;
-    swimDy = futurePose.y - heroPathPose.y;
-    swimDz = futurePose.z - heroPathPose.z;
+    // ═══════════════════════════════════════════════════════════════════
+    // RUMBO = DIRECCIÓN REAL DE AVANCE POR EL CIRCUITO
+    // ───────────────────────────────────────────────────────────────────
+    // La cabeza apunta EXACTAMENTE hacia donde la ballena se está moviendo.
+    // Tomamos la TANGENTE del camino (diferencia central, suave y continua)
+    // y la multiplicamos por el SENTIDO real del avance (signo de la
+    // velocidad del resorte): si scrolleas hacia abajo avanza de frente; si
+    // scrolleas hacia arriba, se da la vuelta con elegancia y nada hacia el
+    // otro lado. Nunca va de espaldas ni "en reversa", porque por
+    // construcción la cabeza SIEMPRE encara su vector de movimiento real.
+    // Sin clamps duros, sin saltos → los giros salen naturales.
+    // ═══════════════════════════════════════════════════════════════════
+    // Sentido de avance con zona muerta (evita parpadeo cuando está casi quieta)
+    if (window.__whaleSpVel > 0.010) window.__whaleTravelDir = 1;
+    else if (window.__whaleSpVel < -0.010) window.__whaleTravelDir = -1;
+    const travelDir = window.__whaleTravelDir || 1;
+
+    const EPS = 0.012;
+    const pAhead = getPathPoint(WHALE_PATH, Math.min(1.0, sp + EPS));
+    const pBehind = getPathPoint(WHALE_PATH, Math.max(0.0, sp - EPS));
+    swimDx = (pAhead.x - pBehind.x) * travelDir;
+    swimDy = (pAhead.y - pBehind.y) * travelDir;
+    swimDz = (pAhead.z - pBehind.z) * travelDir;
 
     // ═══════════════════════════════════════════════════════════════════
-    // FROZEN HERO POSE — Ballena quieta de frente cuando NO has scrolleado
+    // POSE HERO CONGELADA — de frente mientras no has scrolleado
     // ═══════════════════════════════════════════════════════════════════
-    // Después del reveal, mientras sp < 0.05 (usuario aún no ha scrolleado),
-    // la cabeza queda FROZEN apuntando a +Z (frontal). El path normal pide
-    // mirar hacia el fondo (z negativo), pero eso causaría que la ballena
-    // gire 180° apenas aterriza. Lo congelamos.
-    //
-    // Entre sp 0.05 y 0.20 hay un blend gradual: la ballena pasa de
-    // "mirar frontal" a "mirar hacia donde va en el path". El blend es
-    // suave (smootherstep) para que el giro se distribuya en 15% del scroll
-    // y nunca se vea brusco.
-    //
-    // A partir de sp=0.20: swim direction del path puro.
+    // Con sp < 0.05 la cabeza queda frontal (3/4). Entre 0.05 y 0.20 hace un
+    // blend suave (smootherstep) hacia el rumbo del circuito, para que el
+    // primer giro se reparta en el scroll y no salte al aterrizar.
     const FREEZE_END = 0.05;
     const BLEND_END = 0.20;
     if (sp < BLEND_END) {
-      const swimFrontal = { dx: 0, dy: 0, dz: 1 };
+      const swimFrontal = HERO_HEADING;
       let frontalWeight;
       if (sp < FREEZE_END) {
-        frontalWeight = 1.0;  // completamente frontal
+        frontalWeight = 1.0;
       } else {
         const blendT = (sp - FREEZE_END) / (BLEND_END - FREEZE_END);
-        // smootherstep para transición sin esquinas perceptibles
         const eb = blendT * blendT * blendT * (blendT * (blendT * 6 - 15) + 10);
         frontalWeight = 1 - eb;
       }
-      swimDx = swimDx * (1 - frontalWeight) + swimFrontal.dx * frontalWeight;
-      swimDy = swimDy * (1 - frontalWeight) + swimFrontal.dy * frontalWeight;
-      swimDz = swimDz * (1 - frontalWeight) + swimFrontal.dz * frontalWeight;
+      // normalizar el rumbo del circuito antes de mezclar (para que el peso sea real)
+      const _sl = Math.hypot(swimDx, swimDy, swimDz) || 1;
+      swimDx = (swimDx / _sl) * (1 - frontalWeight) + swimFrontal.dx * frontalWeight;
+      swimDy = (swimDy / _sl) * (1 - frontalWeight) + swimFrontal.dy * frontalWeight;
+      swimDz = (swimDz / _sl) * (1 - frontalWeight) + swimFrontal.dz * frontalWeight;
     }
   }
 
@@ -6540,6 +7089,21 @@ function animate(time) {
   whaleGroup.position.y += (finalY - whaleGroup.position.y) * posLerp;
   whaleGroup.position.z += (finalZ - whaleGroup.position.z) * posLerp;
 
+  // ══ VELOCIDAD REAL DE NADO (world-space) ══ alimenta la congruencia del aleteo y la flexión del cuerpo
+  {
+    const _lp = window.__lastWhalePos;
+    if (_lp) {
+      const _dx = whaleGroup.position.x - _lp.x, _dy = whaleGroup.position.y - _lp.y, _dz = whaleGroup.position.z - _lp.z;
+      const _inst = Math.hypot(_dx, _dy, _dz) / Math.max(dt, 0.001);
+      window.__whaleSpeed = (window.__whaleSpeed || 0) + (_inst - (window.__whaleSpeed || 0)) * 0.10;  // suavizado → sin saltos
+    } else {
+      window.__lastWhalePos = { x: 0, y: 0, z: 0 };
+    }
+    window.__lastWhalePos.x = whaleGroup.position.x;
+    window.__lastWhalePos.y = whaleGroup.position.y;
+    window.__lastWhalePos.z = whaleGroup.position.z;
+  }
+
   // ════════════════════════════════════════════════════════════════════
   // APLICAR ROTACIÓN — quaternion target directo (sin capa intermedia).
   // 
@@ -6549,41 +7113,54 @@ function animate(time) {
   // ════════════════════════════════════════════════════════════════════
   _whaleQuatFinal.copy(_whaleQuatTarget);
 
-  // Banking calculado con ventana grande
+  // Banking — la ballena se inclina HACIA el interior de la curva (como un
+  // avión que vira). Se calcula del cambio de rumbo en la DIRECCIÓN REAL de
+  // avance (respeta el sentido del resorte) y se amplía para dar drama
+  // cinematográfico a los virajes anchos.
   let dynamicBank = 0;
   if (revealProgress >= 1.0) {
-    const midSp = Math.min(1.0, sp + 0.10);
-    const farSp = Math.min(1.0, sp + 0.20);
+    const _td = window.__whaleTravelDir || 1;
+    const midSp = Math.max(0.0, Math.min(1.0, sp + 0.09 * _td));
+    const farSp = Math.max(0.0, Math.min(1.0, sp + 0.18 * _td));
     const midPose = getPathPoint(WHALE_PATH, midSp);
     const farPose = getPathPoint(WHALE_PATH, farSp);
-    const dxNow = midPose.x - heroPathPose.x;
-    const dzNow = midPose.z - heroPathPose.z;
-    const dxFar = farPose.x - midPose.x;
-    const dzFar = farPose.z - midPose.z;
+    const dxNow = (midPose.x - heroPathPose.x) * _td;
+    const dzNow = (midPose.z - heroPathPose.z) * _td;
+    const dxFar = (farPose.x - midPose.x) * _td;
+    const dzFar = (farPose.z - midPose.z) * _td;
     const yawNow = Math.atan2(dxNow, dzNow);
     const yawFar = Math.atan2(dxFar, dzFar);
     let yawDelta = yawFar - yawNow;
     while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
     while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
-    const BANK_INTENSITY = 0.6;
-    const BANK_MAX = Math.PI / 12;
+    const BANK_INTENSITY = 1.15;          // peralte dramático en virajes anchos
+    const BANK_MAX = Math.PI / 6.5;       // tope de peralte (~28°)
     dynamicBank = -yawDelta * BANK_INTENSITY;
     if (dynamicBank > BANK_MAX) dynamicBank = BANK_MAX;
     if (dynamicBank < -BANK_MAX) dynamicBank = -BANK_MAX;
+    // ★ ATENUACIÓN VERTICAL: en la parábola/clavado el movimiento es casi
+    // vertical → dx/dz son diminutos y el atan2 se vuelve ruido. El peralte
+    // se escala por la fracción HORIZONTAL del avance: picada = alas niveladas
+    // (como un ave que se lanza), viraje ancho = peralte completo.
+    const dyNow = (midPose.y - heroPathPose.y) * _td;
+    const _horiz = Math.hypot(dxNow, dzNow);
+    const _total = Math.hypot(dxNow, dyNow, dzNow) || 1;
+    const _hf = Math.min(1, (_horiz / _total) * 1.35);
+    dynamicBank *= _hf * _hf;             // curva suave: vertical → sin banking
   }
 
   // Banking con lerp moderado — responsivo sin jitter
   const targetBank = dynamicBank + cinematicRoll;
   _smoothedBank += (targetBank - _smoothedBank) * Math.min(1, dt * 2.5);
 
-  _whaleEulerRoll.set(0, 0, _smoothedBank, 'XYZ');
+  _whaleEulerRoll.set(0, 0, _smoothedBank + scriptedRoll(sp) * revealProgress, 'XYZ');
   _whaleQuatRoll.setFromEuler(_whaleEulerRoll);
   _whaleQuatFinal.multiply(_whaleQuatRoll);
 
   // Secondary motion: respiración + cola
   _whaleEulerSecondary.set(
     (dorsalBob + microShimmer) * revealProgress,
-    tailUndulation * revealProgress,
+    (tailUndulation + bodyYaw) * revealProgress,
     0,
     'XYZ'
   );
@@ -6608,7 +7185,12 @@ function animate(time) {
   if (revealProgress < 1.0) {
     MAX_ANGULAR_SPEED = 1.2;
   } else {
-    MAX_ANGULAR_SPEED = isMobile ? 1.4 : 0.8;
+    // ★ LÍMITE ADAPTATIVO A LA VELOCIDAD REAL: nadando lento gira lento
+    // (majestuosa); nadando rápido gira rápido y con peralte (como un animal
+    // que se lanza). Así la cabeza NUNCA se desfasa de la trayectoria — el
+    // giro de la vuelta se ve bien a CUALQUIER velocidad de scroll.
+    const _ws = window.__whaleSpeed || 0;
+    MAX_ANGULAR_SPEED = (isMobile ? 1.5 : 1.25) + Math.min(5.0, _ws * 0.45);
   }
   const dotProduct = Math.abs(
     whaleGroup.quaternion.x * _whaleQuatFinal.x +
@@ -6618,15 +7200,19 @@ function animate(time) {
   );
   const clampedDot = Math.max(-1, Math.min(1, dotProduct));
   const angleToTarget = 2 * Math.acos(clampedDot);
-  const maxRotationThisFrame = MAX_ANGULAR_SPEED * dt;
-  let slerpFactor;
-  if (angleToTarget > maxRotationThisFrame && angleToTarget > 0.001) {
-    slerpFactor = maxRotationThisFrame / angleToTarget;
-  } else {
-    // Ángulo pequeño — slerp responsivo para que respiración y secondary
-    // motion se apliquen casi instantáneamente (la ballena se ve viva).
-    slerpFactor = Math.min(1, dt * 4.0);
-  }
+  // ★ INERCIA ANGULAR REAL — antes: al girar rotaba a TASA CONSTANTE (un servo)
+  //   y saltaba de régimen al llegar → se sentía robótico. Ahora la velocidad
+  //   angular tiene su propia inercia:
+  //     • la velocidad DESEADA es proporcional al hueco → frena sola cerca del
+  //       objetivo (ease-out orgánico, sin el salto de régimen)
+  //     • esa velocidad se suaviza hacia la deseada → arranca el viraje con peso
+  //       y acelera de a poco (ease-in). Cero pasos mecánicos.
+  const _gap = angleToTarget;
+  const _desiredAngVel = Math.min(MAX_ANGULAR_SPEED, _gap * 3.2);
+  window.__whaleAngVel = (window.__whaleAngVel || 0)
+    + (_desiredAngVel - (window.__whaleAngVel || 0)) * Math.min(1, dt * 3.0);
+  const _rotThisFrame = Math.min(_gap, window.__whaleAngVel * dt);
+  const slerpFactor = _gap > 0.0001 ? _rotThisFrame / _gap : 1;
   whaleGroup.quaternion.slerp(_whaleQuatFinal, slerpFactor);
 
   // ════════════════════════════════════════════════════════════════════
@@ -6679,14 +7265,48 @@ function animate(time) {
     aurora.style.opacity = String(Math.max(0, Math.min(1, auroraOp)));
   }
 
-  // Velo de inmersión: se oscurece con el scroll (superficie → profundidad)
+  // Velo de inmersión (EXACTO a index6): se oscurece con el scroll, POR ENCIMA
+  // de la ballena — superficie → profundidad, como siempre estuvo estable.
   const dv = window.__diveVeil || (window.__diveVeil = document.getElementById('dive-veil'));
   if (dv) dv.style.opacity = String(Math.min(0.62, Math.max(0, (sp - 0.06) * 2.0)));
 
   canvas.style.opacity = '1';
 
+  // ════════════════════════════════════════════════════════════════════
+  // RENDER — pipeline ORIGINAL (composer, canvas único opaco):
+  // fondo → velo interno (solo el agua) → ballena → bloom → aberración.
+  // ════════════════════════════════════════════════════════════════════
   composer.render();
-  requestAnimationFrame(animate);
+
+  // ════════════════════════════════════════════════════════════════════
+  // ★ PASADA FRONTAL — overlay transparente por ENCIMA de todo, solo en la
+  // ventana. Renderiza la MISMA escena/cámara → textura idéntica; el fade
+  // en los bordes de la ventana hace la transición imperceptible.
+  // ════════════════════════════════════════════════════════════════════
+  {
+    let fOp = 0;
+    const FADE = 0.009;   // sube a opacidad 1 en ~sp0.501 (ballena aún fuera) → entra ya sólida
+    if (sp > FRONT_PASS_IN && sp < FRONT_PASS_OUT) {
+      const eIn = Math.min(1, (sp - FRONT_PASS_IN) / FADE);
+      const eOut = Math.min(1, (FRONT_PASS_OUT - sp) / FADE);
+      fOp = Math.min(eIn, eOut);
+    }
+    if (fOp > 0.001) {
+      frontCanvas.style.opacity = String(fOp);
+      const fr = ensureFrontRenderer();
+      // ★ Cristal BRILLANTE: usamos el envMap del contexto del overlay durante
+      // este render (los reflejos hacen el cristal luminoso, no opaco), y lo
+      // restauramos enseguida para el render principal del siguiente frame.
+      const _mainEnv = scene.environment;
+      if (frontEnvMap) scene.environment = frontEnvMap;
+      fr.render(scene, camera);
+      scene.environment = _mainEnv;
+    } else if (frontCanvas.style.opacity !== '0') {
+      frontCanvas.style.opacity = '0';
+      frontCanvas.style.filter = '';
+    }
+  }
+  // (el requestAnimationFrame ya se agendó al inicio de animate())
 }
 
 window.addEventListener('resize', () => {
@@ -6705,11 +7325,13 @@ window.addEventListener('resize', () => {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
+  if (frontRenderer) frontRenderer.setSize(w, h);
   composer.setSize(w, h);
   bgMaterial.uniforms.uResolution.value.set(w, h);
 });
 
 animate();
+
 </script>
 
 
@@ -6771,6 +7393,7 @@ animate();
 
     words.forEach((word) => {
       const key = word.dataset.anchor;
+      if (key === 'casas') { word.style.display = 'none'; return; }   // "Settle" ahora vive DENTRO del 3D (oclusión real)
       const range = RANGES[key];
       if (!range) return;
 
@@ -8968,142 +9591,9 @@ window.addEventListener("message", function(e){
 })();
 </script>
 
-<!-- ═══════════ RÍO DE CONCHAS — fondo vivo de la sección final ═══════════
-     Corriente diagonal de conchas reales (fotogrametría, instanciadas) con
-     claroscuro y repulsión del mouse. Autónoma: el scroll no la afecta.
-     Se pausa sola fuera de viewport. Requiere seashell_opt.glb junto al index. -->
 <style>
   .final{position:relative;overflow:hidden}
   .final>*{position:relative;z-index:2}
-  #shellsCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1;pointer-events:none}
 </style>
-<script type="module">
-try{
-  const THREE = await import('three');
-  const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
-  const { RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js');
-
-  const sec=document.getElementById('final'), canvas=document.getElementById('shellsCanvas');
-  if(sec && canvas){
-    const IS_MOBILE=matchMedia('(max-width:768px)').matches||/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-    const COUNT=IS_MOBILE?140:380;
-    const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
-    renderer.setPixelRatio(Math.min(devicePixelRatio,IS_MOBILE?1.4:1.6));
-    renderer.setClearColor(0x000000,0);
-    renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.08;
-    const scene=new THREE.Scene();
-    scene.fog=new THREE.Fog(0x04070E,36,90);
-    const camera=new THREE.PerspectiveCamera(50,1,0.1,400); camera.position.set(0,0,30);
-    function resize(){const w=sec.clientWidth,hh=sec.clientHeight;renderer.setSize(w,hh,false);camera.aspect=w/hh;camera.updateProjectionMatrix();}
-    resize(); addEventListener('resize',resize);
-    const pmrem=new THREE.PMREMGenerator(renderer);
-    scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
-    scene.add(new THREE.AmbientLight(0x1a2438,0.32));
-    const keyL=new THREE.PointLight(0xffd9a8,1500,200,2.0); keyL.position.set(21,-5,19); scene.add(keyL);
-    const fillL=new THREE.DirectionalLight(0xfff2dd,0.28); fillL.position.set(10,18,30); scene.add(fillL);
-    const rimL=new THREE.DirectionalLight(0x4A8FB5,0.35); rimL.position.set(-26,6,-16); scene.add(rimL);
-
-    const rnd=(a,b)=>a+Math.random()*(b-a);
-    const gauss=()=>(Math.random()+Math.random()+Math.random())/3*2-1;
-    function normalize(g,size){g.computeBoundingBox();const b=g.boundingBox;
-      const s=size/Math.max(b.max.x-b.min.x,b.max.y-b.min.y,b.max.z-b.min.z);g.scale(s,s,s);}
-
-    const gltf=await new GLTFLoader().loadAsync('./seashell_opt.glb');
-    const defs=[];
-    gltf.scene.traverse(o=>{ if(o.isMesh&&defs.length<3){
-      const g=o.geometry.clone(); g.center(); normalize(g,2.05);
-      o.material.envMapIntensity=0.38; o.material.roughness=Math.min(1,(o.material.roughness??1)*0.92);
-      defs.push({geo:g,mat:o.material});
-    }});
-    const perGeo=Math.ceil(COUNT/defs.length);
-    const meshes=defs.map(d=>{const m=new THREE.InstancedMesh(d.geo,d.mat,perGeo);
-      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(m);return m;});
-    const TOTAL=perGeo*defs.length;
-
-    const A0=new THREE.Vector3(-42,12,0),A1=new THREE.Vector3(42,-9,0);
-    const DIRV=A1.clone().sub(A0);const RLEN=DIRV.length();DIRV.normalize();
-    const NRM=new THREE.Vector3(-DIRV.y,DIRV.x,0);
-    const sPar=new Float32Array(TOTAL),perp=new Float32Array(TOTAL),homeZ=new Float32Array(TOTAL);
-    const off=new Float32Array(TOTAL*3),ovel=new Float32Array(TOTAL*3),flow=new Float32Array(TOTAL);
-    const rotAxis=[],rotSpd=new Float32Array(TOTAL),scl=new Float32Array(TOTAL),phase=new Float32Array(TOTAL);
-    const C=new THREE.Color();
-    const TINTS=[0xFFFFFF,0xF6EFE6,0xEFE4D4,0xFFF4E8].map(x=>new THREE.Color(x));
-    for(let i=0;i<TOTAL;i++){
-      sPar[i]=Math.random(); perp[i]=gauss()*4.0; homeZ[i]=rnd(-19,6)+gauss()*2;
-      const depth=(homeZ[i]+19)/25;
-      flow[i]=(0.030+depth*0.028)*(1+rnd(-0.18,0.18));
-      rotAxis.push(new THREE.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize());
-      rotSpd[i]=rnd(0.04,0.15)*(Math.random()<0.5?-1:1);
-      scl[i]=rnd(0.88,1.12); phase[i]=rnd(0,Math.PI*2);
-      const mi=(i/perGeo)|0,li=i-mi*perGeo;
-      C.copy(TINTS[(Math.random()*TINTS.length)|0]); C.offsetHSL(0,rnd(-0.02,0.02),rnd(-0.04,0.03));
-      if(meshes[mi].setColorAt) meshes[mi].setColorAt(li,C);
-    }
-    meshes.forEach(m=>{if(m.instanceColor)m.instanceColor.needsUpdate=true;});
-
-    const raycaster=new THREE.Raycaster(),mouseNDC=new THREE.Vector2(10,10);
-    let mouseActive=false,mouseVel=0,lastMX=0,lastMY=0;
-    function setMouse(cx,cy,vb){
-      const r=sec.getBoundingClientRect();
-      if(cy<r.top||cy>r.bottom){mouseActive=false;return;}
-      const nx=(cx-r.left)/r.width*2-1,ny=-((cy-r.top)/r.height)*2+1;
-      mouseVel=Math.min(3,Math.abs(nx-lastMX)*34+Math.abs(ny-lastMY)*34+(vb||0));
-      lastMX=nx;lastMY=ny;mouseNDC.set(nx,ny);mouseActive=true;
-    }
-    addEventListener('pointermove',e=>setMouse(e.clientX,e.clientY),{passive:true});
-    addEventListener('pointerdown',e=>setMouse(e.clientX,e.clientY,2.0),{passive:true});
-
-    let visible=true;
-    new IntersectionObserver(es=>{visible=es[0].isIntersecting;},{threshold:0.02}).observe(sec);
-
-    const REPEL_R=12.0,REPEL_F=34,SPRING=1.6,DAMP=2.6;
-    const M=new THREE.Matrix4(),Q=new THREE.Quaternion(),S=new THREE.Vector3(),V=new THREE.Vector3();
-    const rayO=new THREE.Vector3(),rayD=new THREE.Vector3(),tmp=new THREE.Vector3(),closest=new THREE.Vector3();
-    const clock=new THREE.Clock();
-    (function frame(){
-      requestAnimationFrame(frame);
-      const dt=Math.min(clock.getDelta(),0.05);
-      if(!visible) return;
-      const t=clock.getElapsedTime();
-      mouseVel*=0.92;
-      if(mouseActive){raycaster.setFromCamera(mouseNDC,camera);rayO.copy(raycaster.ray.origin);rayD.copy(raycaster.ray.direction);}
-      for(let i=0;i<TOTAL;i++){
-        const k=i*3,ph=phase[i];
-        sPar[i]+=flow[i]*dt;
-        if(sPar[i]>1.04){sPar[i]-=1.08;perp[i]=gauss()*4.0;homeZ[i]=rnd(-19,6)+gauss()*2;}
-        const along=sPar[i]*RLEN;
-        const mePerp=perp[i]+Math.sin(along*0.09+t*0.35+ph)*1.5;
-        const hx=A0.x+DIRV.x*along+NRM.x*mePerp;
-        const hy=A0.y+DIRV.y*along+NRM.y*mePerp;
-        const hz=homeZ[i]+Math.sin(t*0.3+ph)*0.5;
-        let fx=0,fy=0,fz=0;
-        if(mouseActive){
-          tmp.set(hx+off[k],hy+off[k+1],hz+off[k+2]).sub(rayO);
-          const proj=tmp.dot(rayD);
-          closest.copy(rayD).multiplyScalar(proj).add(rayO);
-          tmp.set(hx+off[k]-closest.x,hy+off[k+1]-closest.y,hz+off[k+2]-closest.z);
-          const d=tmp.length();
-          if(d<REPEL_R&&d>1e-4){const s=(1-d/REPEL_R);const f=REPEL_F*s*s*(0.7+mouseVel*0.25)/d;
-            fx=tmp.x*f;fy=tmp.y*f;fz=tmp.z*f*0.6;}
-        }
-        ovel[k]+=(fx-off[k]*SPRING-ovel[k]*DAMP)*dt;
-        ovel[k+1]+=(fy-off[k+1]*SPRING-ovel[k+1]*DAMP)*dt;
-        ovel[k+2]+=(fz-off[k+2]*SPRING-ovel[k+2]*DAMP)*dt;
-        off[k]+=ovel[k]*dt; off[k+1]+=ovel[k+1]*dt; off[k+2]+=ovel[k+2]*dt;
-        V.set(hx+off[k],hy+off[k+1],hz+off[k+2]);
-        const agit=Math.min(0.6,(Math.abs(ovel[k])+Math.abs(ovel[k+1]))*0.05);
-        const w=t*rotSpd[i]*(1+agit*1.2)+ph;
-        Q.setFromAxisAngle(rotAxis[i],w);
-        const s=scl[i];S.set(s,s,s);
-        M.compose(V,Q,S);
-        const mi=(i/perGeo)|0,li=i-mi*perGeo;
-        meshes[mi].setMatrixAt(li,M);
-      }
-      meshes.forEach(m=>m.instanceMatrix.needsUpdate=true);
-      renderer.render(scene,camera);
-    })();
-  }
-}catch(e){ console.warn('[conchas] no se pudo iniciar:', e.message); }
-</script>
 </body>
 </html>
