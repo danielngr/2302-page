@@ -4747,7 +4747,7 @@
       if(!stage||!ring) return;
       const N = HOMES.length, ANG = 360/N;
       const isMob = matchMedia('(max-width:640px)').matches;
-      const R = isMob ? 360 : 500;   // radio del cilindro (menor → vecinas se traslapan con el centro)
+      const R = isMob ? 300 : 500;   // radio del cilindro
 
       // construir tarjetas
       const cards = HOMES.map((h,i)=>{
@@ -4784,8 +4784,11 @@
       //   espaciado de la referencia (SPACING°). Solo se ve la ventana frontal;
       //   al girar, las 16 casas entran/salen. La del frente grande y opaca, las
       //   vecinas inclinadas con la perspectiva, las lejanas fantasmas → idéntico.
-      const SPACING = isMob ? 34 : 40;   // grados entre casas (inclinación fuerte como la referencia)
-      const VISDEG  = 104;               // se ven ±VISDEG del frente; el resto oculto
+      // ★ móvil: MUCHO más ángulo entre tarjetas → las vecinas se abren y NO se
+      //   amontonan sobre la del centro (la del frente queda sola, con un asomo
+      //   sutil a cada lado). Desktop se queda como estaba.
+      const SPACING = isMob ? 45 : 40;   // grados entre casas
+      const VISDEG  = isMob ? 66 : 104;  // móvil: solo ±1 vecina visible; el resto oculto
 
       let manualI = 0, parF = 0, pos = 0, justDragged = false;
       function focus(i){ let cur=((Math.round(manualI)%N)+N)%N; let d=i-cur; while(d>N/2)d-=N; while(d<-N/2)d+=N; manualI = Math.round(manualI)+d; wake(); }
