@@ -4670,7 +4670,7 @@
       .cgal-ring{ position:relative; width:1px; height:1px; transform-style:preserve-3d; will-change:transform; }
       .cgal-card{ position:absolute; width:300px; height:400px; left:-150px; top:-200px;
         border-radius:16px; overflow:hidden; background:#0a1220; border:1px solid rgba(150,180,220,.14);
-        box-shadow:0 30px 70px -32px rgba(0,0,0,.85); will-change:opacity,filter;
+        box-shadow:0 30px 70px -32px rgba(0,0,0,.85); will-change:transform,opacity;
         backface-visibility:hidden; -webkit-backface-visibility:hidden; }
       .cgal-photo{ position:absolute; inset:0; background-size:cover; background-position:center; }
       .cgal-photo::after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(4,7,14,0) 34%,rgba(4,7,14,.35) 58%,rgba(4,7,14,.92) 100%); }
@@ -4711,21 +4711,18 @@
           left:calc(min(64vw,290px) * -0.5); top:calc(min(76vh,600px) * -0.5);
           background:transparent; border:none; box-shadow:none; border-radius:0; overflow:visible;
           display:flex; flex-direction:column; }
-        /* tarjeta 1 · foto grande */
+        /* tarjeta 1 · foto grande — sombra LIGERA (las sombras grandes re-compositan
+           en cada frame al mover = jank). Sin filtros. */
         .cgal-photo{ position:relative; inset:auto; flex:1 1 auto; border-radius:22px; overflow:hidden;
-          box-shadow:0 26px 52px -24px rgba(0,0,0,.75); border:1px solid rgba(255,255,255,.06); }
+          box-shadow:0 12px 26px -16px rgba(0,0,0,.6); border:1px solid rgba(255,255,255,.06); }
         .cgal-photo::after{ display:none; }   /* foto limpia, sin velo */
-        /* tarjeta 2 · glass separada, con ambiente de la foto */
+        /* tarjeta 2 · glass SÓLIDO (sin blur en vivo — era lo que trababa la GPU).
+           Degradado oscuro elegante + borde fino + brillo superior = look glass barato. */
         .cgal-info{ position:relative; inset:auto; left:auto; right:auto; bottom:auto; margin-top:11px;
           padding:15px 18px 16px; border-radius:22px; overflow:hidden; text-align:center; flex:0 0 auto;
-          border:1px solid rgba(255,255,255,.14);
-          box-shadow:0 24px 48px -22px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.12); }
-        .cgal-info::before{ content:""; position:absolute; inset:0; z-index:0;
-          background:var(--cover,#16273c) center/cover; transform:scale(1.5);
-          filter:blur(36px) brightness(.5) saturate(1.4); }
-        .cgal-info::after{ content:""; position:absolute; inset:0; z-index:0;
-          background:linear-gradient(180deg,rgba(9,14,24,.42),rgba(7,11,19,.80)); }
-        .cgal-info > *{ position:relative; z-index:1; }
+          background:linear-gradient(180deg, rgba(19,29,46,.95), rgba(10,16,27,.97));
+          border:1px solid rgba(255,255,255,.10);
+          box-shadow:0 12px 26px -16px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.10); }
         .cgal-badge{ display:none; }   /* sin pill en móvil */
         .cgal-eye{ color:#efa274; font-size:10.5px; letter-spacing:.2em; margin-bottom:0; }
         .cgal-name{ font-size:23px; color:#fff; margin:7px 0 0; }
@@ -4739,12 +4736,8 @@
           width:100%; margin-top:0; padding:15px 22px; border:none; border-radius:100px;
           color:#2a1206; font-weight:700; letter-spacing:.16em; font-size:12px;
           background:linear-gradient(135deg,#f0a878,#E1885E 54%,#d5744a);
-          box-shadow:0 13px 28px -8px rgba(225,136,94,.6),0 2px 0 rgba(255,255,255,.25) inset;
-          position:relative; overflow:hidden; }
-        .cgal-cta::after{ content:""; position:absolute; top:0; left:-60%; width:38%; height:100%;
-          background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent); transform:skewX(-20deg);
-          animation:cgalsheen 4s ease-in-out infinite; }
-        @keyframes cgalsheen{0%,72%{left:-60%}88%{left:135%}100%{left:135%}}
+          box-shadow:0 8px 18px -8px rgba(225,136,94,.55),0 2px 0 rgba(255,255,255,.25) inset; }
+        /* (sin animación de destello en móvil: repintaba cada frame = jank) */
       }
     </style>
     <div class="cgal-wrap">
@@ -4849,7 +4842,7 @@
       // el compositor queda libre para el canvas 3D (sin jank ni parpadeo).
       var _lastPos = 1e9, _running = false, _rafId = 0;   // var → sin TDZ (wake() puede llamarse en init)
       // ★ despierta el loop de la rueda; si ya corre, no hace nada
-      function wake(){ if(!_running){ _running = true; _rafId = requestAnimationFrame(layout); } }
+      function wake(){ if(!_running){ _running = true; window.__cgalBusy = true; _rafId = requestAnimationFrame(layout); } }
       function layout(){
         pos += (manualI + parF - pos) * 0.12;
         if (Math.abs(pos - _lastPos) > 0.0004) {
@@ -4893,7 +4886,7 @@
           dots.forEach((d,i)=>d.classList.toggle('on', i===frontI));
         }
         // ★ duerme cuando ya se posó (y no hay arrastre) → cero rAF en reposo
-        if (Math.abs(manualI + parF - pos) < 0.0006 && !down) { _running = false; return; }
+        if (Math.abs(manualI + parF - pos) < 0.0006 && !down) { _running = false; window.__cgalBusy = false; return; }
         _rafId = requestAnimationFrame(layout);
       }
       wake();
@@ -6732,21 +6725,20 @@ let revealStartTime = null;
 // Bloom calmado — sin flash dramático. Solo iridiscencia natural.
 bloomPass.strength = 0.26;
 
-// ★ OPTIMIZACIÓN MÓVIL — RESOLUCIÓN ADAPTATIVA (técnica de Noomo y estudios
-//   que mueven GLB pesados en el teléfono). En vez de bajar la calidad a mano
-//   o topar los fps (lo que se siente robótico), medimos si el equipo SOSTIENE
-//   una tasa fluida y sólo entonces escalamos la RESOLUCIÓN de render:
-//     • el teléfono va fluido con holgura → sube resolución (más nítido)
-//     • le empieza a costar → baja resolución (mantiene la fluidez, no calienta)
-//   El cristal (transmission), el bloom y la aberración renderizan a esa
-//   resolución, así que escalarla recorta su coste de forma proporcional —
-//   sin que el ojo note pérdida a tamaño móvil. En segundo plano: no renderiza.
+// ★ OPTIMIZACIÓN MÓVIL — cadencia + resolución (estable, sin trabar):
+//   • Tope de ~40fps en móvil: acota el trabajo de la GPU (el cristal/transmission
+//     es caro) y deja aire para que el carrusel y el scroll vayan fluidos.
+//   • MIENTRAS SE USA EL CARRUSEL, la ballena baja a ~14fps: le cede la GPU al
+//     carrusel para que el arrastre sea mantecoso (se restablece al soltar).
+//   • Resolución adaptativa SÓLO HACIA ABAJO (arranca nítida y sólo baja si el
+//     equipo de verdad no sostiene ~28fps) → cambios rarísimos = cero tirones
+//     por reasignar el buffer. En segundo plano no renderiza.
 let __lastHeavy = 0;
 const __dprFloor = 1.0;
-const __dprCap = DPR_MAIN;                       // tope = el cap por dispositivo (1.5 móvil / 2 desktop)
-let __dpr = isMobile ? Math.min(1.25, __dprCap) : __dprCap;
-let __emaFrame = 1000 / 52;                      // media móvil del intervalo real entre frames
-let __govCooldown = 60;
+const __dprCap = DPR_MAIN;                        // 1.5 móvil / 2 desktop
+let __dpr = __dprCap;                             // arranca nítido
+let __emaFrame = 1000 / 40;
+let __govCooldown = 90;
 function __applyDPR(v){
   __dpr = Math.max(__dprFloor, Math.min(__dprCap, +v.toFixed(3)));
   renderer.setPixelRatio(__dpr);
@@ -6754,23 +6746,24 @@ function __applyDPR(v){
   if (frontRenderer) frontRenderer.setPixelRatio(Math.min(__dpr, 1.25));
 }
 if (isMobile) __applyDPR(__dpr);
-// gobernador: banda muerta 40–57fps → estable (sin oscilar la resolución)
+// gobernador SÓLO-BAJA: si el intervalo real sostiene >36ms (por debajo de ~28fps)
+// baja un escalón de resolución; nunca sube → nunca oscila (estable).
 function __governResolution(frameMs){
-  __emaFrame += (frameMs - __emaFrame) * 0.08;
+  __emaFrame += (frameMs - __emaFrame) * 0.05;
   if (__govCooldown > 0){ __govCooldown--; return; }
-  const DOWN = 1000 / 40;   // >25.0ms (por debajo de 40fps) → le cuesta
-  const UP   = 1000 / 57;   // <17.5ms (por encima de 57fps) → hay margen de sobra
-  if (__emaFrame > DOWN && __dpr > __dprFloor){ __applyDPR(__dpr - 0.12); __govCooldown = 45; }
-  else if (__emaFrame < UP && __dpr < __dprCap){ __applyDPR(__dpr + 0.10); __govCooldown = 45; }
+  if (__emaFrame > (1000 / 40) * 1.5 && __dpr > __dprFloor){ __applyDPR(__dpr - 0.15); __govCooldown = 150; }
 }
 function animate(time) {
   requestAnimationFrame(animate);
   const now = time || performance.now();
   if (lenis) lenis.raf(now);                        // scroll suave cada frame igual
   if (document.hidden){ __lastHeavy = now; return; } // en segundo plano: nada de 3D
-  const _frameMs = Math.min(now - __lastHeavy, 100); // intervalo real (clamp anti-picos de carga)
+  // ★ tope de fps: normal ~40 · durante uso del carrusel ~14 (le cede la GPU)
+  const _capMs = isMobile ? (window.__cgalBusy ? (1000 / 14) : (1000 / 40)) : 0;
+  if (_capMs && (now - __lastHeavy) < _capMs) return;
+  const _frameMs = Math.min(now - __lastHeavy, 100); // intervalo real (clamp anti-picos)
   __lastHeavy = now;
-  if (isMobile) __governResolution(_frameMs);
+  if (isMobile && !window.__cgalBusy) __governResolution(_frameMs);  // no medir bajo throttle del carrusel
   const dt = Math.min(clock.getDelta(), 0.05);      // clamp → sin salto al volver del bg
   const t = clock.getElapsedTime();
 
