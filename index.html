@@ -122,6 +122,8 @@
       'search.guests.suffix_one': 'guest',
       'search.zone.all': 'All areas',
       'search.zone.title': 'Which area?',
+      'search.zone.done': 'Done',
+      'search.zone.areas': 'areas',
       'search.zone.all.sub': 'All of Banderas Bay',
       'search.zone.sub.pv_south': 'Puerto Vallarta · South',
       'search.zone.sub.pv_hotel': 'Puerto Vallarta · Hotel Zone',
@@ -281,6 +283,8 @@
       'search.guests.suffix_one': 'huésped',
       'search.zone.all': 'Todas las zonas',
       'search.zone.title': '¿En qué zona?',
+      'search.zone.done': 'Listo',
+      'search.zone.areas': 'zonas',
       'search.zone.all.sub': 'Toda la Bahía de Banderas',
       'search.zone.sub.pv_south': 'Puerto Vallarta · Sur',
       'search.zone.sub.pv_hotel': 'Puerto Vallarta · Hotelera',
@@ -4635,6 +4639,7 @@
           <span class="zone-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
         </button>
       </div>
+      <button type="button" class="guests-stepper-done" id="zonePickerDone" data-i18n="search.zone.done">Listo</button>
     </div>
   </div>
 
@@ -4890,12 +4895,20 @@
       async function VRM_filterCatalog(criteria){
         criteria = criteria || {};
         const g = parseInt(criteria.guests,10) > 0 ? parseInt(criteria.guests,10) : 0;
-        const z = String(criteria.zone||'').trim().toLowerCase();
+        // zonas: acepta array (criteria.zones) o string separado por comas (criteria.zone)
+        let zones = [];
+        if (Array.isArray(criteria.zones)) zones = criteria.zones;
+        else if (criteria.zone) zones = String(criteria.zone).split(',');
+        const zl = zones.map(z => String(z).trim().toLowerCase()).filter(Boolean);
         const ci = criteria.checkin || null, co = criteria.checkout || null;
-        // 1) filtros deterministas: capacidad (huéspedes) + zona
+        // 1) filtros deterministas: capacidad (huéspedes) + zona(s)
+        //    con varias zonas seleccionadas, basta que la casa coincida con UNA.
         let list = HOMES.filter(h => {
           if (g && (Number(h.g)||0) < g) return false;
-          if (z && String(h.loc||'').toLowerCase().indexOf(z) === -1) return false;
+          if (zl.length){
+            const loc = String(h.loc||'').toLowerCase();
+            if (!zl.some(z => loc.indexOf(z) !== -1)) return false;
+          }
           return true;
         });
         // 2) disponibilidad real por fechas (async, si Supabase está disponible)
@@ -9093,10 +9106,20 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     document.body.style.overflow = '';
   }
   // ── ZONE PICKER ──
+  // ── ZONAS: soporte MULTI-selección. $zone.value guarda una lista separada
+  //    por comas (ej. "Nuevo Vallarta,Punta de Mita"). Vacío = todas. ──
+  function getSelectedZones(){
+    if(!$zone) return [];
+    return ($zone.value||'').split(',').map(s => s.trim()).filter(Boolean);
+  }
   function markZoneSelected(){
-    if(!$znList || !$zone) return;
-    const cur = $zone.value || '';
-    $znList.querySelectorAll('.zone-option').forEach(o => o.classList.toggle('selected', (o.getAttribute('data-zone')||'') === cur));
+    if(!$znList) return;
+    const sel = getSelectedZones();
+    $znList.querySelectorAll('.zone-option').forEach(o => {
+      const dz = o.getAttribute('data-zone') || '';
+      if (dz === '') o.classList.toggle('selected', sel.length === 0);   // "Todas" activo si no hay nada elegido
+      else o.classList.toggle('selected', sel.indexOf(dz) !== -1);
+    });
   }
   function openZonePicker(){
     if(!$znModal) return;
@@ -9156,16 +9179,24 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
         if ($guestsBtn) $guestsBtn.setAttribute('data-empty', 'true');
       }
     }
-    // Zona
+    // Zona (multi-selección)
     if ($zoneValue) {
-      const zv = $zone ? ($zone.value || '') : '';
-      if (zv) {
-        let label = zv;
-        if ($znList) $znList.querySelectorAll('.zone-option').forEach(o => { if ((o.getAttribute('data-zone')||'') === zv) { const n=o.querySelector('.zone-name'); if(n) label=n.textContent; } });
+      const sel = ($zone ? ($zone.value || '') : '').split(',').map(s => s.trim()).filter(Boolean);
+      if (sel.length === 1) {
+        // una sola zona → su nombre bonito
+        let label = sel[0];
+        if ($znList) $znList.querySelectorAll('.zone-option').forEach(o => { if ((o.getAttribute('data-zone')||'') === sel[0]) { const n=o.querySelector('.zone-name'); if(n) label=n.textContent; } });
         $zoneValue.textContent = label;
         $zoneValue.removeAttribute('data-i18n');
         if ($zoneBtn) $zoneBtn.setAttribute('data-empty', 'false');
+      } else if (sel.length > 1) {
+        // varias zonas → "N zonas"
+        const areas = (window.VRM_t && window.VRM_t('search.zone.areas')) || 'areas';
+        $zoneValue.textContent = sel.length + ' ' + areas;
+        $zoneValue.removeAttribute('data-i18n');
+        if ($zoneBtn) $zoneBtn.setAttribute('data-empty', 'false');
       } else {
+        // ninguna → todas
         $zoneValue.setAttribute('data-i18n', 'search.zone.all');
         $zoneValue.textContent = (window.VRM_t && window.VRM_t('search.zone.all')) || 'All areas';
         if ($zoneBtn) $zoneBtn.setAttribute('data-empty', 'true');
@@ -9230,11 +9261,25 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
   if ($znBackdrop) $znBackdrop.addEventListener('click', closeZonePicker);
   if ($znList) $znList.querySelectorAll('.zone-option').forEach(opt => {
     opt.addEventListener('click', () => {
-      if ($zone) $zone.value = opt.getAttribute('data-zone') || '';
+      const dz = opt.getAttribute('data-zone') || '';
+      // "Todas las zonas" (data-zone vacío) LIMPIA toda la selección y cierra
+      if (dz === '') {
+        if ($zone) $zone.value = '';
+        markZoneSelected(); syncHeroDisplay();
+        setTimeout(closeZonePicker, 160);
+        return;
+      }
+      // Toggle: agrega o quita esta zona del conjunto (multi-selección).
+      // NO cierra el picker → el usuario puede elegir varias. Cierra con "Listo".
+      const sel = getSelectedZones();
+      const i = sel.indexOf(dz);
+      if (i === -1) sel.push(dz); else sel.splice(i, 1);
+      if ($zone) $zone.value = sel.join(',');
       markZoneSelected(); syncHeroDisplay();
-      setTimeout(closeZonePicker, 160);
     });
   });
+  const $znDone = document.getElementById('zonePickerDone');
+  if ($znDone) $znDone.addEventListener('click', closeZonePicker);
 
   // Escape key cierra modales
   document.addEventListener('keydown', (e) => {
@@ -9252,7 +9297,8 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     const checkin  = ymd(state.checkin);
     const checkout = ymd(state.checkout);
     const guests   = state.guests ? parseInt(state.guests, 10) : 0;
-    const zone     = $zone ? $zone.value : '';
+    const zone     = $zone ? $zone.value : '';                 // "a,b" o ""
+    const zones    = zone.split(',').map(s => s.trim()).filter(Boolean);   // array de zonas
 
     // Guardar intent ANTES de filtrar — incluso si no aplica fechas
     // todavía, lo que el usuario eligió queda guardado para el booking modal
@@ -9315,7 +9361,7 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       if (window.VRM_filterCatalog) {
         await window.VRM_filterCatalog({
           guests: guests > 0 ? guests : null,
-          zone,
+          zones,                       // ← varias zonas a la vez
           checkin: checkin || null,
           checkout: checkout || null
         });
@@ -9328,10 +9374,17 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       if ($submitLabel) $submitLabel.textContent = originalLabel;
     }
 
-    // Scroll suave a la sección properties
+    // Scroll AUTOMÁTICO al carrusel de resultados (respeta el smooth-scroll Lenis).
+    // Doble rAF: espera a que la rueda ya se reconstruyó antes de medir la posición.
     const $props = document.getElementById('properties');
     if ($props) {
-      $props.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (window.__lenis && typeof window.__lenis.scrollTo === 'function') {
+          window.__lenis.scrollTo($props, { offset: -8, duration: 0.9 });
+        } else {
+          $props.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }));
     }
 
     // Actualizar el indicador de filtros activos
