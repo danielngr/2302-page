@@ -4823,7 +4823,8 @@
       const SPACING = isMob ? 56 : 40;   // grados entre casas (móvil: rueda a escala)
       const VISDEG  = isMob ? 72 : 104;  // móvil: solo ±1 vecina visible (inclinada); el resto oculto
 
-      let manualI = 0, parF = 0, pos = 0, justDragged = false;
+      let manualI = 0, parF = 0, pos = 0, posVel = 0, justDragged = false;
+      let velIdx = 0, lastMoveT = 0, _lastFrameT = 0;   // física del deslizamiento
       function focus(i){ let cur=((Math.round(manualI)%N)+N)%N; let d=i-cur; while(d>N/2)d-=N; while(d<-N/2)d+=N; manualI = Math.round(manualI)+d; wake(); }
 
       const section = document.getElementById('properties') || stage;
@@ -4843,8 +4844,22 @@
       var _lastPos = 1e9, _running = false, _rafId = 0;   // var → sin TDZ (wake() puede llamarse en init)
       // ★ despierta el loop de la rueda; si ya corre, no hace nada
       function wake(){ if(!_running){ _running = true; window.__cgalBusy = true; _rafId = requestAnimationFrame(layout); } }
-      function layout(){
-        pos += (manualI + parF - pos) * 0.12;
+      function layout(ts){
+        // ★ FÍSICA DEL DESLIZAMIENTO — independiente de los FPS:
+        const now = ts || performance.now();
+        let dt = _lastFrameT ? (now - _lastFrameT) / 1000 : 0.016;
+        _lastFrameT = now;
+        if (dt > 0.05) dt = 0.05;                          // clamp anti-saltos
+        const _target = manualI + parF;
+        if (down) {
+          pos += (_target - pos) * Math.min(1, dt * 26);   // sigue el dedo 1:1, responsivo
+          posVel = 0;
+        } else {
+          // resorte CRÍTICAMENTE AMORTIGUADO → asienta mantecoso, sin rebote
+          const W = 9.5;
+          posVel += (W * W * (_target - pos) - 2 * W * posVel) * dt;
+          pos += posVel * dt;
+        }
         if (Math.abs(pos - _lastPos) > 0.0004) {
           _lastPos = pos;
           let frontI = 0, best = 1e9;
@@ -4885,17 +4900,30 @@
           });
           dots.forEach((d,i)=>d.classList.toggle('on', i===frontI));
         }
-        // ★ duerme cuando ya se posó (y no hay arrastre) → cero rAF en reposo
-        if (Math.abs(manualI + parF - pos) < 0.0006 && !down) { _running = false; window.__cgalBusy = false; return; }
+        // ★ duerme cuando ya se posó (posición Y velocidad casi cero) → cero rAF en reposo
+        if (!down && Math.abs(_target - pos) < 0.0009 && Math.abs(posVel) < 0.03) {
+          pos = _target; _running = false; window.__cgalBusy = false; _lastFrameT = 0; return;
+        }
         _rafId = requestAnimationFrame(layout);
       }
       wake();
 
       // ── arrastre (no captura el scroll de la página) ──
       let down=false, lastX=0, moved=0;
-      function ps(e){ down=true; moved=0; lastX=(e.touches?e.touches[0].clientX:e.clientX); wake(); }
-      function pm(e){ if(!down) return; const x=(e.touches?e.touches[0].clientX:e.clientX); const dx=x-lastX; lastX=x; moved+=Math.abs(dx); manualI -= dx*(isMob ? 1/((window.innerWidth||390)*0.66) : 0.006); wake(); }
-      function pe(){ if(!down) return; down=false; manualI = Math.round(manualI); if(moved>6){ justDragged=true; setTimeout(()=>justDragged=false,80);} wake(); }
+      function ps(e){ down=true; moved=0; velIdx=0; lastMoveT=performance.now(); lastX=(e.touches?e.touches[0].clientX:e.clientX); wake(); }
+      function pm(e){ if(!down) return;
+        const x=(e.touches?e.touches[0].clientX:e.clientX); const now=performance.now();
+        const dx=x-lastX; lastX=x; moved+=Math.abs(dx);
+        const factor = isMob ? 1/((window.innerWidth||390)*0.66) : 0.006;
+        const dIdx = -dx*factor; manualI += dIdx;
+        const mdt = Math.max(0.001,(now-lastMoveT)/1000); lastMoveT=now;
+        velIdx = velIdx*0.6 + (dIdx/mdt)*0.4;                 // velocidad suavizada (casas/seg)
+        wake(); }
+      function pe(){ if(!down) return; down=false;
+        // ★ MOMENTUM: un flick rápido arrastra varias casas y desacelera (tope ±4)
+        const throw_ = Math.max(-4, Math.min(4, velIdx*0.16));
+        manualI = Math.round(manualI + throw_); velIdx=0;
+        if(moved>6){ justDragged=true; setTimeout(()=>justDragged=false,80);} wake(); }
       stage.addEventListener('mousedown',ps); window.addEventListener('mousemove',pm); window.addEventListener('mouseup',pe);
       stage.addEventListener('touchstart',ps,{passive:true}); stage.addEventListener('touchmove',pm,{passive:true}); stage.addEventListener('touchend',pe);
 
