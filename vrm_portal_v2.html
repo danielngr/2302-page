@@ -6686,10 +6686,14 @@
                     headers: {
                         "apikey": SUPABASE_KEY,
                         "Authorization": `Bearer ${SUPABASE_KEY}`,
-                        "Prefer": "return=minimal"
+                        "Prefer": "return=representation"
                     }
                 });
-                if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                if(!resp.ok) throw new Error(`HTTP ${resp.status} ${await resp.text()}`);
+                const _borrados = await resp.json().catch(()=>[]);
+                if(!Array.isArray(_borrados) || _borrados.length === 0) {
+                    throw new Error('No se borró ninguna fila (0 filas). Falta el permiso DELETE en Supabase — corre registros_delete_policy.sql.');
+                }
                 // Quitar del array en memoria
                 const idx = todosRegistros.findIndex(x=>x.id===id);
                 if(idx >= 0) todosRegistros.splice(idx, 1);
