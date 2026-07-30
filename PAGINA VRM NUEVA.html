@@ -223,7 +223,7 @@
       
       // Experience
       'experience.eyebrow': '— The bay, lived',
-      'experience.text.pri': 'Banderas Bay,',
+      'experience.text.pri': 'Banderas Bay',
       'experience.text.sec': 'done right.',
       'experience.caption': '70 curated homes along Puerto Vallarta and Riviera Nayarit. Booked through the people who actually live here.',
       'experience.stat1.num': '2018',
@@ -382,7 +382,7 @@
       
       // Experience
       'experience.eyebrow': '— La bahía, vivida',
-      'experience.text.pri': 'Bahía de Banderas,',
+      'experience.text.pri': 'Bahía de Banderas',
       'experience.text.sec': 'bien hecho.',
       'experience.caption': '70 casas curadas a lo largo de Puerto Vallarta y Riviera Nayarit. Reservadas a través de las personas que viven aquí.',
       'experience.stat1.num': '2018',
@@ -1719,7 +1719,10 @@
     color: var(--paper);
   }
   .reimagine-text .sec {
-    display: block;
+    /* ★ "done right." desactivado: el degradado con background-clip:text no se
+       aplica sobre los <span> del split-text → salía invisible y dejaba la coma
+       huérfana. Titular limpio = solo "Banderas Bay". */
+    display: none;
     background: linear-gradient(180deg, var(--paper) 0%, var(--aurora-2) 35%, var(--gold-bright) 70%, var(--coral) 100%);
     -webkit-background-clip: text;
     background-clip: text;
@@ -1785,9 +1788,15 @@
     line-height: 1.6;
   }
   @media (max-width: 768px) {
-    .section-block { padding: 100px 24px; }
+    .section-block { padding: 74px 22px; }
     .philosophy-title { margin-bottom: 64px; }
-    .stats { grid-template-columns: 1fr; gap: 56px; }
+    /* ★ stats móvil: fila compacta de 3 (no tres números gigantes dispersos) */
+    .stats { grid-template-columns: repeat(3, 1fr); gap: 10px; padding-top: 30px; }
+    .stat-item { align-items: center; text-align: center; }
+    .stat-num { font-size: 33px; margin-bottom: 8px; }
+    .stat-label { font-size: 8.5px; letter-spacing: 0.14em; line-height: 1.45; }
+    /* ★ ghost words fuera en móvil (chocaban con el contenido) */
+    .whale-anchor-overlay { display: none !important; }
   }
 
   /* ─── WHY DIRECT — 3 razones concretas (alta conversión) ─── */
@@ -2558,6 +2567,10 @@
      • Opacity controlada por scroll → aparece/desaparece en momentos clave
      ============================================================= */
   .whale-anchor-overlay {
+    /* ★ palabras-fantasma DOM ("Arrive"/"Stay") desactivadas: se encimaban con
+       los títulos de las secciones (Featured stays / Hand-picked…) tanto en
+       desktop como en móvil. El sitio queda más limpio sin ellas. */
+    display: none !important;
     position: fixed;
     inset: 0;
     pointer-events: none;
@@ -3777,7 +3790,7 @@
     .nav-mark { font-size: 14px; }
 
     /* === SECTION BLOCK general === */
-    .section-block { min-height: auto; padding: 100px 24px; }
+    .section-block { min-height: auto; padding: 74px 22px; }
 
     /* === REIMAGINE === */
     .reimagine-text {
@@ -3796,12 +3809,11 @@
       line-height: 1.08;
     }
     .stats {
-      flex-direction: column;
-      gap: 32px !important;
-      margin-top: 60px !important;
+      gap: 10px !important;
+      margin-top: 44px !important;
     }
-    .stat-item { text-align: center; }
-    .stat-num { font-size: 56px !important; }
+    .stat-item { text-align: center; align-items: center; }
+    .stat-num { font-size: 33px !important; }
 
     /* === PROPIEDADES INTRO === */
     .properties-intro {
@@ -4978,7 +4990,7 @@
     <div class="section-block-inner">
       <div class="section-eyebrow reveal" data-i18n="experience.eyebrow">— The bay, lived</div>
       <p class="reimagine-text reveal" data-split-text data-split-stagger="35" data-split-trigger="scroll">
-        <span class="pri" data-i18n="experience.text.pri">Banderas Bay,</span>
+        <span class="pri" data-i18n="experience.text.pri">Banderas Bay</span>
         <span class="sec" data-i18n="experience.text.sec">done right.</span>
       </p>
       <p class="reimagine-caption reveal reveal-d2" data-i18n="experience.caption">70 curated homes along Puerto Vallarta and Riviera Nayarit. Booked through the people who actually live here.</p>
@@ -6816,18 +6828,10 @@ function animate(time) {
   // Palabra fantasma 3D — misma ventana que tenía en DOM (0.48–0.70),
   // ahora con oclusión real: detrás → la ballena emerge por DELANTE.
   if (GHOST3D.plane) {
-    const gT = window.__vrmScroll || 0;
-    const gA = 0.48, gPk = 0.58, gB = 0.70;
-    let gO = 0, gP = 0;
-    if (gT > gA && gT < gB) {
-      if (gT < gPk) { const k = (gT - gA) / (gPk - gA); gP = -1 + k; gO = k; }
-      else { const k = (gT - gPk) / (gB - gPk); gP = k; gO = 1 - k; }
-      gO = gO * gO * (3 - 2 * gO);
-    }
-    GHOST3D.plane.visible = gO > 0.01;
-    GHOST3D.mat.opacity = gO * 0.34;
-    GHOST3D.plane.position.x = -gP * 1.6;   // el mismo paseo lateral que hacía en DOM
-    GHOST3D.plane.rotation.y = -gP * 0.22;  // y su leve giro 3D
+    // ★ palabra-fantasma 3D "Settle" DESACTIVADA (desktop + móvil): se colaba por
+    //   detrás del titular "Banderas Bay" (su "S" curva) y su entrada lateral se
+    //   veía mal. Fuera para un look limpio, igual que "Arrive"/"Stay".
+    GHOST3D.plane.visible = false;
   }
 
   // ═══════════════════════════════════════════════════════════════════
