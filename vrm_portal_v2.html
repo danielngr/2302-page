@@ -7256,7 +7256,7 @@
         const _h=document.getElementById('nom-hoy-btn'); if(_h) _h.style.display = _enPago ? 'none' : 'inline-flex';
 
         // Cargar staff + limpiezas + ajustes + extras filtrados por semana
-        const [resStaff, resLimp, resAjustes, resExtras] = await Promise.all([
+        const [resStaff, resLimp, resAjustes, resExtras, resExcl] = await Promise.all([
             fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?activo=eq.true&select=*`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
             }),
@@ -7268,6 +7268,9 @@
             }),
             fetch(`${SUPABASE_URL}/rest/v1/dispersion_extras?semana_inicio=eq.${viernesISO}&select=*`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/nomina_exclusiones?semana_inicio=eq.${viernesISO}&select=staff_id`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             })
         ]);
 
@@ -7275,6 +7278,8 @@
         const limpiezas = await resLimp.json();
         const ajustes = await resAjustes.json();
         const extras = resExtras.ok ? await resExtras.json() : [];
+        const excl = (resExcl && resExcl.ok) ? await resExcl.json() : [];
+        const excluidas = new Set(excl.map(e => String(e.staff_id)));
 
         if(!staff.length) {
             body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-tertiary)">Sin staff registrado</div>`;
@@ -7289,7 +7294,8 @@
             const totalLimp = misLimp.reduce((acc,l) => acc+(parseFloat(l.tarifa_aplicada)||0), 0);
             const totalAjust = misAjustes.reduce((acc,a) => acc+(parseFloat(a.monto)||0), 0);
             const total = s.es_fijo ? (parseFloat(s.monto_fijo)||0) : (totalLimp + totalAjust); // fijos = monto fijo (igual que el banco)
-            if(total > 0) totalGlobal += total; // igual que el archivo del banco: omite <= 0
+            const excluida = excluidas.has(String(s.id)); // excluida de ESTA semana (fiscal)
+            if(total > 0 && !excluida) totalGlobal += total; // igual que el archivo del banco: omite <= 0 y excluidas
 
             const iniciales = s.nombre.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
 
@@ -7310,14 +7316,14 @@
                     </span>
                 </div>`).join('');
 
-            return `<div class="nom-staff" id="nom-staff-${s.id}">
+            return `<div class="nom-staff" id="nom-staff-${s.id}" style="${excluida?'opacity:.55':''}">
                 <div class="nom-staff-header" onclick="nomToggle('${s.id}')">
                     <div class="nom-avatar">${iniciales}</div>
                     <div style="flex:1">
-                        <div class="nom-name">${s.nombre}</div>
+                        <div class="nom-name">${s.nombre}${excluida?' <span style="font-size:9px;background:rgba(230,57,70,.18);color:var(--status-red);border:1px solid rgba(230,57,70,.35);border-radius:100px;padding:1px 7px;font-family:var(--font-mono);letter-spacing:.5px;vertical-align:middle">EXCLUIDA</span>':''}</div>
                         <div class="nom-count">${s.es_fijo ? 'FIJO · $'+(parseFloat(s.monto_fijo)||0).toFixed(0) : (misLimp.length+' limpieza'+(misLimp.length!==1?'s':'')+' · '+misAjustes.length+' ajuste'+(misAjustes.length!==1?'s':''))}</div>
                     </div>
-                    <div class="nom-total">$${total.toFixed(0)}</div>
+                    <div class="nom-total" style="${excluida?'text-decoration:line-through;color:var(--text-tertiary)':''}">$${total.toFixed(0)}</div>
                     <i class="ph ph-caret-down nom-chevron"></i>
                 </div>
                 <div class="nom-detail">
@@ -7336,9 +7342,12 @@
                     <!-- Ajustes -->
                     ${ajusteRows}
                     <!-- Acciones -->
-                    <div style="display:flex;gap:10px;margin-top:12px">
+                    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
                         <button class="btn btn-outline-yellow" onclick="nomAjuste('${s.id}','${s.nombre}')" style="font-size:11px">
                             <i class="ph-bold ph-plus"></i> Agregar ajuste
+                        </button>
+                        <button class="btn" onclick="nomToggleExcluir('${s.id}', ${excluida}, '${viernesISO}', this)" style="font-size:11px;${excluida?'background:rgba(230,57,70,.15);color:var(--status-red);border:1px solid rgba(230,57,70,.35)':'color:var(--status-red);border:1px solid rgba(230,57,70,.25);background:none'}">
+                            <i class="ph-bold ph-${excluida?'arrow-counter-clockwise':'prohibit'}"></i> ${excluida?'Volver a incluir':'Excluir de esta semana'}
                         </button>
                     </div>
                 </div>
@@ -7375,6 +7384,29 @@
         // Sincronizar Dispersión (misma semana) para que "Generar Excel" y "Enviar a Telegram" usen estos datos
         dispSemanaOffset = nomOffset;
         dispCargar();
+    }
+
+    // Excluir/incluir una chica del Excel de ESTA semana (fiscal). No borra nada permanente.
+    async function nomToggleExcluir(staffId, estaExcluida, viernesISO, btn) {
+        if(btn){ btn.disabled = true; btn.style.opacity = .5; }
+        try {
+            if(estaExcluida){
+                // Volver a incluir → borrar la exclusión de esta semana
+                await fetch(`${SUPABASE_URL}/rest/v1/nomina_exclusiones?semana_inicio=eq.${viernesISO}&staff_id=eq.${encodeURIComponent(staffId)}`, {
+                    method:"DELETE",
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Prefer":"return=minimal"}
+                });
+                toast('✓ Incluida de nuevo esta semana');
+            } else {
+                await fetch(`${SUPABASE_URL}/rest/v1/nomina_exclusiones?on_conflict=semana_inicio,staff_id`, {
+                    method:"POST",
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"resolution=ignore-duplicates,return=minimal"},
+                    body:JSON.stringify({semana_inicio:viernesISO, staff_id:staffId})
+                });
+                toast('✓ Excluida del Excel de esta semana');
+            }
+        } catch(e){ alert('No se pudo actualizar la exclusión: '+(e.message||e)); }
+        cargarNomina();
     }
 
     // Quitar una persona extra desde la vista de Nómina (borra de dispersion_extras de esta semana)
