@@ -4758,7 +4758,7 @@
         const _complex = _sp>0 ? h.name.slice(0,_sp) : h.name;
         const _unit = _sp>0 ? h.name.slice(_sp+1) : '';
         c.innerHTML =
-          '<div class="cgal-photo" style="background-image:url(&quot;'+h.cover+'&quot;)"></div>'+
+          '<div class="cgal-photo" data-cover="'+String(h.cover).replace(/"/g,'&quot;')+'"></div>'+
           (h.view ? '<div class="cgal-badge">'+h.view+'</div>' : '')+
           '<div class="cgal-info">'+
             '<div class="cgal-eye">'+h.loc+'</div>'+
@@ -4788,7 +4788,7 @@
       const VISDEG  = 104;               // se ven ±VISDEG del frente; el resto oculto
 
       let manualI = 0, parF = 0, pos = 0, justDragged = false;
-      function focus(i){ let cur=((Math.round(manualI)%N)+N)%N; let d=i-cur; while(d>N/2)d-=N; while(d<-N/2)d+=N; manualI = Math.round(manualI)+d; }
+      function focus(i){ let cur=((Math.round(manualI)%N)+N)%N; let d=i-cur; while(d>N/2)d-=N; while(d<-N/2)d+=N; manualI = Math.round(manualI)+d; wake(); }
 
       const section = document.getElementById('properties') || stage;
       function updateParallax(){
@@ -4796,6 +4796,7 @@
         const vh = window.innerHeight || 800;
         const p = Math.max(0, Math.min(1, (vh - r.top) / (vh + r.height)));
         parF = (p - 0.5) * 0.38;   // ±0.19 casa de vida al hacer scroll (sutil)
+        if (typeof wake === 'function') wake();   // el parallax mueve la rueda → despierta el loop
       }
       window.addEventListener('scroll', updateParallax, {passive:true});
       updateParallax();
@@ -4803,7 +4804,9 @@
       // ★ LOOP CONSCIENTE DE REPOSO: solo escribe estilos cuando la rueda se
       // está moviendo de verdad. En reposo, cero invalidaciones de layout →
       // el compositor queda libre para el canvas 3D (sin jank ni parpadeo).
-      let _lastPos = 1e9;
+      var _lastPos = 1e9, _running = false, _rafId = 0;   // var → sin TDZ (wake() puede llamarse en init)
+      // ★ despierta el loop de la rueda; si ya corre, no hace nada
+      function wake(){ if(!_running){ _running = true; _rafId = requestAnimationFrame(layout); } }
       function layout(){
         pos += (manualI + parF - pos) * 0.12;
         if (Math.abs(pos - _lastPos) > 0.0004) {
@@ -4813,6 +4816,10 @@
             let r = i - pos; while(r> N/2) r-=N; while(r< -N/2) r+=N;   // casa más cercana por ambos lados (anillo)
             const angle = r * SPACING, ar = Math.abs(angle);
             if(ar > VISDEG){ c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
+            // ★ LAZY: la foto (externa) solo se descarga cuando la tarjeta entra a
+            //   la ventana visible → carga inicial en móvil mucho más ligera.
+            const _ph = c.firstElementChild;
+            if(_ph && _ph.dataset.cover){ _ph.style.backgroundImage='url("'+_ph.dataset.cover+'")'; _ph.removeAttribute('data-cover'); }
             // ★ transformación EXACTA del componente: montada en el cilindro
             c.style.transform = 'rotateY('+angle.toFixed(2)+'deg) translateZ('+R+'px)';
             // centro + vecinas 100% OPACAS (como la referencia); solo los fantasmas lejanos se desvanecen
@@ -4824,21 +4831,23 @@
           });
           dots.forEach((d,i)=>d.classList.toggle('on', i===frontI));
         }
-        requestAnimationFrame(layout);
+        // ★ duerme cuando ya se posó (y no hay arrastre) → cero rAF en reposo
+        if (Math.abs(manualI + parF - pos) < 0.0006 && !down) { _running = false; return; }
+        _rafId = requestAnimationFrame(layout);
       }
-      layout();
+      wake();
 
       // ── arrastre (no captura el scroll de la página) ──
       let down=false, lastX=0, moved=0;
-      function ps(e){ down=true; moved=0; lastX=(e.touches?e.touches[0].clientX:e.clientX); }
-      function pm(e){ if(!down) return; const x=(e.touches?e.touches[0].clientX:e.clientX); const dx=x-lastX; lastX=x; moved+=Math.abs(dx); manualI -= dx*0.006*(isMob?1.6:1); }
-      function pe(){ if(!down) return; down=false; manualI = Math.round(manualI); if(moved>6){ justDragged=true; setTimeout(()=>justDragged=false,80);} }
+      function ps(e){ down=true; moved=0; lastX=(e.touches?e.touches[0].clientX:e.clientX); wake(); }
+      function pm(e){ if(!down) return; const x=(e.touches?e.touches[0].clientX:e.clientX); const dx=x-lastX; lastX=x; moved+=Math.abs(dx); manualI -= dx*0.006*(isMob?1.6:1); wake(); }
+      function pe(){ if(!down) return; down=false; manualI = Math.round(manualI); if(moved>6){ justDragged=true; setTimeout(()=>justDragged=false,80);} wake(); }
       stage.addEventListener('mousedown',ps); window.addEventListener('mousemove',pm); window.addEventListener('mouseup',pe);
       stage.addEventListener('touchstart',ps,{passive:true}); stage.addEventListener('touchmove',pm,{passive:true}); stage.addEventListener('touchend',pe);
 
       // flechas
-      document.getElementById('cgalNext').addEventListener('click',()=>{ manualI = Math.round(manualI)+1; });
-      document.getElementById('cgalPrev').addEventListener('click',()=>{ manualI = Math.round(manualI)-1; });
+      document.getElementById('cgalNext').addEventListener('click',()=>{ manualI = Math.round(manualI)+1; wake(); });
+      document.getElementById('cgalPrev').addEventListener('click',()=>{ manualI = Math.round(manualI)-1; wake(); });
     })();
     </script>
 
@@ -5074,6 +5083,13 @@ const scene = new THREE.Scene();
 const isPortrait = window.innerHeight > window.innerWidth;
 const isMobile = window.innerWidth < 768;
 
+// ★ OPTIMIZACIÓN MÓVIL — el mayor generador de calor es renderizar millones de
+//   píxeles cada frame. En móvil capamos el device-pixel-ratio: en un teléfono
+//   3x, DPR 1.5 renderiza ~4× MENOS píxeles que 3.0 → mucho menos GPU/calor,
+//   y a esa densidad el cristal orgánico se sigue viendo nítido. Desktop intacto.
+const DPR_MAIN = Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2);
+const DPR_FRONT = Math.min(window.devicePixelRatio, isMobile ? 1.0 : 2);
+
 const camera = new THREE.PerspectiveCamera(
   isMobile ? 58 : 45,                          // FOV más amplio en mobile = ve más escena
   window.innerWidth / window.innerHeight,
@@ -5092,7 +5108,7 @@ const renderer = new THREE.WebGLRenderer({
   powerPreference: 'high-performance'
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(DPR_MAIN);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -5107,12 +5123,12 @@ function ensureFrontRenderer() {
   if (!frontRenderer) {
     frontRenderer = new THREE.WebGLRenderer({
       canvas: frontCanvas,
-      antialias: true,
+      antialias: !isMobile,               // ★ móvil: sin MSAA en el overlay (transitorio) = menos calor
       alpha: true,
       powerPreference: 'high-performance'
     });
     frontRenderer.setSize(window.innerWidth, window.innerHeight);
-    frontRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    frontRenderer.setPixelRatio(DPR_FRONT);   // ★ móvil: DPR 1.0 en la pasada frontal
     frontRenderer.setClearColor(0x000000, 0);
     frontRenderer.outputColorSpace = THREE.SRGBColorSpace;
     frontRenderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -5801,6 +5817,19 @@ function loadGLB() {
       }
 
       modelLoaded = true;
+
+      // ★ PRE-CALENTAR el overlay frontal AHORA que la ballena real ya está en
+      //   la escena: crea el 2º contexto WebGL, su envMap y compila el shader
+      //   del cristal en ese contexto. Así el primer paso de ATRÁS→ENFRENTE no
+      //   tiene tirón (el hitch era la creación perezosa en pleno scroll).
+      try {
+        const _fr = ensureFrontRenderer();
+        const _me = scene.environment;
+        if (frontEnvMap) scene.environment = frontEnvMap;
+        _fr.render(scene, camera);          // 1ª compilación de shaders (invisible)
+        scene.environment = _me;
+        frontCanvas.style.opacity = '0';    // sigue oculto hasta la ventana real
+      } catch (e) { /* si falla, cae al modo perezoso de siempre */ }
     },
     (progress) => {
       if (progress.lengthComputable) {
@@ -5869,7 +5898,7 @@ const GHOST3D = { plane: null, mat: null };
    ============================================================ */
 const composer = new EffectComposer(renderer);
 composer.setSize(window.innerWidth, window.innerHeight);
-composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+composer.setPixelRatio(DPR_MAIN);
 
 /* ════════════════════════════════════════════════════════════════════
    ★ PASADA FRONTAL — ventana de scroll donde la ballena sube por encima
@@ -5878,8 +5907,8 @@ composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
    sobre nav/whatsapp/texto en esta ventana y vuelve a z1 fuera de ella.
    Mismo render → sin cambio de textura. (Ver el bloque RENDER del loop.)
    ════════════════════════════════════════════════════════════════════ */
-const FRONT_PASS_IN   = 0.492;   // ★ experiencia: opacidad frontal sube MIENTRAS sigue fuera (der)
-const FRONT_PASS_OUT  = 0.588;   // se apaga sólo cuando YA salió por la izquierda
+const FRONT_PASS_IN   = 0.485;   // ★ experiencia: opacidad frontal sube MIENTRAS sigue fuera (der)
+const FRONT_PASS_OUT  = 0.635;   // se apaga sólo cuando YA salió por completo por la izquierda
 window.__whaleInFront = false;
 
 // ★ PIPELINE EXACTO A index6: fondo → ballena → bloom → CA en el composer.
@@ -6363,17 +6392,20 @@ const WHALE_PATH = [
   _kf(0.46,  4.60,  0.08, -4.20),   // hacia la derecha, al fondo
   // CH3b · SALIDA DERECHA + ENCARE — SALE COMPLETO por la derecha y vuelve al
   //       frente por el borde ya rumbo a la izquierda (el giro ocurre fuera)
-  _kf(0.485,10.60,  0.06, -1.80),   // ★ FUERA por completo a la derecha (gira aquí)
-  _kf(0.50,  8.30,  0.02, -0.20),   // aún fuera; la opacidad frontal ya llegó a 1
-  // CH4 · EXPERIENCIA · PASADA FRONTAL — cruza de DERECHA a IZQUIERDA por
-  //       encima de TODO, ya moviéndose a la izquierda (sin giro en cuadro)
-  _kf(0.515, 3.00, -0.02,  0.75),   // ★ entra en cuadro YA opaca al 100%  ← visible
-  _kf(0.535,-0.20,  0.00,  0.95),   // ★ centro, gigante, al frente de TODO
-  _kf(0.555,-3.30,  0.05,  0.55),   // ★ cruzando a la izquierda
+  _kf(0.485,10.20,  0.06, -1.60),   // ★ FUERA por completo a la derecha (gira aquí)
+  _kf(0.50,  8.40,  0.02, -0.10),   // aún fuera; la opacidad frontal ya llegó a 1
+  // CH4 · EXPERIENCIA · PASADA FRONTAL — cruce LENTO y suave de DER→IZQ por
+  //       encima de TODO. Repartido en MÁS scroll → la ballena no "zumba":
+  //       pasos de X cortos y parejos en la zona visible (sin tirón lateral).
+  _kf(0.52,  4.80,  0.00,  0.60),   // entra por el borde derecho, grande     ← visible
+  _kf(0.54,  2.10, -0.02,  0.92),   // se acerca al centro, despacio
+  _kf(0.555,-0.20,  0.00,  0.98),   // ★ CENTRO, gigante, al frente de TODO
+  _kf(0.575,-2.70,  0.02,  0.85),   // cruza suave hacia la izquierda
+  _kf(0.60, -5.60,  0.06,  0.35),   // saliendo por el borde izquierdo
   // CH5 · SALIDA IZQUIERDA COMPLETA — SALE de cuadro por la izq y recién
   //       oculta se hunde y curva de regreso (la recesión no se ve)
-  _kf(0.575,-9.60,  0.10, -0.10),   // ★ FUERA por completo a la izquierda  ← visible fin
-  _kf(0.62,-10.60,  0.18, -2.20),   // desaparecida, hundiéndose
+  _kf(0.625,-10.20, 0.10, -0.20),   // ★ FUERA por completo a la izquierda  ← visible fin
+  _kf(0.66,-10.80,  0.18, -2.60),   // desaparecida, hundiéndose
   _kf(0.68, -5.50,  0.24, -6.20),   // reaparece MUY al fondo (diminuta, discreta)
   // CH6 · RESEÑAS — al fondo lejano, pequeña: presencia sutil, no compite
   _kf(0.78, -1.40,  0.22, -6.80),
@@ -6639,9 +6671,21 @@ let revealStartTime = null;
 // Bloom calmado — sin flash dramático. Solo iridiscencia natural.
 bloomPass.strength = 0.26;
 
+// ★ OPTIMIZACIÓN MÓVIL — control de cadencia del render:
+//   • En móvil topamos a ~32fps: renderizar a 60fps calienta el doble sin que
+//     el ojo lo note en una animación tan orgánica. Saltar frames = mitad de GPU.
+//   • Si la pestaña está oculta, NO renderizamos nada (cero calor en segundo plano).
+//   • El requestAnimationFrame se agenda SIEMPRE arriba para no cortar el loop.
+let __lastHeavy = 0;
+const __frameCapMs = isMobile ? (1000 / 32) : 0;   // 0 = sin tope (desktop)
 function animate(time) {
-  if (lenis) lenis.raf(time || performance.now());
-  const dt = clock.getDelta();
+  requestAnimationFrame(animate);
+  const now = time || performance.now();
+  if (lenis) lenis.raf(now);                        // scroll suave cada frame igual
+  if (document.hidden) return;                      // en segundo plano: nada de 3D
+  if (__frameCapMs && (now - __lastHeavy) < __frameCapMs) return;  // móvil: salta frames extra
+  __lastHeavy = now;
+  const dt = Math.min(clock.getDelta(), 0.05);      // clamp → sin salto al volver del bg
   const t = clock.getElapsedTime();
 
   if (mixer) {
@@ -6656,7 +6700,10 @@ function animate(time) {
   }
   // factor de flexión del cuerpo según velocidad: glisa recto / serpentea al nadar fuerte
   const _swimFlex = 0.55 + Math.min(1.15, (window.__whaleSpeed || 0) * 0.55);
-  waterTexture.update();
+  // ★ móvil: la textura de agua (cáusticas) se recalcula en canvas cada frame →
+  //   la actualizamos en frames alternos (queda igual de fluida, mitad de CPU).
+  window.__wtick = (window.__wtick || 0) + 1;
+  if (!isMobile || (window.__wtick & 1)) waterTexture.update();
   bgMaterial.uniforms.uTime.value = t;
 
   // Palabra fantasma 3D — misma ventana que tenía en DOM (0.48–0.70),
@@ -6715,8 +6762,8 @@ function animate(time) {
   window.__whaleSpVel = window.__whaleSpVel ?? 0;
   {
     const _target = scrollProgress;
-    const OMEGA = 5.0;   // resorte más ceñido: la ballena sigue el scroll de cerca (menos lag)
-    const VMAX = 1.1;    // crucero más ágil: la pasada frontal coincide con la sección de experiencia
+    const OMEGA = 4.5;   // resorte ceñido pero con algo de peso: sigue el scroll sin lag notorio
+    const VMAX = 0.9;    // crucero calmado: la pasada frontal cruza con soltura, sin "zumbar"
     const _dtc = Math.min(dt, 0.033);                 // clamp dt → estable en frames lentos
     const _x = window.__whaleSp - _target;
     const _accel = -2 * OMEGA * window.__whaleSpVel - OMEGA * OMEGA * _x;  // ζ=1, crítico
@@ -7145,8 +7192,7 @@ function animate(time) {
       frontCanvas.style.filter = '';
     }
   }
-
-  requestAnimationFrame(animate);
+  // (el requestAnimationFrame ya se agendó al inicio de animate())
 }
 
 window.addEventListener('resize', () => {
