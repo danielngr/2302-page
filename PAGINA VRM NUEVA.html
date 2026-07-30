@@ -4703,9 +4703,12 @@
       .cgal-dots i.on{ background:#E1885E; width:22px; border-radius:4px; }
       .cgal-hint{ text-align:center; margin-top:14px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; opacity:.5; font-family:var(--font-body,system-ui); }
       @media (max-width:640px){
-        .cgal-stage{ height:62vh; min-height:380px; perspective:1300px; }
-        .cgal-card{ width:224px; height:300px; left:-112px; top:-150px; }
-        .cgal-name{ font-size:20px; }
+        /* ★ móvil = carrusel PLANO "una casa a la vez": tarjeta central grande
+           y limpia, la siguiente apenas asomando. Sin cilindro 3D apretado. */
+        .cgal-stage{ height:min(64vh,540px); min-height:430px; perspective:none; }
+        .cgal-card{ width:min(74vw,310px); height:min(58vh,440px); left:calc(min(74vw,310px) * -0.5); top:calc(min(58vh,440px) * -0.5); border-radius:20px; }
+        .cgal-name{ font-size:21px; }
+        .cgal-photo{ border-radius:20px; }
       }
     </style>
     <div class="cgal-wrap">
@@ -4798,8 +4801,8 @@
         const r = section.getBoundingClientRect();
         const vh = window.innerHeight || 800;
         const p = Math.max(0, Math.min(1, (vh - r.top) / (vh + r.height)));
-        parF = (p - 0.5) * 0.38;   // ±0.19 casa de vida al hacer scroll (sutil)
-        if (typeof wake === 'function') wake();   // el parallax mueve la rueda → despierta el loop
+        parF = isMob ? 0 : (p - 0.5) * 0.38;   // desktop: ±0.19 de vida al scrollear · móvil: fija (centrada)
+        if (!isMob && typeof wake === 'function') wake();   // el parallax mueve la rueda → despierta el loop
       }
       window.addEventListener('scroll', updateParallax, {passive:true});
       updateParallax();
@@ -4815,17 +4818,31 @@
         if (Math.abs(pos - _lastPos) > 0.0004) {
           _lastPos = pos;
           let frontI = 0, best = 1e9;
+          const _mobStep = (window.innerWidth || 390) * 0.70;   // px por casa en móvil (deja asomar la siguiente)
           cards.forEach((c,i)=>{
             let r = i - pos; while(r> N/2) r-=N; while(r< -N/2) r+=N;   // casa más cercana por ambos lados (anillo)
+            const _ph = c.firstElementChild;
+            // ═══ MÓVIL: carrusel PLANO (una casa a la vez, la siguiente asoma) ═══
+            if (isMob) {
+              const ar = Math.abs(r);
+              if (ar > 1.55) { c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
+              if(_ph && _ph.dataset.cover){ _ph.style.backgroundImage='url("'+_ph.dataset.cover+'")'; _ph.removeAttribute('data-cover'); }
+              const isC = ar < 0.5;
+              const sc = isC ? 1 : 0.82;                     // vecinas un poco más chicas
+              c.style.transform = 'translateX('+(r*_mobStep).toFixed(1)+'px) scale('+sc+')';
+              c.style.opacity = isC ? '1' : Math.max(0, 0.5 - (ar-0.5)*0.42).toFixed(2);  // vecinas atenuadas → el centro manda
+              c.style.zIndex = String(Math.round(100 - ar*10));
+              c.style.pointerEvents = isC ? 'auto' : 'none';
+              c.classList.toggle('cgal-front', isC);
+              if (ar < best){ best = ar; frontI = i; }
+              return;
+            }
+            // ═══ DESKTOP: cilindro 3D (transformación exacta del componente) ═══
             const angle = r * SPACING, ar = Math.abs(angle);
             if(ar > VISDEG){ c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
-            // ★ LAZY: la foto (externa) solo se descarga cuando la tarjeta entra a
-            //   la ventana visible → carga inicial en móvil mucho más ligera.
-            const _ph = c.firstElementChild;
+            // ★ LAZY: la foto (externa) solo se descarga cuando la tarjeta entra a la ventana visible
             if(_ph && _ph.dataset.cover){ _ph.style.backgroundImage='url("'+_ph.dataset.cover+'")'; _ph.removeAttribute('data-cover'); }
-            // ★ transformación EXACTA del componente: montada en el cilindro
             c.style.transform = 'rotateY('+angle.toFixed(2)+'deg) translateZ('+R+'px)';
-            // centro + vecinas 100% OPACAS (como la referencia); solo los fantasmas lejanos se desvanecen
             c.style.opacity = (ar < 50 ? 1 : Math.max(0, 1 - (ar-50)/52)).toFixed(2);
             c.style.zIndex = Math.round(400 - ar);
             c.style.pointerEvents = (ar < SPACING*0.5) ? 'auto' : 'none';
@@ -4843,7 +4860,7 @@
       // ── arrastre (no captura el scroll de la página) ──
       let down=false, lastX=0, moved=0;
       function ps(e){ down=true; moved=0; lastX=(e.touches?e.touches[0].clientX:e.clientX); wake(); }
-      function pm(e){ if(!down) return; const x=(e.touches?e.touches[0].clientX:e.clientX); const dx=x-lastX; lastX=x; moved+=Math.abs(dx); manualI -= dx*0.006*(isMob?1.6:1); wake(); }
+      function pm(e){ if(!down) return; const x=(e.touches?e.touches[0].clientX:e.clientX); const dx=x-lastX; lastX=x; moved+=Math.abs(dx); manualI -= dx*(isMob ? 1/((window.innerWidth||390)*0.70) : 0.006); wake(); }
       function pe(){ if(!down) return; down=false; manualI = Math.round(manualI); if(moved>6){ justDragged=true; setTimeout(()=>justDragged=false,80);} wake(); }
       stage.addEventListener('mousedown',ps); window.addEventListener('mousemove',pm); window.addEventListener('mouseup',pe);
       stage.addEventListener('touchstart',ps,{passive:true}); stage.addEventListener('touchmove',pm,{passive:true}); stage.addEventListener('touchend',pe);
