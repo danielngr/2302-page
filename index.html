@@ -415,30 +415,37 @@
   };
   
   // Función auxiliar para obtener traducción
-  window.t = function(key) {
+  // ★ BUG FIX: el bundle UMD de Lenis SOBRESCRIBE window.t (su wrapper
+  //   minificado asigna la global `t` = Window). Todo applyI18n que corría
+  //   después de cargar Lenis tronaba con "window.t is not a function"
+  //   (switch EN/ES roto y el carrusel abortaba al reconstruirse tras
+  //   filtrar). Solución: la función vive en una referencia LOCAL (_vrmT)
+  //   inmune a globales pisadas; window.t queda solo por compatibilidad.
+  const _vrmT = function(key) {
     const dict = window.VRM_I18N[window.VRM_LANG] || window.VRM_I18N.en;
     return dict[key] || window.VRM_I18N.en[key] || key;
   };
-  window.VRM_t = window.t;
-  
+  window.t = _vrmT;
+  window.VRM_t = _vrmT;
+
   // Aplicar traducciones a todos los elementos marcados con data-i18n
   // Se ejecuta después de DOMContentLoaded para garantizar que el DOM esté listo.
   function applyI18n() {
     // Texto plano
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
-      el.textContent = window.t(key);
+      el.textContent = _vrmT(key);
     });
     // HTML (cuando hay <br>, <em>, etc.)
     document.querySelectorAll('[data-i18n-html]').forEach(el => {
       const key = el.getAttribute('data-i18n-html');
-      el.innerHTML = window.t(key);
+      el.innerHTML = _vrmT(key);
     });
     // Atributos: data-i18n-attr="aria-label:key" o "title:key"
     document.querySelectorAll('[data-i18n-attr]').forEach(el => {
       const spec = el.getAttribute('data-i18n-attr');
       const [attr, key] = spec.split(':');
-      if (attr && key) el.setAttribute(attr, window.t(key));
+      if (attr && key) el.setAttribute(attr, _vrmT(key));
     });
   }
   
@@ -4688,6 +4695,7 @@
       .cgal-card{ position:absolute; width:300px; height:400px; left:-150px; top:-200px;
         border-radius:16px; overflow:hidden; background:#0a1220; border:1px solid rgba(150,180,220,.14);
         box-shadow:0 30px 70px -32px rgba(0,0,0,.85); will-change:transform,opacity;
+        contain:layout style;   /* ★ invalidaciones de estilo/​layout no salen de la tarjeta */
         backface-visibility:hidden; -webkit-backface-visibility:hidden; }
       .cgal-photo{ position:absolute; inset:0; background-size:cover; background-position:center; }
       .cgal-photo::after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(4,7,14,0) 34%,rgba(4,7,14,.35) 58%,rgba(4,7,14,.92) 100%); }
@@ -4813,6 +4821,41 @@
       let manualI = 0, parF = 0, pos = 0, posVel = 0, justDragged = false;
       let velIdx = 0, lastMoveT = 0, _lastFrameT = 0;   // física del deslizamiento
       var _lastPos = 1e9, _running = false, _rafId = 0;   // var → sin TDZ
+      var _lastFrontI = -1;                              // último punto activo (evita retocar dots)
+      // ★ PERF: viewport cacheado — cero lecturas de layout dentro del rAF
+      var _vwCache = window.innerWidth || 390;
+      window.addEventListener('resize', ()=>{ _vwCache = window.innerWidth || 390; }, {passive:true});
+
+      // ★ PRE-DECODE DE PORTADAS (técnica de galerías nativas): decodifica los
+      //   JPEG UNO POR UNO en ratos idle con Image.decode() (decodificación
+      //   async fuera del hilo de pintura) y recién entonces asigna el fondo.
+      //   Resultado: al arrastrar NUNCA se decodifica una imagen a mitad de un
+      //   frame → se elimina el hitch clásico de "primera vez que asoma la foto".
+      var _preTok = 0;                                    // invalida pre-decodes de rings viejos
+      function preDecodeCovers(){
+        const tok = ++_preTok;
+        const list = cards.slice();
+        const idle = (fn)=> (window.requestIdleCallback ? requestIdleCallback(fn,{timeout:900}) : setTimeout(fn,50));
+        let i = 0;
+        (function step(){
+          if (tok !== _preTok || i >= list.length) return;   // ring reconstruido → aborta
+          const c = list[i++]; const ph = c.firstElementChild;
+          if (!ph || !ph.dataset.cover) { step(); return; }
+          const url = ph.dataset.cover;
+          const img = new Image();
+          img.decoding = 'async';
+          const done = ()=>{
+            if (tok === _preTok && ph.dataset.cover === url){
+              ph.style.backgroundImage = 'url("'+url+'")';
+              c.style.setProperty('--cover','url("'+url+'")');
+              ph.removeAttribute('data-cover');
+            }
+            idle(step);
+          };
+          if (img.decode){ img.src = url; img.decode().then(done, done); }
+          else { img.onload = done; img.onerror = done; img.src = url; }
+        })();
+      }
 
       function focus(i){ if(N<=0) return; let cur=((Math.round(manualI)%N)+N)%N; let d=i-cur; while(d>N/2)d-=N; while(d<-N/2)d+=N; manualI = Math.round(manualI)+d; wake(); }
 
@@ -4881,8 +4924,10 @@
         cards = activeHomes.map((h,i)=>{ const c=makeCard(h,i); ring.appendChild(c); return c; });
         dots  = activeHomes.map((_,i)=>{ const d=document.createElement('i'); d.addEventListener('click',()=>focus(i)); dotsEl.appendChild(d); return d; });
         // re-aplicar traducciones a las tarjetas nuevas (respeta EN/ES y el switch de idioma)
-        if(window.VRM_applyI18n) window.VRM_applyI18n();
-        manualI=0; pos=0; posVel=0; velIdx=0; _lastPos=1e9; _lastFrameT=0;
+        // (try/catch: si i18n fallara por lo que sea, la rueda NUNCA debe morir)
+        try { if(window.VRM_applyI18n) window.VRM_applyI18n(); } catch(_){}
+        manualI=0; pos=0; posVel=0; velIdx=0; _lastPos=1e9; _lastFrameT=0; _lastFrontI=-1;
+        preDecodeCovers();                                // ★ portadas decodificadas en idle
         const empty = (N===0);
         stage.style.display = empty ? 'none' : '';
         if (ctrlsEl) ctrlsEl.style.display = empty ? 'none' : '';
@@ -4964,7 +5009,9 @@
         if (Math.abs(pos - _lastPos) > 0.0004) {
           _lastPos = pos;
           let frontI = 0, best = 1e9;
-          const _vw = window.innerWidth || 390;
+          // ★ PERF: solo TRANSFORM cambia cada frame (composited, cero layout).
+          //   opacity/zIndex/pointerEvents/clase solo se ESCRIBEN si cambiaron
+          //   (caches _op/_zi/_pe/_fr) → cero recalc de estilo redundante.
           cards.forEach((c,i)=>{
             let r = i - pos; while(r> N/2) r-=N; while(r< -N/2) r+=N;   // casa más cercana por ambos lados (anillo)
             const _ph = c.firstElementChild;
@@ -4972,34 +5019,56 @@
             //     cruzan la foto central). Mismo espíritu de rueda que en PC. ═══
             if (isMob) {
               const arr = Math.abs(r);
-              if (arr > 1.6) { c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
+              if (arr > 1.6) {
+                if (c._op !== '0'){ c.style.opacity='0'; c._op='0'; }
+                if (c._pe !== 'none'){ c.style.pointerEvents='none'; c._pe='none'; }
+                if (c._zi !== '0'){ c.style.zIndex='0'; c._zi='0'; }
+                return;
+              }
+              // fallback: si el pre-decoder aún no llegó a esta portada, asígnala aquí
               if(_ph && _ph.dataset.cover){ const _u=_ph.dataset.cover; _ph.style.backgroundImage='url("'+_u+'")'; c.style.setProperty('--cover','url("'+_u+'")'); _ph.removeAttribute('data-cover'); }
               const rc = Math.max(-1, Math.min(1, r));
               const k = Math.min(arr, 1);
-              const tx = r * _vw * 0.66;               // desplazamiento lateral (la siguiente asoma)
+              const tx = r * _vwCache * 0.66;          // desplazamiento lateral (la siguiente asoma)
               const rotY = -rc * 40;                   // inclinación de rueda
               const tz = -k * 180;                     // ★ ATRÁS: nunca se mete frente al centro
               const sc = 1 - k * 0.06;
               c.style.transform = 'translateX('+tx.toFixed(1)+'px) translateZ('+tz.toFixed(0)+'px) rotateY('+rotY.toFixed(1)+'deg) scale('+sc.toFixed(3)+')';
-              c.style.opacity = arr < 0.5 ? '1' : Math.max(0, 1 - (arr - 0.5) * 1.05).toFixed(2);
-              c.style.zIndex = String(Math.round(100 - arr * 10));
-              c.style.pointerEvents = arr < 0.5 ? 'auto' : 'none';
-              c.classList.toggle('cgal-front', arr < 0.5);
+              const _o = arr < 0.5 ? '1' : Math.max(0, 1 - (arr - 0.5) * 1.05).toFixed(2);
+              if (c._op !== _o){ c.style.opacity=_o; c._op=_o; }
+              const _z = String(Math.round(100 - arr * 10));
+              if (c._zi !== _z){ c.style.zIndex=_z; c._zi=_z; }
+              const _p = arr < 0.5 ? 'auto' : 'none';
+              if (c._pe !== _p){ c.style.pointerEvents=_p; c._pe=_p; }
+              const _f = arr < 0.5;
+              if (c._fr !== _f){ c.classList.toggle('cgal-front', _f); c._fr=_f; }
               if (arr < best){ best = arr; frontI = i; }
               return;
             }
             // ═══ DESKTOP: cilindro 3D (rueda exacta del componente) ═══
             const angle = r * SPACING, ar = Math.abs(angle);
-            if(ar > VISDEG){ c.style.opacity='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; return; }
+            if(ar > VISDEG){
+              if (c._op !== '0'){ c.style.opacity='0'; c._op='0'; }
+              if (c._pe !== 'none'){ c.style.pointerEvents='none'; c._pe='none'; }
+              if (c._zi !== '0'){ c.style.zIndex='0'; c._zi='0'; }
+              return;
+            }
             if(_ph && _ph.dataset.cover){ const _u=_ph.dataset.cover; _ph.style.backgroundImage='url("'+_u+'")'; c.style.setProperty('--cover','url("'+_u+'")'); _ph.removeAttribute('data-cover'); }
             c.style.transform = 'rotateY('+angle.toFixed(2)+'deg) translateZ('+R+'px)';
-            c.style.opacity = (ar < 50 ? 1 : Math.max(0, 1 - (ar-50)/52)).toFixed(2);
-            c.style.zIndex = Math.round(400 - ar);
-            c.style.pointerEvents = (ar < SPACING*0.5) ? 'auto' : 'none';
-            c.classList.toggle('cgal-front', ar < SPACING*0.5);
+            const _o = (ar < 50 ? 1 : Math.max(0, 1 - (ar-50)/52)).toFixed(2);
+            if (c._op !== _o){ c.style.opacity=_o; c._op=_o; }
+            const _z = String(Math.round(400 - ar));
+            if (c._zi !== _z){ c.style.zIndex=_z; c._zi=_z; }
+            const _p = (ar < SPACING*0.5) ? 'auto' : 'none';
+            if (c._pe !== _p){ c.style.pointerEvents=_p; c._pe=_p; }
+            const _f = ar < SPACING*0.5;
+            if (c._fr !== _f){ c.classList.toggle('cgal-front', _f); c._fr=_f; }
             if(ar < best){ best = ar; frontI = i; }
           });
-          dots.forEach((d,i)=>d.classList.toggle('on', i===frontI));
+          if (_lastFrontI !== frontI){       // los puntos solo se tocan al cambiar de casa
+            dots.forEach((d,i)=>d.classList.toggle('on', i===frontI));
+            _lastFrontI = frontI;
+          }
         }
         // ★ duerme cuando ya se posó (posición Y velocidad casi cero) → cero rAF en reposo
         if (!down && Math.abs(_target - pos) < 0.0009 && Math.abs(posVel) < 0.03) {
@@ -5009,12 +5078,27 @@
       }
 
       // ── arrastre (no captura el scroll de la página) ──
-      let down=false, lastX=0, moved=0;
-      function ps(e){ down=true; moved=0; velIdx=0; lastMoveT=performance.now(); lastX=(e.touches?e.touches[0].clientX:e.clientX); wake(); }
+      // ★ DIRECTION LOCK (touch): los primeros px deciden si el gesto es
+      //   horizontal (rueda) o vertical (scroll de página). Antes, un scroll
+      //   vertical con leve diagonal movía la rueda a la vez → sensación de
+      //   "trabado". Ahora cada gesto es una sola cosa, limpia.
+      let down=false, lastX=0, lastY=0, moved=0, dirLock=0;   // 0=indeciso · 1=horizontal · -1=vertical
+      function ps(e){ down=true; moved=0; velIdx=0; dirLock=e.touches?0:1;   // mouse: siempre horizontal
+        lastMoveT=performance.now();
+        lastX=(e.touches?e.touches[0].clientX:e.clientX);
+        lastY=(e.touches?e.touches[0].clientY:e.clientY); wake(); }
       function pm(e){ if(!down) return;
-        const x=(e.touches?e.touches[0].clientX:e.clientX); const now=performance.now();
-        const dx=x-lastX; lastX=x; moved+=Math.abs(dx);
-        const factor = isMob ? 1/((window.innerWidth||390)*0.66) : 0.006;
+        const x=(e.touches?e.touches[0].clientX:e.clientX);
+        const y=(e.touches?e.touches[0].clientY:e.clientY);
+        const now=performance.now();
+        const dx=x-lastX, dy=y-lastY; lastX=x; lastY=y;
+        if (dirLock===0){                                     // decidir con el primer tramo del gesto
+          if (Math.abs(dx)+Math.abs(dy) < 7) return;          // aún muy corto
+          dirLock = Math.abs(dx) > Math.abs(dy)*1.15 ? 1 : -1;
+          if (dirLock===-1){ down=false; return; }            // vertical → suelta: la página scrollea sola
+        }
+        moved+=Math.abs(dx);
+        const factor = isMob ? 1/(_vwCache*0.66) : 0.006;
         const dIdx = -dx*factor; manualI += dIdx;
         const mdt = Math.max(0.001,(now-lastMoveT)/1000); lastMoveT=now;
         velIdx = velIdx*0.6 + (dIdx/mdt)*0.4;                 // velocidad suavizada (casas/seg)
@@ -6889,8 +6973,14 @@ function animate(time) {
   const now = time || performance.now();
   if (lenis) lenis.raf(now);                        // scroll suave cada frame igual
   if (document.hidden){ __lastHeavy = now; return; } // en segundo plano: nada de 3D
-  // ★ tope de fps: normal ~40 · durante uso del carrusel ~14 (le cede la GPU)
-  const _capMs = isMobile ? (window.__cgalBusy ? (1000 / 14) : (1000 / 40)) : 0;
+  // ★★ MÓVIL + CARRUSEL ACTIVO = PAUSA TOTAL del 3D. En ese tramo del scroll
+  //    la ballena está FUERA de cuadro (path CH2: sale completa), así que
+  //    congelarla es invisible y le entrega el 100% de GPU/CPU al carrusel.
+  //    Antes: 14fps compartidos → micro-jank. Ahora: cero render 3D durante
+  //    el arrastre y el asentamiento; se reanuda solo al dormirse la rueda.
+  if (isMobile && window.__cgalBusy){ __lastHeavy = now; return; }
+  // ★ tope de fps normal en móvil: ~40
+  const _capMs = isMobile ? (1000 / 40) : 0;
   if (_capMs && (now - __lastHeavy) < _capMs) return;
   const _frameMs = Math.min(now - __lastHeavy, 100); // intervalo real (clamp anti-picos)
   __lastHeavy = now;
@@ -6965,15 +7055,45 @@ function animate(time) {
   {
     const _target = scrollProgress;
     const OMEGA = 4.5;   // resorte ceñido pero con algo de peso: sigue el scroll sin lag notorio
-    const VMAX = 0.9;    // crucero calmado: la pasada frontal cruza con soltura, sin "zumbar"
+    // ★ VMAX adaptativo: crucero calmado (0.9) en coreografía; en TRAVESÍA
+    //   (ya zambullida y en línea recta, lejos de cámara) puede apurar hasta
+    //   2.4 → te alcanza antes y emerge más pronto. Discreta Y puntual.
+    const _rushPrev = window.__whaleRush || 0;
+    const VMAX = 0.9 + _rushPrev * 1.5;
     const _dtc = Math.min(dt, 0.033);                 // clamp dt → estable en frames lentos
+    // ★★ SALTO GIGANTE (clic en ancla / arrastre de scrollbar): si el hueco es
+    //    enorme NO recorre todo el circuito — se recoloca a 0.12 del destino
+    //    (ya zambullida, ver __whaleRush abajo) y nada solo el tramo final.
+    const _gapRaw = _target - window.__whaleSp;
+    if (Math.abs(_gapRaw) > 0.50) {
+      window.__whaleSp = _target - Math.sign(_gapRaw) * 0.12;
+      window.__whaleSpVel = 0;
+      window.__whaleRush = 1;                       // aparece en modo travesía (al fondo)
+    }
     const _x = window.__whaleSp - _target;
     const _accel = -2 * OMEGA * window.__whaleSpVel - OMEGA * OMEGA * _x;  // ζ=1, crítico
     window.__whaleSpVel += _accel * _dtc;
     window.__whaleSpVel = Math.max(-VMAX, Math.min(VMAX, window.__whaleSpVel));
     window.__whaleSp += window.__whaleSpVel * _dtc;
     window.__whaleSp = Math.max(0, Math.min(1, window.__whaleSp));
+
+    // ★★ MODO TRAVESÍA (rush) — factor 0→1 según el hueco pendiente.
+    //    Con scroll normal el hueco es chico (<0.05) → rush=0, coreografía
+    //    intacta. Con scroll RÁPIDO el hueco crece → rush sube y la ballena:
+    //    se zambulle al fondo, corta camino recto, gira calmada y no destella
+    //    el overlay frontal. Al alcanzarte, rush baja y EMERGE retomando la
+    //    coreografía. Sube rápido (reacciona al flick) y baja lento (emerge
+    //    con calma, sin pop).
+    {
+      const _g = Math.abs(_target - window.__whaleSp);
+      const _rt = Math.max(0, Math.min(1, (_g - 0.055) / 0.13));
+      const _cur = window.__whaleRush || 0;
+      const _rate = _rt > _cur ? 5.5 : 1.6;         // ataque rápido · liberación lenta
+      window.__whaleRush = _cur + (_rt - _cur) * Math.min(1, _dtc * _rate);
+      if (window.__whaleRush < 0.004) window.__whaleRush = 0;
+    }
   }
+  const rushF = window.__whaleRush || 0;            // 0 = coreografía · 1 = travesía
   // ═══════════════════════════════════════════════════════════════════
   // ★★★ RESET DEL NADO — MODO BASE LIMPIA ★★★
   // Coreografía COMPLETA desactivada (path, giros, pasada frontal, ancla).
@@ -7051,6 +7171,24 @@ function animate(time) {
     targetPosX = heroPathPose.x;
     targetPosY = heroPathPose.y;
     targetPosZ = heroPathPose.z;
+    // ★★ TRAVESÍA · 1) ATAJO: en vez de trazar cada curva/excursión del
+    //    circuito a toda velocidad, mezcla la pose hacia el PROMEDIO de un
+    //    tramo ancho del camino (la cuerda, no la curva) → el zigzag frenético
+    //    del scroll rápido se convierte en un cruce en línea limpia.
+    //    2) ZAMBULLIDA: se hunde hacia el fondo (z− y y−) proporcional al
+    //    rush → la travesía pasa LEJOS, pequeña y serena, nunca en primer
+    //    plano. Al bajar el rush, emerge de vuelta a la coreografía.
+    if (rushF > 0.01) {
+      const _w = 0.055 * rushF;
+      const _pA = getPathPoint(WHALE_PATH, Math.max(0, sp - _w));
+      const _pB = getPathPoint(WHALE_PATH, Math.min(1, sp + _w));
+      const _mix = 0.65 * rushF;
+      targetPosX += (((_pA.x + _pB.x) * 0.5) - targetPosX) * _mix;
+      targetPosY += (((_pA.y + _pB.y) * 0.5) - targetPosY) * _mix;
+      targetPosZ += (((_pA.z + _pB.z) * 0.5) - targetPosZ) * _mix;
+      targetPosZ -= rushF * 5.0;                    // al fondo (lejos de cámara)
+      targetPosY -= rushF * 0.45;                   // y un poco más abajo
+    }
   }
 
   // ════════════════════════════════════════════════════════════════════
@@ -7239,6 +7377,7 @@ function animate(time) {
     const _total = Math.hypot(dxNow, dyNow, dzNow) || 1;
     const _hf = Math.min(1, (_horiz / _total) * 1.35);
     dynamicBank *= _hf * _hf;             // curva suave: vertical → sin banking
+    dynamicBank *= (1 - 0.8 * rushF);     // ★ travesía: casi sin peralte (cruce sereno)
   }
 
   // Banking con lerp moderado — responsivo sin jitter
@@ -7282,7 +7421,10 @@ function animate(time) {
     // que se lanza). Así la cabeza NUNCA se desfasa de la trayectoria — el
     // giro de la vuelta se ve bien a CUALQUIER velocidad de scroll.
     const _ws = window.__whaleSpeed || 0;
-    MAX_ANGULAR_SPEED = (isMobile ? 1.5 : 1.25) + Math.min(5.0, _ws * 0.45);
+    // ★ TRAVESÍA: el impulso por velocidad se atenúa con el rush — en un
+    //   scroll rápido la velocidad world-space explota y sin esto la cabeza
+    //   daba latigazos persiguiendo cada tangente. En travesía gira sereno.
+    MAX_ANGULAR_SPEED = (isMobile ? 1.5 : 1.25) + Math.min(5.0, _ws * 0.45) * (1 - 0.85 * rushF);
   }
   const dotProduct = Math.abs(
     whaleGroup.quaternion.x * _whaleQuatFinal.x +
@@ -7383,6 +7525,9 @@ function animate(time) {
       const eOut = Math.min(1, (FRONT_PASS_OUT - sp) / FADE);
       fOp = Math.min(eIn, eOut);
     }
+    // ★ TRAVESÍA: en scroll rápido el overlay frontal se apaga — la ballena
+    //   cruza al fondo (zambullida), no destella gigante sobre los textos.
+    fOp *= (1 - rushF);
     if (fOp > 0.001) {
       frontCanvas.style.opacity = String(fOp);
       const fr = ensureFrontRenderer();
