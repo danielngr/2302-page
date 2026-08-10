@@ -4823,8 +4823,10 @@
       var _lastPos = 1e9, _running = false, _rafId = 0;   // var → sin TDZ
       var _lastFrontI = -1;                              // último punto activo (evita retocar dots)
       // ★ PERF: viewport cacheado — cero lecturas de layout dentro del rAF
+      // ★ FIX (bucle automejora r1): al rotar el celular/redimensionar, la rueda
+      //   se re-acomoda sola (_lastPos=1e9 fuerza una pasada completa de layout).
       var _vwCache = window.innerWidth || 390;
-      window.addEventListener('resize', ()=>{ _vwCache = window.innerWidth || 390; }, {passive:true});
+      window.addEventListener('resize', ()=>{ _vwCache = window.innerWidth || 390; _lastPos = 1e9; wake(); }, {passive:true});
 
       // ★ PRE-DECODE DE PORTADAS (técnica de galerías nativas): decodifica los
       //   JPEG UNO POR UNO en ratos idle con Image.decode() (decodificación
@@ -5356,8 +5358,12 @@ const isMobile = window.innerWidth < 768;
 //   píxeles cada frame. En móvil capamos el device-pixel-ratio: en un teléfono
 //   3x, DPR 1.5 renderiza ~4× MENOS píxeles que 3.0 → mucho menos GPU/calor,
 //   y a esa densidad el cristal orgánico se sigue viendo nítido. Desktop intacto.
-const DPR_MAIN = Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2);
-const DPR_FRONT = Math.min(window.devicePixelRatio, isMobile ? 1.0 : 2);
+// ★ SAFARI (Mac): su WebGL rinde notablemente peor con transmission+bloom.
+//   Arranca con DPR 1.5 en vez de 2 (−44% de píxeles en Retina, diferencia
+//   visual mínima) — y el governor adaptativo puede bajar más si hace falta.
+const IS_SAFARI = /^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.userAgent);
+const DPR_MAIN = Math.min(window.devicePixelRatio, isMobile ? 1.5 : (IS_SAFARI ? 1.5 : 2));
+const DPR_FRONT = Math.min(window.devicePixelRatio, isMobile ? 1.0 : (IS_SAFARI ? 1.25 : 2));
 
 const camera = new THREE.PerspectiveCamera(
   isMobile ? 58 : 45,                          // FOV más amplio en mobile = ve más escena
@@ -6960,13 +6966,20 @@ function __applyDPR(v){
   composer.setPixelRatio(__dpr);
   if (frontRenderer) frontRenderer.setPixelRatio(Math.min(__dpr, 1.25));
 }
-if (isMobile) __applyDPR(__dpr);
+__applyDPR(__dpr);   // ★ ahora TODAS las plataformas arrancan gobernadas (antes solo móvil)
 // gobernador SÓLO-BAJA: si el intervalo real sostiene >36ms (por debajo de ~28fps)
 // baja un escalón de resolución; nunca sube → nunca oscila (estable).
+// ★ FIX Mac/Safari: antes el governor corría SOLO en móvil — una Mac lenta
+//   (Safari + Retina + transmission + bloom) quedaba sin red de seguridad y
+//   la página entera se arrastraba. Ahora gobierna en desktop también, y si
+//   aun en el piso de resolución sigue pesado, cae a un tope de 30fps estable
+//   (cine consistente > 22fps a tirones).
+let __capFps30 = false;
 function __governResolution(frameMs){
   __emaFrame += (frameMs - __emaFrame) * 0.05;
   if (__govCooldown > 0){ __govCooldown--; return; }
   if (__emaFrame > (1000 / 40) * 1.5 && __dpr > __dprFloor){ __applyDPR(__dpr - 0.15); __govCooldown = 150; }
+  else if (!__capFps30 && __dpr <= __dprFloor + 0.001 && __emaFrame > 45){ __capFps30 = true; }
 }
 function animate(time) {
   requestAnimationFrame(animate);
@@ -6979,12 +6992,13 @@ function animate(time) {
   //    Antes: 14fps compartidos → micro-jank. Ahora: cero render 3D durante
   //    el arrastre y el asentamiento; se reanuda solo al dormirse la rueda.
   if (isMobile && window.__cgalBusy){ __lastHeavy = now; return; }
-  // ★ tope de fps normal en móvil: ~40
-  const _capMs = isMobile ? (1000 / 40) : 0;
+  // ★ tope de fps: móvil ~40 · desktop libre, salvo que el governor haya
+  //   decidido caer a 30fps estables (Mac/Safari lentas)
+  const _capMs = isMobile ? (1000 / 40) : (__capFps30 ? (1000 / 30) : 0);
   if (_capMs && (now - __lastHeavy) < _capMs) return;
   const _frameMs = Math.min(now - __lastHeavy, 100); // intervalo real (clamp anti-picos)
   __lastHeavy = now;
-  if (isMobile && !window.__cgalBusy) __governResolution(_frameMs);  // no medir bajo throttle del carrusel
+  if (!window.__cgalBusy) __governResolution(_frameMs);  // gobierna en TODAS las plataformas
   const dt = Math.min(clock.getDelta(), 0.05);      // clamp → sin salto al volver del bg
   const t = clock.getElapsedTime();
 
@@ -7000,10 +7014,11 @@ function animate(time) {
   }
   // factor de flexión del cuerpo según velocidad: glisa recto / serpentea al nadar fuerte
   const _swimFlex = 0.55 + Math.min(1.15, (window.__whaleSpeed || 0) * 0.55);
-  // ★ móvil: la textura de agua (cáusticas) se recalcula en canvas cada frame →
-  //   la actualizamos en frames alternos (queda igual de fluida, mitad de CPU).
+  // ★ la textura de agua (cáusticas) se recalcula en canvas y RE-SUBE a GPU
+  //   cada frame → frames alternos en TODAS las plataformas (movimiento lento,
+  //   visualmente idéntico; mitad de CPU/ancho de banda — clave en Safari).
   window.__wtick = (window.__wtick || 0) + 1;
-  if (!isMobile || (window.__wtick & 1)) waterTexture.update();
+  if (window.__wtick & 1) waterTexture.update();
   bgMaterial.uniforms.uTime.value = t;
 
   // Palabra fantasma 3D — misma ventana que tenía en DOM (0.48–0.70),
@@ -9761,7 +9776,19 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       parts.push(`${guests} ${suffix}`);
     }
     if (zone) {
-      parts.push(zone);
+      // ★ FIX (bucle automejora r1): con multi-zona el badge mostraba la lista
+      //   cruda "Nuevo Vallarta,Punta de Mita". Ahora muestra los nombres
+      //   bonitos del picker separados por " · ".
+      const _names = String(zone).split(',').map(s => s.trim()).filter(Boolean).map(z => {
+        let n = z;
+        document.querySelectorAll('#zoneList .zone-option').forEach(o => {
+          if ((o.getAttribute('data-zone') || '') === z) {
+            const el = o.querySelector('.zone-name'); if (el) n = el.textContent;
+          }
+        });
+        return n;
+      });
+      parts.push(_names.join(' · '));
     }
 
     const clearLbl = isES ? 'Limpiar' : 'Clear';
