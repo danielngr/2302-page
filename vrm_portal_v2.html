@@ -663,6 +663,7 @@
             animation: fadeIn .2s ease;
         }
         @keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
         .reg-detail.open { display: block; }
         .reg-detail-grid {
             display: grid;
@@ -2517,7 +2518,8 @@
                             <button class="tab-btn" onclick="setTab('historial',this)" id="tab-hist">HISTORIAL</button>
                             <span style="margin-left:auto;display:flex;align-items:center;gap:6px;padding:0 12px;flex-shrink:0">
                                 <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);white-space:nowrap" id="last-upd"></span>
-                                <button onclick="cargarRegistros()" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;padding:4px 6px;font-size:18px;flex-shrink:0"><i class="ph ph-arrows-clockwise"></i></button>
+                                <button onclick="sincronizarIcals(this)" title="Sincronizar reservas de Airbnb ahora" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;padding:4px 6px;font-size:18px;flex-shrink:0" id="btn-sync-icals"><i class="ph ph-cloud-arrow-down"></i></button>
+                                <button onclick="cargarRegistros()" title="Recargar vista" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;padding:4px 6px;font-size:18px;flex-shrink:0"><i class="ph ph-arrows-clockwise"></i></button>
                             </span>
                         </div>
                     </div>
@@ -3806,6 +3808,43 @@
     function displayDepto(depto) {
         const d = (depto||"").toUpperCase().trim();
         return REG_DEPTO_ALIAS.hasOwnProperty(d) ? REG_DEPTO_ALIAS[d] : (depto||"—");
+    }
+
+    // ── Sincronizar iCals on-demand (invoca la Edge Function sync-icals) ──
+    // Para cuando entra una reserva que urge y no quieres esperar al cron horario.
+    async function sincronizarIcals(btn){
+        const icon = btn ? btn.querySelector('i') : null;
+        const prevClass = icon ? icon.className : '';
+        if(icon){ icon.className = 'ph ph-circle-notch'; icon.style.animation = 'spin 1s linear infinite'; }
+        if(btn){ btn.disabled = true; btn.style.opacity = '0.6'; }
+        try {
+            toast("☁️ Sincronizando reservas de Airbnb...");
+            const resp = await fetch(`${SUPABASE_URL}/functions/v1/sync-icals`, {
+                method: "POST",
+                headers: { "Content-Type":"application/json", "apikey":SUPABASE_KEY, "Authorization":`Bearer ${SUPABASE_KEY}` },
+                body: "{}"
+            });
+            // La función puede tardar (procesa ~76 feeds). Si el fetch responde, leemos el resumen.
+            let data = null; try { data = await resp.json(); } catch(_) {}
+            if(data && data.success){
+                const p = data.units_processed ?? '?', up = data.bookings_upserted ?? '?';
+                toast(`✅ Sincronizado: ${p} deptos, ${up} reservas actualizadas`);
+            } else if(resp.ok){
+                toast("✅ Sincronización enviada");
+            } else {
+                toast("⚠️ La sync sigue corriendo en segundo plano");
+            }
+            // Recargar la vista para reflejar lo nuevo
+            await cargarRegistros();
+        } catch(e){
+            // El fetch puede cortarse si la función tarda mucho, pero igual termina en el servidor.
+            console.warn("sync-icals:", e);
+            toast("⏳ Sync en progreso. Recargando en unos segundos...");
+            setTimeout(()=>{ cargarRegistros().catch(()=>{}); }, 8000);
+        } finally {
+            if(icon){ icon.className = prevClass; icon.style.animation = ''; }
+            if(btn){ btn.disabled = false; btn.style.opacity = ''; }
+        }
     }
 
     // ── Cargar Supabase ─────────────────────────────────────────
@@ -5252,7 +5291,7 @@
       // PENINSULA
       "PENINSULA 19E": { to: ["cobranza@peninsulat1.com","concierge@peninsulat1.com","recepcion@peninsulat1.com","jp.pena.ortiz@gmail.com"], subject: "19E TORRE 1" },
       // PENINSULA 5E — mismos correos que 19E pero SIN Juan Pablo (jp.pena.ortiz)
-      "PENINSULA 5E": { to: ["cobranza@peninsulat1.com","concierge@peninsulat1.com","recepcion@peninsulat1.com"], subject: "5E TORRE 1" },
+      "PENINSULA 5E": { to: ["cobranza@peninsulat1.com","concierge@peninsulat1.com","recepcion@peninsulat1.com","karinsahagun@gmail.com"], subject: "5E TORRE 1" },
     };
 
     // ── Correo para mensajes de texto (whatsapp templates) ──────────────
