@@ -4,6 +4,20 @@
 // Exports: generarPDF(), mostrarTexto(), enviarWA()
 // ═══════════════════════════════════════════════════════════════
 
+// Deriva la unidad Península desde el nombre del depto ("PENINSULA 5E" → 5 E / 5-E / 5E).
+// Permite que el mismo template sirva para 19E, 5E, 18B, etc. sin quemar el número.
+function penUnit(depto){
+  var raw = String(depto||"PENINSULA 19E").replace(/^PENINSULA\s*/i,"").trim() || "19E";
+  var m = raw.match(/^(\d+)\s*([A-Za-z]*)$/);
+  var num = m ? m[1] : raw;
+  var let = m ? (m[2]||"") : "";
+  return {
+    plain: (num + let),                       // "5E"
+    dash:  let ? (num + "-" + let) : num,      // "5-E"
+    space: let ? (num + " " + let) : num       // "5 E"
+  };
+}
+
 function fmtSlash(val) {
   if(!val) return "—";
   // Acepta YYYY-MM-DD o DD/MM/YYYY
@@ -137,13 +151,13 @@ function generarPDF(r, datos, ocupantes, _genId, opts) {
       if(idioma === "es"){
         checkinDoc = pdfPeninsulaES(datos, ocupantes, true);
         leaseDoc = leasePeninsulaES(datos, true);
-        checkinName = "CheckIn_Peninsula19E_ES_"+tenantName+"_"+entradaFmt+".pdf";
-        leaseName = "ContratoArrendamiento_Peninsula19E_"+tenantName+"_"+entradaFmt+".pdf";
+        checkinName = "CheckIn_Peninsula"+penUnit(datos.depto).plain+"_ES_"+tenantName+"_"+entradaFmt+".pdf";
+        leaseName = "ContratoArrendamiento_Peninsula"+penUnit(datos.depto).plain+"_"+tenantName+"_"+entradaFmt+".pdf";
       } else {
         checkinDoc = pdfPeninsula(datos, ocupantes, _genId, true);
         leaseDoc = leasePeninsula(datos, true);
-        checkinName = "Peninsula19E_"+tenantName+"_"+entradaFmt+".pdf";
-        leaseName = "LeaseAgreement_Peninsula19E_"+tenantName+"_"+entradaFmt+".pdf";
+        checkinName = "Peninsula"+penUnit(datos.depto).plain+"_"+tenantName+"_"+entradaFmt+".pdf";
+        leaseName = "LeaseAgreement_Peninsula"+penUnit(datos.depto).plain+"_"+tenantName+"_"+entradaFmt+".pdf";
       }
       return {
         multi: true,
@@ -1948,7 +1962,7 @@ function pdfPeninsula(datos, ocupantes, _genId, _returnB64) {
   doc.setLineWidth(1.8); doc.setDrawColor(0,0,0);
   doc.rect(W-MR-76, 55, 76, 50, "S");
   doc.setFont("times","bold"); doc.setFontSize(28);
-  doc.text("19-E", W-MR-38, 88, {align:"center"});
+  doc.text(penUnit(datos.depto).dash, W-MR-38, 88, {align:"center"});
   // Title
   doc.setFont("times","bold"); doc.setFontSize(16);
   doc.text("Documento de Registro (Check In)", W/2, 127, {align:"center"});
@@ -2150,7 +2164,7 @@ function pdfPeninsula(datos, ocupantes, _genId, _returnB64) {
 
   footer(pn);
 
-  var fname="Peninsula19E_"+fc(datos.nombre||"huesped").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
+  var fname="Peninsula"+penUnit(datos.depto).plain+"_"+fc(datos.nombre||"huesped").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
   if(_returnB64) return doc;
   doc.save(fname);
 }
@@ -2279,7 +2293,7 @@ function leasePeninsula(datos, _returnB64) {
 
   doc.setFont("helvetica","bold"); doc.text("I. THE LANDLORD declares that:", ML, y); y+=LH+4;
 
-  y=para(ML+36,y,TW-36,"1. He is the lawful owner of the property located at Blv. Francisco Medina Ascencio 2485, Tower 1, Unit 19 E, Hotel Zone, Zona Hotelera Norte, C.P. 48333, Puerto Vallarta, Jalisco, which is in suitable condition for habitation.",{gap:6});
+  y=para(ML+36,y,TW-36,"1. He is the lawful owner of the property located at Blv. Francisco Medina Ascencio 2485, Tower 1, Unit "+penUnit(datos.depto).space+", Hotel Zone, Zona Hotelera Norte, C.P. 48333, Puerto Vallarta, Jalisco, which is in suitable condition for habitation.",{gap:6});
   y=para(ML+36,y,TW-36,"2. He has full legal authority to dispose of the property and wishes to lease it to THE TENANT under the terms of this agreement.",{gap:14});
 
   doc.setFont("helvetica","bold"); doc.text("II. THE TENANT declares that:", ML, y); y+=LH+4;
@@ -2288,7 +2302,7 @@ function leasePeninsula(datos, _returnB64) {
 
   doc.setFont("helvetica","bold"); doc.text("CLAUSES", ML, y); y+=LH+4;
   doc.text("FIRST. PURPOSE.", ML, y); y+=LH+4;
-  y=para(ML,y,TW,"THE LANDLORD leases to THE TENANT the property located at Blv. Francisco Medina Ascencio 2485, Tower 1, Unit 19 E, Hotel Zone, Zona Hotelera Norte, C.P. 48333, Puerto Vallarta, Jalisco, which shall be used exclusively for accommodation, vacation rental, and/or lodging, during the term specified in Clause Two (Duration).",{gap:14});
+  y=para(ML,y,TW,"THE LANDLORD leases to THE TENANT the property located at Blv. Francisco Medina Ascencio 2485, Tower 1, Unit "+penUnit(datos.depto).space+", Hotel Zone, Zona Hotelera Norte, C.P. 48333, Puerto Vallarta, Jalisco, which shall be used exclusively for accommodation, vacation rental, and/or lodging, during the term specified in Clause Two (Duration).",{gap:14});
 
   doc.setFont("helvetica","bold"); doc.text("SECOND. TERM.", ML, y); y+=LH+4;
 
@@ -2386,7 +2400,7 @@ function leasePeninsula(datos, _returnB64) {
   // Landlord signature image
   doc.addImage("data:image/png;base64,"+SIG, "PNG", ML, y, 70, 73);
 
-  var fname="LeaseAgreement_Peninsula19E_"+fc(datos.nombre||"tenant").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
+  var fname="LeaseAgreement_Peninsula"+penUnit(datos.depto).plain+"_"+fc(datos.nombre||"tenant").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
   if(_returnB64) return doc;
   doc.save(fname);
 }
@@ -2454,7 +2468,7 @@ function pdfPeninsulaES(datos, ocupantes, _returnB64) {
   doc.setLineWidth(1.5); doc.setDrawColor(0,0,0);
   doc.rect(W-MR-76, 68, 76, 40, "S");
   doc.setFont("times","bold"); doc.setFontSize(20);
-  doc.text("19E", W-MR-38, 94, {align:"center"});
+  doc.text(penUnit(datos.depto).plain, W-MR-38, 94, {align:"center"});
 
   // Title
   doc.setFont("times","bold"); doc.setFontSize(14); setC(BLACK);
@@ -2653,7 +2667,7 @@ function pdfPeninsulaES(datos, ocupantes, _returnB64) {
 
   footer(pn);
 
-  var fname="CheckIn_Peninsula19E_ES_"+fc(datos.nombre||"huesped").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
+  var fname="CheckIn_Peninsula"+penUnit(datos.depto).plain+"_ES_"+fc(datos.nombre||"huesped").replace(/ /g,"_")+"_"+(datos.entrada||"").replace(/ /g,"")+".pdf";
   if(_returnB64) return doc;
   doc.save(fname);
 }
@@ -2719,7 +2733,7 @@ function leasePeninsulaES(datos, _returnB64) {
   doc.setFont('helvetica','bold'); doc.setFontSize(FS); doc.setTextColor(0,0,0);
   doc.text('DECLARACIONES', ML, y); y+=LH+4;
   doc.text('I. EL ARRENDADOR declara que:', ML, y); y+=LH+4;
-  y=para(ML+36,y,TW-36,'1. Es el legitimo propietario del inmueble ubicado en Blv. Francisco Medina Ascencio 2485, Torre 1, Unidad 19 E, Zona Hotelera, Zona Hotelera Norte, C.P. 48333, Puerto Vallarta, Jalisco, el cual se encuentra en condiciones habitables.',{gap:6});
+  y=para(ML+36,y,TW-36,'1. Es el legitimo propietario del inmueble ubicado en Blv. Francisco Medina Ascencio 2485, Torre 1, Unidad '+penUnit(datos.depto).space+', Zona Hotelera, Zona Hotelera Norte, C.P. 48333, Puerto Vallarta, Jalisco, el cual se encuentra en condiciones habitables.',{gap:6});
   y=para(ML+36,y,TW-36,'2. Cuenta con plena facultad legal para disponer del inmueble y desea arrendarlo al ARRENDATARIO bajo los terminos del presente contrato.',{gap:14});
   doc.setFont('helvetica','bold'); doc.text('II. EL ARRENDATARIO declara que:', ML, y); y+=LH+4;
   y=para(ML+36,y,TW-36,'1. Tiene capacidad legal e interes en arrendar el inmueble descrito con anterioridad para uso exclusivo como hospedaje, renta vacacional y/o alojamiento.',{gap:6});
@@ -2727,7 +2741,7 @@ function leasePeninsulaES(datos, _returnB64) {
 
   doc.setFont('helvetica','bold'); doc.text('CLAUSULAS', ML, y); y+=LH+4;
   doc.text('PRIMERA. OBJETO.', ML, y); y+=LH+4;
-  y=para(ML,y,TW,'EL ARRENDADOR arrienda al ARRENDATARIO el inmueble ubicado en Blv. Francisco Medina Ascencio 2485, Torre 1, Unidad 19 E, Zona Hotelera, Zona Hotelera Norte, C.P. 48333, Puerto Vallarta, Jalisco, el cual sera utilizado exclusivamente para hospedaje, renta vacacional y/o alojamiento, durante el periodo especificado en la Clausula Segunda (Vigencia).',{gap:14});
+  y=para(ML,y,TW,'EL ARRENDADOR arrienda al ARRENDATARIO el inmueble ubicado en Blv. Francisco Medina Ascencio 2485, Torre 1, Unidad '+penUnit(datos.depto).space+', Zona Hotelera, Zona Hotelera Norte, C.P. 48333, Puerto Vallarta, Jalisco, el cual sera utilizado exclusivamente para hospedaje, renta vacacional y/o alojamiento, durante el periodo especificado en la Clausula Segunda (Vigencia).',{gap:14});
   doc.setFont('helvetica','bold'); doc.text('SEGUNDA. VIGENCIA.', ML, y); y+=LH+4;
 
   y=chk(y,30);
@@ -2806,7 +2820,7 @@ function leasePeninsulaES(datos, _returnB64) {
   doc.setFont('helvetica','normal'); doc.text('Firma:', ML, y); y+=8;
   doc.addImage('data:image/png;base64,'+SIG,'PNG',ML,y,70,73);
 
-  var fname='ContratoArrendamiento_Peninsula19E_'+fc(tenant).replace(/ /g,'_')+'_'+(datos.entrada||'').replace(/ /g,'')+'.pdf';
+  var fname='ContratoArrendamiento_Peninsula'+penUnit(datos.depto).plain+'_'+fc(tenant).replace(/ /g,'_')+'_'+(datos.entrada||'').replace(/ /g,'')+'.pdf';
   if(_returnB64) return doc;
   doc.save(fname);
 }
