@@ -4398,6 +4398,9 @@
                 const depto=(row[2]||'').trim().replace(/"/g,'');
                 const _o=(row[8]||'').replace(/"/g,'').trim(), _c=(row[9]||'').replace(/"/g,'').trim(), _h=(row[10]||'').replace(/"/g,'').trim();
                 const deptoDisp=displayDepto(depto)+_origenBadge(_o)+_chatBtnHTML(_o,_c); // nombre + origen + chat (filas sin registro)
+                // Rango de fechas de la reserva (viene del iCal/Hostfully via bookings), disponible aun SIN registro de check-in
+                const _ciISO=(row[5]||'').trim(), _coISO=(row[6]||'').trim();
+                const _fResv=(_ciISO&&_coISO)?`${fmtFecha(_ciISO)} → ${fmtFecha(_coISO)}`:'';
                 const reg=matchReg(depto);
                 if(reg){ reg._origen=_o; reg._codAir=_c; reg._huesped=_h; }
                 // EXACT override: si el depto está en EXACT (whatsapp, frakcio), prioriza ese tipo
@@ -4439,7 +4442,7 @@
                             ? `<button class="btn btn-outline-yellow" onclick="registrarVisitaCF('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> Registrar visita</button>`
                             : `<button class="btn btn-outline-white" style="opacity:.6;cursor:default"><i class="ph-bold ph-hourglass"></i> Sin registro</button>`;
                     rowsH+=`<div class="list-item${cfOk?' generado':''}">
-                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">BOLONGO</span></div>
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">${_fResv || 'BOLONGO'}</span></div>
                         <div class="${guestName?'guest-name':'guest-name guest-empty'}">${guestName||'—'}</div>
                         <div>${cfBtn}</div>
                         <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
@@ -4467,7 +4470,7 @@
                             cBtn = `<button class="btn btn-outline-red" onclick="copiarLink('${depto}')"><i class="ph-bold ph-prohibit"></i> Sin registro</button>`;
                         }
                         rowsH+=`<div class="list-item${msgOk?' generado':''}">
-                            <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">CORREO</span></div>
+                            <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">${_fResv || 'CORREO'}</span></div>
                             <div class="${guestName?'guest-name':'guest-name guest-empty'}">${guestName||'—'}</div>
                             <div>${cBtn}</div>
                             <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
@@ -4483,7 +4486,7 @@
                         ? `<button class="btn btn-outline-green solid"><i class="ph-bold ph-check"></i> QR enviado</button>`
                         : `<button class="btn btn-outline-yellow" onclick="marcarCorreo('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
                     rowsH+=`<div class="list-item${correoOk?' generado':''}">
-                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">CORREO</span></div>
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">${_fResv || 'CORREO'}</span></div>
                         <div class="guest-name guest-empty">—</div>
                         <div>${correoBtn}</div>
                         <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
@@ -4510,7 +4513,7 @@
                             : `<button class="btn btn-outline-red" onclick="copiarLink('${depto}')"><i class="ph-bold ph-prohibit"></i> Sin registro</button>`;
                     const gfLinkBtn = gfOk ? '' : `<button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>`;
                     rowsH+=`<div class="list-item${gfOk?' generado':''}">
-                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">GFORMS</span></div>
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">${_fResv || 'GFORMS'}</span></div>
                         <div class="${guestNameGF?'guest-name':'guest-name guest-empty'}">${guestNameGF||'—'}</div>
                         <div>${gfBtn}</div>
                         <div>${gfLinkBtn}</div>
@@ -4550,7 +4553,7 @@
                             : `<button class="btn btn-outline-yellow" onclick="marcarQR('${depto}','${fiso}')"><i class="ph-bold ph-qr-code"></i> QR pendiente</button>`;
                     }
                     rowsH+=`<div class="list-item${qrOk?' generado':''}">
-                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">FRAKCIO</span></div>
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">${_fResv || 'FRAKCIO'}</span></div>
                         <div class="${guestName?'guest-name':'guest-name guest-empty'}">${guestName||'—'}</div>
                         <div>${qrBtn}</div>
                         <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
@@ -4580,7 +4583,7 @@
                         waBtn = `<button class="btn btn-outline-red" onclick="copiarLink('${depto}')"><i class="ph-bold ph-prohibit"></i> Sin registro</button>`;
                     }
                     rowsH+=`<div class="list-item${msgOk?' generado':''}">
-                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">WHATSAPP</span></div>
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">${_fResv || 'WHATSAPP'}</span></div>
                         <div class="${guestName?'guest-name':'guest-name guest-empty'}">${guestName||'—'}</div>
                         <div>${waBtn}</div>
                         <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
@@ -4588,14 +4591,14 @@
                     if(!msgOk){ pend++; totalPend++; }
                 } else if(tipo==="manual"){
                     rowsH+=`<div class="list-item">
-                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">MANUAL</span></div>
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">${_fResv || 'MANUAL'}</span></div>
                         <div class="guest-name guest-empty">—</div>
                         <div><button class="btn btn-link">Manual</button></div>
                         <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
                     </div>`;
                 } else if(!reg){
                     rowsH+=`<div class="list-item">
-                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">ENTRADA</span></div>
+                        <div class="depto-info"><span class="depto-name">${deptoDisp}</span><span class="depto-type">${_fResv || 'ENTRADA'}</span></div>
                         <div class="guest-name guest-missing"><i class="ph ph-warning"></i> Sin registro previo</div>
                         <div><button class="btn btn-outline-red" onclick="copiarLink('${depto}')"><i class="ph-bold ph-prohibit"></i> Sin registro</button></div>
                         <button class="btn btn-link" onclick="copiarLink('${depto}')"><i class="ph-bold ph-arrow-up-right"></i> Link</button>
@@ -6777,7 +6780,7 @@
 
     // ── Cargar entradas desde Supabase bookings (reemplaza al Google Sheet) ──
     // Construye window._sheetRows con el MISMO formato que tenía el CSV:
-    //   r[0]=fecha(D/M/YYYY), r[2]=entrada, r[3]=salida, r[8]=origen, r[9]=codAirbnb, r[10]=huésped
+    //   r[0]=fecha(D/M/YYYY), r[2]=entrada, r[3]=salida, r[5]=checkinISO, r[6]=checkoutISO, r[8]=origen, r[9]=codAirbnb, r[10]=huésped
     // Así calcularStatsHoy() y renderTodo() siguen funcionando sin cambios.
     async function cargarEntradas() {
         try {
@@ -6815,7 +6818,19 @@
             // Construir filas: una por check-in y una por check-out
             // Formato: [fecha, "", entrada, salida, "", "", "", "", origen, codAirbnb, huésped]
             const filas = [["fecha","","entrada","salida","","","","","origen","codigo","huesped"]]; // header (fila 0)
+            // ── Dedup Hostfully+Airbnb: la MISMA reserva (mismo depto + entrada + salida) llega
+            // por los dos iCal. Se conserva UNA sola. Preferencia: Airbnb (su chat va directo a la
+            // reserva) > Hostfully > otros. Una reserva real SIEMPRE gana sobre un bloqueo.
+            const _esBloqueoB = x => (x.notes||'').toLowerCase().includes('not available');
+            const _prefB = x => _esBloqueoB(x) ? 0 : (x.source==='airbnb' ? 3 : (x.source==='hostfully' ? 2 : 1));
+            const _dedup = new Map();
             for(const b of data){
+                const _k = `${b.unit_id}|${b.check_in}|${b.check_out}`;
+                const _prev = _dedup.get(_k);
+                if(!_prev || _prefB(b) > _prefB(_prev)) _dedup.set(_k, b);
+            }
+            const dataDedup = Array.from(_dedup.values());
+            for(const b of dataDedup){
                 const depto = nombreDepto(b.unit_id);
                 const esBloqueo = (b.notes||'').toLowerCase().includes('not available');
                 // Bloqueos (fechas cerradas por el dueño) se marcan distinto para distinguirlos de huéspedes
@@ -6823,11 +6838,11 @@
                 const cod = esBloqueo ? '' : (b.codigo_reserva || '');
                 // CHECK-IN
                 if(b.check_in && b.check_in>=desdeISO && b.check_in<=hastaISO){
-                    filas.push([fmtDMY(b.check_in),"",depto,"","","","","",origen,cod,""]);
+                    filas.push([fmtDMY(b.check_in),"",depto,"","",b.check_in,b.check_out,"",origen,cod,""]);
                 }
                 // CHECK-OUT
                 if(b.check_out && b.check_out>=desdeISO && b.check_out<=hastaISO){
-                    filas.push([fmtDMY(b.check_out),"","",depto,"","","","",origen,cod,""]);
+                    filas.push([fmtDMY(b.check_out),"","",depto,"",b.check_in,b.check_out,"",origen,cod,""]);
                 }
             }
             window._sheetRows = filas;
@@ -11621,30 +11636,18 @@ function updateNotifBadge(){
             spacing: 4,
             waveSpeed: 0.5,
             waveHeight: 20,
-            mouseRadius: 65,
-            mouseForce: 45,
             // ── Rendimiento (ajusta libremente; NO cambian el diseño de la ola) ──
-            maxFPS: 30,          // cuadros/seg del fondo. 60 = original. 30 = ~mitad de batería/CPU y se ve fluido.
+            maxFPS: 30,          // cuadros/seg del fondo. 60 = original. 30 = ~mitad de bateria/CPU y se ve fluido.
             maxPixelRatio: 1.5   // resolucion del canvas. 2 = original (mas nitido). 1.5 = ahorra GPU/bateria.
         };
 
         let scene, camera, renderer, instancedMesh;
         let clock = new THREE.Clock();
-        const dummy = new THREE.Object3D();
-        const center = new THREE.Vector3(0, 0, 0);
-        let raycaster = new THREE.Raycaster();
-        let mouse = new THREE.Vector2(-1000, -1000);
-        let mouse3D = new THREE.Vector3(-1000, 0, -1000);
-        let hitPlane;
 
-        // Buffers precalculados: la X/Z de cada particula NUNCA cambia, se calcula una sola vez
-        // (antes se recalculaba para las 12,100 particulas en cada frame).
+        // La X/Z de cada particula NUNCA cambia: se precalcula una sola vez (no en cada frame).
         const NUM = config.gridSize * config.gridSize;
-        const baseX  = new Float32Array(NUM);
-        const baseZ  = new Float32Array(NUM);
         const phaseX = new Float32Array(NUM);
         const phaseZ = new Float32Array(NUM);
-        const NEG = new THREE.Vector3(-1000, 0, -1000);
 
         let running = true;
         let lastFrame = 0;
@@ -11666,17 +11669,9 @@ function updateNotifBadge(){
             renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
             createInstancedWave();
-            const planeGeo = new THREE.PlaneGeometry(2000, 2000);
-            planeGeo.rotateX(-Math.PI / 2);
-            const planeMat = new THREE.MeshBasicMaterial({ visible: false });
-            hitPlane = new THREE.Mesh(planeGeo, planeMat);
-            scene.add(hitPlane);
             window.addEventListener('resize', onWindowResize);
-            window.addEventListener('mousemove', onMouseMove);
-            window.addEventListener('touchmove', onTouchMove, {passive: true});
-            window.addEventListener('touchstart', onTouchMove, {passive: true});
-            window.addEventListener('touchend', onTouchEnd);
-            // Pausa el fondo cuando la pestana no esta visible: 0 CPU/GPU/bateria en segundo plano.
+            // La ola YA NO sigue el mouse (se quito para ahorrar RAM/bateria): sin raycaster, sin hitPlane
+            // y sin listeners de mouse/touch. En cada frame solo se calcula la ola senoidal.
             document.addEventListener('visibilitychange', onVisibilityChange);
         }
 
@@ -11696,11 +11691,9 @@ function updateNotifBadge(){
                 for (let z = 0; z < config.gridSize; z++) {
                     const posX = (x * config.spacing) - offset;
                     const posZ = (z * config.spacing) - offset;
-                    baseX[i] = posX; baseZ[i] = posZ;
                     phaseX[i] = posX / 25; phaseZ[i] = posZ / 25;
-                    // Matriz identidad + traslacion. X/Z quedan fijas; solo la Y se actualiza cada frame.
-                    // Las esferas usan MeshBasicMaterial (color plano, sin luz): su ROTACION es invisible,
-                    // por eso ya no se calcula orientacion por particula. Se ve exactamente igual.
+                    // Matriz identidad + traslacion. X/Z fijas; solo la Y cambia cada frame.
+                    // Las esferas usan MeshBasicMaterial (color plano, sin luz): su rotacion es invisible.
                     const b = i * 16;
                     arr[b] = 1; arr[b + 5] = 1; arr[b + 10] = 1; arr[b + 15] = 1;
                     arr[b + 12] = posX; arr[b + 13] = 0; arr[b + 14] = posZ;
@@ -11715,26 +11708,22 @@ function updateNotifBadge(){
             scene.add(instancedMesh);
         }
 
-        function onMouseMove(event) { mouse.x = (event.clientX / window.innerWidth) * 2 - 1; mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; }
-        function onTouchMove(event) { mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1; mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1; }
-        function onTouchEnd() { mouse.x = -1000; mouse.y = -1000; }
         function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
 
         function onVisibilityChange() {
             if (document.hidden) {
-                running = false;                 // congela el loop -> no gasta nada en segundo plano
+                running = false;                 // congela el loop -> 0 CPU/GPU/bateria en segundo plano
             } else if (!running) {
                 running = true;
                 lastFrame = 0;
-                animate();                       // reanuda sin salto (el tiempo es real)
+                animate();
             }
         }
 
         function animate(ts) {
             if (!running) return;
             requestAnimationFrame(animate);
-            // Limite de FPS: no renderiza mas cuadros de los necesarios (ahorra bateria/calor).
-            const interval = 1000 / config.maxFPS;
+            const interval = 1000 / config.maxFPS;   // limite de FPS
             if (ts !== undefined && (ts - lastFrame) < interval) return;
             lastFrame = ts || 0;
             render();
@@ -11742,29 +11731,11 @@ function updateNotifBadge(){
 
         function render() {
             const time = clock.getElapsedTime() * config.waveSpeed;
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObject(hitPlane);
-            if (intersects.length > 0) { mouse3D.lerp(intersects[0].point, 0.1); }
-            else { mouse3D.lerp(NEG, 0.05); }
-
             const arr = instancedMesh.instanceMatrix.array;
             const wh = config.waveHeight;
-            const radius = config.mouseRadius;
-            const r2 = radius * radius;
-            const force = config.mouseForce;
-            const mx = mouse3D.x, mz = mouse3D.z;
-            const HALF_PI = Math.PI / 2;
-
             for (let i = 0; i < NUM; i++) {
-                let y = Math.sin(phaseX[i] + time) * Math.cos(phaseZ[i] + time) * wh;
-                const dx = baseX[i] - mx;
-                const dz = baseZ[i] - mz;
-                const d2 = dx * dx + dz * dz;              // sin Math.pow; sqrt solo si esta cerca del mouse
-                if (d2 < r2) {
-                    const intensity = 1 - (Math.sqrt(d2) / radius);
-                    y += (Math.sin(intensity * Math.PI - HALF_PI) + 1) * 0.5 * force;
-                }
-                arr[i * 16 + 13] = y;                      // solo se toca la traslacion Y
+                // Solo la ola senoidal (ya sin interaccion de mouse). Solo se toca la traslacion Y.
+                arr[i * 16 + 13] = Math.sin(phaseX[i] + time) * Math.cos(phaseZ[i] + time) * wh;
             }
             instancedMesh.instanceMatrix.needsUpdate = true;
             instancedMesh.rotation.y = time * 0.05;
