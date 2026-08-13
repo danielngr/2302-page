@@ -3972,6 +3972,7 @@
             const fecha   = (r[0]||'').trim().replace(/"/g,'');
             const entrada = (r[2]||'').trim().replace(/"/g,'');
             const salida  = (r[3]||'').trim().replace(/"/g,'');
+            const esBloqueo = (r[8]||'').trim() === 'Bloqueo'; // fechas cerradas por el dueño, sin acción
             // Semana acumula, otros tabs usan fecha exacta
             const fechaMatch = tabActual === 'semana' ? fechasRango.has(fecha) : fecha === hoyStr;
             if(!fechaMatch) return;
@@ -3984,6 +3985,8 @@
 
             if(entrada) {
                 checkins++;
+                if(esBloqueo) { /* bloqueo: cuenta como check-in visual pero no genera pendiente */ }
+                else {
                 const tipo = getTmpl(entrada).tipo;
                 if(tipo === 'manual') {
                     // Manual no cuenta
@@ -4026,6 +4029,7 @@
                     });
                     if(!reg || !reg.pdf_generado) pendientes++;
                 }
+                } // cierra el else de esBloqueo
             }
             if(salida) checkouts++;
         });
@@ -4150,6 +4154,7 @@
     function _origenBadge(origen){
         if(origen==='Airbnb') return `<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;padding:2px 6px;border-radius:20px;background:rgba(255,90,95,.15);color:#FF5A5F;margin-left:6px;vertical-align:middle">Airbnb</span>`;
         if(origen==='Hostfully') return `<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;padding:2px 6px;border-radius:20px;background:rgba(74,164,255,.15);color:#4AA4FF;margin-left:6px;vertical-align:middle">Hostfully</span>`;
+        if(origen==='Bloqueo') return `<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;padding:2px 6px;border-radius:20px;background:rgba(150,150,150,.15);color:#999;margin-left:6px;vertical-align:middle">🔒 Bloqueo</span>`;
         return '';
     }
     function _chatBtnHTML(origen, codAir){
@@ -6766,19 +6771,70 @@
     }
 
     // ── Entradas del sheet (solo data loader) ──────────────────
+    // ── Mapa unit_id (bookings) → nombre largo del portal ──
+    // bookings usa codigo_corto ('5E','A101','V905'); el semáforo espera 'PENINSULA 5E' etc.
+    const UNIT_TO_PORTAL = {"0N":"BOLONGO 0N","1001":"ARIA PH 1001","1010":"ARIA 1010","1013":"ARIA 1013","103A":"GD 103A","104":"RINCON 104","10I":"MARITIMA 10I","13701":"TULES 13-701","15143":"TULES 15-143","18B":"PENINSULA 18B","191301":"TULES 19-1301","19E":"PENINSULA 19E","1G":"NAUTICO 1G","2005":"QUIYA 2005","20105":"TULES 20-105","202B":"GD 202B","211":"BOLONGO 211","2302":"QUIYA 2302","2403":"QUIYA 2403","2701":"QUIYA 2701","2705":"QUIYA 2705","2801":"QUIYA 2801","2805":"QUIYA 2805","2905":"QUIYA 2905","2L":"MARITIMA GOLF 2L","2M":"MARITIMA GOLF 2M","3004":"QUIYA 3004","301A":"ALBATROS 301A","303A":"GD 303A","3G":"NAUTICO 3G","3N":"BOLONGO 3N","403":"RINCON 403","408":"NAUTICO 408","501B":"GD 501B","501E":"GD 501E","502":"RINCON 502","503":"ALAMAR 503","5E":"PENINSULA 5E","6S":"MARITIMA 6S","812":"ARIA 812","903":"ALAMAR CABO 903","906":"ARIA 906","9C":"NAUTICO 9C","9E":"NAUTICO 9E","9S":"MARITIMA 9S","A101":"GD A101","AMAPA":"AMAPA PH2","AMOARA":"AMOARA 301","ARCANO":"ARCANO 203","BVG":"BVG","COBALTO":"COBALTO","D2101":"ALAMAR DELTA 2 101","ESMERALDA":"PLAYA ESMERALDA 303","FLAMINGOS":"FLAMINGOS 27","G13":"BOLONGO G13","IGUANA":"ISLA IGUANA","L05":"BOLONGO L05","LW1":"MARITIMA GOLF LW1B","MARALMA":"MARALMA 501","MARINASOL":"MARINA SOL 405A","MARSALA":"MARSALA 104","MASCOTA":"MASCOTA","MIO":"MIO","PALMARES":"PALMARES CIELO 102","PHN":"MARITIMA PHN","PUERTARENA":"PUERTA ARENA 16D","QUERENCIA":"QUERENCIA","SMARINA":"SUITE MARINA","V1010":"VENETIAN T3 1010","V1903":"VENETIAN T3 1903","V905":"VENETIAN T3 905","V906":"VENETIAN T3 906","XIKIRI":"XIKIRI 504","ZANTAMAR":"ZANTAMAR 109B","ZOHO":"ZOHO 204"};
+
+    // ── Cargar entradas desde Supabase bookings (reemplaza al Google Sheet) ──
+    // Construye window._sheetRows con el MISMO formato que tenía el CSV:
+    //   r[0]=fecha(D/M/YYYY), r[2]=entrada, r[3]=salida, r[8]=origen, r[9]=codAirbnb, r[10]=huésped
+    // Así calcularStatsHoy() y renderTodo() siguen funcionando sin cambios.
     async function cargarEntradas() {
         try {
+            // Ventana: desde ayer hasta +6 días (cubre HOY/AYER/MAÑANA/+4DÍAS)
+            const hoyMX = new Date(new Date().toLocaleString("en-US",{timeZone:"America/Mexico_City"}));
+            const desde = new Date(hoyMX); desde.setDate(desde.getDate()-2);
+            const hasta = new Date(hoyMX); hasta.setDate(hasta.getDate()+7);
+            const iso = d => d.toISOString().split("T")[0];
+            const desdeISO = iso(desde), hastaISO = iso(hasta);
+
+            // Traer reservas cuyo check_in O check_out caiga en la ventana
+            const url = `${SUPABASE_URL}/rest/v1/bookings?select=unit_id,check_in,check_out,source,notes,codigo_reserva,status`
+                + `&or=(and(check_in.gte.${desdeISO},check_in.lte.${hastaISO}),and(check_out.gte.${desdeISO},check_out.lte.${hastaISO}))`
+                + `&status=eq.confirmed&limit=2000`;
             const _ctrl = new AbortController();
-            const _to = setTimeout(() => _ctrl.abort(), 8000); // 8s máx: si el Sheet cuelga, no congelamos la vista
-            const res = await fetch(SHEET_CSV, { signal: _ctrl.signal, cache: "no-store" });
+            const _to = setTimeout(() => _ctrl.abort(), 8000);
+            const res = await fetch(url, {
+                signal: _ctrl.signal, cache: "no-store",
+                headers: { "apikey":SUPABASE_KEY, "Authorization":`Bearer ${SUPABASE_KEY}` }
+            });
             clearTimeout(_to);
-            const text = await res.text();
-            const rows = text.split('\n').map(r=>r.split(','));
-            window._sheetRows = rows;
-            calcularStatsHoy(rows);
+            if(!res.ok) throw new Error("bookings HTTP "+res.status);
+            const data = await res.json();
+
+            // ISO (YYYY-MM-DD) → D/M/YYYY sin ceros (formato que espera el semáforo)
+            const fmtDMY = isoDate => {
+                const [y,mo,d] = isoDate.split("-").map(Number);
+                return `${d}/${mo}/${y}`;
+            };
+            // Nombre del depto: unit_id → nombre portal (o el unit_id si no está mapeado)
+            const nombreDepto = uid => UNIT_TO_PORTAL[uid] || uid;
+            // Origen legible
+            const origenTxt = src => src==='hostfully' ? 'Hostfully' : (src==='airbnb' ? 'Airbnb' : (src||''));
+
+            // Construir filas: una por check-in y una por check-out
+            // Formato: [fecha, "", entrada, salida, "", "", "", "", origen, codAirbnb, huésped]
+            const filas = [["fecha","","entrada","salida","","","","","origen","codigo","huesped"]]; // header (fila 0)
+            for(const b of data){
+                const depto = nombreDepto(b.unit_id);
+                const esBloqueo = (b.notes||'').toLowerCase().includes('not available');
+                // Bloqueos (fechas cerradas por el dueño) se marcan distinto para distinguirlos de huéspedes
+                const origen = esBloqueo ? 'Bloqueo' : origenTxt(b.source);
+                const cod = esBloqueo ? '' : (b.codigo_reserva || '');
+                // CHECK-IN
+                if(b.check_in && b.check_in>=desdeISO && b.check_in<=hastaISO){
+                    filas.push([fmtDMY(b.check_in),"",depto,"","","","","",origen,cod,""]);
+                }
+                // CHECK-OUT
+                if(b.check_out && b.check_out>=desdeISO && b.check_out<=hastaISO){
+                    filas.push([fmtDMY(b.check_out),"","",depto,"","","","",origen,cod,""]);
+                }
+            }
+            window._sheetRows = filas;
+            calcularStatsHoy(filas);
             renderTodo();
         } catch(e) {
-            console.error("Sheet error (se sigue sin el Sheet):", e);
+            console.error("bookings error (se sigue sin entradas):", e);
             if(!window._sheetRows) window._sheetRows = [];
             renderTodo();
         }
