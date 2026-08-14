@@ -379,15 +379,56 @@
             border-bottom: 1px solid rgba(255,255,255,0.04);
             transition: var(--transition-smooth); position: relative;
         }
-        .list-item:hover { background: linear-gradient(90deg, rgba(255,255,255,0.02) 0%, transparent 100%); padding-left: 36px; }
+        /* hover con translateX (sin relayout -> no laggea al pasar el cursor) */
+        .list-item:hover { background: linear-gradient(90deg, rgba(255,255,255,0.02) 0%, transparent 100%); transform: translateX(8px); }
         .list-item::after {
-            content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+            content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px;
             background: var(--text-secondary); border-radius: 0 4px 4px 0;
-            opacity: 0; transform: scaleY(0); transition: var(--transition-smooth);
+            opacity: 0; transform: scaleY(.4); transition: opacity .25s ease, transform .25s ease, background .25s ease;
         }
-        .list-item:hover::after { opacity: 1; transform: scaleY(0.6); }
+        .list-item:hover::after { opacity: .5; transform: scaleY(1); }
+        /* barra de estado por color (se deriva del boton de accion via :has, sin tocar el HTML de las ramas) */
+        .list-item:has(.btn-outline-red)::after   { background: var(--status-red);    opacity:1; transform: scaleY(1); }
+        .list-item:has(.btn-outline-yellow)::after { background: var(--status-yellow); opacity:1; transform: scaleY(1); }
+        .list-item:has(.btn-outline-blue)::after   { background: var(--status-blue);   opacity:1; transform: scaleY(1); }
+        .list-item:has(.btn-outline-green.solid)::after,
+        .list-item.generado::after { background: var(--status-green); opacity:1; transform: scaleY(1); }
         .list-item.generado { opacity: .5; }
         .list-item.generado:hover { opacity: .8; }
+        /* avatar de iniciales (lo inyecta JS despues de render) */
+        .reg-avatar{ width:28px;height:28px;border-radius:8px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
+            font-family:var(--font-display);font-weight:700;font-size:11px;color:#0c0c0c;background:linear-gradient(135deg,var(--accent-gold),var(--accent-terracota)); }
+        /* boton discreto para marcar generado/enviado manualmente (dos pasos) */
+        .kebab-btn{ width:26px;height:26px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--text-tertiary);
+            cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:16px;opacity:.35;transition:.2s;flex-shrink:0; }
+        .list-item:hover .kebab-btn{ opacity:.85; }
+        .kebab-btn:hover{ background:rgba(255,255,255,.06);color:#fff;border-color:var(--glass-border); }
+        #rowMenu{ position:fixed;z-index:9999;min-width:255px;background:#161619;border:1px solid rgba(255,255,255,.12);
+            border-radius:14px;box-shadow:0 20px 44px -8px rgba(0,0,0,.8);padding:6px;display:none; }
+        #rowMenu.open{ display:block; }
+        #rowMenu .rm-hint{ font-family:var(--font-mono);font-size:9px;letter-spacing:.5px;color:var(--text-tertiary);padding:7px 10px 5px;text-transform:uppercase; }
+        #rowMenu .rm-item{ display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;cursor:pointer;font-size:13px;color:var(--text-secondary);transition:.15s; }
+        #rowMenu .rm-item:hover{ background:rgba(34,211,125,.14);color:var(--status-green); }
+        /* tira de semana (navegacion por dia) */
+        .wkbar{ display:flex;align-items:center;gap:6px;padding:8px 12px 12px; }
+        .wk-arrow{ flex-shrink:0;width:28px;height:50px;border:none;background:transparent;color:var(--text-tertiary);cursor:pointer;border-radius:10px;font-size:18px;transition:.2s; }
+        .wk-arrow:hover{ background:rgba(255,255,255,.06);color:#fff; }
+        .wk-strip{ display:flex;gap:7px;overflow-x:auto;scroll-behavior:smooth;padding:8px 2px 4px;flex:1;scrollbar-width:none; }
+        .wk-strip::-webkit-scrollbar{ display:none; }
+        .wk-day{ flex:0 0 auto;width:58px;padding:8px 0 7px;border-radius:13px;cursor:pointer;text-align:center;border:1px solid transparent;background:rgba(255,255,255,.02);transition:transform .15s ease,background .15s ease,border-color .15s ease;position:relative; }
+        .wk-day:hover{ background:rgba(255,255,255,.06);transform:translateY(-2px); }
+        .wk-day .wd{ font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--text-tertiary);text-transform:uppercase; }
+        .wk-day .wn{ font-family:var(--font-display);font-size:18px;font-weight:700;margin-top:2px;line-height:1; }
+        .wk-day .wc{ margin-top:5px;height:15px;display:flex;align-items:center;justify-content:center; }
+        .wk-day .wc span{ font-family:var(--font-mono);font-size:9px;color:var(--text-tertiary);background:rgba(255,255,255,.07);padding:1px 6px;border-radius:20px;min-width:15px; }
+        .wk-day.sel{ background:rgba(224,122,62,.14);border-color:rgba(224,122,62,.45); }
+        .wk-day.sel .wn{ color:var(--accent-gold); }
+        .wk-day.sel .wd{ color:var(--accent-terracota); }
+        .wk-day.today{ border-color:rgba(224,122,62,.35); }
+        .wk-day.today .wd{ color:var(--accent-terracota); }
+        .wk-day.today::before{ content:"HOY";position:absolute;top:-7px;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:8px;letter-spacing:.5px;color:#0c0c0c;background:var(--accent-terracota);padding:1px 6px;border-radius:20px;font-weight:600; }
+        .wk-hist{ flex-shrink:0;padding:0 12px;height:38px;border-radius:11px;border:1px solid var(--glass-border);background:transparent;color:var(--text-secondary);font-family:var(--font-mono);font-size:10px;letter-spacing:1px;cursor:pointer;transition:.2s; }
+        .wk-hist:hover,.wk-hist.active{ background:rgba(255,255,255,.06);color:#fff; }
 
         .depto-info { display: flex; flex-direction: column; gap: 6px; }
         .depto-name { font-family: var(--font-display); font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
@@ -2507,16 +2548,14 @@
                         <span id="badge-entradas-hdr" style="display:none"></span>
                     </div>
 
-                    <!-- Tabs de navegación dentro del panel -->
+                    <!-- Navegación por día (tira de semana scrolleable) -->
                     <div style="border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.1)">
-                        <!-- Tabs row -->
-                        <div class="tabs-bar" style="display:flex;gap:0;overflow-x:auto;scrollbar-width:none">
-                            <button class="tab-btn active" onclick="setTab('hoy',this)" id="tab-hoy">HOY</button>
-                            <button class="tab-btn" onclick="setTab('ayer',this)" id="tab-ayer">AYER</button>
-                            <button class="tab-btn" onclick="setTab('manana',this)" id="tab-manana">MAÑANA</button>
-                            <button class="tab-btn" onclick="setTab('semana',this)" id="tab-semana">+4 DÍAS</button>
-                            <button class="tab-btn" onclick="setTab('historial',this)" id="tab-hist">HISTORIAL</button>
-                            <span style="margin-left:auto;display:flex;align-items:center;gap:6px;padding:0 12px;flex-shrink:0">
+                        <div class="wkbar">
+                            <button class="wk-arrow" onclick="wkScroll(-1)" title="Días anteriores">&lsaquo;</button>
+                            <div class="wk-strip" id="weekstrip"></div>
+                            <button class="wk-arrow" onclick="wkScroll(1)" title="Días siguientes">&rsaquo;</button>
+                            <button class="wk-hist" id="btn-hist" onclick="verHistorial(this)">HISTORIAL</button>
+                            <span style="display:flex;align-items:center;gap:6px;padding:0 4px;flex-shrink:0">
                                 <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);white-space:nowrap" id="last-upd"></span>
                                 <button onclick="sincronizarIcals(this)" title="Sincronizar reservas de Airbnb ahora" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;padding:4px 6px;font-size:18px;flex-shrink:0" id="btn-sync-icals"><i class="ph ph-cloud-arrow-down"></i></button>
                                 <button onclick="cargarRegistros()" title="Recargar vista" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;padding:4px 6px;font-size:18px;flex-shrink:0"><i class="ph ph-arrows-clockwise"></i></button>
@@ -3948,7 +3987,7 @@
     function calcularStatsHoy(rows) {
         // Usar el tab activo para calcular las stats del día correcto
         const rangoMap = { hoy:[0,0], ayer:[-1,-1], manana:[1,1], semana:[1,4] };
-        const rango = rangoMap[tabActual] || [0,0];
+        const rango = tabActual==='dia' ? [diaSel,diaSel] : (rangoMap[tabActual] || [0,0]);
         // Para tabs multi-día (semana), mostrar stats del primer día del rango
         const offset = rango[0];
 
@@ -4044,7 +4083,8 @@
     }
 
     // ── Filtros ─────────────────────────────────────────────────
-    let tabActual = "hoy";
+    let tabActual = "dia";
+    let diaSel = 0;   // offset de día seleccionado (0 = hoy, -1 = ayer, +N)
     let filtroActual = "todos_hist";
 
     function setTab(tab, btn) {
@@ -4069,7 +4109,81 @@
         renderTodo();
     }
 
+    // ═══ Navegación por día (tira de semana) ═══════════════════════════
+    function buildWeekStrip(){
+        const strip=document.getElementById('weekstrip'); if(!strip) return;
+        const DOW=["DOM","LUN","MAR","MIÉ","JUE","VIE","SÁB"];
+        const hoy=new Date(); hoy.setHours(0,0,0,0);
+        // contar check-ins por fecha (D/M/YYYY) desde las reservas ya cargadas
+        const cnt={};
+        (window._sheetRows||[]).forEach((r,i)=>{ if(i===0)return; const f=(r[0]||'').trim().replace(/"/g,''); const d=(r[2]||'').trim().replace(/"/g,''); if(!d)return; cnt[f]=(cnt[f]||0)+1; });
+        let html='';
+        for(let off=-1; off<=7; off++){
+            const dia=new Date(hoy); dia.setDate(hoy.getDate()+off);
+            const fs=`${dia.getDate()}/${dia.getMonth()+1}/${dia.getFullYear()}`;
+            const c=cnt[fs]||0;
+            const cls='wk-day'+(off===0?' today':'')+(tabActual==='dia'&&off===diaSel?' sel':'');
+            html+=`<div class="${cls}" onclick="setDia(${off})">
+                <div class="wd">${DOW[dia.getDay()]}</div>
+                <div class="wn">${dia.getDate()}</div>
+                <div class="wc">${c?`<span>${c}</span>`:''}</div>
+            </div>`;
+        }
+        const prev=strip.scrollLeft;
+        strip.innerHTML=html;
+        if(!strip._centered){ const t=strip.querySelector('.today'); if(t){ strip.scrollLeft=t.offsetLeft - strip.clientWidth/2 + t.clientWidth/2; } strip._centered=true; }
+        else { strip.scrollLeft=prev; }
+    }
+    function wkScroll(dir){ const s=document.getElementById('weekstrip'); if(s) s.scrollBy({left:dir*240,behavior:'smooth'}); }
+    function setDia(off){
+        tabActual='dia'; diaSel=off;
+        const hb=document.getElementById('btn-hist'); if(hb) hb.classList.remove('active');
+        const MES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+        const dia=new Date(); dia.setHours(0,0,0,0); dia.setDate(dia.getDate()+off);
+        const lbl = off===0?'hoy' : off===-1?'ayer' : off===1?'mañana' : `${dia.getDate()} ${MES[dia.getMonth()]}`;
+        const set=(id,t)=>{ const e=document.getElementById(id); if(e) e.textContent=t; };
+        set('lbl-checkins',`Check-ins ${lbl}`); set('lbl-checkouts',`Check-outs ${lbl}`); set('lbl-pend',`Pendientes ${lbl}`);
+        renderTodo();
+        if(window._sheetRows) calcularStatsHoy(window._sheetRows);
+    }
+    function verHistorial(btn){ tabActual='historial'; if(btn) btn.classList.add('active'); renderTodo(); }
+
+    // ═══ Marcar generado/enviado manualmente (menú discreto ⋯, dos pasos) ═══
+    function openRowMenu(ev, id, verbo){
+        ev.stopPropagation();
+        let m=document.getElementById('rowMenu');
+        if(!m){ m=document.createElement('div'); m.id='rowMenu'; document.body.appendChild(m); }
+        m.innerHTML=`<div class="rm-hint">Acción manual</div>
+            <div class="rm-item" onclick="marcarManual('${id}')"><i class="ph-bold ph-check"></i> Marcar como ${verbo} manualmente</div>`;
+        const btn=ev.currentTarget||ev.target;
+        const r=btn.getBoundingClientRect();
+        m.style.display='block';
+        const mw=m.offsetWidth||255, mh=m.offsetHeight||60;
+        let left=r.right-mw; if(left<8) left=8;
+        let top=r.bottom+6; if(top+mh>window.innerHeight-8) top=r.top-mh-6;
+        m.style.left=left+'px'; m.style.top=top+'px';
+        m.classList.add('open');
+    }
+    function cerrarRowMenu(){ const m=document.getElementById('rowMenu'); if(m) m.classList.remove('open'); }
+    function marcarManual(id){ cerrarRowMenu(); marcarGenerado(id); renderTodo(); }
+    document.addEventListener('click', cerrarRowMenu);
+    window.addEventListener('scroll', cerrarRowMenu, true);
+
+    // ═══ Avatares de iniciales (post-render, sin tocar las plantillas) ═══
+    function decorarAvatares(scope){
+        (scope||document).querySelectorAll('.guest-name:not(.guest-missing):not(.guest-empty):not([data-av])').forEach(el=>{
+            const name=(el.textContent||'').trim();
+            if(!name || name==='—') return;
+            const ini=name.split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+            if(!ini) return;
+            el.setAttribute('data-av','1');
+            const av=document.createElement('span'); av.className='reg-avatar'; av.textContent=ini;
+            el.insertBefore(av, el.firstChild);
+        });
+    }
+
     function renderTodo() {
+        buildWeekStrip();
         if(tabActual === "historial") {
             renderHistorial();
         } else {
@@ -4178,6 +4292,7 @@
         // Override: deptos con mensaje de texto por correo (TULES) → flujo "correo" aunque
         // el registro se haya guardado como "pdf" en la BD.
         if(tieneCorreoMsg(r.depto||'')) tipoEf = "correo";
+        const _verbo = (tipoEf==='gforms'||tipoEf==='frakcio') ? 'enviado' : 'generado';
         // Selector de idioma para templates peninsula/alamar (se inserta al inicio de las acciones)
         const idiomaBtn = necesitaSelectorIdioma(r)
           ? `<button class="btn btn-outline-white" data-idioma-btn="${r.id}" onclick="event.stopPropagation();toggleIdioma('${r.id}')" title="${getIdiomaRegistro(r.id)==='es'?'Idioma: Español (click para EN)':'Language: English (click for ES)'}" style="min-width:44px;font-weight:600;font-size:11px;padding:6px 10px"><i class="ph-bold ph-translate"></i> ${getIdiomaRegistro(r.id).toUpperCase()}</button>`
@@ -4322,7 +4437,7 @@
                     <span class="depto-type">${fmtFecha(r.fecha_entrada)} → ${fmtFecha(r.fecha_salida)} · ${r.num_adultos||0}A${(r.num_menores||0)>0?" "+(r.num_menores)+"N":""}</span>
                 </div>
                 ${nombre}
-                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${_chatBtnHTML(r._origen||'', r._codAir||'')}${accion}</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${_chatBtnHTML(r._origen||'', r._codAir||'')}${accion}${!r.pdf_generado?`<button class="kebab-btn" title="Marcar manualmente" onclick="event.stopPropagation();openRowMenu(event,'${r.id}','${_verbo}')"><i class="ph-bold ph-dots-three-vertical"></i></button>`:''}</div>
                 <button class="chevron-btn" id="chev-${r.id}" onclick="toggleDetalle('${r.id}')">
                     <i class="ph ph-caret-down"></i>
                 </button>
@@ -4353,7 +4468,7 @@
 
         // Mapear tab a rango de días
         const rangoMap = { hoy:[0,0], ayer:[-1,-1], manana:[1,1], semana:[1,4] };
-        const rango = rangoMap[tabActual] || [0,0];
+        const rango = tabActual==='dia' ? [diaSel,diaSel] : (rangoMap[tabActual] || [0,0]);
 
         const hoyBase = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Mexico_City"})); hoyBase.setHours(0,0,0,0);
         let html = "";
@@ -4633,13 +4748,18 @@
         }
 
         body.innerHTML = html;
+        decorarAvatares(body);
 
         // Actualizar header del panel
         const hoyD = new Date(); hoyD.setHours(0,0,0,0);
         const tabD = new Date(hoyD); tabD.setDate(hoyD.getDate()+rango[0]);
         const MESES_L2 = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
         const titleMap = { hoy:`HOY — ${tabD.getDate()} ${MESES_L2[tabD.getMonth()]}`, ayer:`AYER — ${tabD.getDate()} ${MESES_L2[tabD.getMonth()]}`, manana:`MAÑANA — ${tabD.getDate()} ${MESES_L2[tabD.getMonth()]}`, semana:`PRÓXIMOS 4 DÍAS` };
-        document.getElementById('list-main-title').textContent = titleMap[tabActual]||"";
+        const _dowT=['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'][tabD.getDay()];
+        const _lblDia = diaSel===0?'HOY':diaSel===-1?'AYER':diaSel===1?'MAÑANA':_dowT;
+        document.getElementById('list-main-title').textContent = tabActual==='dia'
+            ? `${_lblDia} — ${tabD.getDate()} ${MESES_L2[tabD.getMonth()]}`
+            : (titleMap[tabActual]||"");
         document.getElementById('badge-entradas-hdr').textContent = totalEntradas + " entrada" + (totalEntradas!==1?"s":"");
         const pb = document.getElementById('badge-pendientes-hdr');
         pb.style.display="none"; // badge quitado, está en boxes de arriba
@@ -4698,6 +4818,7 @@
             window._regAnt=antiguos;
         }
         body.innerHTML=html;
+        decorarAvatares(body);
         document.getElementById('badge-entradas-hdr').textContent=lista.length+" total";
         const pc=lista.filter(r=>!r.pdf_generado).length;
         const pb=document.getElementById('badge-pendientes-hdr');
@@ -11673,6 +11794,13 @@ function updateNotifBadge(){
             // La ola YA NO sigue el mouse (se quito para ahorrar RAM/bateria): sin raycaster, sin hitPlane
             // y sin listeners de mouse/touch. En cada frame solo se calcula la ola senoidal.
             document.addEventListener('visibilitychange', onVisibilityChange);
+            // Congela la ola mientras se hace scroll (evita recomponer el desenfoque del fondo animado) -> scroll fluido.
+            let _scrollTO=null;
+            window.addEventListener('scroll', function(){
+                if(running){ running=false; }
+                clearTimeout(_scrollTO);
+                _scrollTO=setTimeout(function(){ if(!document.hidden && !running){ running=true; lastFrame=0; animate(); } }, 200);
+            }, {passive:true, capture:true});
         }
 
         function createInstancedWave() {
