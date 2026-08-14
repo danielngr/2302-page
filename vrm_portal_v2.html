@@ -4183,17 +4183,9 @@
     function verHistorial(btn){ tabActual='historial'; if(btn) btn.classList.add('active'); renderTodo(); }
 
     // ═══ Marcar generado/enviado manualmente (menú discreto ⋯, dos pasos) ═══
-    function _ensureRowMenu(){
-        let m=document.getElementById('rowMenu');
-        if(!m){
-            const bd=document.createElement('div'); bd.id='rowMenuBackdrop';
-            bd.style.cssText='position:fixed;inset:0;z-index:9998;display:none;background:transparent';
-            bd.addEventListener('click', cerrarRowMenu);
-            document.body.appendChild(bd);
-            m=document.createElement('div'); m.id='rowMenu'; document.body.appendChild(m);
-        }
-        return m;
-    }
+    function _ensureRowMenu(){ let m=document.getElementById('rowMenu'); if(!m){ m=document.createElement('div'); m.id='rowMenu'; document.body.appendChild(m); } return m; }
+    // Cierra el menú en el SIGUIENTE clic (donde sea) o al hacer scroll. Un solo uso, se auto-remueve.
+    function _armCloseMenu(){ setTimeout(function(){ document.addEventListener('click', cerrarRowMenu, {once:true}); window.addEventListener('scroll', cerrarRowMenu, {once:true, capture:true}); }, 0); }
     function _placeRowMenu(m, ev){
         const btn=ev.currentTarget||ev.target;
         const r=btn.getBoundingClientRect();
@@ -4209,7 +4201,7 @@
         const m=_ensureRowMenu();
         m.innerHTML=`<div class="rm-hint">Acción manual</div>
             <div class="rm-item" onclick="marcarManual('${id}')"><i class="ph-bold ph-check"></i> Marcar como ${verbo} manualmente</div>`;
-        _placeRowMenu(m, ev); m.classList.add('open'); const _bd=document.getElementById('rowMenuBackdrop'); if(_bd) _bd.style.display='block';
+        _placeRowMenu(m, ev); m.classList.add('open'); _armCloseMenu();
     }
     // ⋮ en filas SIN registro: crea un registro mínimo ya hecho (sale de pendientes)
     function openRowMenuSR(ev, depto, fiso, fout, tipo, verbo){
@@ -4218,9 +4210,9 @@
         const oc = 'marcarManualSR('+JSON.stringify(depto)+','+JSON.stringify(fiso)+','+JSON.stringify(fout||'')+','+JSON.stringify(tipo||'')+')';
         m.innerHTML=`<div class="rm-hint">Acción manual · sin registro</div>
             <div class="rm-item" onclick='${oc}'><i class="ph-bold ph-check"></i> Marcar como ${verbo} manualmente</div>`;
-        _placeRowMenu(m, ev); m.classList.add('open'); const _bd=document.getElementById('rowMenuBackdrop'); if(_bd) _bd.style.display='block';
+        _placeRowMenu(m, ev); m.classList.add('open'); _armCloseMenu();
     }
-    function cerrarRowMenu(){ const m=document.getElementById('rowMenu'); if(m) m.classList.remove('open'); const bd=document.getElementById('rowMenuBackdrop'); if(bd) bd.style.display='none'; }
+    function cerrarRowMenu(){ const m=document.getElementById('rowMenu'); if(m) m.classList.remove('open'); }
     function marcarManual(id){ cerrarRowMenu(); marcarGenerado(id); renderTodo(); }
     async function marcarManualSR(depto, fiso, fout, tipo){
         cerrarRowMenu();
@@ -4238,7 +4230,7 @@
             renderTodo();
         }catch(e){ toast('\u274C No se pudo marcar: '+(e.message||e)); }
     }
-    document.addEventListener('click', cerrarRowMenu);
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape') cerrarRowMenu(); });
     window.addEventListener('scroll', cerrarRowMenu, true);
 
     // ═══ Avatares de iniciales (post-render, sin tocar las plantillas) ═══
