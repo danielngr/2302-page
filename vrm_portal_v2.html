@@ -3832,6 +3832,33 @@
       'CABO 903': 'ALAMAR 903',
     };
 
+    // Alias de MIGRACIÓN de nombres: el registro del huésped se guardó con el nombre
+    // VIEJO (época Drive) y la reserva ahora llega con el nombre canónico NUEVO (Supabase).
+    // matchReg pasa AMBOS lados por aquí para volver a cruzarlos. (viejo → canónico actual)
+    const REG_MATCH_ALIAS = {
+      'ALBATROS 301 A': 'ALBATROS 301A',
+      'VENETIAN 1010 T3': 'VENETIAN T3 1010',
+      'VENETIAN 905 T3': 'VENETIAN T3 905',
+      'VENETIAN 906 T3': 'VENETIAN T3 906',
+      'VENETIAN 1903 T3': 'VENETIAN T3 1903',
+      'DELTA 2 101': 'ALAMAR DELTA 2 101',
+      'ARIA 1001': 'ARIA PH 1001',
+      'ALAMAR 903': 'ALAMAR CABO 903',
+      'MARITIMA GOLF LW1': 'MARITIMA GOLF LW1B',
+      'PUERTARENA': 'PUERTA ARENA 16D',
+      'ARCANO': 'ARCANO 203',
+      'MARINA SOL': 'MARINA SOL 405A',
+      'PLAYA ESMERALDA': 'PLAYA ESMERALDA 303',
+      'ZANTAMAR': 'ZANTAMAR 109B',
+      'XIKIRI': 'XIKIRI 504',
+      'MARSALA': 'MARSALA 104',
+      'FLAMINGOS': 'FLAMINGOS 27',
+      'AMOARA': 'AMOARA 301',
+      'TULES 19 1301': 'TULES 19-1301',
+      'TULES 20 105': 'TULES 20-105',
+      'TULES 15 143': 'TULES 15-143',
+    };
+
     function getTmpl(depto) {
         let d = (depto||"").toUpperCase().trim();
         // Aplicar alias canónico ANTES de buscar template (ARIA 1001 → ARIA PH 1001, etc.)
@@ -3846,7 +3873,11 @@
     // Unifica variantes: "ARIA 1001" se muestra como "ARIA PH 1001".
     function displayDepto(depto) {
         const d = (depto||"").toUpperCase().trim();
-        return REG_DEPTO_ALIAS.hasOwnProperty(d) ? REG_DEPTO_ALIAS[d] : (depto||"—");
+        if (REG_DEPTO_ALIAS.hasOwnProperty(d)) return REG_DEPTO_ALIAS[d];
+        // Muestra el nombre canónico nuevo aunque el registro tenga el nombre viejo (Drive).
+        const dn = d.replace(/[-\s]+/g,' ').trim();
+        if (REG_MATCH_ALIAS.hasOwnProperty(dn)) return REG_MATCH_ALIAS[dn];
+        return depto||"—";
     }
 
     // ── Sincronizar iCals on-demand (invoca la Edge Function sync-icals) ──
@@ -4498,12 +4529,14 @@
             totalEntradas += ents.length;
 
             function matchReg(depto){
-                // Normaliza guiones y espacios como equivalentes para que
-                // "TULES 20-105" empareje con "TULES 20 105" (y viceversa).
+                // Normaliza guiones/espacios Y aplica el alias de migración (nombre viejo del
+                // Drive → nombre canónico de Supabase) en AMBOS lados, para que un registro
+                // guardado con el nombre viejo vuelva a cruzar con la reserva actual.
                 const norm = s => (s||'').toUpperCase().replace(/[-\s]+/g,' ').trim();
-                const d = norm(depto);
+                const canon = s => { const u=norm(s); return REG_MATCH_ALIAS[u] ? norm(REG_MATCH_ALIAS[u]) : u; };
+                const d = canon(depto);
                 return todosRegistros.find(x=>{
-                    const xd = norm(x.depto);
+                    const xd = canon(x.depto);
                     return (xd===d||xd.startsWith(d+' ')||d.startsWith(xd+' '))&&x.fecha_entrada===fiso;
                 });
             }
