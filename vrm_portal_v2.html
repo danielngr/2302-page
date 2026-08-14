@@ -2720,6 +2720,36 @@
                     </div>
                 </div>
 
+                <!-- PANEL QUINCENAL (contrato: Marichuy, Ana, Lola, Rebe) -->
+                <div class="glass-panel" id="quin-panel" style="margin-top:16px;border-radius:var(--radius-lg);padding:0;overflow:hidden">
+                    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06);flex-wrap:wrap">
+                        <div>
+                            <div style="font-family:var(--font-display);font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px">
+                                <i class="ph-bold ph-calendar-check" style="color:var(--accent-terracota)"></i> Quincenal · Contrato
+                                <span style="font-size:9px;background:rgba(224,122,62,.15);color:var(--accent-terracota);border:1px solid rgba(224,122,62,.35);border-radius:100px;padding:2px 8px;font-family:var(--font-mono);letter-spacing:.5px">4 CHICAS</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
+                                <button class="btn btn-ghost" onclick="quinCambiar(-1)" style="padding:3px 10px;font-size:13px">‹</button>
+                                <div class="nom-periodo" id="quin-label">—</div>
+                                <button class="btn btn-ghost" onclick="quinCambiar(1)" style="padding:3px 10px;font-size:13px">›</button>
+                                <span id="quin-pago" style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono)"></span>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Cifra del contrato (contadores)</label>
+                            <div style="display:flex;gap:6px;align-items:center">
+                                <span style="color:var(--text-tertiary);font-family:var(--font-mono)">$</span>
+                                <input id="quin-cifra" type="number" step="0.01" placeholder="0.00"
+                                    style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-family:var(--font-mono);font-size:14px;width:120px;outline:none">
+                                <button class="btn btn-outline-white" onclick="guardarCifraContrato()" style="font-size:11px"><i class="ph-bold ph-check"></i> Guardar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="quin-body" style="padding:8px 0">
+                        <div style="padding:30px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando…</div>
+                    </div>
+                </div>
+
                 <!-- Acordeón staff -->
                 <div class="list-container glass-panel" style="margin-bottom:24px">
                     <div class="list-body" id="nom-body">
@@ -3658,6 +3688,16 @@
     const SUPABASE_KEY = "sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm";
     const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbPcCF6EoM93GIga20ntKOsuys9KLp4gkG2czTR4qyy_nASRil8qURTuceB_Rw5PEMR_us7EpQNADX/pub?gid=220927923&single=true&output=csv";
     const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+    // ── Nómina QUINCENAL (contrato): Marichuy, Ana, Lola, Rebe ──
+    // Estas 4 salen de la nómina SEMANAL y se pagan cada quincena (15 y 30):
+    // suma de sus limpiezas no pagadas − cifra del contrato = diferencia a pagar.
+    const QUINCENAL_IDS = [
+        "78f71521-db71-44e9-80c1-20e0c6197d1c", // MARICHUY (Maria de Jesus Soberanis Flores)
+        "6a616874-29bd-4f01-b975-b786a6137175", // ANA (Ana Isabel Hernandez Morales) — NO Ana Bertha
+        "676500ec-30a6-4ce9-bdbf-09eeebb26ec1", // LOLA (Maria Dolores Espinoza Lopez)
+        "80754d65-5ffc-430f-9d2a-6a344988b39a"  // REBE (Maria Rebeca Villalvazo Alvarado)
+    ];
+    const QUINCENAL_SET = new Set(QUINCENAL_IDS);
     // Helper: fecha actual en zona horaria de México (donde están los deptos)
     function getMXDate(offsetDias = 0) {
         const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Mexico_City"}));
@@ -7661,7 +7701,8 @@
 
         let totalGlobal = 0;
 
-        const html = staff.map(s => {
+        // Las 4 quincenales (contrato) NO van en la nómina semanal: tienen su panel aparte.
+        const html = staff.filter(s => !QUINCENAL_SET.has(s.id)).map(s => {
             const misLimp = limpiezas.filter(l => l.staff_id===s.id);
             const misAjustes = ajustes.filter(a => a.staff_id===s.id);
             const totalLimp = misLimp.reduce((acc,l) => acc+(parseFloat(l.tarifa_aplicada)||0), 0);
@@ -7757,6 +7798,179 @@
         // Sincronizar Dispersión (misma semana) para que "Generar Excel" y "Enviar a Telegram" usen estos datos
         dispSemanaOffset = nomOffset;
         dispCargar();
+
+        // Asegurar que las 4 quincenales queden EXCLUIDAS del Excel semanal del servidor
+        // (disparar-nomina respeta nomina_exclusiones), para que no se les pague doble.
+        _ensureExclQuincenal(viernesISO);
+        // Refrescar panel quincenal
+        if(typeof cargarQuincenal === 'function') cargarQuincenal();
+    }
+
+    // Inserta (idempotente) a las 4 quincenales en nomina_exclusiones para la semana dada,
+    // así el Excel semanal del servidor las omite. Se llama en cada carga de nómina.
+    async function _ensureExclQuincenal(viernesISO){
+        try{
+            await fetch(`${SUPABASE_URL}/rest/v1/nomina_exclusiones?on_conflict=semana_inicio,staff_id`, {
+                method:"POST", keepalive:true,
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"resolution=ignore-duplicates,return=minimal"},
+                body: JSON.stringify(QUINCENAL_IDS.map(id => ({ semana_inicio: viernesISO, staff_id: id })))
+            });
+        }catch(e){ /* silencioso: el filtro de la vista ya las oculta */ }
+    }
+
+    // ══════════════════════════════════════════════════════
+    // NÓMINA QUINCENAL (contrato: Marichuy, Ana, Lola, Rebe)
+    // Suma de sus limpiezas NO pagadas (terminada) hasta el día de pago
+    // − cifra del contrato = diferencia a pagar. Lo posterior al día de
+    // pago se arrastra a la siguiente quincena.
+    // ══════════════════════════════════════════════════════
+    let quinOffset = 0; // 0 = quincena en curso (la próxima por pagar)
+
+    function _quinISO(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dd}`; }
+    // Un día de pago (15 o 30) que cae en sáb/dom se recorre al viernes anterior
+    function _quinAjusteFinDe(d){ const g=d.getDay(); const r=new Date(d); if(g===6) r.setDate(d.getDate()-1); else if(g===0) r.setDate(d.getDate()-2); return r; }
+    // Índice de quincena de hoy (día ≤ 15 → Q1, si no Q2)
+    function _quinBaseIdx(){ const h=new Date(); h.setHours(0,0,0,0); return h.getFullYear()*24 + h.getMonth()*2 + (h.getDate()<=15 ? 0 : 1); }
+
+    function quincenaPorOffset(off){
+        const idx = _quinBaseIdx() + off;
+        const y = Math.floor(idx/24); const rem = idx - y*24; const m = Math.floor(rem/2); const half = (rem%2)+1;
+        const last = new Date(y, m+1, 0).getDate();
+        const inicioD = half===1 ? 1 : 16;
+        const finD    = half===1 ? 15 : last;
+        const payDay  = half===1 ? 15 : Math.min(30, last);
+        const payNom  = new Date(y, m, payDay);
+        const payEff  = _quinAjusteFinDe(payNom);
+        const finDe   = (payEff.getTime() !== payNom.getTime());
+        return {
+            y, m, half,
+            key: `${y}-${String(m+1).padStart(2,'0')}-Q${half}`,
+            label: `${inicioD}–${finD} ${MESES[m]} ${y}`,
+            inicioISO: _quinISO(new Date(y,m,inicioD)),
+            finISO:    _quinISO(new Date(y,m,finD)),
+            payEffISO: _quinISO(payEff),
+            payLabel:  `${payEff.getDate()} ${MESES[payEff.getMonth()]}` + (finDe ? ` (el ${payDay} cae finde)` : '')
+        };
+    }
+
+    function quinCambiar(d){ quinOffset += d; cargarQuincenal(); }
+
+    async function cargarQuincenal(){
+        const body = document.getElementById('quin-body');
+        if(!body) return;
+        const q = quincenaPorOffset(quinOffset);
+        const lbl = document.getElementById('quin-label'); if(lbl) lbl.textContent = q.label;
+        const pg  = document.getElementById('quin-pago');  if(pg)  pg.textContent = `· pago: ${q.payLabel}`;
+
+        const idsIn = `(${QUINCENAL_IDS.join(',')})`;
+        const [resLimp, resCifra, resStaff] = await Promise.all([
+            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=lte.${q.finISO}&select=staff_id,depto_codigo,fecha,tarifa_aplicada&order=fecha.asc`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/nomina_contrato_quincenal?periodo=eq.${q.key}&select=monto`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?id=in.${idsIn}&select=id,nombre`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            })
+        ]);
+        const limp  = resLimp.ok  ? await resLimp.json()  : [];
+        const cRows = resCifra.ok ? await resCifra.json() : [];
+        const staff = resStaff.ok ? await resStaff.json() : [];
+        const cifra = cRows.length ? (parseFloat(cRows[0].monto)||0) : 0;
+
+        const inp = document.getElementById('quin-cifra');
+        if(inp && document.activeElement !== inp) inp.value = cifra ? cifra : '';
+
+        const nombreDe = {}; staff.forEach(s => { nombreDe[s.id] = s.nombre; });
+
+        // A pagar: fecha ≤ día de pago. Arrastre: día de pago < fecha ≤ fin del periodo.
+        const aPagar   = limp.filter(l => l.fecha <= q.payEffISO);
+        const arrastre = limp.filter(l => l.fecha >  q.payEffISO);
+
+        const porChica = {};
+        QUINCENAL_IDS.forEach(id => porChica[id] = { total:0, n:0 });
+        aPagar.forEach(l => { const p = porChica[l.staff_id]; if(p){ p.total += parseFloat(l.tarifa_aplicada)||0; p.n++; } });
+        const totalLimp = Object.values(porChica).reduce((a,p)=>a+p.total, 0);
+        const diferencia = totalLimp - cifra;
+
+        const filas = QUINCENAL_IDS.map(id => {
+            const p = porChica[id]; const nom = nombreDe[id] || '—';
+            return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid rgba(255,255,255,.04)">
+                <div style="font-size:13px;font-weight:600">${nom}</div>
+                <div style="text-align:right">
+                    <span style="font-family:var(--font-mono);font-size:13px;color:var(--text-secondary)">$${p.total.toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
+                    <span style="font-size:10px;color:var(--text-tertiary);margin-left:6px">${p.n} limp.</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        const arrTotal = arrastre.reduce((a,l)=>a+(parseFloat(l.tarifa_aplicada)||0), 0);
+        const arrHtml = arrastre.length ? `<div style="margin:10px 20px 0;padding:10px 14px;background:rgba(224,122,62,.08);border:1px solid rgba(224,122,62,.2);border-radius:10px;font-size:11px;color:var(--accent-terracota)">
+            <i class="ph-bold ph-arrow-fat-right"></i> ${arrastre.length} limpieza${arrastre.length!==1?'s':''} después del día de pago ($${arrTotal.toLocaleString('es-MX',{minimumFractionDigits:2})}) se <b>arrastran a la siguiente quincena</b>.
+        </div>` : '';
+
+        const cifraStr = cifra ? '−$'+cifra.toLocaleString('es-MX',{minimumFractionDigits:2}) : '<span style="color:var(--status-red)">falta capturar</span>';
+        const difColor = diferencia >= 0 ? 'var(--status-green)' : 'var(--status-red)';
+        const resumen = `<div style="margin:12px 20px 16px;padding:14px 16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:6px"><span>Total limpiezas (4 chicas)</span><span style="font-family:var(--font-mono)">$${totalLimp.toLocaleString('es-MX',{minimumFractionDigits:2})}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:6px"><span>− Cifra del contrato</span><span style="font-family:var(--font-mono)">${cifraStr}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;border-top:1px solid rgba(255,255,255,.1);padding-top:8px;margin-top:4px"><span>Diferencia a pagar</span><span style="font-family:var(--font-mono);color:${difColor}">$${diferencia.toLocaleString('es-MX',{minimumFractionDigits:2})}</span></div>
+        </div>`;
+
+        const disAttr = totalLimp<=0 ? 'disabled' : '';
+        const accion = `<div style="padding:0 20px 16px;display:flex;justify-content:flex-end">
+            <button class="btn btn-outline-white" onclick="liquidarQuincena()" style="font-size:11px${totalLimp<=0?';opacity:.4':''}" ${disAttr}><i class="ph-bold ph-check-circle"></i> Liquidar quincena</button>
+        </div>`;
+
+        body.innerHTML = filas + arrHtml + resumen + accion;
+    }
+
+    async function guardarCifraContrato(){
+        const q = quincenaPorOffset(quinOffset);
+        const inp = document.getElementById('quin-cifra');
+        const monto = parseFloat(inp?.value);
+        if(isNaN(monto) || monto < 0){ toast('⚠️ Ingresa una cifra válida'); return; }
+        try{
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/nomina_contrato_quincenal?on_conflict=periodo`, {
+                method:"POST",
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates,return=minimal"},
+                body: JSON.stringify({ periodo: q.key, monto })
+            });
+            if(!res.ok){ const t=await res.text(); toast('⚠️ No se guardó: '+t.substring(0,80)); return; }
+            toast(`✓ Cifra guardada para ${q.label}`);
+            cargarQuincenal();
+        }catch(e){ toast('⚠️ Error: '+(e.message||e)); }
+    }
+
+    async function liquidarQuincena(){
+        const q = quincenaPorOffset(quinOffset);
+        const idsIn = `(${QUINCENAL_IDS.join(',')})`;
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=lte.${q.payEffISO}&select=tarifa_aplicada`, {
+            headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+        });
+        const limp = res.ok ? await res.json() : [];
+        const totalLimp = limp.reduce((a,l)=>a+(parseFloat(l.tarifa_aplicada)||0), 0);
+        if(!limp.length){ toast('No hay limpiezas por liquidar en esta quincena'); return; }
+
+        const resC = await fetch(`${SUPABASE_URL}/rest/v1/nomina_contrato_quincenal?periodo=eq.${q.key}&select=monto`, {
+            headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+        });
+        const cRows = resC.ok ? await resC.json() : [];
+        const cifra = cRows.length ? (parseFloat(cRows[0].monto)||0) : 0;
+        if(!cifra){ if(!confirm('⚠️ No has capturado la cifra del contrato de esta quincena.\n\n¿Liquidar de todos modos? La diferencia se calcularía SIN descuento.')) return; }
+        const dif = totalLimp - cifra;
+        if(!confirm(`¿Liquidar quincena ${q.label}?\n\nLimpiezas de las 4: $${totalLimp.toLocaleString('es-MX',{minimumFractionDigits:2})}\n− Contrato: $${cifra.toLocaleString('es-MX',{minimumFractionDigits:2})}\n= Diferencia a pagar: $${dif.toLocaleString('es-MX',{minimumFractionDigits:2})}\n\nSe marcarán como PAGADAS ${limp.length} limpieza(s). Lo posterior al día de pago se queda para la siguiente quincena.`)) return;
+
+        toast('⏳ Liquidando quincena…');
+        const patch = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=lte.${q.payEffISO}`, {
+            method:"PATCH", keepalive:true,
+            headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+            body: JSON.stringify({ estatus:"pagada" })
+        });
+        if(!patch.ok){ const t=await patch.text(); toast('⚠️ No se pudo liquidar: '+t.substring(0,80)); return; }
+        toast('✅ Quincena liquidada');
+        cargarQuincenal();
     }
 
     // Excluir/incluir una chica del Excel de ESTA semana (fiscal). No borra nada permanente.
@@ -7898,9 +8112,12 @@
         const fmtD = d => `${d.getDate()} ${MESES[d.getMonth()]}`;
         const labelSem = `${fmtD(semPasada.viernes)} — ${fmtD(semPasada.jueves)}`;
 
+        // Las 4 quincenales NO se liquidan en semanal (se pagan por quincena)
+        const _qExcl = `&staff_id=not.in.(${QUINCENAL_IDS.join(',')})`;
+
         // Contar limpiezas a liquidar
         const resCount = await fetch(
-            `${SUPABASE_URL}/rest/v1/limpiezas?estatus=in.(terminada,pagada)&fecha=gte.${viernesISO}&fecha=lte.${juevesISO}&select=tarifa_aplicada`,
+            `${SUPABASE_URL}/rest/v1/limpiezas?estatus=in.(terminada,pagada)&fecha=gte.${viernesISO}&fecha=lte.${juevesISO}${_qExcl}&select=tarifa_aplicada`,
             { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} }
         );
         const limp = await resCount.json();
@@ -7918,8 +8135,8 @@
 
         toast("⏳ Procesando liquidación...");
 
-        // Solo limpiezas con fecha dentro de la semana cerrada (≤ jueves)
-        await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&fecha=gte.${viernesISO}&fecha=lte.${juevesISO}`, {
+        // Solo limpiezas con fecha dentro de la semana cerrada (≤ jueves), EXCLUYENDO a las 4 quincenales
+        await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&fecha=gte.${viernesISO}&fecha=lte.${juevesISO}${_qExcl}`, {
             method:"PATCH", keepalive:true,
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
             body:JSON.stringify({estatus:"pagada"})
@@ -11326,6 +11543,7 @@ function updateNotifBadge(){
         // Construir lista — solo chicas con monto > 0 o fijos
         dispPersonas = [];
         staff.forEach(s => {
+            if(QUINCENAL_SET.has(s.id)) return; // las 4 quincenales van en su panel, no en el Excel semanal
             const base = montosPorStaff[s.id] || 0;
             const montoFinal = s.es_fijo ? (parseFloat(s.monto_fijo) || 0) : base;
             if(montoFinal > 0) {   // igual que el .py: omite si <= 0 (incluye fijos sin monto)
