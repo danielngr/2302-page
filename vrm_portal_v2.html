@@ -8062,6 +8062,16 @@
                 ws['E'+r]=Object.assign({},styleE2,{t:'s',v:'Transferencia ',w:'Transferencia '});
             });
             ws['!ref']=`A1:E${ordenadas.length+1}`;
+            // Anchos de columna explícitos para que NO salgan apachurradas
+            // (SheetJS no siempre conserva los anchos de la plantilla al reescribir)
+            const _maxNom = Math.max(24, ...ordenadas.map(p => (p.nombre_completo||'').length));
+            ws['!cols'] = [
+                { wch: 22 },          // A · cuenta
+                { wch: 20 },          // B · banco
+                { wch: _maxNom + 2 }, // C · nombre completo
+                { wch: 14 },          // D · monto
+                { wch: 16 }           // E · tipo (Transferencia)
+            ];
 
             const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
             const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
