@@ -7840,7 +7840,9 @@
     function _quinFromIdx(idx){
         const y = Math.floor(idx/24); const rem = idx - y*24; const m = Math.floor(rem/2); const half = (rem%2)+1;
         const last = new Date(y, m+1, 0).getDate();
-        const payDay = half===1 ? 15 : Math.min(30, last);
+        // Día de pago = fin de la quincena: 15 (1ª) o el ÚLTIMO día del mes (2ª).
+        // Así el 31 pertenece a su propio mes (no se arrastra al siguiente).
+        const payDay = half===1 ? 15 : last;
         const payNom = new Date(y, m, payDay);
         const payEff = _quinAjusteFinDe(payNom);
         return { y, m, half, last, payDay, payNom, payEff };
@@ -7885,7 +7887,7 @@
         if(!body) return;
         const q = quincenaPorOffset(quinOffset);
         const lbl = document.getElementById('quin-label'); if(lbl) lbl.textContent = q.label;
-        const pg  = document.getElementById('quin-pago');  if(pg)  pg.textContent = `· cuenta ${q.desdeLabel} → pago ${q.payLabel}`;
+        const pg  = document.getElementById('quin-pago');  if(pg)  pg.textContent = `· se paga ${q.payLabel}`;
 
         const idsIn = `(${QUINCENAL_IDS.join(',')})`;
         const [resLimp, resCifra, resStaff] = await Promise.all([
@@ -7909,7 +7911,8 @@
 
         const chicaDe = {}; staff.forEach(s => { chicaDe[s.id] = s; });
 
-        // A pagar: fecha ≤ día de pago. Arrastre: día de pago < fecha ≤ fin del periodo.
+        // A pagar: hasta el día de pago (fin de quincena). Si el día de pago cae en finde
+        // y se recorre al viernes, lo que limpien ese finde se ARRASTRA a la siguiente quincena.
         const aPagar   = limp.filter(l => l.fecha <= q.payEffISO);
         const arrastre = limp.filter(l => l.fecha >  q.payEffISO);
 
@@ -7957,7 +7960,7 @@
 
         const arrTotal = arrastre.reduce((a,l)=>a+(parseFloat(l.tarifa_aplicada)||0), 0);
         const arrHtml = arrastre.length ? `<div style="margin:10px 20px 0;padding:10px 14px;background:rgba(224,122,62,.08);border:1px solid rgba(224,122,62,.2);border-radius:10px;font-size:11px;color:var(--accent-terracota)">
-            <i class="ph-bold ph-arrow-fat-right"></i> ${arrastre.length} limpieza${arrastre.length!==1?'s':''} después del día de pago ($${arrTotal.toLocaleString('es-MX',{minimumFractionDigits:2})}) se <b>arrastran a la siguiente quincena</b>.
+            <i class="ph-bold ph-arrow-fat-right"></i> ${arrastre.length} limpieza${arrastre.length!==1?'s':''} en finde (después del día de pago, $${arrTotal.toLocaleString('es-MX',{minimumFractionDigits:2})}) se <b>arrastran a la siguiente quincena</b> — no se pagan en sábado/domingo.
         </div>` : '';
 
         // Sin total de grupo: cada quien es cuenta aparte. Solo una nota de contexto.
@@ -8010,7 +8013,7 @@
         if(!cifra){ if(!confirm('⚠️ No has capturado el contrato de esta quincena.\n\n¿Liquidar de todos modos? El efectivo se calcularía SIN descuento.')) return; }
         // Efectivo = suma de (limpiezas de cada chica − contrato), sin bajar de 0
         const totalPagar = QUINCENAL_IDS.reduce((a,id)=> a + Math.max(0, (cifra ? porChica[id]-cifra : porChica[id])), 0);
-        if(!confirm(`¿Liquidar quincena ${q.label}?\n\nLimpiezas de las 4: $${totalLimp.toLocaleString('es-MX',{minimumFractionDigits:2})}\n− Contrato $${cifra.toLocaleString('es-MX',{minimumFractionDigits:2})} a CADA una (×${QUINCENAL_IDS.length})\n= Total a pagar en efectivo: $${totalPagar.toLocaleString('es-MX',{minimumFractionDigits:2})}\n\nSe marcarán como PAGADAS ${limp.length} limpieza(s). Lo posterior al día de pago se queda para la siguiente quincena.`)) return;
+        if(!confirm(`¿Liquidar quincena ${q.label}?\n\nLimpiezas de las 4: $${totalLimp.toLocaleString('es-MX',{minimumFractionDigits:2})}\n− Contrato $${cifra.toLocaleString('es-MX',{minimumFractionDigits:2})} a CADA una (×${QUINCENAL_IDS.length})\n= Total a pagar en efectivo: $${totalPagar.toLocaleString('es-MX',{minimumFractionDigits:2})}\n\nSe marcarán como PAGADAS las ${limp.length} limpieza(s) hasta el día de pago. Lo del finde (si aplica) se queda para la siguiente quincena.`)) return;
 
         toast('⏳ Liquidando quincena…');
         const patch = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.payEffISO}`, {
