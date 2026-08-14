@@ -267,6 +267,10 @@
         .module { display: none; flex-direction: column; height: 100%; gap: 14px; }
         .module.active { display: flex; }
         #mod-reportes.active { display: block !important; }
+        /* Nómina: el panel quincenal + el acordeón semanal scrollean juntos como una página */
+        #mod-nomina.active { overflow-y: auto; }
+        #mod-nomina .list-container { flex: none; }
+        #mod-nomina .list-body { overflow: visible; }
 
         /* ── Stats ── */
         .stats-grid {
@@ -7832,24 +7836,34 @@
     // Índice de quincena de hoy (día ≤ 15 → Q1, si no Q2)
     function _quinBaseIdx(){ const h=new Date(); h.setHours(0,0,0,0); return h.getFullYear()*24 + h.getMonth()*2 + (h.getDate()<=15 ? 0 : 1); }
 
-    function quincenaPorOffset(off){
-        const idx = _quinBaseIdx() + off;
+    function _quinFromIdx(idx){
         const y = Math.floor(idx/24); const rem = idx - y*24; const m = Math.floor(rem/2); const half = (rem%2)+1;
         const last = new Date(y, m+1, 0).getDate();
-        const inicioD = half===1 ? 1 : 16;
-        const finD    = half===1 ? 15 : last;
-        const payDay  = half===1 ? 15 : Math.min(30, last);
-        const payNom  = new Date(y, m, payDay);
-        const payEff  = _quinAjusteFinDe(payNom);
-        const finDe   = (payEff.getTime() !== payNom.getTime());
+        const payDay = half===1 ? 15 : Math.min(30, last);
+        const payNom = new Date(y, m, payDay);
+        const payEff = _quinAjusteFinDe(payNom);
+        return { y, m, half, last, payDay, payNom, payEff };
+    }
+
+    function quincenaPorOffset(off){
+        const idx  = _quinBaseIdx() + off;
+        const c    = _quinFromIdx(idx);
+        const prev = _quinFromIdx(idx-1); // quincena anterior: su día de pago es el inicio (excl.) de esta
+        const inicioD = c.half===1 ? 1 : 16;
+        const finD    = c.half===1 ? 15 : c.last;
+        const finDe   = (c.payEff.getTime() !== c.payNom.getTime());
+        // El día visible "desde" es el día siguiente al corte anterior
+        const desde = new Date(prev.payEff); desde.setDate(desde.getDate()+1);
         return {
-            y, m, half,
-            key: `${y}-${String(m+1).padStart(2,'0')}-Q${half}`,
-            label: `${inicioD}–${finD} ${MESES[m]} ${y}`,
-            inicioISO: _quinISO(new Date(y,m,inicioD)),
-            finISO:    _quinISO(new Date(y,m,finD)),
-            payEffISO: _quinISO(payEff),
-            payLabel:  `${payEff.getDate()} ${MESES[payEff.getMonth()]}` + (finDe ? ` (el ${payDay} cae finde)` : '')
+            y:c.y, m:c.m, half:c.half,
+            key: `${c.y}-${String(c.m+1).padStart(2,'0')}-Q${c.half}`,
+            label: `${inicioD}–${finD} ${MESES[c.m]} ${c.y}`,
+            inicioISO: _quinISO(new Date(c.y,c.m,inicioD)),
+            finISO:    _quinISO(new Date(c.y,c.m,finD)),
+            payEffISO: _quinISO(c.payEff),
+            windowStartISO: _quinISO(prev.payEff), // cuenta limpiezas con fecha > este día (corte anterior)
+            desdeLabel: `${desde.getDate()} ${MESES[desde.getMonth()]}`,
+            payLabel:  `${c.payEff.getDate()} ${MESES[c.payEff.getMonth()]}` + (finDe ? ` (el ${c.payDay} cae finde)` : '')
         };
     }
 
@@ -7860,11 +7874,11 @@
         if(!body) return;
         const q = quincenaPorOffset(quinOffset);
         const lbl = document.getElementById('quin-label'); if(lbl) lbl.textContent = q.label;
-        const pg  = document.getElementById('quin-pago');  if(pg)  pg.textContent = `· pago: ${q.payLabel}`;
+        const pg  = document.getElementById('quin-pago');  if(pg)  pg.textContent = `· cuenta ${q.desdeLabel} → pago ${q.payLabel}`;
 
         const idsIn = `(${QUINCENAL_IDS.join(',')})`;
         const [resLimp, resCifra, resStaff] = await Promise.all([
-            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=lte.${q.finISO}&select=staff_id,depto_codigo,fecha,tarifa_aplicada&order=fecha.asc`, {
+            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.finISO}&select=staff_id,depto_codigo,fecha,tarifa_aplicada&order=fecha.asc`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
             }),
             fetch(`${SUPABASE_URL}/rest/v1/nomina_contrato_quincenal?periodo=eq.${q.key}&select=monto`, {
@@ -7946,7 +7960,7 @@
     async function liquidarQuincena(){
         const q = quincenaPorOffset(quinOffset);
         const idsIn = `(${QUINCENAL_IDS.join(',')})`;
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=lte.${q.payEffISO}&select=tarifa_aplicada`, {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.payEffISO}&select=tarifa_aplicada`, {
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
         });
         const limp = res.ok ? await res.json() : [];
@@ -7963,7 +7977,7 @@
         if(!confirm(`¿Liquidar quincena ${q.label}?\n\nLimpiezas de las 4: $${totalLimp.toLocaleString('es-MX',{minimumFractionDigits:2})}\n− Contrato: $${cifra.toLocaleString('es-MX',{minimumFractionDigits:2})}\n= Diferencia a pagar: $${dif.toLocaleString('es-MX',{minimumFractionDigits:2})}\n\nSe marcarán como PAGADAS ${limp.length} limpieza(s). Lo posterior al día de pago se queda para la siguiente quincena.`)) return;
 
         toast('⏳ Liquidando quincena…');
-        const patch = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=lte.${q.payEffISO}`, {
+        const patch = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.payEffISO}`, {
             method:"PATCH", keepalive:true,
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
             body: JSON.stringify({ estatus:"pagada" })
