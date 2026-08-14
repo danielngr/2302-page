@@ -7870,6 +7870,16 @@
 
     function quinCambiar(d){ quinOffset += d; cargarQuincenal(); }
 
+    // Abre/cierra el desglose de limpiezas de una chica
+    function quinToggle(id){
+        const d = document.getElementById('quin-det-'+id);
+        const c = document.getElementById('quin-cev-'+id);
+        if(!d) return;
+        const abierto = d.style.display !== 'none';
+        d.style.display = abierto ? 'none' : 'block';
+        if(c) c.style.transform = abierto ? '' : 'rotate(180deg)';
+    }
+
     async function cargarQuincenal(){
         const body = document.getElementById('quin-body');
         if(!body) return;
@@ -7904,8 +7914,8 @@
         const arrastre = limp.filter(l => l.fecha >  q.payEffISO);
 
         const porChica = {};
-        QUINCENAL_IDS.forEach(id => porChica[id] = { total:0, n:0 });
-        aPagar.forEach(l => { const p = porChica[l.staff_id]; if(p){ p.total += parseFloat(l.tarifa_aplicada)||0; p.n++; } });
+        QUINCENAL_IDS.forEach(id => porChica[id] = { total:0, n:0, limps:[] });
+        aPagar.forEach(l => { const p = porChica[l.staff_id]; if(p){ p.total += parseFloat(l.tarifa_aplicada)||0; p.n++; p.limps.push(l); } });
         const cifraPos = cifra > 0;
 
         // Cada chica es una CUENTA SEPARADA: su efectivo = sus limpiezas − su contrato ($cifra).
@@ -7920,16 +7930,28 @@
             const bajo  = cifraPos && neto < 0; // sus limpiezas no llegan al contrato
             const netoColor = !cifraPos ? 'var(--text-tertiary)' : (pagar > 0 ? 'var(--status-green)' : 'var(--text-tertiary)');
             const netoTxt = `$${(cifraPos?pagar:p.total).toLocaleString('es-MX',{minimumFractionDigits:2})}`;
-            return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,.04)">
-                <div style="flex:1;min-width:0">
-                    <div style="font-size:13px;font-weight:600">${nom}</div>
-                    <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-secondary);margin-top:2px">${cuenta} · ${banco}</div>
-                    <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:1px">limpiezas $${p.total.toLocaleString('es-MX',{minimumFractionDigits:2})} · ${p.n} limp.${cifraPos ? ' − contrato $'+cifra.toLocaleString('es-MX',{minimumFractionDigits:2}) : ' · <span style=\"color:var(--status-red)\">falta contrato</span>'}${bajo?' · cubierto por contrato':''}</div>
+            const detRows = p.limps.length
+                ? p.limps.map(l => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 20px 6px 44px;font-size:11px;font-family:var(--font-mono);color:var(--text-secondary);border-bottom:1px solid rgba(255,255,255,.03)">
+                        <span>${l.depto_codigo||'—'} · ${l.fecha}</span>
+                        <span>$${(parseFloat(l.tarifa_aplicada)||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
+                    </div>`).join('')
+                : '<div style="padding:8px 44px;font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)">Sin limpiezas en esta quincena</div>';
+            return `<div style="border-bottom:1px solid rgba(255,255,255,.04)">
+                <div onclick="quinToggle('${id}')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;cursor:pointer">
+                    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+                        <i id="quin-cev-${id}" class="ph ph-caret-down" style="font-size:12px;color:var(--text-tertiary);transition:transform .2s"></i>
+                        <div style="min-width:0">
+                            <div style="font-size:13px;font-weight:600">${nom}</div>
+                            <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-secondary);margin-top:2px">${cuenta} · ${banco}</div>
+                            <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:1px">limpiezas $${p.total.toLocaleString('es-MX',{minimumFractionDigits:2})} · ${p.n} limp.${cifraPos ? ' − contrato $'+cifra.toLocaleString('es-MX',{minimumFractionDigits:2}) : ' · <span style=\"color:var(--status-red)\">falta contrato</span>'}${bajo?' · cubierto por contrato':''}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <div style="text-align:right;font-family:var(--font-mono);font-size:15px;font-weight:700;color:${netoColor}">${netoTxt}</div>
+                        <button class="btn btn-ghost" onclick="event.stopPropagation();navigator.clipboard.writeText('${cuenta}');toast('✓ Cuenta de ${nom} copiada')" style="padding:6px 9px" title="Copiar cuenta"><i class="ph ph-copy"></i></button>
+                    </div>
                 </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                    <div style="text-align:right;font-family:var(--font-mono);font-size:15px;font-weight:700;color:${netoColor}">${netoTxt}</div>
-                    <button class="btn btn-ghost" onclick="navigator.clipboard.writeText('${cuenta}');toast('✓ Cuenta de ${nom} copiada')" style="padding:6px 9px" title="Copiar cuenta"><i class="ph ph-copy"></i></button>
-                </div>
+                <div id="quin-det-${id}" style="display:none;background:rgba(0,0,0,.15)">${detRows}</div>
             </div>`;
         }).join('');
 
