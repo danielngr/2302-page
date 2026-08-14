@@ -4086,9 +4086,10 @@
                         if(!correoRec || !correoRec.enviado) pendientes++;
                     }
                 } else if(tipo === 'gforms') {
-                    const gfRec = (gformsCheckins||[]).find(x =>
+                    const _gfC = (gformsCheckins||[]).filter(x =>
                         x.depto && x.depto.toUpperCase()===entrada.toUpperCase() && x.fecha_entrada===fiso
                     );
+                    const gfRec = _gfC.find(x=>x.maritima_enviado) || _gfC[0];
                     if(!gfRec || !gfRec.maritima_enviado) pendientes++;
                 } else {
                     const d = entrada.toUpperCase();
@@ -4311,6 +4312,17 @@
         return `<a class="btn btn-outline-white" href="${url}" target="_blank" rel="noopener" title="${title}" onclick="event.stopPropagation()" style="min-width:40px;padding:6px 10px"><i class="ph-bold ph-chat-circle-dots"></i></a>`;
     }
 
+    // ¿Este registro ya está "hecho" (generado / form enviado / QR enviado), sea cual sea el tipo?
+    // Se usa para preferir el registro correcto cuando hay DUPLICADOS del mismo depto+fecha
+    // (el huésped llenó el form más de una vez, se corrigió el nombre, etc.).
+    function regEstaHecho(x){
+        if(!x) return false;
+        if(x.pdf_generado) return true;
+        const gf = (gformsCheckins||[]).find(g=>g.id===x.id); if(gf && gf.maritima_enviado) return true;
+        const fk = (frakcioCheckins||[]).find(f=>f.id===x.id); if(fk && fk.frakcio_enviado) return true;
+        return false;
+    }
+
     function itemHTML(r) {
         let accion="";
         // Tipo efectivo: si tipo_formato viene vacío o no es un tipo de acción conocido
@@ -4347,9 +4359,9 @@
             const _tieneMsg = tieneCorreoMsg(r.depto||'');
             accion=`<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-blue" onclick="generarFormato('${r.id}')"><i class="ph-bold ph-chat-teardrop-text"></i> Copiar msg</button>${_tieneMsg ? `<button class="btn btn-outline-yellow" onclick="enviarMsgPorCorreo('${r.id}')"><i class="ph-bold ph-envelope"></i> Enviar</button>` : ''}</div>`;
         } else if(tipoEf==="gforms") {
-            const gfRec = (gformsCheckins||[]).find(x =>
-                x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()&&x.fecha_entrada===(r.fecha_entrada||"")
-            );
+            // Busca el estado gforms del registro EXACTO (por id); ante duplicados, prefiere el enviado.
+            const _gfSame = (gformsCheckins||[]).filter(x=>x.depto&&x.depto.toUpperCase()===(r.depto||"").toUpperCase()&&x.fecha_entrada===(r.fecha_entrada||""));
+            const gfRec = (gformsCheckins||[]).find(x=>x.id===r.id) || _gfSame.find(x=>x.maritima_enviado) || _gfSame[0];
             const gfOk = gfRec && gfRec.maritima_enviado;
             const tieneRegGF = gfRec && gfRec.nombre;
             if(gfOk) {
@@ -4535,10 +4547,13 @@
                 const norm = s => (s||'').toUpperCase().replace(/[-\s]+/g,' ').trim();
                 const canon = s => { const u=norm(s); return REG_MATCH_ALIAS[u] ? norm(REG_MATCH_ALIAS[u]) : u; };
                 const d = canon(depto);
-                return todosRegistros.find(x=>{
+                const cand = todosRegistros.filter(x=>{
                     const xd = canon(x.depto);
                     return (xd===d||xd.startsWith(d+' ')||d.startsWith(xd+' '))&&x.fecha_entrada===fiso;
                 });
+                if(cand.length <= 1) return cand[0];
+                // Duplicados del mismo depto+fecha: prefiere el que YA está hecho para no mostrarlo pendiente.
+                return cand.find(x=>regEstaHecho(x)) || cand[0];
             }
 
             let rowsH="", pend=0;
