@@ -7712,7 +7712,7 @@
             const misAjustes = ajustes.filter(a => a.staff_id===s.id);
             const totalLimp = misLimp.reduce((acc,l) => acc+(parseFloat(l.tarifa_aplicada)||0), 0);
             const totalAjust = misAjustes.reduce((acc,a) => acc+(parseFloat(a.monto)||0), 0);
-            const total = s.es_fijo ? (parseFloat(s.monto_fijo)||0) : (totalLimp + totalAjust); // fijos = monto fijo (igual que el banco)
+            const total = s.es_fijo ? ((parseFloat(s.monto_fijo)||0) + totalAjust) : (totalLimp + totalAjust); // fijos = monto fijo + ajustes (bonos/descuentos)
             const excluida = excluidas.has(String(s.id)); // excluida de ESTA semana (fiscal)
             if(total > 0 && !excluida) totalGlobal += total; // igual que el archivo del banco: omite <= 0 y excluidas
 
@@ -7740,7 +7740,7 @@
                     <div class="nom-avatar">${iniciales}</div>
                     <div style="flex:1">
                         <div class="nom-name">${s.nombre}${excluida?' <span style="font-size:9px;background:rgba(230,57,70,.18);color:var(--status-red);border:1px solid rgba(230,57,70,.35);border-radius:100px;padding:1px 7px;font-family:var(--font-mono);letter-spacing:.5px;vertical-align:middle">EXCLUIDA</span>':''}</div>
-                        <div class="nom-count">${s.es_fijo ? 'FIJO · $'+(parseFloat(s.monto_fijo)||0).toFixed(0) : (misLimp.length+' limpieza'+(misLimp.length!==1?'s':'')+' · '+misAjustes.length+' ajuste'+(misAjustes.length!==1?'s':''))}</div>
+                        <div class="nom-count">${s.es_fijo ? ('FIJO · $'+(parseFloat(s.monto_fijo)||0).toFixed(0)+(misAjustes.length?' · '+misAjustes.length+' ajuste'+(misAjustes.length!==1?'s':''):'')) : (misLimp.length+' limpieza'+(misLimp.length!==1?'s':'')+' · '+misAjustes.length+' ajuste'+(misAjustes.length!==1?'s':''))}</div>
                     </div>
                     <div class="nom-total" style="${excluida?'text-decoration:line-through;color:var(--text-tertiary)':''}">$${total.toFixed(0)}</div>
                     <i class="ph ph-caret-down nom-chevron"></i>
@@ -11670,9 +11670,11 @@ function updateNotifBadge(){
             montosPorStaff[l.staff_id] = (montosPorStaff[l.staff_id]||0) + parseFloat(l.tarifa_aplicada||0);
         });
 
-        // Ajustes
+        // Ajustes (también por separado, para poder aplicarlos a los FIJOS)
+        const ajustesPorStaff = {};
         ajustes.forEach(a => {
             montosPorStaff[a.staff_id] = (montosPorStaff[a.staff_id]||0) + parseFloat(a.monto||0);
+            ajustesPorStaff[a.staff_id] = (ajustesPorStaff[a.staff_id]||0) + parseFloat(a.monto||0);
         });
 
         // Construir lista — solo chicas con monto > 0 o fijos
@@ -11680,7 +11682,8 @@ function updateNotifBadge(){
         staff.forEach(s => {
             if(QUINCENAL_SET.has(s.id)) return; // las 4 quincenales van en su panel, no en el Excel semanal
             const base = montosPorStaff[s.id] || 0;
-            const montoFinal = s.es_fijo ? (parseFloat(s.monto_fijo) || 0) : base;
+            // Fijos = monto fijo + sus ajustes (bonos/descuentos); variables = base (limpiezas + ajustes)
+            const montoFinal = s.es_fijo ? ((parseFloat(s.monto_fijo) || 0) + (ajustesPorStaff[s.id] || 0)) : base;
             if(montoFinal > 0) {   // igual que el .py: omite si <= 0 (incluye fijos sin monto)
                 dispPersonas.push({
                     id: s.id,
