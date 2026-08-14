@@ -5876,17 +5876,36 @@
         const _codAir = esFrakcioReal(depto) ? _codAirDe(depto, fechaISO) : '';
         if(_codAir){ try{ window.open('https://www.airbnb.com/hosting/reservations/details/'+_codAir, '_blank'); }catch(e){} }
 
+        // ── Copiado del link del QR (a prueba de Safari) ──────────────────────────────
+        // Safari NO deja copiar tras un await (pierde el permiso del clic). Solución: lanzamos
+        // Frakcio YA (dentro del gesto) y registramos el copiado con ClipboardItem + promesa,
+        // que Safari resuelve con el link cuando llega. Frakcio se llama UNA sola vez.
+        let _frakPromise = null;
+        if(esFrakcioReal(depto)) {
+            const _regSal = todosRegistros.find(x => {
+                const d=(x.depto||'').toUpperCase().trim(), dep=depto.toUpperCase();
+                return (d===dep||d.startsWith(dep+' ')||dep.startsWith(d+' '));
+            });
+            const _fSal = _regSal ? (_regSal.fecha_salida||fechaISO) : fechaISO;
+            _frakPromise = enviarFrakcio(depto, fechaISO, _fSal);   // se lanza dentro del gesto del clic
+            const _urlPromise = _frakPromise.then(r => {
+                if(typeof r === 'string' && r.startsWith('http')) return r;
+                if(r && r.split && Array.isArray(r.urls)) return r.urls.join('\n');
+                return '';
+            }).catch(()=> '');
+            if(navigator.clipboard && window.ClipboardItem){
+                try{
+                    navigator.clipboard.write([ new ClipboardItem({ 'text/plain': _urlPromise.then(u => new Blob([u||''], {type:'text/plain'})) }) ]).catch(()=>{});
+                }catch(e){ /* navegador viejo: queda el botón "Copiar link QR" del modal */ }
+            }
+        }
+
         try {
-            // Solo llamar API Frakcio si es depto real de Frakcio
+            // Reutiliza la promesa ya lanzada (no llama Frakcio otra vez)
             let qrUrl = null;
             let qrSplit = null;
-            if(esFrakcioReal(depto)) {
-                const regSalida = todosRegistros.find(x => {
-                    const d=(x.depto||'').toUpperCase().trim(), dep=depto.toUpperCase();
-                    return (d===dep||d.startsWith(dep+' ')||dep.startsWith(d+' '));
-                });
-                const fechaSalida = regSalida ? (regSalida.fecha_salida||fechaISO) : fechaISO;
-                const resultado = await enviarFrakcio(depto, fechaISO, fechaSalida);
+            if(esFrakcioReal(depto) && _frakPromise) {
+                const resultado = await _frakPromise;
                 if(resultado && typeof resultado === 'object' && resultado.split) {
                     qrSplit = resultado;
                 } else if(typeof resultado === 'string' && resultado.startsWith('http')) {
