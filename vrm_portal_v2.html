@@ -7885,7 +7885,7 @@
             fetch(`${SUPABASE_URL}/rest/v1/nomina_contrato_quincenal?periodo=eq.${q.key}&select=monto`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             }),
-            fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?id=in.${idsIn}&select=id,nombre`, {
+            fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?id=in.${idsIn}&select=id,nombre,nombre_completo,cuenta_bancaria,banco`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             })
         ]);
@@ -7897,7 +7897,7 @@
         const inp = document.getElementById('quin-cifra');
         if(inp && document.activeElement !== inp) inp.value = cifra ? cifra : '';
 
-        const nombreDe = {}; staff.forEach(s => { nombreDe[s.id] = s.nombre; });
+        const chicaDe = {}; staff.forEach(s => { chicaDe[s.id] = s; });
 
         // A pagar: fecha ≤ día de pago. Arrastre: día de pago < fecha ≤ fin del periodo.
         const aPagar   = limp.filter(l => l.fecha <= q.payEffISO);
@@ -7906,16 +7906,29 @@
         const porChica = {};
         QUINCENAL_IDS.forEach(id => porChica[id] = { total:0, n:0 });
         aPagar.forEach(l => { const p = porChica[l.staff_id]; if(p){ p.total += parseFloat(l.tarifa_aplicada)||0; p.n++; } });
-        const totalLimp = Object.values(porChica).reduce((a,p)=>a+p.total, 0);
-        const diferencia = totalLimp - cifra;
+        const cifraPos = cifra > 0;
 
+        // Cada chica es una CUENTA SEPARADA: su efectivo = sus limpiezas − su contrato ($cifra).
+        // NO se suma nada entre ellas; cada quien cobra a su propia cuenta (así va al Excel/nómina).
         const filas = QUINCENAL_IDS.map(id => {
-            const p = porChica[id]; const nom = nombreDe[id] || '—';
-            return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid rgba(255,255,255,.04)">
-                <div style="font-size:13px;font-weight:600">${nom}</div>
-                <div style="text-align:right">
-                    <span style="font-family:var(--font-mono);font-size:13px;color:var(--text-secondary)">$${p.total.toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
-                    <span style="font-size:10px;color:var(--text-tertiary);margin-left:6px">${p.n} limp.</span>
+            const s = chicaDe[id] || {}; const nom = s.nombre || '—';
+            const cuenta = s.cuenta_bancaria || '—';
+            const banco  = s.banco || (typeof dispGetBanco==='function' ? dispGetBanco(s.cuenta_bancaria||'') : '') || '—';
+            const p = porChica[id];
+            const neto  = cifraPos ? (p.total - cifra) : p.total;
+            const pagar = Math.max(0, neto);
+            const bajo  = cifraPos && neto < 0; // sus limpiezas no llegan al contrato
+            const netoColor = !cifraPos ? 'var(--text-tertiary)' : (pagar > 0 ? 'var(--status-green)' : 'var(--text-tertiary)');
+            const netoTxt = `$${(cifraPos?pagar:p.total).toLocaleString('es-MX',{minimumFractionDigits:2})}`;
+            return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,.04)">
+                <div style="flex:1;min-width:0">
+                    <div style="font-size:13px;font-weight:600">${nom}</div>
+                    <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-secondary);margin-top:2px">${cuenta} · ${banco}</div>
+                    <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:1px">limpiezas $${p.total.toLocaleString('es-MX',{minimumFractionDigits:2})} · ${p.n} limp.${cifraPos ? ' − contrato $'+cifra.toLocaleString('es-MX',{minimumFractionDigits:2}) : ' · <span style=\"color:var(--status-red)\">falta contrato</span>'}${bajo?' · cubierto por contrato':''}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div style="text-align:right;font-family:var(--font-mono);font-size:15px;font-weight:700;color:${netoColor}">${netoTxt}</div>
+                    <button class="btn btn-ghost" onclick="navigator.clipboard.writeText('${cuenta}');toast('✓ Cuenta de ${nom} copiada')" style="padding:6px 9px" title="Copiar cuenta"><i class="ph ph-copy"></i></button>
                 </div>
             </div>`;
         }).join('');
@@ -7925,17 +7938,13 @@
             <i class="ph-bold ph-arrow-fat-right"></i> ${arrastre.length} limpieza${arrastre.length!==1?'s':''} después del día de pago ($${arrTotal.toLocaleString('es-MX',{minimumFractionDigits:2})}) se <b>arrastran a la siguiente quincena</b>.
         </div>` : '';
 
-        const cifraStr = cifra ? '−$'+cifra.toLocaleString('es-MX',{minimumFractionDigits:2}) : '<span style="color:var(--status-red)">falta capturar</span>';
-        const difColor = diferencia >= 0 ? 'var(--status-green)' : 'var(--status-red)';
-        const resumen = `<div style="margin:12px 20px 16px;padding:14px 16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px">
-            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:6px"><span>Total limpiezas (4 chicas)</span><span style="font-family:var(--font-mono)">$${totalLimp.toLocaleString('es-MX',{minimumFractionDigits:2})}</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:6px"><span>− Cifra del contrato</span><span style="font-family:var(--font-mono)">${cifraStr}</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;border-top:1px solid rgba(255,255,255,.1);padding-top:8px;margin-top:4px"><span>Diferencia a pagar</span><span style="font-family:var(--font-mono);color:${difColor}">$${diferencia.toLocaleString('es-MX',{minimumFractionDigits:2})}</span></div>
-        </div>`;
+        // Sin total de grupo: cada quien es cuenta aparte. Solo una nota de contexto.
+        const resumen = `<div style="margin:10px 20px 16px;font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);text-align:right">Cada chica cobra a su propia cuenta · se resta ${cifraPos?('$'+cifra.toLocaleString('es-MX',{minimumFractionDigits:2})):'el contrato'} a cada una por separado</div>`;
 
-        const disAttr = totalLimp<=0 ? 'disabled' : '';
+        const sinLimp = aPagar.length === 0;
+        const disAttr = sinLimp ? 'disabled' : '';
         const accion = `<div style="padding:0 20px 16px;display:flex;justify-content:flex-end">
-            <button class="btn btn-outline-white" onclick="liquidarQuincena()" style="font-size:11px${totalLimp<=0?';opacity:.4':''}" ${disAttr}><i class="ph-bold ph-check-circle"></i> Liquidar quincena</button>
+            <button class="btn btn-outline-white" onclick="liquidarQuincena()" style="font-size:11px${sinLimp?';opacity:.4':''}" ${disAttr}><i class="ph-bold ph-check-circle"></i> Liquidar quincena</button>
         </div>`;
 
         body.innerHTML = filas + arrHtml + resumen + accion;
@@ -7961,21 +7970,24 @@
     async function liquidarQuincena(){
         const q = quincenaPorOffset(quinOffset);
         const idsIn = `(${QUINCENAL_IDS.join(',')})`;
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.payEffISO}&select=tarifa_aplicada`, {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.payEffISO}&select=staff_id,tarifa_aplicada`, {
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
         });
         const limp = res.ok ? await res.json() : [];
-        const totalLimp = limp.reduce((a,l)=>a+(parseFloat(l.tarifa_aplicada)||0), 0);
         if(!limp.length){ toast('No hay limpiezas por liquidar en esta quincena'); return; }
+        const porChica = {}; QUINCENAL_IDS.forEach(id => porChica[id]=0);
+        limp.forEach(l => { if(porChica[l.staff_id]!==undefined) porChica[l.staff_id]+=parseFloat(l.tarifa_aplicada)||0; });
+        const totalLimp = Object.values(porChica).reduce((a,v)=>a+v,0);
 
         const resC = await fetch(`${SUPABASE_URL}/rest/v1/nomina_contrato_quincenal?periodo=eq.${q.key}&select=monto`, {
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
         });
         const cRows = resC.ok ? await resC.json() : [];
         const cifra = cRows.length ? (parseFloat(cRows[0].monto)||0) : 0;
-        if(!cifra){ if(!confirm('⚠️ No has capturado la cifra del contrato de esta quincena.\n\n¿Liquidar de todos modos? La diferencia se calcularía SIN descuento.')) return; }
-        const dif = totalLimp - cifra;
-        if(!confirm(`¿Liquidar quincena ${q.label}?\n\nLimpiezas de las 4: $${totalLimp.toLocaleString('es-MX',{minimumFractionDigits:2})}\n− Contrato: $${cifra.toLocaleString('es-MX',{minimumFractionDigits:2})}\n= Diferencia a pagar: $${dif.toLocaleString('es-MX',{minimumFractionDigits:2})}\n\nSe marcarán como PAGADAS ${limp.length} limpieza(s). Lo posterior al día de pago se queda para la siguiente quincena.`)) return;
+        if(!cifra){ if(!confirm('⚠️ No has capturado el contrato de esta quincena.\n\n¿Liquidar de todos modos? El efectivo se calcularía SIN descuento.')) return; }
+        // Efectivo = suma de (limpiezas de cada chica − contrato), sin bajar de 0
+        const totalPagar = QUINCENAL_IDS.reduce((a,id)=> a + Math.max(0, (cifra ? porChica[id]-cifra : porChica[id])), 0);
+        if(!confirm(`¿Liquidar quincena ${q.label}?\n\nLimpiezas de las 4: $${totalLimp.toLocaleString('es-MX',{minimumFractionDigits:2})}\n− Contrato $${cifra.toLocaleString('es-MX',{minimumFractionDigits:2})} a CADA una (×${QUINCENAL_IDS.length})\n= Total a pagar en efectivo: $${totalPagar.toLocaleString('es-MX',{minimumFractionDigits:2})}\n\nSe marcarán como PAGADAS ${limp.length} limpieza(s). Lo posterior al día de pago se queda para la siguiente quincena.`)) return;
 
         toast('⏳ Liquidando quincena…');
         const patch = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.payEffISO}`, {
