@@ -4183,7 +4183,17 @@
     function verHistorial(btn){ tabActual='historial'; if(btn) btn.classList.add('active'); renderTodo(); }
 
     // ═══ Marcar generado/enviado manualmente (menú discreto ⋯, dos pasos) ═══
-    function _ensureRowMenu(){ let m=document.getElementById('rowMenu'); if(!m){ m=document.createElement('div'); m.id='rowMenu'; document.body.appendChild(m); } return m; }
+    function _ensureRowMenu(){
+        let m=document.getElementById('rowMenu');
+        if(!m){
+            const bd=document.createElement('div'); bd.id='rowMenuBackdrop';
+            bd.style.cssText='position:fixed;inset:0;z-index:9998;display:none;background:transparent';
+            bd.addEventListener('click', cerrarRowMenu);
+            document.body.appendChild(bd);
+            m=document.createElement('div'); m.id='rowMenu'; document.body.appendChild(m);
+        }
+        return m;
+    }
     function _placeRowMenu(m, ev){
         const btn=ev.currentTarget||ev.target;
         const r=btn.getBoundingClientRect();
@@ -4199,7 +4209,7 @@
         const m=_ensureRowMenu();
         m.innerHTML=`<div class="rm-hint">Acción manual</div>
             <div class="rm-item" onclick="marcarManual('${id}')"><i class="ph-bold ph-check"></i> Marcar como ${verbo} manualmente</div>`;
-        _placeRowMenu(m, ev); m.classList.add('open');
+        _placeRowMenu(m, ev); m.classList.add('open'); const _bd=document.getElementById('rowMenuBackdrop'); if(_bd) _bd.style.display='block';
     }
     // ⋮ en filas SIN registro: crea un registro mínimo ya hecho (sale de pendientes)
     function openRowMenuSR(ev, depto, fiso, fout, tipo, verbo){
@@ -4208,20 +4218,20 @@
         const oc = 'marcarManualSR('+JSON.stringify(depto)+','+JSON.stringify(fiso)+','+JSON.stringify(fout||'')+','+JSON.stringify(tipo||'')+')';
         m.innerHTML=`<div class="rm-hint">Acción manual · sin registro</div>
             <div class="rm-item" onclick='${oc}'><i class="ph-bold ph-check"></i> Marcar como ${verbo} manualmente</div>`;
-        _placeRowMenu(m, ev); m.classList.add('open');
+        _placeRowMenu(m, ev); m.classList.add('open'); const _bd=document.getElementById('rowMenuBackdrop'); if(_bd) _bd.style.display='block';
     }
-    function cerrarRowMenu(){ const m=document.getElementById('rowMenu'); if(m) m.classList.remove('open'); }
+    function cerrarRowMenu(){ const m=document.getElementById('rowMenu'); if(m) m.classList.remove('open'); const bd=document.getElementById('rowMenuBackdrop'); if(bd) bd.style.display='none'; }
     function marcarManual(id){ cerrarRowMenu(); marcarGenerado(id); renderTodo(); }
     async function marcarManualSR(depto, fiso, fout, tipo){
         cerrarRowMenu();
-        const payload = { depto: depto, fecha_entrada: fiso, fecha_salida: fout||null, nombre: '\u2713 Marcado manual', tipo_formato: tipo||'pdf', pdf_generado: true, maritima_enviado: true, num_adultos: 0, num_menores: 0 };
+        const payload = { depto: depto, fecha_entrada: fiso, fecha_salida: (fout||fiso), nombre: '\u2713 Marcado manual', tipo_formato: 'pdf', template: (function(){try{return getTmpl(depto).t||'general';}catch(_e){return 'general';}})(), pdf_generado: true, num_adultos: 1, num_menores: 0, num_mascotas: 0, ocupantes: [] };
         try{
             const res = await fetch(`${SUPABASE_URL}/rest/v1/registros_checkin`, {
                 method:'POST',
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=representation"},
                 body: JSON.stringify(payload)
             });
-            if(!res.ok) throw new Error('Supabase '+res.status);
+            if(!res.ok){ const _t=await res.text().catch(()=>''); throw new Error(res.status+' '+(_t||'').slice(0,240)); }
             const data = await res.json();
             (todosRegistros||[]).push((data&&data[0])?data[0]:payload);
             toast('\u2705 Marcado manualmente');
