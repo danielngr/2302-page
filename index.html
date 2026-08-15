@@ -7107,11 +7107,17 @@ function animate(time) {
   {
     const _target = scrollProgress;
     const OMEGA = 4.5;   // resorte ceñido pero con algo de peso: sigue el scroll sin lag notorio
-    // ★ VMAX adaptativo: crucero calmado (0.9) en coreografía; en TRAVESÍA
-    //   (ya zambullida y en línea recta, lejos de cámara) puede apurar hasta
-    //   2.4 → te alcanza antes y emerge más pronto. Discreta Y puntual.
+    // ★ VMAX adaptativo con LLEGADA CALMADA (simétrico subir/bajar):
+    //   · TRAMO LEJANO de la travesía (zambullida, lejos de cámara): apura
+    //     hasta 2.4 para cubrir la distancia sin que la esperes.
+    //   · TRAMO FINAL (ya cerca de tu posición): en vez de llegar con prisa,
+    //     FRENA por debajo del crucero (~0.55) y REGRESA LENTO a su paso —
+    //     se desliza de vuelta a la coreografía como si nada hubiera pasado.
+    //   Al disiparse el rush, todo vuelve al crucero normal de 0.9.
     const _rushPrev = window.__whaleRush || 0;
-    const VMAX = 0.9 + _rushPrev * 1.5;
+    const _gapNow = Math.abs(_target - window.__whaleSp);
+    const _far = Math.min(1, Math.max(0, (_gapNow - 0.07) / 0.10));   // 0 = ya cerca · 1 = lejos
+    const VMAX = (0.9 - 0.35 * _rushPrev * (1 - _far)) + _rushPrev * 1.5 * _far;
     const _dtc = Math.min(dt, 0.033);                 // clamp dt → estable en frames lentos
     // ★★ SALTO GIGANTE (clic en ancla / arrastre de scrollbar): si el hueco es
     //    enorme NO recorre todo el circuito — se recoloca a 0.12 del destino
@@ -7140,7 +7146,9 @@ function animate(time) {
       const _g = Math.abs(_target - window.__whaleSp);
       const _rt = Math.max(0, Math.min(1, (_g - 0.055) / 0.13));
       const _cur = window.__whaleRush || 0;
-      const _rate = _rt > _cur ? 5.5 : 1.6;         // ataque rápido · liberación lenta
+      // ★ liberación AÚN más lenta (0.9/s): al alcanzarte, la ballena emerge
+      //   sin prisa y retoma su paso gradualmente — igual subiendo que bajando.
+      const _rate = _rt > _cur ? 5.5 : 0.9;         // ataque rápido · liberación muy serena
       window.__whaleRush = _cur + (_rt - _cur) * Math.min(1, _dtc * _rate);
       if (window.__whaleRush < 0.004) window.__whaleRush = 0;
     }
