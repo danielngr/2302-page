@@ -7541,14 +7541,22 @@ function animate(time) {
   whaleGroup.scale.setScalar(revealProgress * breath);
 
   // ════════════════════════════════════════════════════════════════════
-  // OPACIDAD — sigue el reveal (la "niebla" disipa).
-  // Una vez completo: opacity 1.0 siempre, la ballena nunca desaparece.
+  // OPACIDAD — reveal × TRAVESÍA.
+  // ★★ SCROLL RÁPIDO = LA BALLENA SE QUEDA ATRÁS Y NO SE VE. El rush ahora la
+  //    DESVANECE por completo (para rush ≥0.6 ya es invisible): tú te vas, ella
+  //    queda fuera de escena. Cuando te alcanza, el rush se disipa despacio y
+  //    ella REAPARECE emergiendo del agua, nadando a su paso. Además, mientras
+  //    es invisible ni siquiera se renderiza (visible=false) → el costoso
+  //    render de transmisión se ahorra justo cuando más scrolleas.
   // ════════════════════════════════════════════════════════════════════
+  const _rushFade = Math.max(0, 1 - rushF * 1.7);   // rush 0→opaca · rush ≥0.59→invisible
+  const _whaleOp = revealProgress * _rushFade;
   if (whaleMaterials.length > 0) {
     for (let i = 0; i < whaleMaterials.length; i++) {
-      whaleMaterials[i].opacity = revealProgress;
+      whaleMaterials[i].opacity = _whaleOp;
     }
   }
+  whaleGroup.visible = _whaleOp > 0.02;
 
   // ════════════════════════════════════════════════════════════════════
   // LUCES — orbita lenta de iridiscencia (siguen la posición de la ballena)
