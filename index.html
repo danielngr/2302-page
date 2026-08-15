@@ -136,7 +136,7 @@
       'search.zone.sub.pv_hotel': 'Puerto Vallarta · Hotel Zone',
       'search.zone.sub.south_coast': 'South Coast',
       'search.guests.done': 'Done',
-      'drum.hint.outer': 'Drag to spin · tap a stay to open it',
+      'drum.hint.outer': 'Swipe the trackpad or drag · tap a stay to open it',
       'wa.sub': 'Real human, fast reply',
       'search.picker.title': 'Select your dates',
       'search.picker.clear': 'Clear',
@@ -297,7 +297,7 @@
       'search.zone.sub.pv_hotel': 'Puerto Vallarta · Hotelera',
       'search.zone.sub.south_coast': 'Costa Sur',
       'search.guests.done': 'Listo',
-      'drum.hint.outer': 'Arrastrá para girar · tocá una estancia para abrirla',
+      'drum.hint.outer': 'Desliza con el pad o arrastra · toca una estancia para abrirla',
       'wa.sub': 'Respuesta real y rápida',
       'search.picker.title': 'Selecciona tus fechas',
       'search.picker.clear': 'Limpiar',
@@ -5046,7 +5046,9 @@
           posVel = 0;
         } else {
           // resorte CRÍTICAMENTE AMORTIGUADO → asienta mantecoso, sin rebote
-          const W = 9.5;
+          // ★ desktop un punto más suave (8.1): el asentado de la arcada se
+          //   siente sedoso con el trackpad; móvil conserva su respuesta táctil.
+          const W = isMob ? 9.5 : 8.1;
           posVel += (W * W * (_target - pos) - 2 * W * posVel) * dt;
           pos += posVel * dt;
         }
@@ -5162,6 +5164,31 @@
       // flechas
       document.getElementById('cgalNext').addEventListener('click',()=>{ if(N>0){ manualI = Math.round(manualI)+1; wake(); } });
       document.getElementById('cgalPrev').addEventListener('click',()=>{ if(N>0){ manualI = Math.round(manualI)-1; wake(); } });
+
+      // ── ★ PAD DE LA LAPTOP (desktop): swipe horizontal de dos dedos GIRA la
+      //    arcada — el gesto natural de trackpad. Solo secuestra el gesto si es
+      //    claramente horizontal (el scroll vertical de la página no se toca).
+      //    El trackpad trae su propia inercia (eventos con momentum del SO);
+      //    al terminar el gesto, la rueda se asienta sola en el portal más
+      //    cercano con un pequeño empuje proporcional a la velocidad final.
+      let _whT=0, _whVel=0, _whTimer=0;
+      stage.addEventListener('wheel', (e)=>{
+        if (isMob || N<=0) return;
+        const ax=Math.abs(e.deltaX), ay=Math.abs(e.deltaY);
+        if (ax < 3 || ax < ay*1.15) return;        // gesto vertical → lo maneja la página
+        e.preventDefault();                         // horizontal → es NUESTRO
+        const now=performance.now();
+        const dIdx = e.deltaX * 0.0028;            // sensibilidad calibrada a px de trackpad
+        manualI += dIdx;
+        const mdt=Math.max(0.001,(now-_whT)/1000); _whT=now;
+        _whVel=_whVel*0.65 + (dIdx/mdt)*0.35;      // velocidad suavizada (portales/seg)
+        clearTimeout(_whTimer);
+        _whTimer=setTimeout(()=>{                   // fin del gesto → asentar elegante
+          const _throw=Math.max(-3,Math.min(3,_whVel*0.10));
+          manualI=Math.round(manualI+_throw); _whVel=0; wake();
+        },140);
+        wake();
+      },{passive:false});
 
       // ── ARRANQUE: construye la rueda completa y engancha el parallax ──
       buildRing(HOMES);
