@@ -7117,15 +7117,30 @@ function animate(time) {
     const _rushPrev = window.__whaleRush || 0;
     const _gapNow = Math.abs(_target - window.__whaleSp);
     const _far = Math.min(1, Math.max(0, (_gapNow - 0.07) / 0.10));   // 0 = ya cerca · 1 = lejos
-    const VMAX = (0.9 - 0.35 * _rushPrev * (1 - _far)) + _rushPrev * 1.5 * _far;
+    // ★★ TOPE EN VELOCIDAD DE MUNDO (lo que el ojo VE), no de camino.
+    //    El circuito tiene tramos donde 1 unidad de camino son ~130 unidades
+    //    de mundo (los cruces de pantalla): con tope solo en camino, ahí la
+    //    ballena RAFAGUEABA aunque el resorte fuera lento. Ahora medimos la
+    //    densidad local del tramo (u de mundo por u de camino) y topamos el
+    //    avance para que EN PANTALLA nunca pase de ~8 u/s a la vista
+    //    (velocidad de ballena real) — hasta ~17 u/s solo cuando va zambullida
+    //    al fondo, donde la perspectiva la hace verse lenta de todos modos.
+    const _eps = 0.01;
+    const _pA = getPathPoint(WHALE_PATH, Math.min(1, window.__whaleSp + _eps));
+    const _pB = getPathPoint(WHALE_PATH, Math.max(0, window.__whaleSp - _eps));
+    const _uPerSp = Math.max(2, Math.hypot(_pA.x - _pB.x, _pA.y - _pB.y, _pA.z - _pB.z) / (2 * _eps));
+    const _worldMax = 8 + 9 * _rushPrev;
+    let VMAX = Math.max(0.10, Math.min(2.4, _worldMax / _uPerSp));
+    // llegada calmada (se conserva): cerca del destino, desliza por debajo del crucero
+    VMAX = Math.min(VMAX, (0.9 - 0.35 * _rushPrev * (1 - _far)) + _rushPrev * 1.5 * _far);
     const _dtc = Math.min(dt, 0.033);                 // clamp dt → estable en frames lentos
     // ★★ SALTO GIGANTE (clic en ancla / arrastre de scrollbar): si el hueco es
     //    enorme NO recorre todo el circuito — se recoloca a 0.12 del destino
     //    (ya zambullida, ver __whaleRush abajo) y nada solo el tramo final.
     const _gapRaw = _target - window.__whaleSp;
-    if (Math.abs(_gapRaw) > 0.50) {
-      window.__whaleSp = _target - Math.sign(_gapRaw) * 0.12;
-      window.__whaleSpVel = 0;
+    if (Math.abs(_gapRaw) > 0.38) {                 // ★ umbral más bajo: con el nado topado a
+      window.__whaleSp = _target - Math.sign(_gapRaw) * 0.10;   //   velocidad real, los saltos
+      window.__whaleSpVel = 0;                      //   grandes se recolocan en vez de esperar
       window.__whaleRush = 1;                       // aparece en modo travesía (al fondo)
     }
     const _x = window.__whaleSp - _target;
@@ -7239,10 +7254,10 @@ function animate(time) {
     //    rush → la travesía pasa LEJOS, pequeña y serena, nunca en primer
     //    plano. Al bajar el rush, emerge de vuelta a la coreografía.
     if (rushF > 0.01) {
-      const _w = 0.055 * rushF;
+      const _w = 0.075 * rushF;
       const _pA = getPathPoint(WHALE_PATH, Math.max(0, sp - _w));
       const _pB = getPathPoint(WHALE_PATH, Math.min(1, sp + _w));
-      const _mix = 0.65 * rushF;
+      const _mix = 0.85 * rushF;    // ★ casi la cuerda pura: cero barridos de pantalla en travesía
       targetPosX += (((_pA.x + _pB.x) * 0.5) - targetPosX) * _mix;
       targetPosY += (((_pA.y + _pB.y) * 0.5) - targetPosY) * _mix;
       targetPosZ += (((_pA.z + _pB.z) * 0.5) - targetPosZ) * _mix;
