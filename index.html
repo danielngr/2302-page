@@ -1998,7 +1998,7 @@
      secciones mientras están fuera de pantalla (se activan solas al acercarse).
      contain-intrinsic-size reserva el alto estimado → cero saltos de scroll.
      Navegadores viejos lo ignoran sin romper nada. */
-  .why-direct, .reviews, .final {
+  .why-direct, .reviews, .final, .experience {
     content-visibility: auto;
     contain-intrinsic-size: auto 900px;
   }
@@ -4923,7 +4923,9 @@
       //   del original completo: mismísima foto, fracción del peso/decode/RAM.
       function _optCover(u){
         const m = /^https:\/\/i\.imgur\.com\/([A-Za-z0-9]{7})\.(jpe?g|png)$/.exec(u);
-        return m ? ('https://i.imgur.com/' + m[1] + 'h.jpg') : u;
+        // móvil: miniatura 'l' (640px — sobra para un portal de 70vw) ·
+        // desktop: 'h' (1024px). Mitad de red/decode/RAM en celular.
+        return m ? ('https://i.imgur.com/' + m[1] + (isMob ? 'l' : 'h') + '.jpg') : u;
       }
       // ── crea UNA tarjeta a partir de un HOME ──
       function makeCard(h, i){
@@ -7341,7 +7343,13 @@ function animate(time) {
       const _w = 0.075 * rushF;
       const _pA = getPathPoint(WHALE_PATH, Math.max(0, sp - _w));
       const _pB = getPathPoint(WHALE_PATH, Math.min(1, sp + _w));
-      const _mix = 0.85 * rushF;    // ★ casi la cuerda pura: cero barridos de pantalla en travesía
+      // ★★ FIX "traspasa textos": el atajo (la cuerda recta) SOLO se toma
+      //    cuando la ballena ya va desvanecida (rush>0.45 → opacidad <24%).
+      //    Mientras sea visible respeta el camino coreografiado, que fue
+      //    diseñado para RODEAR los bloques de texto — nunca cortar por
+      //    encima del contenido a media transparencia.
+      const _mixGate = Math.max(0, Math.min(1, (rushF - 0.45) / 0.25));
+      const _mix = 0.85 * rushF * _mixGate;
       targetPosX += (((_pA.x + _pB.x) * 0.5) - targetPosX) * _mix;
       targetPosY += (((_pA.y + _pB.y) * 0.5) - targetPosY) * _mix;
       targetPosZ += (((_pA.z + _pB.z) * 0.5) - targetPosZ) * _mix;
@@ -7680,8 +7688,21 @@ function animate(time) {
   //   SOLO en el overlay frontal (idéntica y encima de todo) — ahorra el
   //   render de transmisión duplicado del canvas principal en esa ventana.
   // ════════════════════════════════════════════════════════════════════
-  const _skipMainWhale = __capFps30 && window.__whaleFrontFull === true;
+  // ★★ FIX del mini-lag en la pasada frontal (TODAS las máquinas): dentro de
+  //    la ventana, la ballena vive en el overlay (encima de TODO) — dibujarla
+  //    también en el canvas de atrás duplicaba el render sin aportar un solo
+  //    píxel visible (el overlay cubre los mismos píxeles; el texto es opaco).
+  //    Además, sin ballena en el canvas principal el bloom/aberración no
+  //    tienen nada que resaltar → se saltan. Resultado: la ventana frontal
+  //    pasa de ~4 renders/frame a ~1.5 — el "pelo de lag" desaparece.
+  const _frontActive = window.__whaleFrontOn === true;
+  const _skipMainWhale = _frontActive && whaleGroup.visible;
   if (_skipMainWhale) whaleGroup.visible = false;
+  // bloom solo cuando hay ballena en el canvas principal (el fondo solo no
+  // supera el threshold 0.84 — apagarlo es visualmente idéntico y gratis)
+  const _bloomOn = whaleGroup.visible;
+  if (bloomPass.enabled !== _bloomOn) bloomPass.enabled = _bloomOn;
+  if (!__capFps30 && chromaticPass.enabled === _frontActive) chromaticPass.enabled = !_frontActive;
   composer.render();
   if (_skipMainWhale) whaleGroup.visible = true;
 
@@ -7701,7 +7722,9 @@ function animate(time) {
     // ★ TRAVESÍA: en scroll rápido el overlay frontal se apaga — la ballena
     //   cruza al fondo (zambullida), no destella gigante sobre los textos.
     fOp *= (1 - rushF);
-    window.__whaleFrontFull = (fOp >= 0.999);   // ← señal para saltar el render duplicado
+    window.__whaleFrontOn = (fOp > 0.001);      // ← ventana activa (el fade ocurre con la
+    window.__whaleFrontFull = (fOp >= 0.999);   //    ballena FUERA de cuadro → saltar el
+                                                //    canvas trasero es 100% invisible)
     if (fOp > 0.001) {
       frontCanvas.style.opacity = String(fOp);
       const fr = ensureFrontRenderer();
