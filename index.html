@@ -7106,7 +7106,15 @@ function animate(time) {
   window.__whaleSpVel = window.__whaleSpVel ?? 0;
   {
     const _target = scrollProgress;
-    const OMEGA = 4.5;   // resorte ceñido pero con algo de peso: sigue el scroll sin lag notorio
+    // ★★ BALLENA AUTÓNOMA — el usuario lo definió perfecto: "no es que
+    //    scrollee junto conmigo girando en su eje; es que yo scrolleo, ELLA SE
+    //    QUEDA ATRÁS nadando a su paso, y luego me alcanza".
+    //    OMEGA bajó de 4.5 (marioneta pegada al scroll: cada tick la giraba en
+    //    su sitio) a 1.3: reacciona con retraso real (~3-4s de asentamiento),
+    //    arranca con peso, nada su trayecto y llega después. La cabeza sigue la
+    //    tangente de SU posición (no la del scroll), así que ya no gira en su
+    //    propio eje: gira solo cuando ELLA avanza por una curva.
+    const OMEGA = 1.3;
     // ★ VMAX adaptativo con LLEGADA CALMADA (simétrico subir/bajar):
     //   · TRAMO LEJANO de la travesía (zambullida, lejos de cámara): apura
     //     hasta 2.4 para cubrir la distancia sin que la esperes.
@@ -7138,9 +7146,9 @@ function animate(time) {
     //    enorme NO recorre todo el circuito — se recoloca a 0.12 del destino
     //    (ya zambullida, ver __whaleRush abajo) y nada solo el tramo final.
     const _gapRaw = _target - window.__whaleSp;
-    if (Math.abs(_gapRaw) > 0.38) {                 // ★ umbral más bajo: con el nado topado a
-      window.__whaleSp = _target - Math.sign(_gapRaw) * 0.10;   //   velocidad real, los saltos
-      window.__whaleSpVel = 0;                      //   grandes se recolocan en vez de esperar
+    if (Math.abs(_gapRaw) > 0.55) {                 // ★ umbral alto: quedarse atrás es normal
+      window.__whaleSp = _target - Math.sign(_gapRaw) * 0.14;   //   ahora; solo saltos de media
+      window.__whaleSpVel = 0;                      //   página la recolocan cerca del destino
       window.__whaleRush = 1;                       // aparece en modo travesía (al fondo)
     }
     const _x = window.__whaleSp - _target;
@@ -7159,7 +7167,10 @@ function animate(time) {
     //    con calma, sin pop).
     {
       const _g = Math.abs(_target - window.__whaleSp);
-      const _rt = Math.max(0, Math.min(1, (_g - 0.055) / 0.13));
+      // ★ umbral del rush RECALIBRADO para la ballena perezosa: quedarse atrás
+      //   ~0.15 de camino es su estado NORMAL ahora (no dispara zambullida);
+      //   solo un flick de verdad (hueco >0.16→0.32) la manda a travesía.
+      const _rt = Math.max(0, Math.min(1, (_g - 0.16) / 0.16));
       const _cur = window.__whaleRush || 0;
       // ★ liberación AÚN más lenta (0.9/s): al alcanzarte, la ballena emerge
       //   sin prisa y retoma su paso gradualmente — igual subiendo que bajando.
