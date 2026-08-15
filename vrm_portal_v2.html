@@ -5659,9 +5659,19 @@
       };
       r._idioma = idioma; datos._idioma = idioma;
 
+      // Blindaje: si el template guardado quedó como 'general' pero el depto SÍ mapea a un
+      // template real (ej. GD que se guardó mal), usar el correcto para poder generar el PDF.
+      let rGen = r;
+      try {
+        const _tOK = getTmpl(r.depto||'').t;
+        if(_tOK && _tOK !== 'general' && (!r.template || r.template === 'general')) {
+          rGen = Object.assign({}, r, { template: _tOK });
+        }
+      } catch(_e){}
+
       let pdfResult;
       try {
-        pdfResult = generarPDF(r, datos, ocupantes, id, { returnBase64: true });
+        pdfResult = generarPDF(rGen, datos, ocupantes, id, { returnBase64: true });
       } catch(e) {
         toast("❌ Error generando PDF: " + e.message); return;
       }
