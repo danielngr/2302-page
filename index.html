@@ -42,6 +42,9 @@
 <link rel="preconnect" href="https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev" crossorigin>
 <link rel="preconnect" href="https://i.imgur.com">
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
+<!-- ★ PERF: la ballena empieza a descargar EN PARALELO con los módulos JS,
+     no después de que Three.js termine de cargar (quita ~1 RTT+parse del critical path) -->
+<link rel="preload" as="fetch" crossorigin href="https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev/whale/ballena_opt.glb">
 <!-- Fontshare: Boska (display editorial) + Satoshi (UI/body)
      Cargado vía Image() probe: si el dominio es alcanzable, inyectamos el link.
      Sandboxes con CSP estricta no alcanzan Fontshare → caemos limpio a Times / system. -->
@@ -5400,9 +5403,16 @@ camera.position.set(0, 0.5, isMobile ? 13 : 9);
 // ★ Renderer PRINCIPAL — canvas ÚNICO Y OPACO (fondo de agua + ballena en el
 // mismo contexto WebGL, como el pipeline original que siempre fue estable).
 // Cero canvas transparentes en estado normal = cero parpadeo de composición.
+// ★ PERF (técnica estándar de sitios WebGL premiados): con EffectComposer,
+//   TODO el render pasa por render-targets internos donde el MSAA del canvas
+//   NO aplica — ese antialias:true costaba memoria/ancho de banda sin efecto
+//   visual alguno. Fuera. stencil tampoco se usa. En móvil, precisión mediump
+//   en shaders (~2× más rápida, diferencia invisible en esta escena).
 const renderer = new THREE.WebGLRenderer({
   canvas,
-  antialias: true,
+  antialias: false,          // el composer lo hacía inútil — cero cambio visual
+  stencil: false,
+  precision: isMobile ? 'mediump' : 'highp',
   powerPreference: 'high-performance'
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
