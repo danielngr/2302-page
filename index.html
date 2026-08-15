@@ -4704,48 +4704,68 @@
          scroll de la página. Centro libre: la ballena cruza por detrás/en medio. -->
     <style>
       .cgal-wrap{ position:relative; margin:30px auto 4px; max-width:1500px; padding:0 clamp(10px,2vw,28px); }
-      .cgal-stage{ position:relative; height:min(76vh,680px); min-height:460px; perspective:2000px; display:grid; place-items:center; touch-action:pan-y; cursor:grab; }
+      .cgal-stage{ position:relative; height:min(84vh,780px); min-height:660px; perspective:2000px; display:grid; place-items:center; touch-action:pan-y; cursor:grab; }
       .cgal-stage:active{ cursor:grabbing; }
       .cgal-ring{ position:relative; width:1px; height:1px; transform-style:preserve-3d; will-change:transform; }
-      /* ★ REDISEÑO VISUAL: tarjetas más grandes y aireadas, esquinas más
-         suaves, y FOCO tipo galería — la del frente viva, las vecinas con un
-         velo que se disuelve al pasar al frente (transición solo de opacity =
-         compositor puro, cero costo). */
-      .cgal-card{ position:absolute; width:330px; height:440px; left:-165px; top:-220px;
-        border-radius:20px; overflow:hidden; background:#0a1220; border:1px solid rgba(150,180,220,.14);
-        box-shadow:0 34px 80px -34px rgba(0,0,0,.85); will-change:transform,opacity;
-        transition:border-color .45s ease, box-shadow .45s ease;
-        contain:layout style;   /* ★ invalidaciones de estilo/​layout no salen de la tarjeta */
+      /* ═══════════ ★ PORTALES — AHORA EN AMBOS MODOS ═══════════
+         Cada casa es una PUERTA: foto en arco de hacienda con marco dorado,
+         numeración editorial (— 01 —) arriba y la info debajo en tipografía
+         pura, sin cajas. El desktop conserva su rueda 3D — ahora gira ARCOS.
+         El foco apaga los portales vecinos (solo opacity = compositor puro). */
+      .cgal-card{ position:absolute; width:340px; height:648px; left:-170px; top:-324px;
+        background:transparent; border:none; box-shadow:none; border-radius:0; overflow:visible;
+        display:flex; flex-direction:column; will-change:transform,opacity;
+        contain:layout style;
         backface-visibility:hidden; -webkit-backface-visibility:hidden; }
-      /* velo de foco sobre las vecinas (por ENCIMA de foto e info) */
-      .cgal-card::after{ content:""; position:absolute; inset:0; z-index:4; pointer-events:none;
-        background:linear-gradient(180deg, rgba(4,8,16,.32), rgba(4,8,16,.48));
-        opacity:1; transition:opacity .45s ease; }
-      .cgal-card.cgal-front::after{ opacity:0; }
-      .cgal-card.cgal-front{ border-color:rgba(225,166,124,.34);
-        box-shadow:0 44px 96px -36px rgba(0,0,0,.9), 0 0 42px -14px rgba(225,136,94,.22); }
-      .cgal-photo{ position:absolute; inset:0; background-size:cover; background-position:center; }
-      .cgal-photo::after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(4,7,14,0) 30%,rgba(4,7,14,.38) 56%,rgba(4,7,14,.94) 100%); }
-      .cgal-info{ position:absolute; left:0; right:0; bottom:0; padding:22px 24px 24px; z-index:2; }
-      .cgal-eye{ font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:#efa274; margin-bottom:9px; font-family:var(--font-body,system-ui); }
-      .cgal-name{ font-family:var(--font-display,Georgia,serif); font-weight:400; font-size:27px; line-height:1.05; color:#fff; margin:0; }
+      /* numeración del portal — arriba del arco */
+      .cgal-card::before{ content:"—  " attr(data-idx) "  —"; order:-2; text-align:center;
+        font-family:var(--font-display,Georgia,serif); font-style:italic; font-size:13px;
+        color:#C8A87C; letter-spacing:.22em; margin-bottom:13px; }
+      /* ── EL ARCO ── */
+      .cgal-photo{ position:relative; inset:auto; flex:1 1 auto; overflow:hidden;
+        background-size:cover; background-position:center;
+        border-radius:46% 46% 20px 20px / 34% 34% 20px 20px;
+        border:1px solid rgba(200,168,124,.30);
+        box-shadow:0 26px 54px -26px rgba(0,0,0,.85), inset 0 0 0 6px rgba(6,11,22,.35);
+        transition:border-color .45s ease, box-shadow .45s ease; }
+      .cgal-card.cgal-front .cgal-photo{ border-color:rgba(200,168,124,.55);
+        box-shadow:0 36px 72px -30px rgba(0,0,0,.9), 0 0 46px -16px rgba(225,136,94,.25), inset 0 0 0 6px rgba(6,11,22,.35); }
+      /* velo de foco: vecinas apagadas · al frente solo un pie sutil */
+      .cgal-photo::after{ content:""; position:absolute; inset:0; border-radius:inherit;
+        box-shadow:inset 0 0 0 1px rgba(232,228,218,.14);
+        background:linear-gradient(180deg, rgba(5,9,18,.46), rgba(5,9,18,.46));
+        opacity:1; transition:opacity .45s ease, background .45s ease; }
+      .cgal-card.cgal-front .cgal-photo::after{
+        background:linear-gradient(180deg, rgba(5,9,18,0) 70%, rgba(5,9,18,.26)); }
+      /* ── INFO: tipografía pura, centrada, sin caja ── */
+      .cgal-info{ position:relative; inset:auto; left:auto; right:auto; bottom:auto; margin-top:16px;
+        padding:0 6px; text-align:center; flex:0 0 auto;
+        display:flex; flex-direction:column; align-items:center;
+        opacity:.38; transition:opacity .45s ease; }
+      .cgal-card.cgal-front .cgal-info{ opacity:1; }
+      /* ornamento ✦ con líneas desvanecidas */
+      .cgal-seam{ order:-1; display:flex; align-items:center; justify-content:center; gap:10px;
+        margin:0 0 9px; color:#C8A87C; font-size:9px; }
+      .cgal-seam::before, .cgal-seam::after{ content:""; width:34px; height:1px;
+        background:linear-gradient(90deg, transparent, rgba(200,168,124,.55)); }
+      .cgal-seam::after{ transform:scaleX(-1); }
+      .cgal-eye{ font-size:10px; letter-spacing:.26em; text-transform:uppercase; color:#efa274; margin-bottom:0; font-family:var(--font-body,system-ui); }
+      .cgal-name{ font-family:var(--font-display,Georgia,serif); font-weight:400; font-size:27px; line-height:1.06; color:#ECE7DD; margin:7px 0 0; }
       .cgal-name em{ font-style:italic; }
-      .cgal-seam{ display:none; }   /* costura terracota: solo en móvil (dos tarjetas) */
-      .cgal-meta{ display:flex; gap:14px; margin-top:12px; font-size:11.5px; color:#aabdd4; letter-spacing:.02em; font-family:var(--font-body,system-ui); }
-      .cgal-meta b{ font-weight:400; color:#aabdd4; }
-      .cgal-price{ margin-top:12px; font-family:var(--font-display,Georgia,serif); color:#ECE7DD; }
+      .cgal-meta{ display:flex; justify-content:center; gap:10px; margin-top:7px; font-size:11.5px; color:#9fb0c6; letter-spacing:.02em; font-family:var(--font-body,system-ui); }
+      .cgal-meta b{ font-weight:400; color:#9fb0c6; }
+      .cgal-price{ margin-top:9px; font-family:var(--font-display,Georgia,serif); color:#ECE7DD; }
       .cgal-price b{ font-size:21px; font-weight:500; color:#fff; }
       .cgal-price span{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:#8fa2ba; font-family:var(--font-body,system-ui); margin-left:2px; }
-      /* ★ SIN backdrop-filter: 16 blurs vivos sobre el canvas WebGL fijo hacían
-         parpadear el compositor en esta sección. Fondo sólido = mismo look, cero flicker. */
-      .cgal-badge{ position:absolute; top:13px; left:13px; z-index:3; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
-        color:#ECE7DD; background:rgba(6,11,22,.78); border:1px solid rgba(150,180,220,.18);
-        padding:5px 11px; border-radius:30px; font-family:var(--font-body,system-ui); }
-      .cgal-cta{ margin-top:16px; display:inline-block; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:#ECE7DD;
-        border:1px solid rgba(232,228,218,.32); padding:10px 22px; border-radius:30px; text-decoration:none;
-        opacity:0; transform:translateY(8px); transition:.28s cubic-bezier(.22,.61,.36,1); font-family:var(--font-body,system-ui); }
-      .cgal-card.cgal-front .cgal-cta{ opacity:1; transform:none; }
-      .cgal-cta:hover{ background:#E1885E; border-color:#E1885E; color:#0a0f18; }
+      .cgal-badge{ display:none; }   /* la vista ya no usa chip — look portal limpio */
+      /* CTA: pill terracota compacta, centrada */
+      .cgal-cta{ margin-top:13px; display:inline-block; width:auto; font-size:10.5px; letter-spacing:.2em;
+        text-transform:uppercase; font-weight:700; color:#2a1206; border:none;
+        padding:12px 28px; border-radius:100px; text-decoration:none;
+        background:linear-gradient(135deg,#f0a878,#E1885E 54%,#d5744a);
+        box-shadow:0 10px 22px -10px rgba(225,136,94,.55),0 2px 0 rgba(255,255,255,.25) inset;
+        transition:filter .2s ease, transform .2s ease; font-family:var(--font-body,system-ui); }
+      .cgal-cta:hover{ filter:brightness(1.07); transform:translateY(-1px); }
       .cgal-ctrls{ display:flex; align-items:center; justify-content:center; gap:18px; margin-top:26px; }
       .cgal-ctrls button{ width:46px; height:46px; border-radius:50%; border:1px solid rgba(150,180,220,.18);
         background:rgba(14,26,46,.72); color:#ECE7DD; cursor:pointer; font-size:18px; display:grid; place-items:center;
@@ -4761,60 +4781,12 @@
       .cgal-count span{ color:#7f90a8; font-size:12px; }
       .cgal-hint{ text-align:center; margin-top:10px; font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; opacity:.45; font-family:var(--font-body,system-ui); }
       @media (max-width:640px){
-        /* ═══════════ ★ MÓVIL = PORTALES (opción E elegida) ═══════════
-           Cada casa es una PUERTA: foto en arco de hacienda mexicana con
-           marco dorado, numeración editorial arriba (— 01 —), y la info
-           debajo en tipografía pura, centrada, SIN cajas. El velo de foco
-           apaga los portales vecinos (solo opacity = compositor puro). */
+        /* ★ MÓVIL: los Portales heredan TODA la estructura de la base —
+           aquí solo escala: dimensiones del escenario y de la tarjeta. */
         .cgal-stage{ height:min(84vh,700px); min-height:560px; perspective:1300px; }
         .cgal-card{ width:min(70vw,296px); height:min(80vh,640px);
-          left:calc(min(70vw,296px) * -0.5); top:calc(min(80vh,640px) * -0.5);
-          background:transparent; border:none; box-shadow:none; border-radius:0; overflow:visible;
-          display:flex; flex-direction:column; transition:none; }
-        .cgal-card::after{ display:none; }
-        /* numeración del portal — arriba del arco */
-        .cgal-card::before{ content:"—  " attr(data-idx) "  —"; order:-2; text-align:center;
-          font-family:var(--font-display,Georgia,serif); font-style:italic; font-size:13px;
-          color:#C8A87C; letter-spacing:.22em; margin-bottom:12px; }
-        /* ── EL ARCO ── */
-        .cgal-photo{ position:relative; inset:auto; flex:1 1 auto; overflow:hidden;
-          border-radius:46% 46% 20px 20px / 34% 34% 20px 20px;
-          border:1px solid rgba(200,168,124,.30);
-          box-shadow:0 26px 54px -26px rgba(0,0,0,.85), inset 0 0 0 6px rgba(6,11,22,.35); }
-        .cgal-photo::after{ content:""; position:absolute; inset:0; border-radius:inherit;
-          box-shadow:inset 0 0 0 1px rgba(232,228,218,.14);
-          background:linear-gradient(180deg, rgba(5,9,18,.44), rgba(5,9,18,.44));
-          opacity:1; transition:opacity .45s ease; }      /* velo SOLO en vecinas */
-        .cgal-card.cgal-front .cgal-photo::after{
-          background:linear-gradient(180deg, rgba(5,9,18,0) 70%, rgba(5,9,18,.26));
-          opacity:1; }                                     /* al frente: solo pie sutil */
-        /* ── INFO: tipografía pura, centrada, sin caja ── */
-        .cgal-info{ position:relative; inset:auto; left:auto; right:auto; bottom:auto; margin-top:15px;
-          padding:0 6px; border-radius:0; overflow:visible; text-align:center; flex:0 0 auto;
-          background:none; border:none; box-shadow:none;
-          display:flex; flex-direction:column; align-items:center;
-          opacity:.38; transition:opacity .45s ease; }     /* la info vecina también se apaga */
-        .cgal-card.cgal-front .cgal-info{ opacity:1; }
-        .cgal-badge{ display:none; }   /* sin pill en móvil */
-        /* ornamento ✦ con líneas desvanecidas — va ARRIBA de todo (order) */
-        .cgal-seam{ order:-1; display:flex; align-items:center; justify-content:center; gap:10px;
-          width:auto; height:auto; background:none; box-shadow:none; border-radius:0;
-          margin:0 0 9px; color:#C8A87C; font-size:9px; }
-        .cgal-seam::before, .cgal-seam::after{ content:""; width:34px; height:1px;
-          background:linear-gradient(90deg, transparent, rgba(200,168,124,.55)); }
-        .cgal-seam::after{ transform:scaleX(-1); }
-        .cgal-eye{ color:#efa274; font-size:10px; letter-spacing:.26em; margin-bottom:0; }
-        .cgal-name{ font-size:26px; color:#ECE7DD; margin:7px 0 0; }
-        .cgal-meta{ justify-content:center; margin-top:6px; margin-bottom:0; color:#9fb0c6; font-size:11.5px; gap:9px; }
-        .cgal-meta b{ color:#9fb0c6; }
-        .cgal-price{ margin-top:9px; margin-bottom:0; }
-        .cgal-price b{ color:#fff; font-size:21px; } .cgal-price span{ color:#8fa2ba; }
-        /* CTA: pill terracota compacta, centrada (no full-width) */
-        .cgal-cta{ opacity:1; transform:none; display:inline-block; width:auto;
-          margin-top:13px; padding:12px 28px; border:none; border-radius:100px;
-          color:#2a1206; font-weight:700; letter-spacing:.2em; font-size:10.5px;
-          background:linear-gradient(135deg,#f0a878,#E1885E 54%,#d5744a);
-          box-shadow:0 10px 22px -10px rgba(225,136,94,.55),0 2px 0 rgba(255,255,255,.25) inset; }
+          left:calc(min(70vw,296px) * -0.5); top:calc(min(80vh,640px) * -0.5); }
+        .cgal-name{ font-size:26px; }
         .cgal-ctrls{ margin-top:16px; gap:14px; }
         .cgal-ctrls button{ width:42px; height:42px; }
         .cgal-count{ margin-top:12px; font-size:13px; }
@@ -4860,7 +4832,7 @@
       const dotsEl= document.getElementById('cgalDots');
       if(!stage||!ring) return;
       const isMob = matchMedia('(max-width:640px)').matches;
-      const R = isMob ? 240 : 500;   // radio del cilindro (móvil a escala)
+      const R = isMob ? 240 : 565;   // radio del cilindro (arcos más anchos → más aire entre portales)
       // ── CILINDRO VIRTUALIZADO (transformación EXACTA del componente) ──
       //   Cada tarjeta se monta en el cilindro con rotateY(θ)·translateZ(R), al
       //   espaciado de la referencia (SPACING°). Solo se ve la ventana frontal;
@@ -10058,9 +10030,21 @@ window.addEventListener("message", function(e){
     try { var did = new URLSearchParams(location.search).get('id'); if(did){ location.replace('vrm_property.html?id='+encodeURIComponent(did)); } } catch(_){}
   })();
 })();
-/* Refresh siempre desde el inicio (salvo deep-link con #ancla) */
+/* ★ Refresh SIEMPRE desde el inicio — sin excepciones.
+   Antes: si la URL traía #properties (p.ej. tras usar el buscador), el guard
+   `if(location.hash) return` saltaba el reset y recargabas EN el carrusel.
+   Ahora: scrollRestoration manual (el navegador no restaura la posición vieja),
+   se LIMPIA el ancla de la URL (para esta y futuras recargas) y se fuerza el
+   tope en load y pageshow. Los clics en anclas dentro de la página siguen
+   funcionando normal — esto solo actúa al (re)cargar. */
 (function(){
-  function toTop(){ if(location.hash) return; window.scrollTo(0,0); try{ if(window.__lenis) window.__lenis.scrollTo(0,{immediate:true}); }catch(_){} }
+  try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch(_){}
+  function toTop(){
+    try { if (location.hash) history.replaceState(null, '', location.pathname + location.search); } catch(_){}
+    window.scrollTo(0,0);
+    try{ if(window.__lenis) window.__lenis.scrollTo(0,{immediate:true}); }catch(_){}
+  }
+  toTop();                                            // ya mismo (antes del primer paint útil)
   window.addEventListener("load", toTop);
   window.addEventListener("pageshow", function(ev){ if(ev.persisted) toTop(); });   // back-forward cache
 })();
