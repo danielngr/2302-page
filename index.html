@@ -38,6 +38,10 @@
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+<!-- ★ PERF: conexiones abiertas ANTES de que se pidan el GLB y las portadas -->
+<link rel="preconnect" href="https://pub-28277a6ce79d49479afd0cb1bba27b44.r2.dev" crossorigin>
+<link rel="preconnect" href="https://i.imgur.com">
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
 <!-- Fontshare: Boska (display editorial) + Satoshi (UI/body)
      Cargado vía Image() probe: si el dominio es alcanzable, inyectamos el link.
      Sandboxes con CSP estricta no alcanzan Fontshare → caemos limpio a Times / system. -->
@@ -1987,6 +1991,14 @@
     .property-info { padding-top: 18px; }
   }
 
+  /* ★ PERF: content-visibility — el navegador NI hace layout/paint de estas
+     secciones mientras están fuera de pantalla (se activan solas al acercarse).
+     contain-intrinsic-size reserva el alto estimado → cero saltos de scroll.
+     Navegadores viejos lo ignoran sin romper nada. */
+  .why-direct, .reviews, .final {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 900px;
+  }
   .reviews { padding: 200px 48px; }
   .reviews-list { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 200px; }
   .review { position: relative; }
@@ -4861,6 +4873,13 @@
 
       function focus(i){ if(N<=0) return; let cur=((Math.round(manualI)%N)+N)%N; let d=i-cur; while(d>N/2)d-=N; while(d<-N/2)d+=N; manualI = Math.round(manualI)+d; wake(); }
 
+      // ★ PERF: portada a TAMAÑO JUSTO — las tarjetas miden ≤460px CSS (~920px
+      //   reales en Retina). Para imgur usamos su miniatura "h" (1024px) en vez
+      //   del original completo: mismísima foto, fracción del peso/decode/RAM.
+      function _optCover(u){
+        const m = /^https:\/\/i\.imgur\.com\/([A-Za-z0-9]{7})\.(jpe?g|png)$/.exec(u);
+        return m ? ('https://i.imgur.com/' + m[1] + 'h.jpg') : u;
+      }
       // ── crea UNA tarjeta a partir de un HOME ──
       function makeCard(h, i){
         const c = document.createElement('div');
@@ -4870,7 +4889,7 @@
         const _complex = _sp>0 ? h.name.slice(0,_sp) : h.name;
         const _unit = _sp>0 ? h.name.slice(_sp+1) : '';
         c.innerHTML =
-          '<div class="cgal-photo" data-cover="'+String(h.cover).replace(/"/g,'&quot;')+'"></div>'+
+          '<div class="cgal-photo" data-cover="'+_optCover(String(h.cover)).replace(/"/g,'&quot;')+'"></div>'+
           (h.view ? '<div class="cgal-badge">'+h.view+'</div>' : '')+
           '<div class="cgal-info">'+
             '<div class="cgal-eye">'+h.loc+'</div>'+
@@ -6199,11 +6218,19 @@ composer.addPass(renderPass);
 // para evitar los halos cegadores. Sigue habiendo bloom en los puntos más
 // brillantes (chispas) pero NO en zonas amplias de iridescencia.
 const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  new THREE.Vector2(window.innerWidth / 2, window.innerHeight / 2),
   0.26,   // strength bajado — sin flash cegador
   0.65,   // radius bajado — más localizado
   0.84    // threshold alto — solo los highlights más puntuales brillan
 );
+// ★ PERF: el bloom ES un desenfoque — computarlo a MEDIA resolución es
+//   visualmente idéntico y ahorra ~4× en toda su cadena de mips. Override de
+//   setSize para que el composer no lo devuelva a resolución completa al resize.
+{
+  const _bloomSetSize = bloomPass.setSize.bind(bloomPass);
+  bloomPass.setSize = (w, h) => _bloomSetSize(Math.max(1, w >> 1), Math.max(1, h >> 1));
+  bloomPass.setSize(window.innerWidth, window.innerHeight);
+}
 composer.addPass(bloomPass);
 
 // ★★★ CHROMATIC ABERRATION custom pass ★★★
@@ -6955,7 +6982,7 @@ bloomPass.strength = 0.26;
 //     equipo de verdad no sostiene ~28fps) → cambios rarísimos = cero tirones
 //     por reasignar el buffer. En segundo plano no renderiza.
 let __lastHeavy = 0;
-const __dprFloor = 1.0;
+const __dprFloor = isMobile ? 1.0 : 0.85;   // desktop puede bajar más si sufre (4K/5K)
 const __dprCap = DPR_MAIN;                        // 1.5 móvil / 2 desktop
 let __dpr = __dprCap;                             // arranca nítido
 let __emaFrame = 1000 / 40;
@@ -6979,7 +7006,13 @@ function __governResolution(frameMs){
   __emaFrame += (frameMs - __emaFrame) * 0.05;
   if (__govCooldown > 0){ __govCooldown--; return; }
   if (__emaFrame > (1000 / 40) * 1.5 && __dpr > __dprFloor){ __applyDPR(__dpr - 0.15); __govCooldown = 150; }
-  else if (!__capFps30 && __dpr <= __dprFloor + 0.001 && __emaFrame > 45){ __capFps30 = true; }
+  else if (!__capFps30 && __dpr <= __dprFloor + 0.001 && __emaFrame > 45){
+    // ★ NIVEL 2 (máquina débil confirmada): 30fps estables + fuera el pase de
+    //   aberración cromática (sutil; un fullscreen-pass menos por frame) y en
+    //   la pasada frontal se renderiza la ballena UNA sola vez (ver loop).
+    __capFps30 = true;
+    try { chromaticPass.enabled = false; } catch(_){}
+  }
 }
 function animate(time) {
   requestAnimationFrame(animate);
@@ -7524,8 +7557,14 @@ function animate(time) {
   // ════════════════════════════════════════════════════════════════════
   // RENDER — pipeline ORIGINAL (composer, canvas único opaco):
   // fondo → velo interno (solo el agua) → ballena → bloom → aberración.
+  // ★ MÁQUINA DÉBIL + pasada frontal a opacidad plena: la ballena se dibuja
+  //   SOLO en el overlay frontal (idéntica y encima de todo) — ahorra el
+  //   render de transmisión duplicado del canvas principal en esa ventana.
   // ════════════════════════════════════════════════════════════════════
+  const _skipMainWhale = __capFps30 && window.__whaleFrontFull === true;
+  if (_skipMainWhale) whaleGroup.visible = false;
   composer.render();
+  if (_skipMainWhale) whaleGroup.visible = true;
 
   // ════════════════════════════════════════════════════════════════════
   // ★ PASADA FRONTAL — overlay transparente por ENCIMA de todo, solo en la
@@ -7543,6 +7582,7 @@ function animate(time) {
     // ★ TRAVESÍA: en scroll rápido el overlay frontal se apaga — la ballena
     //   cruza al fondo (zambullida), no destella gigante sobre los textos.
     fOp *= (1 - rushF);
+    window.__whaleFrontFull = (fOp >= 0.999);   // ← señal para saltar el render duplicado
     if (fOp > 0.001) {
       frontCanvas.style.opacity = String(fOp);
       const fr = ensureFrontRenderer();
