@@ -4707,77 +4707,105 @@
       .cgal-stage{ position:relative; height:min(76vh,680px); min-height:460px; perspective:2000px; display:grid; place-items:center; touch-action:pan-y; cursor:grab; }
       .cgal-stage:active{ cursor:grabbing; }
       .cgal-ring{ position:relative; width:1px; height:1px; transform-style:preserve-3d; will-change:transform; }
-      .cgal-card{ position:absolute; width:300px; height:400px; left:-150px; top:-200px;
-        border-radius:16px; overflow:hidden; background:#0a1220; border:1px solid rgba(150,180,220,.14);
-        box-shadow:0 30px 70px -32px rgba(0,0,0,.85); will-change:transform,opacity;
+      /* ★ REDISEÑO VISUAL: tarjetas más grandes y aireadas, esquinas más
+         suaves, y FOCO tipo galería — la del frente viva, las vecinas con un
+         velo que se disuelve al pasar al frente (transición solo de opacity =
+         compositor puro, cero costo). */
+      .cgal-card{ position:absolute; width:330px; height:440px; left:-165px; top:-220px;
+        border-radius:20px; overflow:hidden; background:#0a1220; border:1px solid rgba(150,180,220,.14);
+        box-shadow:0 34px 80px -34px rgba(0,0,0,.85); will-change:transform,opacity;
+        transition:border-color .45s ease, box-shadow .45s ease;
         contain:layout style;   /* ★ invalidaciones de estilo/​layout no salen de la tarjeta */
         backface-visibility:hidden; -webkit-backface-visibility:hidden; }
+      /* velo de foco sobre las vecinas (por ENCIMA de foto e info) */
+      .cgal-card::after{ content:""; position:absolute; inset:0; z-index:4; pointer-events:none;
+        background:linear-gradient(180deg, rgba(4,8,16,.32), rgba(4,8,16,.48));
+        opacity:1; transition:opacity .45s ease; }
+      .cgal-card.cgal-front::after{ opacity:0; }
+      .cgal-card.cgal-front{ border-color:rgba(225,166,124,.34);
+        box-shadow:0 44px 96px -36px rgba(0,0,0,.9), 0 0 42px -14px rgba(225,136,94,.22); }
       .cgal-photo{ position:absolute; inset:0; background-size:cover; background-position:center; }
-      .cgal-photo::after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(4,7,14,0) 34%,rgba(4,7,14,.35) 58%,rgba(4,7,14,.92) 100%); }
-      .cgal-info{ position:absolute; left:0; right:0; bottom:0; padding:20px; z-index:2; }
-      .cgal-eye{ font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:#e9a583; margin-bottom:8px; font-family:var(--font-body,system-ui); }
-      .cgal-name{ font-family:var(--font-display,Georgia,serif); font-weight:400; font-size:24px; line-height:1.04; color:#ECE7DD; margin:0; }
+      .cgal-photo::after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(4,7,14,0) 30%,rgba(4,7,14,.38) 56%,rgba(4,7,14,.94) 100%); }
+      .cgal-info{ position:absolute; left:0; right:0; bottom:0; padding:22px 24px 24px; z-index:2; }
+      .cgal-eye{ font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:#efa274; margin-bottom:9px; font-family:var(--font-body,system-ui); }
+      .cgal-name{ font-family:var(--font-display,Georgia,serif); font-weight:400; font-size:27px; line-height:1.05; color:#fff; margin:0; }
       .cgal-name em{ font-style:italic; }
       .cgal-seam{ display:none; }   /* costura terracota: solo en móvil (dos tarjetas) */
-      .cgal-meta{ display:flex; gap:12px; margin-top:11px; font-size:11px; color:#9db0c8; letter-spacing:.02em; font-family:var(--font-body,system-ui); }
-      .cgal-meta b{ font-weight:400; color:#9db0c8; }
-      .cgal-price{ margin-top:11px; font-family:var(--font-display,Georgia,serif); color:#ECE7DD; }
-      .cgal-price b{ font-size:19px; font-weight:500; }
-      .cgal-price span{ font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#7f90a8; font-family:var(--font-body,system-ui); }
+      .cgal-meta{ display:flex; gap:14px; margin-top:12px; font-size:11.5px; color:#aabdd4; letter-spacing:.02em; font-family:var(--font-body,system-ui); }
+      .cgal-meta b{ font-weight:400; color:#aabdd4; }
+      .cgal-price{ margin-top:12px; font-family:var(--font-display,Georgia,serif); color:#ECE7DD; }
+      .cgal-price b{ font-size:21px; font-weight:500; color:#fff; }
+      .cgal-price span{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:#8fa2ba; font-family:var(--font-body,system-ui); margin-left:2px; }
       /* ★ SIN backdrop-filter: 16 blurs vivos sobre el canvas WebGL fijo hacían
          parpadear el compositor en esta sección. Fondo sólido = mismo look, cero flicker. */
       .cgal-badge{ position:absolute; top:13px; left:13px; z-index:3; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
         color:#ECE7DD; background:rgba(6,11,22,.78); border:1px solid rgba(150,180,220,.18);
         padding:5px 11px; border-radius:30px; font-family:var(--font-body,system-ui); }
-      .cgal-cta{ margin-top:15px; display:inline-block; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:#ECE7DD;
-        border:1px solid rgba(150,180,220,.2); padding:9px 18px; border-radius:30px; text-decoration:none;
+      .cgal-cta{ margin-top:16px; display:inline-block; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:#ECE7DD;
+        border:1px solid rgba(232,228,218,.32); padding:10px 22px; border-radius:30px; text-decoration:none;
         opacity:0; transform:translateY(8px); transition:.28s cubic-bezier(.22,.61,.36,1); font-family:var(--font-body,system-ui); }
       .cgal-card.cgal-front .cgal-cta{ opacity:1; transform:none; }
       .cgal-cta:hover{ background:#E1885E; border-color:#E1885E; color:#0a0f18; }
-      .cgal-ctrls{ display:flex; align-items:center; justify-content:center; gap:14px; margin-top:16px; }
-      .cgal-ctrls button{ width:46px; height:46px; border-radius:50%; border:1px solid rgba(150,180,220,.16);
-        background:rgba(14,26,46,.78); color:#ECE7DD; cursor:pointer; font-size:18px; display:grid; place-items:center;
+      .cgal-ctrls{ display:flex; align-items:center; justify-content:center; gap:18px; margin-top:26px; }
+      .cgal-ctrls button{ width:46px; height:46px; border-radius:50%; border:1px solid rgba(150,180,220,.18);
+        background:rgba(14,26,46,.72); color:#ECE7DD; cursor:pointer; font-size:18px; display:grid; place-items:center;
         transition:.22s cubic-bezier(.22,.61,.36,1); }
       .cgal-ctrls button:hover{ border-color:#E1885E; color:#E1885E; transform:translateY(-2px); }
       .cgal-dots{ display:flex; gap:9px; align-items:center; }
       .cgal-dots i{ width:7px; height:7px; border-radius:50%; background:rgba(150,180,220,.28); cursor:pointer; transition:.25s cubic-bezier(.22,.61,.36,1); }
       .cgal-dots i.on{ background:#E1885E; width:22px; border-radius:4px; }
-      .cgal-hint{ text-align:center; margin-top:14px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; opacity:.5; font-family:var(--font-body,system-ui); }
+      /* contador editorial "01 — 16": el toque de sitio de agencia */
+      .cgal-count{ text-align:center; margin-top:16px; font-family:var(--font-display,Georgia,serif);
+        font-size:14px; letter-spacing:.14em; color:#ECE7DD; }
+      .cgal-count b{ font-weight:400; color:#E1885E; font-style:italic; }
+      .cgal-count span{ color:#7f90a8; font-size:12px; }
+      .cgal-hint{ text-align:center; margin-top:10px; font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; opacity:.45; font-family:var(--font-body,system-ui); }
       @media (max-width:640px){
         /* ★ MÓVIL = DOS TARJETAS: foto grande (vertical) arriba + tarjeta glass
-           separada debajo (que retoma los colores de la foto). Sin cilindro. */
+           separada debajo (que retoma los colores de la foto). Sin cilindro.
+           ★ REDISEÑO: tarjeta central más ancha y protagonista (68vw), vecinas
+           asomando finito; radios 24; velo de foco en las vecinas (la foto Y la
+           info se apagan suave y reviven al llegar al frente — solo opacity). */
         .cgal-stage{ height:min(80vh,660px); min-height:540px; perspective:1300px; }
-        .cgal-card{ width:min(64vw,290px); height:min(76vh,600px);
-          left:calc(min(64vw,290px) * -0.5); top:calc(min(76vh,600px) * -0.5);
+        .cgal-card{ width:min(68vw,304px); height:min(76vh,600px);
+          left:calc(min(68vw,304px) * -0.5); top:calc(min(76vh,600px) * -0.5);
           background:transparent; border:none; box-shadow:none; border-radius:0; overflow:visible;
-          display:flex; flex-direction:column; }
-        /* tarjeta 1 · foto grande — sombra LIGERA (las sombras grandes re-compositan
-           en cada frame al mover = jank). Sin filtros. */
-        .cgal-photo{ position:relative; inset:auto; flex:1 1 auto; border-radius:22px; overflow:hidden;
-          box-shadow:0 12px 26px -16px rgba(0,0,0,.6); border:1px solid rgba(255,255,255,.06); }
-        .cgal-photo::after{ display:none; }   /* foto limpia, sin velo */
-        /* tarjeta 2 · glass SÓLIDO (sin blur en vivo — era lo que trababa la GPU).
-           Degradado oscuro elegante + borde fino + brillo superior = look glass barato. */
-        .cgal-info{ position:relative; inset:auto; left:auto; right:auto; bottom:auto; margin-top:11px;
-          padding:15px 18px 16px; border-radius:22px; overflow:hidden; text-align:center; flex:0 0 auto;
+          display:flex; flex-direction:column; transition:none; }
+        /* velo de foco (redefinido para el layout de dos tarjetas: cubre ambas
+           con sus radios — inset 0 + radius no aplica porque hay hueco; usamos
+           dos capas vía ::after de la foto y atenuación de la info) */
+        .cgal-card::after{ display:none; }
+        .cgal-photo{ position:relative; inset:auto; flex:1 1 auto; border-radius:24px; overflow:hidden;
+          box-shadow:0 14px 30px -18px rgba(0,0,0,.65); border:1px solid rgba(255,255,255,.07); }
+        .cgal-photo::after{ content:""; position:absolute; inset:0; background:rgba(5,9,18,.44);
+          opacity:1; transition:opacity .45s ease; }        /* velo SOLO en vecinas */
+        .cgal-card.cgal-front .cgal-photo::after{ opacity:0; }
+        /* tarjeta 2 · glass SÓLIDO (sin blur en vivo — era lo que trababa la GPU). */
+        .cgal-info{ position:relative; inset:auto; left:auto; right:auto; bottom:auto; margin-top:12px;
+          padding:17px 20px 18px; border-radius:24px; overflow:hidden; text-align:center; flex:0 0 auto;
           background:linear-gradient(180deg, rgba(19,29,46,.95), rgba(10,16,27,.97));
           border:1px solid rgba(255,255,255,.10);
-          box-shadow:0 12px 26px -16px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.10); }
+          box-shadow:0 14px 30px -18px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.10); }
         .cgal-badge{ display:none; }   /* sin pill en móvil */
-        .cgal-eye{ color:#efa274; font-size:10.5px; letter-spacing:.2em; margin-bottom:0; }
-        .cgal-name{ font-size:23px; color:#fff; margin:7px 0 0; }
-        .cgal-seam{ display:block; width:48px; height:2px; background:#E1885E; opacity:.92; border-radius:2px;
-          margin:10px auto 10px; box-shadow:0 0 14px rgba(225,136,94,.55); }
-        .cgal-meta{ justify-content:center; margin-top:0; margin-bottom:11px; color:#dbe6f4; font-size:12px; }
+        .cgal-eye{ color:#efa274; font-size:10.5px; letter-spacing:.22em; margin-bottom:0; }
+        .cgal-name{ font-size:24px; color:#fff; margin:8px 0 0; }
+        .cgal-seam{ display:block; width:54px; height:2px; border-radius:2px;
+          background:linear-gradient(90deg, rgba(225,136,94,.15), #E1885E 50%, rgba(225,136,94,.15));
+          margin:11px auto 11px; box-shadow:0 0 14px rgba(225,136,94,.5); }
+        .cgal-meta{ justify-content:center; margin-top:0; margin-bottom:12px; color:#dbe6f4; font-size:12px; gap:11px; }
         .cgal-meta b{ color:#dbe6f4; }
-        .cgal-price{ margin-top:0; margin-bottom:12px; }
-        .cgal-price b{ color:#fff; } .cgal-price span{ color:#c4d2e4; }
+        .cgal-price{ margin-top:0; margin-bottom:13px; }
+        .cgal-price b{ color:#fff; font-size:22px; } .cgal-price span{ color:#c4d2e4; }
         .cgal-cta{ opacity:1; transform:none; display:flex; align-items:center; justify-content:center;
           width:100%; margin-top:0; padding:15px 22px; border:none; border-radius:100px;
           color:#2a1206; font-weight:700; letter-spacing:.16em; font-size:12px;
           background:linear-gradient(135deg,#f0a878,#E1885E 54%,#d5744a);
           box-shadow:0 8px 18px -8px rgba(225,136,94,.55),0 2px 0 rgba(255,255,255,.25) inset; }
         /* (sin animación de destello en móvil: repintaba cada frame = jank) */
+        .cgal-ctrls{ margin-top:18px; gap:14px; }
+        .cgal-ctrls button{ width:42px; height:42px; }
+        .cgal-count{ margin-top:12px; font-size:13px; }
+        .cgal-hint{ margin-top:8px; font-size:10.5px; }
       }
     </style>
     <div class="cgal-wrap">
@@ -4789,6 +4817,7 @@
         <div class="cgal-dots" id="cgalDots"></div>
         <button type="button" id="cgalNext" aria-label="Siguiente">›</button>
       </div>
+      <div class="cgal-count" id="cgalCount" aria-hidden="true"></div>
       <p class="cgal-hint" data-i18n="drum.hint.outer">Arrastrá para girar · tocá una estancia para abrirla</p>
     </div>
 
@@ -4956,6 +4985,9 @@
         stage.style.display = empty ? 'none' : '';
         if (ctrlsEl) ctrlsEl.style.display = empty ? 'none' : '';
         if (hintEl)  hintEl.style.display  = empty ? 'none' : '';
+        const _cnt0 = document.getElementById('cgalCount');
+        if (_cnt0){ _cnt0.style.display = empty ? 'none' : '';
+          _cnt0.innerHTML = empty ? '' : '<b>01</b> <span>&nbsp;/&nbsp;</span>'+String(N).padStart(2,'0'); }
         showNoResults(empty);
         if (!empty) wake();
       }
@@ -5053,10 +5085,10 @@
               if(_ph && _ph.dataset.cover){ const _u=_ph.dataset.cover; _ph.style.backgroundImage='url("'+_u+'")'; c.style.setProperty('--cover','url("'+_u+'")'); _ph.removeAttribute('data-cover'); }
               const rc = Math.max(-1, Math.min(1, r));
               const k = Math.min(arr, 1);
-              const tx = r * _vwCache * 0.66;          // desplazamiento lateral (la siguiente asoma)
-              const rotY = -rc * 40;                   // inclinación de rueda
-              const tz = -k * 180;                     // ★ ATRÁS: nunca se mete frente al centro
-              const sc = 1 - k * 0.06;
+              const tx = r * _vwCache * 0.72;          // desplazamiento lateral (aire entre tarjetas)
+              const rotY = -rc * 38;                   // inclinación de rueda
+              const tz = -k * 190;                     // ★ ATRÁS: nunca se mete frente al centro
+              const sc = 1 - k * 0.055;
               c.style.transform = 'translateX('+tx.toFixed(1)+'px) translateZ('+tz.toFixed(0)+'px) rotateY('+rotY.toFixed(1)+'deg) scale('+sc.toFixed(3)+')';
               const _o = arr < 0.5 ? '1' : Math.max(0, 1 - (arr - 0.5) * 1.05).toFixed(2);
               if (c._op !== _o){ c.style.opacity=_o; c._op=_o; }
@@ -5078,7 +5110,9 @@
               return;
             }
             if(_ph && _ph.dataset.cover){ const _u=_ph.dataset.cover; _ph.style.backgroundImage='url("'+_u+'")'; c.style.setProperty('--cover','url("'+_u+'")'); _ph.removeAttribute('data-cover'); }
-            c.style.transform = 'rotateY('+angle.toFixed(2)+'deg) translateZ('+R+'px)';
+            // ★ micro-pop de la tarjeta al frente: crece suave hasta +4.5% al centrarse
+            const _pop = 1 + Math.max(0, 1 - ar / (SPACING * 0.7)) * 0.045;
+            c.style.transform = 'rotateY('+angle.toFixed(2)+'deg) translateZ('+R+'px) scale('+_pop.toFixed(3)+')';
             const _o = (ar < 50 ? 1 : Math.max(0, 1 - (ar-50)/52)).toFixed(2);
             if (c._op !== _o){ c.style.opacity=_o; c._op=_o; }
             const _z = String(Math.round(400 - ar));
@@ -5092,6 +5126,8 @@
           if (_lastFrontI !== frontI){       // los puntos solo se tocan al cambiar de casa
             dots.forEach((d,i)=>d.classList.toggle('on', i===frontI));
             _lastFrontI = frontI;
+            const _cnt = document.getElementById('cgalCount');   // contador editorial "01 / 16"
+            if (_cnt) _cnt.innerHTML = '<b>'+String(frontI+1).padStart(2,'0')+'</b> <span>&nbsp;/&nbsp;</span>'+String(N).padStart(2,'0');
           }
         }
         // ★ duerme cuando ya se posó (posición Y velocidad casi cero) → cero rAF en reposo
@@ -5122,7 +5158,7 @@
           if (dirLock===-1){ down=false; return; }            // vertical → suelta: la página scrollea sola
         }
         moved+=Math.abs(dx);
-        const factor = isMob ? 1/(_vwCache*0.66) : 0.006;
+        const factor = isMob ? 1/(_vwCache*0.72) : 0.006;
         const dIdx = -dx*factor; manualI += dIdx;
         const mdt = Math.max(0.001,(now-lastMoveT)/1000); lastMoveT=now;
         velIdx = velIdx*0.6 + (dIdx/mdt)*0.4;                 // velocidad suavizada (casas/seg)
