@@ -4785,6 +4785,8 @@
          los portales vecinos y hay flechas; ahí sería redundante). Cada
          miniatura repite la forma de arco del portal. ── */
       .cgal-strip{ display:none; }
+      /* ── FLECHAS DE BORDE — solo móvil (desktop usa .cgal-ctrls) ── */
+      .cgal-edge{ display:none; }
       /* contador editorial "01 — 16": el toque de sitio de agencia */
       .cgal-count{ text-align:center; margin-top:16px; font-family:var(--font-display,Georgia,serif);
         font-size:14px; letter-spacing:.14em; color:#ECE7DD; }
@@ -4805,6 +4807,23 @@
         .cgal-ctrls{ display:none; }
         .cgal-dots{ display:none; }
         .cgal-count{ display:none; }
+        /* ── FLECHAS DE BORDE: pastilla de cristal fina sobre el borde del
+           portal. Área de toque de 44px (accesible) con el ícono a 32px. La
+           derecha late cada pocos segundos para invitar a deslizar. ── */
+        .cgal-edge{ position:absolute; top:38%; z-index:6; display:grid; place-items:center;
+          width:44px; height:44px; padding:0; border:none; background:none; cursor:pointer;
+          -webkit-tap-highlight-color:transparent; }
+        .cgal-edge.prev{ left:-2px; }
+        .cgal-edge.next{ right:-2px; }
+        .cgal-edge::before{ content:""; position:absolute; width:32px; height:32px; border-radius:50%;
+          background:rgba(8,14,26,.52); border:1px solid rgba(200,168,124,.34);
+          box-shadow:0 4px 14px -6px rgba(0,0,0,.8); transition:background .25s ease, border-color .25s ease; }
+        .cgal-edge:active::before{ background:rgba(225,136,94,.24); border-color:rgba(225,136,94,.6); }
+        .cgal-edge svg{ position:relative; width:15px; height:15px; color:#C8A87C;
+          filter:drop-shadow(0 1px 3px rgba(0,0,0,.6)); }
+        .cgal-edge.next svg{ animation:edgeNudge 3.4s ease-in-out infinite; }
+        @keyframes edgeNudge{ 0%,70%,100%{ transform:translateX(0); opacity:.8 }
+                              82%{ transform:translateX(4px); opacity:1 } }
         /* ── TIRA DE MINIATURAS ── */
         .cgal-strip{ display:flex; gap:7px; overflow-x:auto; scroll-behavior:smooth;
           padding:18px 20px 2px; margin:0 auto; max-width:100%;
@@ -4823,6 +4842,14 @@
     <div class="cgal-wrap">
       <div class="cgal-stage" id="cgalStage" aria-roledescription="carrusel" aria-label="Estancias destacadas">
         <div class="cgal-ring" id="cgalRing"></div>
+        <!-- ★ Flechas de borde (solo móvil): flotan sobre el portal, no ocupan
+             altura, y la de la derecha late suave para invitar a deslizar. -->
+        <button type="button" class="cgal-edge prev" id="cgalEdgePrev" aria-label="Anterior">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg>
+        </button>
+        <button type="button" class="cgal-edge next" id="cgalEdgeNext" aria-label="Siguiente">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg>
+        </button>
       </div>
       <div class="cgal-ctrls">
         <button type="button" id="cgalPrev" aria-label="Anterior">‹</button>
@@ -5234,6 +5261,12 @@
           dirLock = Math.abs(dx) > Math.abs(dy)*1.15 ? 1 : -1;
           if (dirLock===-1){ down=false; return; }            // vertical → suelta: la página scrollea sola
         }
+        // ★★ LOCK: una vez que el gesto es HORIZONTAL, la página deja de
+        //    scrollear por completo mientras dure. Antes el navegador seguía
+        //    haciendo pan vertical con la componente Y del gesto diagonal → la
+        //    rueda giraba y la página se movía a la vez = se sentía trabado.
+        //    (Requiere el listener en passive:false para poder cancelarlo.)
+        if (dirLock===1 && e.cancelable) e.preventDefault();
         moved+=Math.abs(dx);
         const factor = isMob ? 1/(_vwCache*0.78) : 0.006;
         const dIdx = -dx*factor; manualI += dIdx;
@@ -5249,11 +5282,18 @@
         //   "Reserve" y no pasaba nada. 16px = tap-slop real de iOS/Android.
         if(moved>16){ justDragged=true; setTimeout(()=>justDragged=false,80);} wake(); }
       stage.addEventListener('mousedown',ps); window.addEventListener('mousemove',pm); window.addEventListener('mouseup',pe);
-      stage.addEventListener('touchstart',ps,{passive:true}); stage.addEventListener('touchmove',pm,{passive:true}); stage.addEventListener('touchend',pe);
+      stage.addEventListener('touchstart',ps,{passive:true});
+      stage.addEventListener('touchmove',pm,{passive:false});   // ★ passive:false → podemos cancelar el scroll
+      stage.addEventListener('touchend',pe);
 
       // flechas
-      document.getElementById('cgalNext').addEventListener('click',()=>{ if(N>0){ manualI = Math.round(manualI)+1; wake(); } });
-      document.getElementById('cgalPrev').addEventListener('click',()=>{ if(N>0){ manualI = Math.round(manualI)-1; wake(); } });
+      const _go = (d)=>{ if(N>0){ manualI = Math.round(manualI)+d; wake(); } };
+      document.getElementById('cgalNext').addEventListener('click',()=>_go(1));
+      document.getElementById('cgalPrev').addEventListener('click',()=>_go(-1));
+      // flechas de borde (móvil) — mismo comportamiento
+      const _eN=document.getElementById('cgalEdgeNext'), _eP=document.getElementById('cgalEdgePrev');
+      if(_eN) _eN.addEventListener('click',(e)=>{ e.stopPropagation(); _go(1); });
+      if(_eP) _eP.addEventListener('click',(e)=>{ e.stopPropagation(); _go(-1); });
 
       // ── ★ PAD DE LA LAPTOP (desktop): swipe horizontal de dos dedos GIRA la
       //    arcada — el gesto natural de trackpad. Solo secuestra el gesto si es
