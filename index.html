@@ -136,7 +136,7 @@
       'search.zone.sub.pv_hotel': 'Puerto Vallarta · Hotel Zone',
       'search.zone.sub.south_coast': 'South Coast',
       'search.guests.done': 'Done',
-      'drum.hint.outer': 'Swipe the trackpad or drag · tap a stay to open it',
+      'drum.hint.outer': 'Tap a thumbnail or swipe · tap a stay to open it',
       'wa.sub': 'Real human, fast reply',
       'search.picker.title': 'Select your dates',
       'search.picker.clear': 'Clear',
@@ -297,7 +297,7 @@
       'search.zone.sub.pv_hotel': 'Puerto Vallarta · Hotelera',
       'search.zone.sub.south_coast': 'Costa Sur',
       'search.guests.done': 'Listo',
-      'drum.hint.outer': 'Desliza con el pad o arrastra · toca una estancia para abrirla',
+      'drum.hint.outer': 'Toca una miniatura o desliza · toca una estancia para abrirla',
       'wa.sub': 'Respuesta real y rápida',
       'search.picker.title': 'Selecciona tus fechas',
       'search.picker.clear': 'Limpiar',
@@ -4775,6 +4775,10 @@
       .cgal-dots{ display:flex; gap:9px; align-items:center; }
       .cgal-dots i{ width:7px; height:7px; border-radius:50%; background:rgba(150,180,220,.28); cursor:pointer; transition:.25s cubic-bezier(.22,.61,.36,1); }
       .cgal-dots i.on{ background:#E1885E; width:22px; border-radius:4px; }
+      /* ── TIRA DE MINIATURAS — solo móvil (en desktop la rueda 3D ya muestra
+         los portales vecinos y hay flechas; ahí sería redundante). Cada
+         miniatura repite la forma de arco del portal. ── */
+      .cgal-strip{ display:none; }
       /* contador editorial "01 — 16": el toque de sitio de agencia */
       .cgal-count{ text-align:center; margin-top:16px; font-family:var(--font-display,Georgia,serif);
         font-size:14px; letter-spacing:.14em; color:#ECE7DD; }
@@ -4790,8 +4794,22 @@
         .cgal-name{ font-size:26px; }
         .cgal-ctrls{ margin-top:16px; gap:14px; }
         .cgal-ctrls button{ width:42px; height:42px; }
+        /* los puntos salen: la tira de miniaturas ya dice posición Y catálogo */
+        .cgal-dots{ display:none; }
         .cgal-count{ margin-top:12px; font-size:13px; }
-        .cgal-hint{ margin-top:8px; font-size:10.5px; }
+        /* ── TIRA DE MINIATURAS ── */
+        .cgal-strip{ display:flex; gap:7px; overflow-x:auto; scroll-behavior:smooth;
+          padding:14px 20px 2px; margin:0 auto; max-width:100%;
+          scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+        .cgal-strip::-webkit-scrollbar{ display:none; }
+        .cgal-strip i{ flex:0 0 auto; width:34px; height:44px; cursor:pointer;
+          border-radius:14px 14px 4px 4px;            /* mismo arco que el portal */
+          background-size:cover; background-position:center; background-color:#16273c;
+          border:1px solid rgba(200,168,124,.22); opacity:.42;
+          transition:opacity .3s ease, transform .3s ease, border-color .3s ease; }
+        .cgal-strip i.on{ opacity:1; transform:translateY(-3px);
+          border-color:rgba(200,168,124,.85); box-shadow:0 6px 14px -6px rgba(0,0,0,.75); }
+        .cgal-hint{ margin-top:9px; font-size:10.5px; }
       }
     </style>
     <div class="cgal-wrap">
@@ -4804,6 +4822,9 @@
         <button type="button" id="cgalNext" aria-label="Siguiente">›</button>
       </div>
       <div class="cgal-count" id="cgalCount" aria-hidden="true"></div>
+      <!-- ★ TIRA DE MINIATURAS (móvil): muestra el catálogo completo de un
+           vistazo — deja claro que hay más y permite saltar a cualquiera. -->
+      <div class="cgal-strip" id="cgalStrip" role="tablist" aria-label="Todas las estancias"></div>
       <p class="cgal-hint" data-i18n="drum.hint.outer">Arrastrá para girar · tocá una estancia para abrirla</p>
     </div>
 
@@ -4847,7 +4868,7 @@
       // ── ESTADO MUTABLE — el filtro RECONSTRUYE la rueda con un subconjunto ──
       let activeHomes = HOMES.slice();
       let N = activeHomes.length, ANG = 360/(N||1);
-      let cards = [], dots = [];
+      let cards = [], dots = [], thumbs = [];
       let manualI = 0, parF = 0, pos = 0, posVel = 0, justDragged = false;
       let velIdx = 0, lastMoveT = 0, _lastFrameT = 0;   // física del deslizamiento
       var _lastPos = 1e9, _running = false, _rafId = 0;   // var → sin TDZ
@@ -4957,6 +4978,7 @@
       }
 
       // ── panel "sin resultados" cuando el filtro no deja ninguna casa ──
+      const stripEl = document.getElementById('cgalStrip');
       const wrapEl  = stage.closest('.cgal-wrap') || stage.parentElement;
       const ctrlsEl = wrapEl ? wrapEl.querySelector('.cgal-ctrls') : null;
       const hintEl  = wrapEl ? wrapEl.querySelector('.cgal-hint')  : null;
@@ -4993,6 +5015,21 @@
         ring.innerHTML=''; dotsEl.innerHTML='';
         cards = activeHomes.map((h,i)=>{ const c=makeCard(h,i); ring.appendChild(c); return c; });
         dots  = activeHomes.map((_,i)=>{ const d=document.createElement('i'); d.addEventListener('click',()=>focus(i)); dotsEl.appendChild(d); return d; });
+        // ★ TIRA DE MINIATURAS: una por casa activa (se reconstruye al filtrar).
+        //   Reusa la MISMA url de portada → el navegador la sirve de caché, cero
+        //   red extra. Tocar una salta a ese portal.
+        thumbs = [];
+        if (stripEl){
+          stripEl.innerHTML = '';
+          thumbs = activeHomes.map((hh,i)=>{
+            const el=document.createElement('i');
+            el.style.backgroundImage = 'url("'+_optCover(String(hh.cover)).replace(/"/g,'&quot;')+'")';
+            el.setAttribute('role','tab');
+            el.setAttribute('aria-label', hh.name);
+            el.addEventListener('click', ()=>focus(i));
+            stripEl.appendChild(el); return el;
+          });
+        }
         // re-aplicar traducciones a las tarjetas nuevas (respeta EN/ES y el switch de idioma)
         // (try/catch: si i18n fallara por lo que sea, la rueda NUNCA debe morir)
         try { if(window.VRM_applyI18n) window.VRM_applyI18n(); } catch(_){}
@@ -5002,6 +5039,7 @@
         stage.style.display = empty ? 'none' : '';
         if (ctrlsEl) ctrlsEl.style.display = empty ? 'none' : '';
         if (hintEl)  hintEl.style.display  = empty ? 'none' : '';
+        if (stripEl) stripEl.style.display = empty ? 'none' : '';
         const _cnt0 = document.getElementById('cgalCount');
         if (_cnt0){ _cnt0.style.display = empty ? 'none' : '';
           _cnt0.innerHTML = empty ? '' : '<b>01</b> <span>&nbsp;/&nbsp;</span>'+String(N).padStart(2,'0'); }
@@ -5144,6 +5182,18 @@
           });
           if (_lastFrontI !== frontI){       // los puntos solo se tocan al cambiar de casa
             dots.forEach((d,i)=>d.classList.toggle('on', i===frontI));
+            // miniatura activa + auto-scroll SOLO si quedó fuera de vista
+            if (thumbs.length){
+              thumbs.forEach((t,i)=>t.classList.toggle('on', i===frontI));
+              const _t = thumbs[frontI];
+              if (_t && stripEl){
+                const sl=stripEl.scrollLeft, sw=stripEl.clientWidth;
+                const tl=_t.offsetLeft, tw=_t.offsetWidth;
+                if (tl < sl + 8 || tl + tw > sl + sw - 8){
+                  stripEl.scrollTo({ left: Math.max(0, tl - sw/2 + tw/2), behavior:'smooth' });
+                }
+              }
+            }
             _lastFrontI = frontI;
             const _cnt = document.getElementById('cgalCount');   // contador editorial "01 / 16"
             if (_cnt) _cnt.innerHTML = '<b>'+String(frontI+1).padStart(2,'0')+'</b> <span>&nbsp;/&nbsp;</span>'+String(N).padStart(2,'0');
