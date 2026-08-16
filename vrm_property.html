@@ -1666,6 +1666,24 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
 </style>
 </head>
 <body>
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   ★ IMÁGENES A TAMAÑO JUSTO — arregla la carga lentísima de las fotos.
+   Todas las fotos venían del ORIGINAL de imgur (3–6 MB c/u, 113 en la
+   página). imgur sirve variantes por sufijo, así que pedimos el tamaño
+   que de verdad se ve:
+       h = 1024px  ·  l = 640px  ·  m = 320px  ·  t = 160px
+   Ganancia típica: de ~4 MB por foto a ~150–350 KB, misma nitidez a la
+   vista. Las URLs que no son de imgur (Airbnb) se dejan intactas.
+   ════════════════════════════════════════════════════════════════════ */
+window.VRM_img = function(url, size){
+  try{
+    var m = /^https:\/\/i\.imgur\.com\/([A-Za-z0-9]{7})\.(?:jpe?g|png)$/.exec(String(url||''));
+    return m ? ('https://i.imgur.com/' + m[1] + (size||'h') + '.jpg') : url;
+  }catch(e){ return url; }
+};
+</script>
+
 
 <!-- ═══════════════════════════════════════════════════════════════════
      TRANSITION OVERLAY — Continuación del overlay de la landing
@@ -3427,14 +3445,40 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
         }
       });
       // Pintar slides del hero
+      // ★ CARGA PROGRESIVA: antes las 9 fotos del hero se descargaban TODAS de
+      //   golpe al abrir (megas compitiendo por el ancho de banda → la primera
+      //   tardaba una eternidad). Ahora la 1ª entra de inmediato y las demás se
+      //   van cargando en ratos libres, una por una. Si el usuario desliza
+      //   antes, esa foto se adelanta al frente de la fila.
       track.innerHTML = '';
+      const _pend = [];
       imageList.forEach((img, idx) => {
         const slide = document.createElement('div');
         slide.className = 'pp-hero-slide';
-        slide.style.backgroundImage = `url('${img.url}')`;
+        const _u = VRM_img(img.url,'h');            // 1024px
+        if (idx === 0) slide.style.backgroundImage = `url('${_u}')`;
+        else { slide.dataset.src = _u; _pend.push(slide); }
         slide.setAttribute('data-photo-idx', idx);
         track.appendChild(slide);
       });
+      // cargador secuencial en tiempo libre
+      window._ppLoadSlide = function(el){
+        if (!el || !el.dataset.src) return;
+        const u = el.dataset.src; delete el.dataset.src;
+        const im = new Image(); im.decoding='async';
+        const done = ()=>{ el.style.backgroundImage = `url('${u}')`; };
+        if (im.decode){ im.src=u; im.decode().then(done, done); } else { im.onload=done; im.onerror=done; im.src=u; }
+      };
+      (function _drain(){
+        const nxt = _pend.shift(); if (!nxt) return;
+        const idle = window.requestIdleCallback || (f=>setTimeout(f,60));
+        idle(()=>{ window._ppLoadSlide(nxt); _drain(); }, {timeout:1200});
+      })();
+      // al deslizar, la foto visible se adelanta
+      track.addEventListener('scroll', ()=>{
+        const i = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+        for (let k=i; k<=i+1 && k<track.children.length; k++) window._ppLoadSlide(track.children[k]);
+      }, {passive:true});
       
       // Crear dots indicator dinámicamente
       const dotsContainer = document.getElementById('ppHeroDots');
@@ -3562,7 +3606,8 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
       const tile = document.createElement('button');
       tile.type = 'button';
       tile.className = 'pp-photo-tile';
-      tile.style.backgroundImage = `url('${img.url}')`;
+      // ★ LAZY: la miniatura se descarga solo cuando se acerca a la pantalla
+      tile.dataset.src = VRM_img(img.url,'l');                          // 640px
       tile.setAttribute('data-photo-idx', idx);
       tile.setAttribute('aria-label', `View photo ${idx + 1}: ${img.label}`);
       
@@ -3578,6 +3623,20 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
       tile.addEventListener('click', () => openLightbox(idx));
       grid.appendChild(tile);
     });
+    // observador: pinta cada miniatura al aproximarse (200px antes)
+    if ('IntersectionObserver' in window){
+      const io = new IntersectionObserver((es)=>{
+        es.forEach(e=>{
+          if (!e.isIntersecting) return;
+          const t = e.target; io.unobserve(t);
+          if (t.dataset.src){ t.style.backgroundImage = `url('${t.dataset.src}')`; delete t.dataset.src; }
+        });
+      }, { rootMargin:'200px 0px' });
+      grid.querySelectorAll('.pp-photo-tile').forEach(t=>io.observe(t));
+    } else {
+      grid.querySelectorAll('.pp-photo-tile').forEach(t=>{
+        if (t.dataset.src){ t.style.backgroundImage = `url('${t.dataset.src}')`; delete t.dataset.src; } });
+    }
     
     if (countEl) countEl.textContent = `${imageList.length} photos`;
   }
@@ -3602,7 +3661,7 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
     const list = window._ppImageList || [];
     if (list.length === 0) return;
     const img = list[lightboxIdx];
-    document.getElementById('ppLightboxImg').style.backgroundImage = `url('${img.url}')`;
+    document.getElementById('ppLightboxImg').style.backgroundImage = `url('${VRM_img(img.url,'h')}')`;  // 1024px
     document.getElementById('ppLightboxCounter').textContent = `${lightboxIdx + 1} / ${list.length}`;
     document.getElementById('ppLightboxLabel').textContent = img.label;
   }
@@ -7016,7 +7075,7 @@ document.addEventListener('visibilitychange', () => {
     if (el && value != null) el.textContent = value;
   }
   function setBgImage(el, url) {
-    if (el && url) el.style.backgroundImage = `url("${url}")`;
+    if (el && url) el.style.backgroundImage = `url("${VRM_img(url,'l')}")`;
   }
   // Encode property name for WhatsApp URLs
   const nameEnc = encodeURIComponent(unit.name);
