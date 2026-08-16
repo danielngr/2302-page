@@ -136,7 +136,7 @@
       'search.zone.sub.pv_hotel': 'Puerto Vallarta · Hotel Zone',
       'search.zone.sub.south_coast': 'South Coast',
       'search.guests.done': 'Done',
-      'drum.hint.outer': 'Tap a thumbnail or swipe · tap a stay to open it',
+      'drum.hint.outer': 'Swipe or tap a thumbnail',
       'wa.sub': 'Real human, fast reply',
       'search.picker.title': 'Select your dates',
       'search.picker.clear': 'Clear',
@@ -297,7 +297,7 @@
       'search.zone.sub.pv_hotel': 'Puerto Vallarta · Hotelera',
       'search.zone.sub.south_coast': 'Costa Sur',
       'search.guests.done': 'Listo',
-      'drum.hint.outer': 'Toca una miniatura o desliza · toca una estancia para abrirla',
+      'drum.hint.outer': 'Desliza o toca una miniatura',
       'wa.sub': 'Respuesta real y rápida',
       'search.picker.title': 'Selecciona tus fechas',
       'search.picker.clear': 'Limpiar',
@@ -4703,7 +4703,13 @@
          rotación de parallax ligada al scroll de la sección — NUNCA secuestra el
          scroll de la página. Centro libre: la ballena cruza por detrás/en medio. -->
     <style>
-      .cgal-wrap{ position:relative; margin:30px auto 4px; max-width:1500px; padding:0 clamp(10px,2vw,28px); }
+      /* ★ FIX: los portales se pintaban ENCIMA del header. Las tarjetas usan
+         z-index alto (hasta 400) y, sin contexto de apilamiento propio,
+         competían con el nav (z-index 50) en la raíz del documento.
+         isolation:isolate encierra esos z-index dentro del carrusel → el nav
+         y la barra de idioma siempre quedan por encima. */
+      .cgal-wrap{ position:relative; isolation:isolate; z-index:1;
+        margin:30px auto 4px; max-width:1500px; padding:0 clamp(10px,2vw,28px); }
       .cgal-stage{ position:relative; height:min(84vh,780px); min-height:660px; perspective:2000px; display:grid; place-items:center; touch-action:pan-y; cursor:grab; }
       .cgal-stage:active{ cursor:grabbing; }
       .cgal-ring{ position:relative; width:1px; height:1px; transform-style:preserve-3d; will-change:transform; }
@@ -4788,18 +4794,20 @@
       @media (max-width:640px){
         /* ★ MÓVIL: los Portales heredan TODA la estructura de la base —
            aquí solo escala: dimensiones del escenario y de la tarjeta. */
-        .cgal-stage{ height:min(84vh,700px); min-height:560px; perspective:1300px; }
-        .cgal-card{ width:min(70vw,296px); height:min(80vh,640px);
-          left:calc(min(70vw,296px) * -0.5); top:calc(min(80vh,640px) * -0.5); }
+        /* ★ COMPACTO: el escenario se ajusta al alto real del portal (antes
+           sobraban ~60px arriba y abajo que abrían un hueco muerto). */
+        .cgal-stage{ height:min(74vh,620px); min-height:520px; perspective:1300px; }
+        .cgal-card{ width:min(70vw,296px); height:min(72vh,600px);
+          left:calc(min(70vw,296px) * -0.5); top:calc(min(72vh,600px) * -0.5); }
         .cgal-name{ font-size:26px; }
-        .cgal-ctrls{ margin-top:16px; gap:14px; }
-        .cgal-ctrls button{ width:42px; height:42px; }
-        /* los puntos salen: la tira de miniaturas ya dice posición Y catálogo */
+        /* ★ FUERA flechas, puntos y contador en móvil: la tira de miniaturas ya
+           dice dónde estás y cuántas hay — todo lo demás era ruido y altura. */
+        .cgal-ctrls{ display:none; }
         .cgal-dots{ display:none; }
-        .cgal-count{ margin-top:12px; font-size:13px; }
+        .cgal-count{ display:none; }
         /* ── TIRA DE MINIATURAS ── */
         .cgal-strip{ display:flex; gap:7px; overflow-x:auto; scroll-behavior:smooth;
-          padding:14px 20px 2px; margin:0 auto; max-width:100%;
+          padding:18px 20px 2px; margin:0 auto; max-width:100%;
           scrollbar-width:none; -webkit-overflow-scrolling:touch; }
         .cgal-strip::-webkit-scrollbar{ display:none; }
         .cgal-strip i{ flex:0 0 auto; width:34px; height:44px; cursor:pointer;
