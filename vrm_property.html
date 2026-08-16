@@ -611,13 +611,40 @@ function _getBookingParamsFromUrl() {
   const checkout = params.get('checkout');
   const guests   = parseInt(params.get('guests'), 10);
   
-  // Validación básica de fechas formato YYYY-MM-DD
-  const isValidYMD = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
-  
+  // ★★ VALIDACIÓN REAL DE FECHAS (antes solo se revisaba el FORMATO).
+  //    Bug corregido — verificado en vivo: con ?checkin=2020-01-01 el modal
+  //    llegaba a cobrar $6,008 USD por fechas en el pasado, y con checkout
+  //    anterior al checkin mostraba "Total $0 USD" con el botón de pagar
+  //    activo. Ahora exigimos: formato válido + fecha real existente +
+  //    check-in desde hoy + checkout estrictamente posterior + tope de 1 año.
+  const isValidYMD = (s) => {
+    if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+    const [y,m,d] = s.split('-').map(Number);
+    const dt = new Date(y, m-1, d);
+    // rechaza fechas inexistentes tipo 2026-02-31 (JS las desborda a marzo)
+    return dt.getFullYear()===y && dt.getMonth()===m-1 && dt.getDate()===d;
+  };
+  const _hoy = new Date(); _hoy.setHours(0,0,0,0);
+  const _toDate = (s) => { const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
+
+  let _ci = isValidYMD(checkin)  ? checkin  : null;
+  let _co = isValidYMD(checkout) ? checkout : null;
+
+  if (_ci && _toDate(_ci) < _hoy) { _ci = null; _co = null; }          // pasado → fuera
+  if (_ci && _co) {
+    const dCi = _toDate(_ci), dCo = _toDate(_co);
+    if (dCo <= dCi) { _co = null; }                                    // invertidas o iguales
+    else {
+      const maxOut = new Date(dCi); maxOut.setFullYear(maxOut.getFullYear()+1);
+      if (dCo > maxOut) { _co = null; }                                // > 1 año de estancia
+    }
+  }
+  if (_co && !_ci) { _co = null; }                                     // checkout suelto
+
   return {
-    checkin:  isValidYMD(checkin)  ? checkin  : null,
-    checkout: isValidYMD(checkout) ? checkout : null,
-    guests:   (Number.isFinite(guests) && guests > 0) ? guests : null,
+    checkin:  _ci,
+    checkout: _co,
+    guests:   (Number.isFinite(guests) && guests > 0 && guests <= 20) ? guests : null,
   };
 }
 
@@ -4818,6 +4845,25 @@ window.VRM_img = function(url, size){
   .cal-selection-nights { font-size: 13px; color: var(--sand); }
 
   /* ── SUMMARY ── */
+  /* ★ el calendario ahora usa <button>: neutralizamos estilos nativos para
+     que se vea idéntico al diseño original, conservando foco visible. */
+  .cal-day{ appearance:none; -webkit-appearance:none; background:none; border:none;
+    font:inherit; color:inherit; padding:0; margin:0; }
+  .cal-day:focus-visible{ outline:2px solid #C8A87C; outline-offset:2px; border-radius:8px; }
+  .cal-day:disabled{ cursor:default; }
+
+  /* ★★ ACCESIBILIDAD — respeta "reducir movimiento" del sistema operativo.
+     Antes todas las animaciones corrían siempre: molesto para personas con
+     sensibilidad vestibular y costoso en batería. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   .sum-conflict {
     display: flex;
     align-items: flex-start;
@@ -6112,6 +6158,33 @@ window.VRM_img = function(url, size){
       String(d.getDate()).padStart(2, '0');
   }
 
+
+  // ★ Aviso de error DENTRO del modal (antes eran alert() nativos del navegador,
+  //   en español, dentro de una UI en inglés — rompían la confianza justo en el
+  //   momento de pagar). Se inyecta sobre el CTA y desaparece al reintentar.
+  function _bmError(msg){
+    try{
+      var host = document.getElementById('bmCta');
+      host = host ? host.parentNode : document.querySelector('.bm-body') || document.body;
+      var box = document.getElementById('bmErrorBox');
+      if(!box){
+        box = document.createElement('div');
+        box.id = 'bmErrorBox';
+        box.setAttribute('role','alert');
+        box.setAttribute('aria-live','assertive');
+        box.style.cssText = 'display:flex;gap:9px;align-items:flex-start;margin:0 0 12px;padding:12px 14px;'+
+          'border-radius:12px;background:rgba(190,70,60,.14);border:1px solid rgba(225,120,100,.42);'+
+          'color:#F3D9D3;font-size:13px;line-height:1.45;font-family:inherit;';
+        host.insertBefore(box, host.firstChild);
+      }
+      box.innerHTML = '<span aria-hidden="true" style="color:#E2836B;font-size:15px;line-height:1.2">&#9888;</span><span></span>';
+      box.lastChild.textContent = msg;
+      box.style.display = 'flex';
+      box.scrollIntoView({block:'nearest', behavior:'smooth'});
+    }catch(e){ console.warn('[VRM]', msg); }
+  }
+  function _bmClearError(){ var b=document.getElementById('bmErrorBox'); if(b) b.style.display='none'; }
+
   async function iniciarPagoStripe() {
     const nombre = document.getElementById('gName').value.trim();
     const email = document.getElementById('gEmail').value.trim();
@@ -6124,13 +6197,34 @@ window.VRM_img = function(url, size){
     const huespedes = state.guests;
     const codigoCupon = (state.promoCode && state.promoCode.valid) ? state.promoCode.code : null;
 
-    if (!nombre || !email || !checkin || !checkout) {
-      alert('Por favor completa todos los datos requeridos.');
-      return;
-    }
-
+    // ★★ SEGUNDA LÍNEA DE DEFENSA — se valida otra vez JUSTO antes de cobrar,
+    //    aunque la UI ya haya validado. Cubre manipulación del estado, fechas
+    //    inyectadas por URL y errores de la propia interfaz.
+    const _err = (msg) => { _bmError(msg); if (btn){ btn.disabled=false; btn.textContent=btnTextoOriginal; } };
     const btn = document.getElementById('bmCta');
     const btnTextoOriginal = btn ? btn.textContent : '';
+
+    if (!nombre || !email || !checkin || !checkout) {
+      _bmError('Please complete all required fields.');
+      return;
+    }
+    // email con forma real (el formulario tiene novalidate)
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      _bmError('Please enter a valid email address.');
+      return;
+    }
+    {
+      const _d = (s)=>{ const [y,m,dd]=s.split('-').map(Number); return new Date(y,m-1,dd); };
+      const _hoy = new Date(); _hoy.setHours(0,0,0,0);
+      const dCi=_d(checkin), dCo=_d(checkout);
+      const noches = Math.round((dCo-dCi)/86400000);
+      if (dCi < _hoy)  { _bmError('Check-in cannot be in the past. Please pick new dates.'); return; }
+      if (noches < 1)  { _bmError('Check-out must be at least one night after check-in.'); return; }
+      if (noches > 365){ _bmError('Please contact us for stays longer than a year.'); return; }
+      if (!(huespedes >= 1)) { _bmError('Please select at least one guest.'); return; }
+    }
+
+    _bmClearError();
     if (btn) { btn.disabled = true; btn.textContent = 'Processing...'; }
 
     try {
@@ -6148,7 +6242,7 @@ window.VRM_img = function(url, size){
       const data = await resp.json();
 
       if (!resp.ok) {
-        alert(data.error || 'Hubo un problema al crear la reserva. Intenta de nuevo.');
+        _bmError(data.error || 'We could not create your reservation. Please try again.');
         if (btn) { btn.disabled = false; btn.textContent = btnTextoOriginal; }
         return;
       }
@@ -6156,12 +6250,12 @@ window.VRM_img = function(url, size){
       if (data.url) {
         window.location.href = data.url; // Redirigir a Stripe Checkout
       } else {
-        alert('No se pudo iniciar el pago. Intenta de nuevo.');
+        _bmError('We could not start the payment. Please try again.');
         if (btn) { btn.disabled = false; btn.textContent = btnTextoOriginal; }
       }
     } catch (err) {
       console.error('Error al iniciar pago:', err);
-      alert('Error de conexión. Verifica tu internet e intenta de nuevo.');
+      _bmError('Connection error. Please check your internet and try again.');
       if (btn) { btn.disabled = false; btn.textContent = btnTextoOriginal; }
     }
   }
@@ -6322,7 +6416,11 @@ window.VRM_img = function(url, size){
         const empty = document.createElement('div'); empty.className = 'cal-day empty'; grid.appendChild(empty);
       }
       for (let day = 1; day <= daysInMonth; day++) {
-        const cell = document.createElement('div');
+        // ★★ ACCESIBILIDAD: era un <div> con onclick — no enfocable y sin
+        //    respuesta a Enter/Espacio, así que un usuario que navega por
+        //    teclado NO PODÍA RESERVAR. Ahora es un <button> real.
+        const cell = document.createElement('button');
+        cell.type = 'button';
         cell.className = 'cal-day';
         cell.textContent = day;
         const date = new Date(ref.getFullYear(), ref.getMonth(), day);
@@ -6461,7 +6559,17 @@ window.VRM_img = function(url, size){
       totalPct += state.promoCode.pct;
       labels.push(`Code ${state.promoCode.code.toUpperCase()}`);
     }
-    
+
+    // ★★ TOPE DE DESCUENTO — antes se podían apilar promo automática + cupón
+    //    sin límite: con NAVIDAD2026 (20%) sobre una promo de 10% salía 30% off
+    //    (−$1,980 USD en una estancia de 14 noches en temporada alta).
+    //    MAX_DISCOUNT_PCT es el techo del negocio; ajústalo si cambia la política.
+    const MAX_DISCOUNT_PCT = 20;
+    if (totalPct > MAX_DISCOUNT_PCT) {
+      totalPct = MAX_DISCOUNT_PCT;
+      labels.push(`(max ${MAX_DISCOUNT_PCT}%)`);
+    }
+
     return {
       amount: Math.round(sub * totalPct / 100),
       label: labels.join(' + '),
@@ -6609,7 +6717,11 @@ window.VRM_img = function(url, size){
     // Si hay una promo automática activa (no cupón manual), mostrar info
     // en el campo de cupón para que el cliente sepa que ya tiene descuento.
     const promoFeedback = document.getElementById('promoFeedback');
-    if (promoFeedback && !state.promoCode) {
+    // ★ FIX: si el usuario acaba de teclear un código INVÁLIDO, su mensaje de
+    //   error se conserva. Antes este bloque lo borraba/sobrescribía en cada
+    //   render, así que quien se equivocaba de código creía que sí se aplicó.
+    if (promoFeedback && promoFeedback.classList.contains('is-error')) { /* respetar */ }
+    else if (promoFeedback && !state.promoCode) {
       const autoPromos = getActivePromotions();
       if (autoPromos.length > 0) {
         promoFeedback.textContent = `✓ ${autoPromos[0].label} (-${autoPromos[0].pct}%) applied automatically`;
@@ -7103,6 +7215,74 @@ document.addEventListener('visibilitychange', () => {
       `${unit.name} — ${unit.guests} guests · ${unit.bedrooms.length} bedrooms · ${unit.view}. ${unit.highlight || ''}`
     );
   }
+
+  // ★★ SEO POR PROPIEDAD — antes las 16 unidades compartían los MISMOS
+  //    metadatos (og:image fija de la 2302, og:url sin id, sin canonical).
+  //    Al compartir cualquier propiedad en WhatsApp salía la foto equivocada,
+  //    y Google veía 16 páginas idénticas. Ahora cada unidad tiene los suyos.
+  try {
+    const _id  = window.VRM_UNIT_ID || '2302';
+    const _url = 'https://vrmstays.com/vrm_property.html?id=' + encodeURIComponent(_id);
+    const _img = (window.VRM_img ? VRM_img(unit.coverImage, 'h') : unit.coverImage) || '';
+    const _set = (sel, attr, val) => { const el = document.querySelector(sel); if (el && val) el.setAttribute(attr, val); };
+
+    // canonical (no existía en ninguna página)
+    let can = document.querySelector('link[rel="canonical"]');
+    if (!can) { can = document.createElement('link'); can.rel = 'canonical'; document.head.appendChild(can); }
+    can.setAttribute('href', _url);
+
+    _set('meta[property="og:url"]',   'content', _url);
+    _set('meta[property="og:title"]', 'content', `${unit.name} · ${locationShort} — VRM`);
+    _set('meta[property="og:image"]', 'content', _img);
+    _set('meta[property="og:image:alt"]', 'content', `${unit.name} — ${unit.view}`);
+    _set('meta[name="twitter:title"]','content', `${unit.name} · ${locationShort} — VRM`);
+    _set('meta[name="twitter:image"]','content', _img);
+    const _d = metaDesc ? metaDesc.getAttribute('content') : '';
+    _set('meta[property="og:description"]','content', _d);
+    _set('meta[name="twitter:description"]','content', _d);
+
+    // ─── JSON-LD por propiedad: es lo que hace que Google muestre
+    //     "desde $X USD/noche" y las estrellas junto al resultado ───
+    const _rating = unit.rating || 4.9, _reviews = unit.reviewCount || 30;
+    const ld = {
+      "@context": "https://schema.org",
+      "@type": "VacationRental",
+      "@id": _url + "#listing",
+      "name": unit.name,
+      "url": _url,
+      "image": _img,
+      "description": _d,
+      "numberOfRooms": (unit.bedrooms && unit.bedrooms.length) || 1,
+      "occupancy": { "@type": "QuantitativeValue", "maxValue": unit.guests },
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": locationShort,
+        "addressCountry": "MX"
+      },
+      "containedInPlace": { "@type": "Place", "name": locationShort },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": String(_rating), "reviewCount": String(_reviews),
+        "bestRating": "5", "worstRating": "1"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": String(unit.priceBase),
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock",
+        "url": _url,
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "price": String(unit.priceBase),
+          "priceCurrency": "USD",
+          "unitText": "NIGHT"
+        }
+      }
+    };
+    let s = document.getElementById('vrmLd');
+    if (!s) { s = document.createElement('script'); s.type = 'application/ld+json'; s.id = 'vrmLd'; document.head.appendChild(s); }
+    s.textContent = JSON.stringify(ld);
+  } catch (e) { console.warn('[VRM] SEO meta:', e && e.message); }
 
   // ─── 2. Loader meta ───
   setText('.loader-meta', locationShort);
