@@ -4728,6 +4728,7 @@
         border:1px solid rgba(200,168,124,.30);
         box-shadow:0 26px 54px -26px rgba(0,0,0,.85), inset 0 0 0 6px rgba(6,11,22,.35);
         transition:border-color .45s ease, box-shadow .45s ease; }
+      .cgal-card.cgal-front{ cursor:pointer; }   /* ★ todo el portal es clickeable */
       .cgal-card.cgal-front .cgal-photo{ border-color:rgba(200,168,124,.55);
         box-shadow:0 36px 72px -30px rgba(0,0,0,.9), 0 0 46px -16px rgba(225,136,94,.25), inset 0 0 0 6px rgba(6,11,22,.35); }
       /* velo de foco: vecinas apagadas · al frente solo un pie sutil */
@@ -4904,6 +4905,12 @@
         const c = document.createElement('div');
         c.className='cgal-card'; c.dataset.i=i;
         c.dataset.idx = String(i+1).padStart(2,'0');   // ★ numeración del portal (— 01 —)
+        // ★ TODO el portal abre la propiedad (antes solo la pill "Reserve" era
+        //   enlace → tocar la foto no hacía nada). Guardamos el destino aquí.
+        c.dataset.href = 'vrm_property.html?id=' + encodeURIComponent(h.id);
+        c.setAttribute('role','link');
+        c.setAttribute('tabindex','0');
+        c.setAttribute('aria-label', h.name + ' — ver propiedad');
         // separar "Complejo" (itálica) del código de unidad (ej. "Vallarta Gardens" · "2302")
         const _sp = h.name.lastIndexOf(' ');
         const _complex = _sp>0 ? h.name.slice(0,_sp) : h.name;
@@ -4923,7 +4930,29 @@
             (h.price ? '<div class="cgal-price"><b>$'+h.price+'</b> <span data-i18n="feat.price.unit">USD · night</span></div>' : '')+
             '<a class="cgal-cta" href="vrm_property.html?id='+encodeURIComponent(h.id)+'" data-i18n="feat.cta"></a>'+
           '</div>';
-        c.addEventListener('click', (e)=>{ if(justDragged){ e.preventDefault(); return; } if(!c.classList.contains('cgal-front')){ e.preventDefault(); focus(Number(c.dataset.i)); } });
+        // ── CLIC EN EL PORTAL ──
+        //   · portal lateral  → lo trae al frente (no navega)
+        //   · portal al frente→ ABRE la propiedad (toda el área: arco, nombre,
+        //     precio…). Si venías arrastrando, el clic se ignora.
+        c.addEventListener('click', (e)=>{
+          // ★ la pill "Reserve" SIEMPRE navega — ni el estado de arrastre la
+          //   bloquea (si tocaste el botón, es intención inequívoca).
+          if (e.target.closest('.cgal-cta')) return;      // navega sola (<a href>)
+          if (justDragged){ e.preventDefault(); return; }
+          if (!c.classList.contains('cgal-front')){ e.preventDefault(); focus(Number(c.dataset.i)); return; }
+          e.preventDefault();
+          const href = c.dataset.href;
+          if (!href) return;
+          if (window.VRM_navigate) window.VRM_navigate(href); else window.location.href = href;
+        });
+        // teclado: Enter/Espacio sobre el portal enfocado
+        c.addEventListener('keydown', (e)=>{
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          if (!c.classList.contains('cgal-front')){ focus(Number(c.dataset.i)); return; }
+          const href = c.dataset.href;
+          if (href){ if (window.VRM_navigate) window.VRM_navigate(href); else window.location.href = href; }
+        });
         return c;
       }
 
@@ -5157,7 +5186,10 @@
         // ★ MOMENTUM: un flick rápido arrastra varias casas y desacelera (tope ±4)
         const throw_ = Math.max(-4, Math.min(4, velIdx*0.16));
         manualI = Math.round(manualI + throw_); velIdx=0;
-        if(moved>6){ justDragged=true; setTimeout(()=>justDragged=false,80);} wake(); }
+        // ★ FIX: el umbral era 6px — un TAP normal en celular mueve 8-12px, así
+        //   que marcaba "arrastre" y el clic siguiente se cancelaba: tocabas
+        //   "Reserve" y no pasaba nada. 16px = tap-slop real de iOS/Android.
+        if(moved>16){ justDragged=true; setTimeout(()=>justDragged=false,80);} wake(); }
       stage.addEventListener('mousedown',ps); window.addEventListener('mousemove',pm); window.addEventListener('mouseup',pe);
       stage.addEventListener('touchstart',ps,{passive:true}); stage.addEventListener('touchmove',pm,{passive:true}); stage.addEventListener('touchend',pe);
 
@@ -10035,6 +10067,7 @@ window.addEventListener("message", function(e){
 /* TRANSICIÓN de página: fade simple a oscuro, luego navegación real (sin SPA) */
 (function(){
   var FADE_MS = 320;
+  window.VRM_navigate = fadeNavigate;   // ★ expuesto: el carrusel navega con la misma transición
   function fadeNavigate(href){
     if(!href) return;
     try { if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){ window.location.href = href; return; } } catch(_){}
