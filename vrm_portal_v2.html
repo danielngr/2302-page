@@ -462,7 +462,26 @@
         .hk2-pill.b{background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.32);color:#d7c7fb;cursor:pointer}
         .hk2-pill.b .note{font-family:var(--font-mono);font-size:9px;opacity:.75;font-weight:500}
         .hk2-blank{color:var(--text-tertiary);font-size:12px;opacity:.4}
-        select.hk2-ch{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--glass-border);border-radius:11px;color:var(--text-primary);padding:9px 10px;font-size:13px;font-family:var(--font-body);outline:none;cursor:pointer;font-weight:600}
+        /* contadores grandes del día */
+        .hk2-bigstats{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;margin-top:10px}
+        .hk2-big{display:flex;align-items:center;gap:11px;padding:11px 18px 11px 14px;border-radius:14px;border:1px solid var(--glass-border);background:rgba(255,255,255,.02)}
+        .hk2-big .ic{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800}
+        .hk2-big.ent{border-color:rgba(52,211,153,.3);background:linear-gradient(180deg,rgba(52,211,153,.08),rgba(52,211,153,.02))}
+        .hk2-big.ent .ic{background:rgba(52,211,153,.14);color:#7fe7bb}
+        .hk2-big.sal{border-color:rgba(232,137,90,.34);background:linear-gradient(180deg,rgba(232,137,90,.09),rgba(232,137,90,.02))}
+        .hk2-big.sal .ic{background:rgba(232,137,90,.15);color:#f4b995}
+        .hk2-big .num{font-family:var(--font-display);font-size:26px;font-weight:800;line-height:1}
+        .hk2-big.ent .num{color:#a9edcf}.hk2-big.sal .num{color:#f4c4a5}
+        .hk2-big .lb{font-family:var(--font-mono);font-size:8.5px;letter-spacing:1px;color:var(--text-tertiary);text-transform:uppercase;margin-top:3px}
+        .hk2-minis{display:flex;flex-direction:column;justify-content:center;gap:5px}
+        /* selector de chica bonito */
+        .hk2-chw{position:relative;flex:1;min-width:0}
+        .hk2-chw .hk2-av{position:absolute;left:6px;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:11px;font-weight:800;color:#0c0c0c;background:linear-gradient(135deg,var(--accent-gold),var(--accent-terracota));pointer-events:none;z-index:2}
+        .hk2-chw .hk2-av.q{background:rgba(251,191,36,.18);color:#FBBF24}
+        .hk2-chw::after{content:"▾";position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text-tertiary);pointer-events:none;font-size:11px;z-index:2}
+        select.hk2-ch{appearance:none;-webkit-appearance:none;-moz-appearance:none;width:100%;background:rgba(255,255,255,.05);border:1px solid var(--glass-border);border-radius:11px;color:var(--text-primary);padding:10px 28px 10px 40px;font-size:13px;font-family:var(--font-body);outline:none;cursor:pointer;font-weight:600;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+        select.hk2-ch:hover{border-color:rgba(255,255,255,.18)}
+        select.hk2-ch option{background:#17171b;color:#f4f4f6}
         .hk2-row.sinch select.hk2-ch{border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.1);color:#f7d89a}
         .hk2-fija{font-family:var(--font-mono);font-size:7.5px;background:rgba(52,211,153,.12);color:var(--status-green);border:1px solid rgba(52,211,153,.3);border-radius:20px;padding:2px 6px;letter-spacing:.5px;margin-left:6px;flex-shrink:0}
         .hk2-cks{display:flex;align-items:center;gap:6px;justify-self:center}
@@ -7284,9 +7303,14 @@
         const {rows,stats}=hk2RowsFor(fSel);
         document.getElementById('hk2-daylabel').textContent=hk2FmtLargo(fSel);
         document.getElementById('hk2-stats').innerHTML=
-            `<span class="hk2-stat"><b>${stats.sal}</b> salidas</span><span class="hk2-stat"><b>${stats.ent}</b> entradas</span>`+
-            `<span class="hk2-stat"><b>${stats.turn}</b> turnovers</span>`+
-            (stats.sin?`<span class="hk2-stat warn">⚠ <b>${stats.sin}</b> sin asignar</span>`:'');
+            `<div class="hk2-bigstats">
+                <div class="hk2-big ent"><div class="ic">↓</div><div><div class="num">${stats.ent}</div><div class="lb">Entradas</div></div></div>
+                <div class="hk2-big sal"><div class="ic">↑</div><div><div class="num">${stats.sal}</div><div class="lb">Salidas</div></div></div>
+                <div class="hk2-minis">
+                    <span class="hk2-stat">⚡ <b>${stats.turn}</b> turnovers</span>
+                    ${stats.sin?`<span class="hk2-stat warn">⚠ <b>${stats.sin}</b> sin asignar</span>`:`<span class="hk2-stat" style="color:var(--status-green);border-color:rgba(52,211,153,.3)">✓ todo asignado</span>`}
+                </div>
+            </div>`;
         const at=D.at;
         document.getElementById('hk2-sync').textContent=`sync c/hora · ${at.getHours()}:${String(at.getMinutes()).padStart(2,'0')}`;
         // chicas no disponibles del día
@@ -7323,7 +7347,9 @@
             if(esBolongo&&anaId){ const a=list.find(s=>String(s.id)===anaId); if(a) list=[a,...list.filter(s=>String(s.id)!==anaId)]; }
             const opts=list.filter(s=>!naIds.has(String(s.id))||String(s.id)===asigId)
                 .map(s=>`<option value="${s.id}" ${String(s.id)===asigId?'selected':''}>${s.nombre}${(esBolongo&&String(s.id)===anaId)?' ⭐':''}</option>`).join('');
-            chH=`<div style="display:flex;align-items:center;min-width:0"><select class="hk2-ch" onchange="hk2Asignar('${r.dep}','${fSel}',${lid},this.value)">${asigId?'':'<option value="" selected>— asignar —</option>'}${opts}</select>${(esBolongo&&asigId&&asigId===anaId)?'<span class="hk2-fija">FIJA</span>':''}</div>`;
+            const asigNom=asigId?(hk2Data.staff.find(s=>String(s.id)===asigId)||{}).nombre||'':'';
+            const avIni=asigNom?`<span class="hk2-av">${asigNom.trim()[0].toUpperCase()}</span>`:`<span class="hk2-av q">?</span>`;
+            chH=`<div style="display:flex;align-items:center;min-width:0"><div class="hk2-chw">${avIni}<select class="hk2-ch" onchange="hk2Asignar('${r.dep}','${fSel}',${lid},this.value)">${asigId?'':'<option value="" selected>— asignar —</option>'}${opts}</select></div>${(esBolongo&&asigId&&asigId===anaId)?'<span class="hk2-fija">FIJA</span>':''}</div>`;
         } else chH=`<span class="hk2-blank">·</span>`;
         const cks=(r.out||r.blk)?`<div class="hk2-cks">
             <span class="hk2-ck avis${avisada?' on':''}" title="Ya se le avisó a la chica (tap)" onclick="hk2Avisada(${lid},${avisada})">📣</span>
