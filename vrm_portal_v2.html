@@ -506,6 +506,23 @@
         .hk2-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--text-secondary);margin:12px 4px 24px}
         .hk2-legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
         .hk2-sig{position:absolute;right:14px;top:6px;font-family:var(--font-mono);font-size:7.5px;color:var(--text-tertiary)}
+        /* calendario "no trabaja" */
+        .hk2cal{max-width:360px;width:calc(100vw - 40px);padding:18px 18px 16px}
+        .hk2cal-title{font-family:var(--font-display);font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
+        .hk2cal-sub{font-size:11px;color:var(--text-tertiary);margin-top:2px}
+        .hk2cal-nav{display:flex;align-items:center;justify-content:space-between;margin:14px 0 10px}
+        .hk2cal-nav button{width:32px;height:32px;border-radius:10px;border:1px solid var(--glass-border);background:rgba(255,255,255,.04);color:var(--text-secondary);font-size:15px;cursor:pointer}
+        .hk2cal-mes{font-family:var(--font-mono);font-size:12px;letter-spacing:1.5px;color:var(--text-primary);text-transform:uppercase;font-weight:700}
+        .hk2cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+        .hk2cal-dow{font-family:var(--font-mono);font-size:8.5px;color:var(--text-tertiary);text-align:center;padding:3px 0;text-transform:uppercase}
+        .hk2cal-day{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid transparent;color:var(--text-secondary);transition:.12s}
+        .hk2cal-day:hover{background:rgba(255,255,255,.07);color:#fff}
+        .hk2cal-day.off{background:rgba(34,211,238,.16);border-color:rgba(34,211,238,.5);color:#8ee9f5;font-weight:800}
+        .hk2cal-day.today{border-color:rgba(224,122,62,.55)}
+        .hk2cal-day.past{opacity:.22;pointer-events:none}
+        .hk2cal-day.blank{pointer-events:none}
+        .hk2cal-foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;gap:10px}
+        .hk2cal-hint{font-size:10.5px;color:var(--text-tertiary)}
         @media(max-width:768px){
             .hk2-colhead{display:none}
             .hk2-row{grid-template-columns:1fr 1fr;grid-template-areas:"in out" "chica cks";gap:9px 10px;padding:13px 14px 13px 12px}
@@ -7327,7 +7344,7 @@
         const naIds=new Set(D.nodisp.filter(n=>n.fecha===fSel).map(n=>String(n.staff_id)));
         const nomDe={}; D.staff.forEach(s=>nomDe[s.id]=s.nombre);
         document.getElementById('hk2-na-chips').innerHTML=
-            [...naIds].map(id=>`<span class="hk2-off" onclick="hk2QuitarNoDisp('${id}','${fSel}')" title="Quitar">${nomDe[id]||'—'} <span style="opacity:.6">✕</span></span>`).join('')
+            [...naIds].map(id=>`<span class="hk2-off" onclick="hk2AbrirCal('${id}','${(nomDe[id]||'').replace(/'/g,'')}')" title="Ver calendario">${nomDe[id]||'—'} <span style="opacity:.6" onclick="event.stopPropagation();hk2QuitarNoDisp('${id}','${fSel}')" title="Quitar este día">✕</span></span>`).join('')
             || `<span style="font-size:11px;color:var(--text-tertiary)">todas disponibles</span>`;
         const cont=document.getElementById('hk2-rows');
         cont.innerHTML = rows.length
@@ -7442,10 +7459,92 @@
         const fSel=hk2ISO(hk2AddD(hk2Data.hoy,hk2Dia));
         const naIds=new Set(hk2Data.nodisp.filter(n=>n.fecha===fSel).map(n=>String(n.staff_id)));
         const m=hk2Menu();
-        m.innerHTML=`<div class="h">¿Quién no trabaja el ${hk2FmtCorto(fSel)}?</div>`+
-            hk2Data.staff.filter(s=>!naIds.has(String(s.id)))
-                .map(s=>`<div class="it" onclick="event.stopPropagation();hk2MarcarNoDisp('${s.id}','${fSel}')">${s.nombre}</div>`).join('');
+        m.innerHTML=`<div class="h">¿Quién no va a trabajar?</div>`+
+            hk2Data.staff
+                .map(s=>`<div class="it" onclick="event.stopPropagation();hk2AbrirCal('${s.id}','${(s.nombre||'').replace(/'/g,'')}')">${s.nombre}</div>`).join('');
         hk2MenuPos(m,ev);
+    }
+
+    // ── Calendario "no trabaja" (elige cualquier día, aunque no esté en la semana visible) ──
+    let hk2CalStaff=null, hk2CalNom='', hk2CalY=0, hk2CalM=0, hk2CalSet=new Set(), hk2CalTouched=false;
+    function hk2AbrirCal(staffId,nombre){
+        const men=document.getElementById('hk2menu'); if(men) men.style.display='none';
+        if(!hk2NaTabla){ toast('⚠️ Falta la tabla hk_no_disponible — corre el SQL'); return; }
+        hk2CalStaff=staffId; hk2CalNom=nombre; hk2CalTouched=false;
+        const hoy=hk2MX(); hk2CalY=hoy.getFullYear(); hk2CalM=hoy.getMonth();
+        let ov=document.getElementById('hk2cal-ov');
+        if(!ov){
+            ov=document.createElement('div'); ov.id='hk2cal-ov'; ov.className='modal-overlay';
+            ov.onclick=e=>{ if(e.target===ov) hk2CerrarCal(); };
+            document.body.appendChild(ov);
+        }
+        ov.innerHTML=`<div class="modal-box hk2cal">
+            <div class="hk2cal-title">🚫 No trabaja — ${nombre}</div>
+            <div class="hk2cal-sub">Toca los días que NO va a trabajar (se guardan al instante). Vuelve a tocar para quitar.</div>
+            <div class="hk2cal-nav">
+                <button onclick="hk2CalNav(-1)">‹</button>
+                <span class="hk2cal-mes" id="hk2cal-mes">—</span>
+                <button onclick="hk2CalNav(1)">›</button>
+            </div>
+            <div class="hk2cal-grid" id="hk2cal-grid"></div>
+            <div class="hk2cal-foot">
+                <span class="hk2cal-hint"><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:rgba(34,211,238,.6);vertical-align:-1px"></span> no trabaja</span>
+                <button class="btn btn-outline-white" onclick="hk2CerrarCal()" style="font-size:12px">Listo</button>
+            </div>
+        </div>`;
+        ov.style.display='flex';
+        hk2CalLoad();
+    }
+    async function hk2CalLoad(){
+        const y=hk2CalY, m=hk2CalM;
+        const last=new Date(y,m+1,0).getDate();
+        const d1=`${y}-${String(m+1).padStart(2,'0')}-01`;
+        const d2=`${y}-${String(m+1).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
+        try{
+            const r=await fetch(`${SUPABASE_URL}/rest/v1/hk_no_disponible?staff_id=eq.${hk2CalStaff}&fecha=gte.${d1}&fecha=lte.${d2}&select=fecha`,{headers:hk2H()});
+            hk2CalSet=new Set(r.ok?(await r.json()).map(x=>x.fecha):[]);
+        }catch(e){ hk2CalSet=new Set(); }
+        hk2CalRender();
+    }
+    function hk2CalRender(){
+        const y=hk2CalY, m=hk2CalM;
+        const MESES_L=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        const mesEl=document.getElementById('hk2cal-mes'); if(!mesEl) return;
+        mesEl.textContent=`${MESES_L[m]} ${y}`;
+        const hoy=hk2MX(); const hoyISO=hk2ISO(hoy);
+        const last=new Date(y,m+1,0).getDate();
+        const off=(new Date(y,m,1).getDay()+6)%7; // semana inicia lunes
+        let h=['L','M','M','J','V','S','D'].map(d=>`<span class="hk2cal-dow">${d}</span>`).join('');
+        for(let i=0;i<off;i++) h+=`<span class="hk2cal-day blank"></span>`;
+        for(let d=1;d<=last;d++){
+            const iso=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            let cls='hk2cal-day';
+            if(hk2CalSet.has(iso)) cls+=' off';
+            if(iso===hoyISO) cls+=' today';
+            if(iso<hoyISO) cls+=' past';
+            h+=`<span class="${cls}" onclick="hk2CalToggle('${iso}')">${d}</span>`;
+        }
+        document.getElementById('hk2cal-grid').innerHTML=h;
+    }
+    async function hk2CalToggle(iso){
+        try{
+            if(hk2CalSet.has(iso)){
+                await fetch(`${SUPABASE_URL}/rest/v1/hk_no_disponible?staff_id=eq.${hk2CalStaff}&fecha=eq.${iso}`,{method:'DELETE',headers:hk2H(true)});
+                hk2CalSet.delete(iso);
+            }else{
+                await fetch(`${SUPABASE_URL}/rest/v1/hk_no_disponible?on_conflict=staff_id,fecha`,{method:'POST',
+                    headers:Object.assign(hk2H(true),{"Prefer":"resolution=ignore-duplicates,return=minimal"}),
+                    body:JSON.stringify({staff_id:hk2CalStaff,fecha:iso})});
+                hk2CalSet.add(iso);
+            }
+            hk2CalTouched=true;
+            hk2CalRender();
+        }catch(e){ toast('⚠️ '+(e.message||e)); }
+    }
+    function hk2CalNav(d){ hk2CalM+=d; if(hk2CalM<0){hk2CalM=11;hk2CalY--;} if(hk2CalM>11){hk2CalM=0;hk2CalY++;} hk2CalLoad(); }
+    function hk2CerrarCal(){
+        const ov=document.getElementById('hk2cal-ov'); if(ov) ov.remove();
+        if(hk2CalTouched) hk2Cargar();
     }
     async function hk2MarcarNoDisp(id,fiso){
         const m=document.getElementById('hk2menu'); if(m) m.style.display='none';
