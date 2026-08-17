@@ -420,6 +420,81 @@
         #rowMenu .rm-hint{ font-family:var(--font-mono);font-size:9px;letter-spacing:.5px;color:var(--text-tertiary);padding:7px 10px 5px;text-transform:uppercase; }
         #rowMenu .rm-item{ display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;cursor:pointer;font-size:13px;color:var(--text-secondary);transition:.15s; }
         #rowMenu .rm-item:hover{ background:rgba(34,211,125,.14);color:var(--status-green); }
+        /* ══ HOUSEKEEPING v2 — planeador (iCal) ══ */
+        #mod-housekeeping.active{ overflow-y:auto; }
+        #mod-housekeeping.active > *{ flex:none; }
+        .hk2-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-top:16px}
+        .hk2-title{font-family:var(--font-display);font-size:20px;font-weight:800;letter-spacing:-.4px}
+        .hk2-daytxt{color:var(--text-secondary);font-size:13px;margin-top:2px;font-weight:500}
+        .hk2-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+        .hk2-stat{font-family:var(--font-mono);font-size:10.5px;font-weight:600;padding:5px 10px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid var(--glass-border);color:var(--text-secondary)}
+        .hk2-stat b{color:var(--text-primary)}
+        .hk2-stat.warn{color:#f7d488;border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.12)}
+        .hk2-sync{font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-align:right;margin-top:7px}
+        .hk2-week{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:8px 2px 4px;margin-top:10px}
+        .hk2-week::-webkit-scrollbar{display:none}
+        .hk2-day{flex:0 0 auto;min-width:70px;padding:9px 8px 8px;border-radius:14px;text-align:center;cursor:pointer;border:1px solid var(--glass-border);background:rgba(255,255,255,.02);position:relative;transition:.15s}
+        .hk2-day .dn{font-family:var(--font-mono);font-size:9px;letter-spacing:1px;color:var(--text-tertiary);text-transform:uppercase}
+        .hk2-day .dd{font-family:var(--font-display);font-size:19px;font-weight:800;margin-top:2px;line-height:1}
+        .hk2-day .dc{margin-top:5px;font-family:var(--font-mono);font-size:8.5px;color:var(--text-tertiary)}
+        .hk2-day .dc b{color:#f7d488}
+        .hk2-day.sel{background:linear-gradient(180deg,rgba(224,122,62,.16),rgba(224,122,62,.06));border-color:rgba(224,122,62,.45)}
+        .hk2-day.sel .dd{color:var(--accent-terracota)}
+        .hk2-day.today::before{content:"HOY";position:absolute;top:-7px;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:8px;color:#0a0a0a;background:var(--accent-terracota);padding:1px 7px;border-radius:20px;font-weight:800;letter-spacing:.5px}
+        .hk2-avail{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--glass-border);border-radius:13px;padding:11px 14px;margin-top:10px;background:rgba(255,255,255,.02)}
+        .hk2-avail .lbl{font-size:12px;color:var(--text-secondary);font-weight:600}
+        .hk2-off{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:100px;background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.32);color:#8ee9f5;cursor:pointer}
+        .hk2-add{font-size:11.5px;color:var(--text-tertiary);border:1px dashed var(--glass-border);border-radius:100px;padding:5px 11px;cursor:pointer}
+        .hk2-panel{border:1px solid var(--glass-border);border-radius:16px;overflow:hidden;margin-top:12px;background:rgba(255,255,255,.015)}
+        .hk2-colhead{display:grid;grid-template-columns:1fr 1fr 1.35fr 84px;gap:14px;padding:13px 20px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.8px;color:var(--text-tertiary);text-transform:uppercase;border-bottom:1px solid var(--glass-border);background:rgba(255,255,255,.015)}
+        .hk2-colhead .i{color:#8fe4bf}.hk2-colhead .o{color:#f0b596}
+        .hk2-row{display:grid;grid-template-columns:1fr 1fr 1.35fr 84px;gap:14px;align-items:center;padding:12px 20px 12px 16px;border-left:3px solid transparent;position:relative}
+        .hk2-row + .hk2-row{border-top:1px solid rgba(255,255,255,.04)}
+        .hk2-row.turn{border-left-color:var(--accent-terracota)}
+        .hk2-row.done{border-left-color:var(--status-green)}
+        .hk2-row.sinch{border-left-color:#FBBF24;background:rgba(251,191,36,.03)}
+        .hk2-row.blk{border-left-color:#A78BFA}
+        .hk2-row.entry{border-left-color:rgba(52,211,153,.4)}
+        .hk2-pill{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;padding:8px 13px;border-radius:10px;line-height:1.15;max-width:100%}
+        .hk2-pill .ar{font-size:12px;opacity:.85}
+        .hk2-pill.in{background:rgba(52,211,153,.11);border:1px solid rgba(52,211,153,.28);color:#a9edcf}
+        .hk2-pill.out{background:rgba(232,137,90,.12);border:1px solid rgba(232,137,90,.32);color:#f4c4a5}
+        .hk2-pill.b{background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.32);color:#d7c7fb;cursor:pointer}
+        .hk2-pill.b .note{font-family:var(--font-mono);font-size:9px;opacity:.75;font-weight:500}
+        .hk2-blank{color:var(--text-tertiary);font-size:12px;opacity:.4}
+        select.hk2-ch{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--glass-border);border-radius:11px;color:var(--text-primary);padding:9px 10px;font-size:13px;font-family:var(--font-body);outline:none;cursor:pointer;font-weight:600}
+        .hk2-row.sinch select.hk2-ch{border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.1);color:#f7d89a}
+        .hk2-fija{font-family:var(--font-mono);font-size:7.5px;background:rgba(52,211,153,.12);color:var(--status-green);border:1px solid rgba(52,211,153,.3);border-radius:20px;padding:2px 6px;letter-spacing:.5px;margin-left:6px;flex-shrink:0}
+        .hk2-cks{display:flex;align-items:center;gap:6px;justify-self:center}
+        .hk2-ck{width:30px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;background:rgba(255,255,255,.04);color:var(--text-tertiary);border:1px solid var(--glass-border);cursor:pointer;position:relative;transition:.15s}
+        .hk2-ck.avis.on{background:rgba(74,164,255,.14);color:#7fc0ff;border-color:rgba(74,164,255,.4)}
+        .hk2-ck.bot.on{background:rgba(52,211,153,.12);color:var(--status-green);border-color:rgba(52,211,153,.3)}
+        .hk2-ck.bot .lk{position:absolute;bottom:-4px;right:-4px;font-size:8px;background:#141416;border-radius:50%;padding:1px;line-height:1}
+        .hk2-blkdet{grid-column:1/-1;margin:4px 2px 2px;padding:12px 16px;border-radius:12px;background:rgba(167,139,250,.07);border:1px solid rgba(167,139,250,.32);display:none}
+        .hk2-blkdet.open{display:block}
+        .hk2-blkdet .t{font-size:12px;font-weight:800;color:#d7c7fb;margin-bottom:8px}
+        .hk2-bd{display:inline-block;background:rgba(255,255,255,.05);border:1px solid var(--glass-border);border-radius:9px;padding:7px 12px;text-align:center;margin-right:8px}
+        .hk2-bd .dl{font-family:var(--font-mono);font-size:8px;letter-spacing:.6px;color:var(--text-tertiary);text-transform:uppercase}
+        .hk2-bd .dv{font-size:13px;font-weight:800;margin-top:2px}
+        .hk2-n{font-family:var(--font-mono);font-size:10.5px;font-weight:700;color:#d7c7fb;background:rgba(167,139,250,.14);border:1px solid rgba(167,139,250,.32);border-radius:100px;padding:5px 12px;margin-left:6px}
+        .hk2-free{font-size:11px;color:var(--text-secondary);margin-top:9px}
+        .hk2-free b{color:#8fe4bf}
+        #hk2menu{position:fixed;z-index:9999;width:250px;background:#1a1a1f;border:1px solid rgba(255,255,255,.14);border-radius:12px;box-shadow:0 16px 36px -8px rgba(0,0,0,.8);padding:6px;display:none;text-align:left;max-height:60vh;overflow-y:auto}
+        #hk2menu .h{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.5px;color:var(--text-tertiary);text-transform:uppercase;padding:7px 10px 5px}
+        #hk2menu .it{display:flex;flex-direction:column;gap:2px;padding:9px 10px;border-radius:9px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-secondary)}
+        #hk2menu .it:hover{background:rgba(52,211,153,.12);color:var(--status-green)}
+        #hk2menu .it small{font-weight:400;opacity:.65}
+        .hk2-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--text-secondary);margin:12px 4px 24px}
+        .hk2-legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+        .hk2-sig{position:absolute;right:14px;top:6px;font-family:var(--font-mono);font-size:7.5px;color:var(--text-tertiary)}
+        @media(max-width:768px){
+            .hk2-colhead{display:none}
+            .hk2-row{grid-template-columns:1fr 1fr;grid-template-areas:"in out" "chica cks";gap:9px 10px;padding:13px 14px 13px 12px}
+            .hk2-row .in-s{grid-area:in}.hk2-row .out-s{grid-area:out}.hk2-row .ch-s{grid-area:chica}.hk2-row .hk2-cks{grid-area:cks;justify-self:end}
+            .hk2-pill{font-size:12px;padding:7px 10px}
+            .hk2-day{min-width:64px}
+        }
+
         /* tira de semana (navegacion por dia) */
         .wkbar{ display:flex;align-items:center;gap:6px;padding:6px 12px 8px; }
         .wk-arrow{ flex-shrink:0;width:28px;height:50px;border:none;background:transparent;color:var(--text-tertiary);cursor:pointer;border-radius:10px;font-size:18px;transition:.2s; }
@@ -2611,34 +2686,40 @@
 
             </div><!-- /registros -->
 
-            <!-- MÓDULO: HOUSEKEEPING -->
+            <!-- MÓDULO: HOUSEKEEPING (v2 — planeador iCal) -->
             <div class="module" id="mod-housekeeping">
 
-                <!-- Header con fecha nav -->
-                <div class="glass-card" style="padding:20px 28px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;margin-top:16px">
-                    <div style="display:flex;flex-direction:column;gap:4px">
-                        <span style="font-size:10px;font-family:var(--font-mono);color:var(--text-tertiary);letter-spacing:1px;text-transform:uppercase">Checkouts del día</span>
-                        <div class="hk-date-nav">
-                            <button class="hk-date-btn" onclick="hkCambiarFecha(-1)"><i class="ph ph-caret-left"></i></button>
-                            <div class="hk-date-label" id="hk-fecha-label">—</div>
-                            <button class="hk-date-btn" onclick="hkCambiarFecha(1)"><i class="ph ph-caret-right"></i></button>
-                        </div>
+                <div class="hk2-head">
+                    <div>
+                        <div class="hk2-title">🧺 Housekeeping</div>
+                        <div class="hk2-daytxt" id="hk2-daylabel">—</div>
+                        <div class="hk2-stats" id="hk2-stats"></div>
                     </div>
-                    <div style="display:flex;gap:10px;align-items:center">
-                        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-tertiary)" id="hk-count">—</span>
-                        <button class="btn btn-ghost" onclick="cargarHousekeeping()" style="padding:8px 12px"><i class="ph ph-arrows-clockwise"></i></button>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end">
+                        <button class="btn btn-outline-white" id="hk2-sync-btn" onclick="hk2Sync(this)" style="font-size:12px"><i class="ph-bold ph-arrows-clockwise"></i> Actualizar</button>
+                        <div class="hk2-sync" id="hk2-sync">sync automático c/hora</div>
                     </div>
                 </div>
 
-                <!-- Lista checkouts -->
-                <div class="list-container glass-panel" style="margin-bottom:24px">
-                    <div class="list-header">
-                        <div class="list-title-dot" style="background:var(--status-blue);box-shadow:0 0 9px rgba(74,164,255,.6)"></div>
-                        <div class="list-title">ASIGNACIONES</div>
-                    </div>
-                    <div class="list-body" id="hk-body">
-                        <div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando...</div>
-                    </div>
+                <div class="hk2-week" id="hk2-week"></div>
+
+                <div class="hk2-avail">
+                    <span class="lbl">🚫 No trabaja este día:</span>
+                    <span id="hk2-na-chips" style="display:flex;gap:7px;flex-wrap:wrap;align-items:center"></span>
+                    <span class="hk2-add" onclick="hk2AddNoDisp(event)">+ agregar</span>
+                </div>
+
+                <div class="hk2-panel">
+                    <div class="hk2-colhead"><div class="i">↓ Entrada</div><div class="o">↑ Salida — se limpia</div><div>Chica</div><div style="text-align:center">Avisada · Limpia</div></div>
+                    <div id="hk2-rows"><div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando…</div></div>
+                </div>
+
+                <div class="hk2-legend">
+                    <span><i style="background:#34D399"></i>entrada</span>
+                    <span><i style="background:#E8895A"></i>salida / turnover</span>
+                    <span><i style="background:#A78BFA"></i>bloqueado</span>
+                    <span><i style="background:#FBBF24"></i>sin chica</span>
+                    <span><i style="background:#22D3EE"></i>no disponible</span>
                 </div>
 
             </div>
@@ -3818,7 +3899,7 @@
         const ov = document.getElementById('sidebar-overlay');
         if(sb) { sb.classList.remove('open'); }
         if(ov) { ov.style.display = 'none'; }
-        if(mod === 'housekeeping') cargarHousekeeping();
+        if(mod === 'housekeeping') hk2Cargar();
         if(mod === 'bot') setTimeout(cargarReconciliacion, 50);
         if(mod === 'nomina') cargarNomina();
         if(mod === 'reportes') {
@@ -7102,6 +7183,287 @@
         };
     }
 
+    // ══════════════════════════════════════════════════════
+    // HOUSEKEEPING v2 — Planeador de limpiezas (iCal)
+    // Entradas/salidas/bloqueos salen de `bookings` (iCal). La chica se asigna
+    // en `limpiezas` (mismo depto_codigo largo de siempre → nómina intacta).
+    // 📣 avisada = manual (limpiezas.avisada). ✓ limpia = la marca el bot
+    // (estatus terminada/pagada); manual solo vía menú de confirmación.
+    // ══════════════════════════════════════════════════════
+    let hk2Dia = 0;        // 0=hoy … 6
+    let hk2Data = null;    // cache de datos
+    let hk2NaTabla = true; // false si falta la tabla hk_no_disponible
+
+    function hk2MX(){ const d=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Mexico_City'})); d.setHours(0,0,0,0); return d; }
+    function hk2ISO(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    function hk2AddD(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+    const HK2_DIAS=['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
+    function hk2EsBloqueo(b){ return ((b.notes||'').toLowerCase().includes('not available')); }
+    function hk2Depto(uid){ return UNIT_TO_PORTAL[uid] || uid; }
+    function hk2FmtCorto(iso){ if(!iso) return '—'; const [y,m,dd]=iso.split('-'); const dt=new Date(+y,+m-1,+dd); return `${HK2_DIAS[dt.getDay()]} ${+dd} ${MESES[+m-1]}`; }
+    function hk2FmtLargo(iso){ const [y,m,dd]=iso.split('-'); const dt=new Date(+y,+m-1,+dd); const DL=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']; const ML=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']; return `${DL[dt.getDay()]} ${+dd} de ${ML[+m-1]}`; }
+    function hk2Noches(a,b){ const ms=new Date(b+'T12:00:00')-new Date(a+'T12:00:00'); return Math.max(1,Math.round(ms/86400000)); }
+    function hk2H(json){ const h={"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}; if(json){h["Content-Type"]="application/json";h["Prefer"]="return=minimal";} return h; }
+
+    async function hk2Cargar(){
+        const cont=document.getElementById('hk2-rows'); if(!cont) return;
+        const hoy=hk2MX(); const d0=hk2ISO(hoy); const d6=hk2ISO(hk2AddD(hoy,6)); const d7=hk2ISO(hk2AddD(hoy,7));
+        try{
+            const [rB,rL,rS,rN]=await Promise.all([
+                fetch(`${SUPABASE_URL}/rest/v1/bookings?select=unit_id,check_in,check_out,source,notes,status&check_in=lte.${d6}&check_out=gte.${d0}&order=check_in.asc`,{headers:hk2H()}),
+                fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=gte.${d0}&fecha=lte.${d7}&select=*&order=fecha.asc`,{headers:hk2H()}),
+                fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?activo=eq.true&select=id,nombre&order=nombre.asc`,{headers:hk2H()}),
+                fetch(`${SUPABASE_URL}/rest/v1/hk_no_disponible?fecha=gte.${d0}&fecha=lte.${d6}&select=staff_id,fecha`,{headers:hk2H()})
+            ]);
+            const bookings=rB.ok?await rB.json():[];
+            const limp=rL.ok?await rL.json():[];
+            const staff=rS.ok?await rS.json():[];
+            hk2NaTabla=rN.ok; const nodisp=rN.ok?await rN.json():[];
+            // dedupe: reserva real > bloqueo; airbnb > hostfully (misma regla que Registros)
+            const pref=x=>hk2EsBloqueo(x)?0:(x.source==='airbnb'?3:(x.source==='hostfully'?2:1));
+            const best={};
+            bookings.forEach(b=>{ const k=`${b.unit_id}|${b.check_in}|${b.check_out}`; if(!best[k]||pref(b)>pref(best[k])) best[k]=b; });
+            hk2Data={hoy,d0,bookings:Object.values(best),limp,staff,nodisp,at:new Date()};
+            hk2Render();
+            hk2SucioSync();
+        }catch(e){
+            cont.innerHTML=`<div style="padding:40px;text-align:center;color:var(--status-red);font-family:var(--font-mono);font-size:12px">Error cargando: ${(e.message||e)}</div>`;
+        }
+        if(!window._hk2Timer){ window._hk2Timer=setInterval(()=>{ if(document.getElementById('mod-housekeeping')?.classList.contains('active')) hk2Cargar(); }, 3600000); }
+    }
+
+    // Filas + stats de una fecha dada
+    function hk2RowsFor(fiso){
+        const D=hk2Data; if(!D) return {rows:[],stats:{sal:0,ent:0,turn:0,sin:0}};
+        const reales=D.bookings.filter(b=>!hk2EsBloqueo(b));
+        const bloqueos=D.bookings.filter(hk2EsBloqueo);
+        const sal={}, ent={}, blk={};
+        reales.forEach(b=>{ if(b.check_out===fiso) sal[hk2Depto(b.unit_id)]=b; });
+        reales.forEach(b=>{ if(b.check_in===fiso) ent[hk2Depto(b.unit_id)]=b; });
+        bloqueos.forEach(b=>{ if(b.check_in===fiso) blk[hk2Depto(b.unit_id)]=b; });
+        // limpieza del día — o del día siguiente si el checkout se limpia al otro día
+        // (misma regla que el HK anterior: solo si el depto NO tiene checkout propio mañana)
+        const fSig=hk2ISO(hk2AddD(new Date(fiso+'T12:00:00'),1));
+        const salSig=new Set(reales.filter(b=>b.check_out===fSig).map(b=>hk2Depto(b.unit_id)));
+        const lDe=(dep)=>{
+            const up=dep.toUpperCase();
+            const own=D.limp.find(l=>l.fecha===fiso && (l.depto_codigo||'').toUpperCase()===up);
+            if(own) return {l:own,sig:false};
+            if(!salSig.has(dep)){
+                const nx=D.limp.find(l=>l.fecha===fSig && (l.depto_codigo||'').toUpperCase()===up);
+                if(nx) return {l:nx,sig:true};
+            }
+            return {l:null,sig:false};
+        };
+        const deptos=[...new Set([...Object.keys(sal),...Object.keys(blk),...Object.keys(ent)])];
+        const rows=deptos.map(dep=>{
+            const r={dep,in:ent[dep]||null,out:sal[dep]||null,blk:blk[dep]||null,l:null,sig:false};
+            if(r.out||r.blk){ const m=lDe(dep); r.l=m.l; r.sig=m.sig; }
+            return r;
+        });
+        const peso=r=>(r.in&&r.out&&!r.blk)?0:(r.out&&!r.blk)?1:r.blk?2:3;
+        rows.sort((a,b)=>peso(a)-peso(b)||a.dep.localeCompare(b.dep));
+        const stats={sal:Object.keys(sal).length,ent:Object.keys(ent).length,
+            turn:rows.filter(r=>r.in&&r.out&&!r.blk).length,
+            sin:rows.filter(r=>(r.out||r.blk)&&(!r.l||!r.l.staff_id)).length};
+        return {rows,stats};
+    }
+
+    function hk2Render(){
+        const D=hk2Data; if(!D) return;
+        const fSel=hk2ISO(hk2AddD(D.hoy,hk2Dia));
+        // tira de 7 días
+        let wkH='';
+        for(let i=0;i<7;i++){
+            const dd=hk2AddD(D.hoy,i), st=hk2RowsFor(hk2ISO(dd)).stats;
+            wkH+=`<div class="hk2-day${i===0?' today':''}${i===hk2Dia?' sel':''}" onclick="hk2Dia=${i};hk2Render()">
+                <div class="dn">${HK2_DIAS[dd.getDay()]}</div><div class="dd">${dd.getDate()}</div>
+                <div class="dc">${st.sal} sal${st.sin?` · <b>${st.sin}!</b>`:''}</div></div>`;
+        }
+        document.getElementById('hk2-week').innerHTML=wkH;
+        const {rows,stats}=hk2RowsFor(fSel);
+        document.getElementById('hk2-daylabel').textContent=hk2FmtLargo(fSel);
+        document.getElementById('hk2-stats').innerHTML=
+            `<span class="hk2-stat"><b>${stats.sal}</b> salidas</span><span class="hk2-stat"><b>${stats.ent}</b> entradas</span>`+
+            `<span class="hk2-stat"><b>${stats.turn}</b> turnovers</span>`+
+            (stats.sin?`<span class="hk2-stat warn">⚠ <b>${stats.sin}</b> sin asignar</span>`:'');
+        const at=D.at;
+        document.getElementById('hk2-sync').textContent=`sync c/hora · ${at.getHours()}:${String(at.getMinutes()).padStart(2,'0')}`;
+        // chicas no disponibles del día
+        const naIds=new Set(D.nodisp.filter(n=>n.fecha===fSel).map(n=>String(n.staff_id)));
+        const nomDe={}; D.staff.forEach(s=>nomDe[s.id]=s.nombre);
+        document.getElementById('hk2-na-chips').innerHTML=
+            [...naIds].map(id=>`<span class="hk2-off" onclick="hk2QuitarNoDisp('${id}','${fSel}')" title="Quitar">${nomDe[id]||'—'} <span style="opacity:.6">✕</span></span>`).join('')
+            || `<span style="font-size:11px;color:var(--text-tertiary)">todas disponibles</span>`;
+        const cont=document.getElementById('hk2-rows');
+        cont.innerHTML = rows.length
+            ? rows.map(r=>hk2RowHTML(r,fSel,naIds)).join('')
+            : `<div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Sin movimientos este día 🎉</div>`;
+    }
+
+    function hk2RowHTML(r,fSel,naIds){
+        const lid=r.l?`'${r.l.id}'`:'null';
+        const asigId=r.l&&r.l.staff_id?String(r.l.staff_id):'';
+        const esBolongo=r.dep.toUpperCase().startsWith('BOLONGO');
+        const ana=hk2Data.staff.find(s=>(s.nombre||'').trim().toUpperCase()==='ANA');
+        const anaId=ana?String(ana.id):'';
+        const limpia=r.l&&(r.l.estatus==='terminada'||r.l.estatus==='pagada');
+        const avisada=!!(r.l&&r.l.avisada);
+        const turn=r.in&&r.out&&!r.blk;
+        let cls='hk2-row';
+        if(r.blk) cls+=' blk'; else if((r.out)&&!asigId) cls+=' sinch'; else if(limpia) cls+=' done'; else if(turn) cls+=' turn'; else if(!r.out&&r.in) cls+=' entry';
+        const inH=r.in?`<span class="hk2-pill in"><span class="ar">↓</span>${r.dep}</span>`:`<span class="hk2-blank">·</span>`;
+        let outH;
+        if(r.blk) outH=`<span class="hk2-pill b" onclick="this.closest('.hk2-row').querySelector('.hk2-blkdet').classList.toggle('open')">🔒 ${r.dep} <span class="note">${r.out?'se limpia después':'bloqueado'}</span> <span style="font-size:10px;opacity:.7">▾</span></span>`;
+        else if(r.out) outH=`<span class="hk2-pill out"><span class="ar">↑</span>${r.dep}</span>`;
+        else outH=`<span class="hk2-blank">·</span>`;
+        let chH;
+        if(r.out||r.blk){
+            let list=[...hk2Data.staff];
+            if(esBolongo&&anaId){ const a=list.find(s=>String(s.id)===anaId); if(a) list=[a,...list.filter(s=>String(s.id)!==anaId)]; }
+            const opts=list.filter(s=>!naIds.has(String(s.id))||String(s.id)===asigId)
+                .map(s=>`<option value="${s.id}" ${String(s.id)===asigId?'selected':''}>${s.nombre}${(esBolongo&&String(s.id)===anaId)?' ⭐':''}</option>`).join('');
+            chH=`<div style="display:flex;align-items:center;min-width:0"><select class="hk2-ch" onchange="hk2Asignar('${r.dep}','${fSel}',${lid},this.value)">${asigId?'':'<option value="" selected>— asignar —</option>'}${opts}</select>${(esBolongo&&asigId&&asigId===anaId)?'<span class="hk2-fija">FIJA</span>':''}</div>`;
+        } else chH=`<span class="hk2-blank">·</span>`;
+        const cks=(r.out||r.blk)?`<div class="hk2-cks">
+            <span class="hk2-ck avis${avisada?' on':''}" title="Ya se le avisó a la chica (tap)" onclick="hk2Avisada(${lid},${avisada})">📣</span>
+            <span class="hk2-ck bot${limpia?' on':''}" title="La marca el bot al terminar" onclick="hk2BotClick(event,${lid},'${r.dep}','${fSel}',${!!limpia})">✓<span class="lk">🤖</span></span>
+        </div>`:`<div class="hk2-cks"></div>`;
+        let det='';
+        if(r.blk){
+            const n=hk2Noches(r.blk.check_in,r.blk.check_out);
+            det=`<div class="hk2-blkdet"><div class="t">🔒 Bloqueado (estancia mínima / calendario) — fechas del iCal</div>
+                <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+                    <span class="hk2-bd"><span class="dl">Desde</span><br><span class="dv">${hk2FmtCorto(r.blk.check_in)}</span></span>
+                    <span style="color:var(--text-tertiary)">⟶</span>
+                    <span class="hk2-bd" style="margin-left:4px"><span class="dl">Hasta</span><br><span class="dv">${hk2FmtCorto(r.blk.check_out)}</span></span>
+                    <span class="hk2-n">${n} noche${n!==1?'s':''}</span>
+                </div>
+                <div class="hk2-free">Se libera y se limpia el <b>${hk2FmtCorto(r.blk.check_out)}</b></div></div>`;
+        }
+        const sigTag=r.sig?`<span class="hk2-sig">limpia día sig.</span>`:'';
+        return `<div class="${cls}"><div class="in-s">${inH}</div><div class="out-s">${outH}</div><div class="ch-s">${chH}</div>${cks}${sigTag}${det}</div>`;
+    }
+
+    // ── Acciones ──
+    async function hk2Asignar(dep,fiso,limpId,staffId){
+        if(!staffId) return;
+        try{
+            if(limpId){
+                await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${limpId}`,{method:'PATCH',headers:hk2H(true),body:JSON.stringify({staff_id:staffId})});
+            }else{
+                const tarifa=await getTarifa(dep,'completa');
+                await fetch(`${SUPABASE_URL}/rest/v1/limpiezas`,{method:'POST',headers:hk2H(true),body:JSON.stringify({depto_codigo:dep,staff_id:staffId,fecha:fiso,estatus:'pendiente',tipo:'completa',tarifa_aplicada:tarifa})});
+            }
+            toast(`✓ ${dep} asignada`);
+        }catch(e){ toast('⚠️ '+(e.message||e)); }
+        hk2Cargar();
+    }
+
+    async function hk2Avisada(limpId,curr){
+        if(!limpId){ toast('⚠️ Asigna una chica primero'); return; }
+        const res=await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${limpId}`,{method:'PATCH',headers:hk2H(true),body:JSON.stringify({avisada:!curr})});
+        if(!res.ok){ const t=await res.text(); toast(t.includes('avisada')?'⚠️ Falta columna avisada — corre el SQL':'⚠️ '+t.slice(0,70)); return; }
+        hk2Cargar();
+    }
+
+    function hk2Menu(){
+        let m=document.getElementById('hk2menu');
+        if(!m){ m=document.createElement('div'); m.id='hk2menu'; document.body.appendChild(m);
+            document.addEventListener('click',()=>{ m.style.display='none'; }); }
+        return m;
+    }
+    function hk2MenuPos(m,ev){
+        m.style.display='block';
+        const r=ev.currentTarget.getBoundingClientRect();
+        const x=Math.max(8,Math.min(window.innerWidth-262,r.left-110));
+        m.style.left=x+'px';
+        const y=(r.bottom+6+m.offsetHeight>window.innerHeight)?(r.top-m.offsetHeight-6):(r.bottom+6);
+        m.style.top=Math.max(8,y)+'px';
+    }
+    function hk2BotClick(ev,limpId,dep,fiso,limpia){
+        if(limpia) return;
+        ev.stopPropagation();
+        const m=hk2Menu();
+        m.innerHTML=`<div class="h">La marca el bot al terminar</div>
+            <div class="it" onclick="event.stopPropagation();hk2MarcarLimpia(${limpId?`'${limpId}'`:'null'},'${dep}','${fiso}')">✓ Marcar terminada manual<small>solo si el bot no entendió</small></div>`;
+        hk2MenuPos(m,ev);
+    }
+    async function hk2MarcarLimpia(limpId,dep,fiso){
+        const m=document.getElementById('hk2menu'); if(m) m.style.display='none';
+        if(!limpId){ toast('⚠️ Asigna una chica primero'); return; }
+        try{
+            await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${limpId}`,{method:'PATCH',headers:hk2H(true),body:JSON.stringify({estatus:'terminada'})});
+            toast('✓ Marcada terminada (manual)');
+        }catch(e){ toast('⚠️ '+(e.message||e)); }
+        hk2Cargar();
+    }
+
+    function hk2AddNoDisp(ev){
+        ev.stopPropagation();
+        if(!hk2Data) return;
+        if(!hk2NaTabla){ toast('⚠️ Falta la tabla hk_no_disponible — corre el SQL'); return; }
+        const fSel=hk2ISO(hk2AddD(hk2Data.hoy,hk2Dia));
+        const naIds=new Set(hk2Data.nodisp.filter(n=>n.fecha===fSel).map(n=>String(n.staff_id)));
+        const m=hk2Menu();
+        m.innerHTML=`<div class="h">¿Quién no trabaja el ${hk2FmtCorto(fSel)}?</div>`+
+            hk2Data.staff.filter(s=>!naIds.has(String(s.id)))
+                .map(s=>`<div class="it" onclick="event.stopPropagation();hk2MarcarNoDisp('${s.id}','${fSel}')">${s.nombre}</div>`).join('');
+        hk2MenuPos(m,ev);
+    }
+    async function hk2MarcarNoDisp(id,fiso){
+        const m=document.getElementById('hk2menu'); if(m) m.style.display='none';
+        try{
+            await fetch(`${SUPABASE_URL}/rest/v1/hk_no_disponible?on_conflict=staff_id,fecha`,{method:'POST',
+                headers:Object.assign(hk2H(true),{"Prefer":"resolution=ignore-duplicates,return=minimal"}),
+                body:JSON.stringify({staff_id:id,fecha:fiso})});
+        }catch(e){ toast('⚠️ '+(e.message||e)); }
+        hk2Cargar();
+    }
+    async function hk2QuitarNoDisp(id,fiso){
+        try{
+            await fetch(`${SUPABASE_URL}/rest/v1/hk_no_disponible?staff_id=eq.${id}&fecha=eq.${fiso}`,{method:'DELETE',headers:hk2H(true)});
+        }catch(e){}
+        hk2Cargar();
+    }
+
+    async function hk2Sync(btn){
+        if(btn){ btn.disabled=true; var old=btn.innerHTML; btn.innerHTML='<i class="ph ph-spinner"></i> Sincronizando…'; }
+        try{
+            await fetch(`${SUPABASE_URL}/functions/v1/sync-icals`,{method:'POST',
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json"},body:'{}'});
+        }catch(e){}
+        await hk2Cargar();
+        if(btn){ btn.disabled=false; btn.innerHTML=old; }
+        toast('✓ Actualizado desde iCal');
+    }
+
+    // Checkouts de HOY → depto_status 'sucio' (misma regla de siempre, ≥11am MX)
+    async function hk2SucioSync(){
+        try{
+            const D=hk2Data; if(!D) return;
+            const ahoraMX=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Mexico_City'}));
+            if(ahoraMX.getHours()<11) return;
+            const hoyISO=D.d0;
+            const checkouts=D.bookings.filter(b=>!hk2EsBloqueo(b)&&b.check_out===hoyISO).map(b=>hk2Depto(b.unit_id));
+            if(!checkouts.length) return;
+            const inList=checkouts.map(d=>`"${d}"`).join(',');
+            const sRes=await fetch(`${SUPABASE_URL}/rest/v1/depto_status?depto_codigo=in.(${encodeURIComponent(inList)})&select=depto_codigo,status,fecha`,{headers:hk2H()});
+            const act=sRes.ok?await sRes.json():[];
+            const mapa={}; act.forEach(r=>mapa[r.depto_codigo]=r);
+            const marcar=checkouts.filter(d=>{
+                const c=mapa[d];
+                if(!c) return true;
+                if(c.fecha===hoyISO&&(c.status==='limpio'||c.status==='sucio'||c.status==='en_proceso')) return false;
+                return true;
+            });
+            if(!marcar.length) return;
+            await fetch(`${SUPABASE_URL}/rest/v1/depto_status?on_conflict=depto_codigo`,{method:'POST',
+                headers:Object.assign(hk2H(true),{"Prefer":"resolution=merge-duplicates,return=minimal"}),
+                body:JSON.stringify(marcar.map(d=>({depto_codigo:d,status:'sucio',actualizado_por:'portal_auto',fecha:hoyISO})))});
+        }catch(e){ console.warn('[hk2 sucio]',e); }
+    }
+
     // ── Entradas del sheet (solo data loader) ──────────────────
     // ── Mapa unit_id (bookings) → nombre largo del portal ──
     // bookings usa codigo_corto ('5E','A101','V905'); el semáforo espera 'PENINSULA 5E' etc.
@@ -7321,6 +7683,8 @@
     }
 
     async function cargarHousekeeping() {
+        // HK v1 fue reemplazado por el planeador hk2; si algo viejo llama aquí, redirigir.
+        if(!document.getElementById('hk-fecha-label')) return hk2Cargar();
         document.getElementById('hk-fecha-label').textContent = hkFechaLabel(hkFecha);
         const fiso = hkFechaISO(hkFecha);
 
