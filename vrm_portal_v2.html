@@ -3994,7 +3994,7 @@
         "ARIA":{t:"frakcio",tipo:"frakcio"},"MARITIMA GOLF":{t:"frakcio",tipo:"frakcio"},"MARITIMA 9S":{t:"gforms",tipo:"gforms"},"MARITIMA 10I":{t:"gforms",tipo:"gforms"},"MARITIMA 6S":{t:"gforms",tipo:"gforms"},"MARITIMA PHN":{t:"gforms",tipo:"gforms"},
         "MARALMA":{t:"maralma",tipo:"pdf"},
         "BOLONGO":{t:"frakcio",tipo:"frakcio"},"ZOHO":{t:"frakcio",tipo:"frakcio"},
-        "PUERTARENA":{t:"frakcio",tipo:"frakcio"},"BAY VIEW":{t:"frakcio",tipo:"frakcio"},"BVG":{t:"frakcio",tipo:"frakcio"},
+        "PUERTARENA":{t:"frakcio",tipo:"frakcio"},"PUERTA ARENA":{t:"frakcio",tipo:"frakcio"},"BAY VIEW":{t:"frakcio",tipo:"frakcio"},"BVG":{t:"frakcio",tipo:"frakcio"},
         "ZANTAMAR":{t:"frakcio",tipo:"frakcio"},
         "MASCOTA":{t:"manual",tipo:"manual"},"MASCOTA":{t:"manual",tipo:"manual"},
     };
@@ -6323,10 +6323,20 @@
         // EXACT override: ignorar tipo_formato de DB si el depto está en EXACT
         const deptoUp = (r.depto||'').toUpperCase().trim();
         const esExact = !!EXACT[deptoUp];
-        const tipoReal = esExact ? EXACT[deptoUp].tipo : r.tipo_formato;
+        let tipoReal = esExact ? EXACT[deptoUp].tipo : r.tipo_formato;
+
+        // Blindaje: si el registro quedó guardado con tipo/template 'general' pero el
+        // depto SÍ mapea a una plantilla real (caso GD A101 / ALBATROS), derivarla del
+        // depto para que el PDF se genere en vez de caer al modal de texto.
+        const _tmplDer = getTmpl(r.depto||'');
+        if(!tipoReal || tipoReal==='general') tipoReal = _tmplDer.tipo || tipoReal;
+        let rGen = r;
+        if(_tmplDer.t && _tmplDer.t!=='general' && (!r.template || r.template==='general')){
+            rGen = Object.assign({}, r, { template: _tmplDer.t });
+        }
 
         if(tipoReal==="pdf") {
-            try { generarPDF(r, datos, ocupantes, id); }
+            try { generarPDF(rGen, datos, ocupantes, id); }
             catch(e) { console.error("PDF error:", e); toast("❌ Error: " + e.message); }
         } else if(tipoReal==="whatsapp") {
             mostrarTexto(r, datos, ocupantes);
