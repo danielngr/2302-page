@@ -440,6 +440,18 @@
         .hk2-day.past .dd{color:var(--text-tertiary)}
         .hk2-span2{grid-column:1/3;min-width:0}
         .hk2-span2 .hk2-pill{width:100%;justify-content:flex-start}
+        .hk2-fail{margin-top:16px;padding:16px 18px;border-radius:14px;border:1px solid rgba(239,68,68,.5);
+            background:rgba(239,68,68,.1);color:#ffc9c9}
+        .hk2-warnbox{margin-top:16px;padding:12px 16px;border-radius:13px;border:1px solid rgba(251,191,36,.45);
+            background:rgba(251,191,36,.09);color:#f7d89a;font-size:12px;display:flex;gap:9px;align-items:flex-start}
+        .hk2-warnbox b{color:#ffe6b0}
+        /* alerta: entrada sin limpieza registrada */
+        .hk2-row.alerta{border-left-color:#EF4444;background:rgba(239,68,68,.06)}
+        .hk2-pill.alert{background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.45);color:#ffb3b3;
+            display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap}
+        .hk2-pill.alert .note{font-family:var(--font-mono);font-size:9px;opacity:.85;font-weight:500}
+        .hk2-stat.alerta{color:#ffb3b3;border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.14)}
+        .hk2-row.alerta select.hk2-ch{border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.1);color:#ffc9c9}
         .hk2-day{flex:0 0 auto;min-width:70px;padding:9px 8px 8px;border-radius:14px;text-align:center;cursor:pointer;border:1px solid var(--glass-border);background:rgba(255,255,255,.02);position:relative;transition:.15s}
         .hk2-day .dn{font-family:var(--font-mono);font-size:9px;letter-spacing:1px;color:var(--text-tertiary);text-transform:uppercase}
         .hk2-day .dd{font-family:var(--font-display);font-size:19px;font-weight:800;margin-top:2px;line-height:1}
@@ -2593,6 +2605,7 @@
                 <div class="nav-item" onclick="goTo('housekeeping',this)">
                     <i class="ph ph-broom"></i>
                     Housekeeping
+                    <span class="badge" id="badge-hk" style="display:none"></span>
                 </div>
                 <div class="nav-item" onclick="goTo('servicios',this)">
                     <i class="ph ph-sparkle"></i>
@@ -2745,6 +2758,8 @@
                         <div class="hk2-sync" id="hk2-sync">sync automático c/hora</div>
                     </div>
                 </div>
+
+                <div id="hk2-riesgos"></div>
 
                 <div class="hk2-wkwrap">
                     <button class="hk2-warr" onclick="hk2Shift(-1)" title="Días anteriores">‹</button>
@@ -7272,6 +7287,7 @@
     let hk2Ini = 0;        // desplazamiento de la ventana en días (negativo = pasado)
     let hk2Data = null;    // cache de datos
     let hk2NaTabla = true; // false si falta la tabla hk_no_disponible
+    let hk2Err = 0;        // reintentos consecutivos de carga
 
     function hk2Shift(d){ hk2Ini += d; hk2Cargar(); }
 
@@ -7280,7 +7296,29 @@
     function hk2AddD(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
     const HK2_DIAS=['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
     function hk2EsBloqueo(b){ return ((b.notes||'').toLowerCase().includes('not available')); }
-    function hk2Depto(uid){ return UNIT_TO_PORTAL[uid] || uid; }
+    // unit_id sin mapear → se marca para avisar (si no, el nombre no cruza con `limpiezas`)
+    const hk2SinMapa=new Set();
+    function hk2Depto(uid){
+        if(UNIT_TO_PORTAL[uid]) return UNIT_TO_PORTAL[uid];
+        if(uid) hk2SinMapa.add(uid);
+        return uid;
+    }
+    // Normaliza para cruzar nombres de depto entre bookings y limpiezas.
+    // Quita TODO separador (guiones, espacios, puntos) y acentos, para que
+    // "BOLONGO G-13", "bolongo  g13" y "BOLONGO G13" sean el mismo depto.
+    // (También arregla "TULES 19-1301" vs "TULES 19 1301".)
+    function hk2Norm(s){
+        return (s||'').toString().toUpperCase()
+            .normalize('NFD').replace(/[̀-ͯ]/g,'')
+            .replace(/[^A-Z0-9]/g,'');
+    }
+    // De todas las limpiezas de un depto+fecha, prefiere la más "avanzada":
+    // terminada/pagada > con chica > cualquiera. Evita que un duplicado vacío tape una real.
+    function hk2MejorLimp(lista){
+        if(!lista.length) return null;
+        const rank=l=>(l.estatus==='terminada'||l.estatus==='pagada')?3:(l.staff_id?2:1);
+        return lista.slice().sort((a,b)=>rank(b)-rank(a))[0];
+    }
     function hk2FmtCorto(iso){ if(!iso) return '—'; const [y,m,dd]=iso.split('-'); const dt=new Date(+y,+m-1,+dd); return `${HK2_DIAS[dt.getDay()]} ${+dd} ${MESES[+m-1]}`; }
     function hk2FmtLargo(iso){ const [y,m,dd]=iso.split('-'); const dt=new Date(+y,+m-1,+dd); const DL=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']; const ML=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']; return `${DL[dt.getDay()]} ${+dd} de ${ML[+m-1]}`; }
     function hk2Noches(a,b){ const ms=new Date(b+'T12:00:00')-new Date(a+'T12:00:00'); return Math.max(1,Math.round(ms/86400000)); }
@@ -7293,25 +7331,51 @@
         const d0=hk2ISO(hoy); const d6=hk2ISO(hk2AddD(hoy,6)); const d7=hk2ISO(hk2AddD(hoy,7));
         const hb=document.getElementById('hk2-hoy-btn'); if(hb) hb.style.display = hk2Ini!==0 ? 'inline-block' : 'none';
         try{
+            // Ventana ampliada 30 días atrás: necesaria para el guard de "entrada sin limpieza"
+            // (hay que ver la ÚLTIMA salida previa del depa y si hubo limpieza después).
+            const dPrev=hk2ISO(hk2AddD(hoy,-30));
             const [rB,rL,rS,rN]=await Promise.all([
-                fetch(`${SUPABASE_URL}/rest/v1/bookings?select=unit_id,check_in,check_out,source,notes,status&check_in=lte.${d6}&check_out=gte.${d0}&order=check_in.asc`,{headers:hk2H()}),
-                fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=gte.${d0}&fecha=lte.${d7}&select=*&order=fecha.asc`,{headers:hk2H()}),
+                fetch(`${SUPABASE_URL}/rest/v1/bookings?select=unit_id,check_in,check_out,source,notes,status&check_in=lte.${d6}&check_out=gte.${dPrev}&order=check_in.asc&limit=5000`,{headers:hk2H()}),
+                fetch(`${SUPABASE_URL}/rest/v1/limpiezas?fecha=gte.${dPrev}&fecha=lte.${d7}&select=*&order=fecha.asc&limit=5000`,{headers:hk2H()}),
                 fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?activo=eq.true&select=id,nombre&order=nombre.asc`,{headers:hk2H()}),
                 fetch(`${SUPABASE_URL}/rest/v1/hk_no_disponible?fecha=gte.${d0}&fecha=lte.${d6}&select=staff_id,fecha`,{headers:hk2H()})
             ]);
-            const bookings=rB.ok?await rB.json():[];
-            const limp=rL.ok?await rL.json():[];
+            // ── REGLA DE ORO: si los datos base fallan, NO pintar como si no hubiera trabajo.
+            // Una lista vacía por error de red es indistinguible de "hoy no hay nada" → peligroso.
+            if(!rB.ok || !rL.ok){
+                const det=!rB.ok?('reservas/iCal HTTP '+rB.status):('limpiezas HTTP '+rL.status);
+                throw new Error('No se pudieron cargar los datos ('+det+')');
+            }
+            const bookings=await rB.json();
+            const limp=await rL.json();
             const staff=rS.ok?await rS.json():[];
             hk2NaTabla=rN.ok; const nodisp=rN.ok?await rN.json():[];
+            // Detectar truncamiento de PostgREST (si llega justo el tope, faltan datos)
+            const truncado=(bookings.length>=5000)||(limp.length>=5000);
+            if(!staff.length) throw new Error('No se pudo cargar la lista de chicas');
             // dedupe: reserva real > bloqueo; airbnb > hostfully (misma regla que Registros)
             const pref=x=>hk2EsBloqueo(x)?0:(x.source==='airbnb'?3:(x.source==='hostfully'?2:1));
             const best={};
             bookings.forEach(b=>{ const k=`${b.unit_id}|${b.check_in}|${b.check_out}`; if(!best[k]||pref(b)>pref(best[k])) best[k]=b; });
-            hk2Data={hoy,hoyReal,d0,bookings:Object.values(best),limp,staff,nodisp,at:new Date()};
+            hk2Data={hoy,hoyReal,d0,bookings:Object.values(best),limp,staff,nodisp,at:new Date(),truncado};
+            hk2Err=0;
             hk2Render();
             hk2SucioSync();
         }catch(e){
-            cont.innerHTML=`<div style="padding:40px;text-align:center;color:var(--status-red);font-family:var(--font-mono);font-size:12px">Error cargando: ${(e.message||e)}</div>`;
+            // Error visible + reintento automático. NUNCA dejar la vista en blanco silenciosa.
+            hk2Err=(hk2Err||0)+1;
+            const msg=(e&&e.message)||String(e);
+            const stale=hk2Data?`<div style="margin-top:10px;font-size:11px;color:var(--text-tertiary)">Mostrando los últimos datos cargados (${hk2Data.at.getHours()}:${String(hk2Data.at.getMinutes()).padStart(2,'0')}) — pueden estar incompletos.</div>`:'';
+            const banner=document.getElementById('hk2-riesgos');
+            if(banner) banner.innerHTML=`<div class="hk2-fail">
+                <div style="font-size:14px;font-weight:800">⚠️ No se pudo cargar Housekeeping</div>
+                <div style="font-size:12px;margin-top:5px;opacity:.9">${msg}</div>
+                <div style="font-size:11px;margin-top:7px;opacity:.75">Reintentando automáticamente… (intento ${hk2Err})</div>
+                <button class="btn btn-outline-white" style="margin-top:11px;font-size:12px" onclick="hk2Cargar()">Reintentar ahora</button>
+                ${stale}</div>`;
+            if(!hk2Data) cont.innerHTML=`<div style="padding:36px;text-align:center;color:var(--status-red);font-family:var(--font-mono);font-size:12px">Sin datos — no se muestra nada para no dar información falsa.</div>`;
+            clearTimeout(window._hk2Retry);
+            window._hk2Retry=setTimeout(()=>{ if(document.getElementById('mod-housekeeping')?.classList.contains('active')) hk2Cargar(); }, Math.min(30000, 4000*hk2Err));
         }
         if(!window._hk2Timer){ window._hk2Timer=setInterval(()=>{ if(document.getElementById('mod-housekeeping')?.classList.contains('active')) hk2Cargar(); }, 3600000); }
     }
@@ -7329,42 +7393,76 @@
         // (misma regla que el HK anterior: solo si el depto NO tiene checkout propio mañana)
         const fSig=hk2ISO(hk2AddD(new Date(fiso+'T12:00:00'),1));
         const salSig=new Set(reales.filter(b=>b.check_out===fSig).map(b=>hk2Depto(b.unit_id)));
+        // Cruce por nombre NORMALIZADO (tolera "G-13" vs "G13", dobles espacios, acentos)
+        // y ante duplicados prefiere el registro más avanzado (terminada > con chica > vacío).
         const lDe=(dep)=>{
-            const up=dep.toUpperCase();
-            const own=D.limp.find(l=>l.fecha===fiso && (l.depto_codigo||'').toUpperCase()===up);
+            const up=hk2Norm(dep);
+            const own=hk2MejorLimp(D.limp.filter(l=>l.fecha===fiso && hk2Norm(l.depto_codigo)===up));
             if(own) return {l:own,sig:false};
             if(!salSig.has(dep)){
-                const nx=D.limp.find(l=>l.fecha===fSig && (l.depto_codigo||'').toUpperCase()===up);
+                const nx=hk2MejorLimp(D.limp.filter(l=>l.fecha===fSig && hk2Norm(l.depto_codigo)===up));
                 if(nx) return {l:nx,sig:true};
             }
             return {l:null,sig:false};
         };
+        // ── Helpers: ¿el depa quedó sucio y sigue sin limpiarse? ────────────────────
+        // Solo una SALIDA REAL de huésped ensucia. Un bloqueo no ensucia por sí mismo.
+        const ultSalidaHasta=(dep,fecha)=>{
+            const s=D.bookings.filter(b=>!hk2EsBloqueo(b)&&hk2Depto(b.unit_id)===dep&&b.check_out&&b.check_out<=fecha)
+                .map(b=>b.check_out).sort();
+            return s.length?s[s.length-1]:null;
+        };
+        const yaLimpio=(dep,desde,hasta)=>{
+            const up=hk2Norm(dep);
+            return D.limp.some(l=>hk2Norm(l.depto_codigo)===up&&l.fecha>=desde&&l.fecha<=hasta);
+        };
+
         // ── FIN DE BLOQUEO = SE LIMPIA ESE DÍA ──────────────────────────────────────
-        // Un bloqueo que TERMINA hoy libera el depa: hay que limpiarlo (venía cerrado/sucio)
-        // y muy probablemente entra huésped el mismo día. Si no se cuenta aquí, el depa
-        // desaparece de las salidas y nadie manda limpieza (caso GD 303A).
+        // Un bloqueo que TERMINA hoy libera el depa. Solo pedimos limpieza si el depa
+        // sigue sucio (hubo salida real y nadie la limpió). Si ya se limpió el día que
+        // salió el huésped, no molestamos. (Caso GD 303A vs. Xikiri ya limpio.)
         const finBlk={};
         bloqueos.forEach(b=>{
             if(b.check_out!==fiso) return;
             const dep=hk2Depto(b.unit_id);
             if(blk[dep]) return;   // otro bloqueo arranca hoy → sigue cerrado, no se limpia
             if(sal[dep]) return;   // ya hay salida real de huésped hoy → esa manda
+            // ENTRA HUÉSPED HOY → siempre como SALIDA + ENTRADA (turnover), pase lo que pase.
+            // Aunque ya estuviera limpio: si llega alguien, la fila NO se puede ocultar.
+            if(ent[dep]){ finBlk[dep]=b; return; }
+            // Sin entrada hoy → solo si el depa sigue sucio (evita ruido tipo Xikiri ya limpio)
+            const ult=ultSalidaHasta(dep,fiso);
+            if(!ult) return;                       // nunca hubo huésped → nada que limpiar
+            if(yaLimpio(dep,ult,fiso)) return;     // ya se limpió desde esa salida
             finBlk[dep]=b;
+        });
+
+        // ── RED DE SEGURIDAD: entrada SIN limpieza registrada ───────────────────────
+        // Si hoy llega huésped y el depa no tiene salida hoy, revisamos que SÍ se haya
+        // limpiado desde su última salida. Cubre bloqueos que el iCal no exporta
+        // (estancia mínima), depas que quedaron vacíos varios días, o limpiezas perdidas.
+        const alerta={};
+        Object.keys(ent).forEach(dep=>{
+            if(sal[dep]||finBlk[dep]||blk[dep]) return;      // ya tiene salida/bloqueo hoy
+            const ultSal=ultSalidaHasta(dep,fiso);
+            if(!ultSal) return;                               // nunca hubo salida previa
+            if(!yaLimpio(dep,ultSal,fiso)) alerta[dep]=ultSal; // ← nadie limpió desde esa salida
         });
 
         const deptos=[...new Set([...Object.keys(sal),...Object.keys(blk),...Object.keys(ent),...Object.keys(finBlk)])];
         const rows=deptos.map(dep=>{
             const r={dep,in:ent[dep]||null,out:sal[dep]||finBlk[dep]||null,blk:blk[dep]||null,
-                     finBlk:!!finBlk[dep],l:null,sig:false};
-            if(r.out||r.blk){ const m=lDe(dep); r.l=m.l; r.sig=m.sig; }
+                     finBlk:!!finBlk[dep],alerta:alerta[dep]||null,l:null,sig:false};
+            if(r.out||r.blk||r.alerta){ const m=lDe(dep); r.l=m.l; r.sig=m.sig; }
             return r;
         });
-        // Orden: turnovers primero (incluye fin-de-bloqueo con entrada = lo más urgente)
-        const peso=r=>(r.in&&r.out&&!r.blk)?0:(r.out&&!r.blk)?1:r.blk?2:3;
+        // Orden: alertas hasta arriba, luego turnovers, salidas, bloqueos y entradas solas
+        const peso=r=>r.alerta?-1:(r.in&&r.out&&!r.blk)?0:(r.out&&!r.blk)?1:r.blk?2:3;
         rows.sort((a,b)=>peso(a)-peso(b)||a.dep.localeCompare(b.dep));
         const stats={sal:Object.keys(sal).length+Object.keys(finBlk).length,ent:Object.keys(ent).length,
             turn:rows.filter(r=>r.in&&r.out&&!r.blk).length,
-            sin:rows.filter(r=>(r.out||r.blk)&&(!r.l||!r.l.staff_id)).length};
+            alerta:rows.filter(r=>r.alerta).length,
+            sin:rows.filter(r=>(r.out||r.blk||r.alerta)&&(!r.l||!r.l.staff_id)).length};
         return {rows,stats};
     }
 
@@ -7388,12 +7486,21 @@
                 <div class="hk2-big ent"><div class="ic">↓</div><div><div class="num">${stats.ent}</div><div class="lb">Entradas</div></div></div>
                 <div class="hk2-big sal"><div class="ic">↑</div><div><div class="num">${stats.sal}</div><div class="lb">Salidas</div></div></div>
                 <div class="hk2-minis">
-                    <span class="hk2-stat">⚡ <b>${stats.turn}</b> turnovers</span>
+                    ${stats.alerta?`<span class="hk2-stat alerta">⚠️ <b>${stats.alerta}</b> ¿llega sin limpiar?</span>`:`<span class="hk2-stat">⚡ <b>${stats.turn}</b> turnovers</span>`}
                     ${stats.sin?`<span class="hk2-stat warn">⚠ <b>${stats.sin}</b> sin asignar</span>`:`<span class="hk2-stat" style="color:var(--status-green);border-color:rgba(52,211,153,.3)">✓ todo asignado</span>`}
                 </div>
             </div>`;
         const at=D.at;
-        document.getElementById('hk2-sync').textContent=`sync c/hora · ${at.getHours()}:${String(at.getMinutes()).padStart(2,'0')}`;
+        const minsAt=Math.round((Date.now()-at.getTime())/60000);
+        document.getElementById('hk2-sync').textContent=`datos de las ${at.getHours()}:${String(at.getMinutes()).padStart(2,'0')}${minsAt>90?' ⚠ viejos':''}`;
+        // ── Panel de integridad: avisa cuando los datos podrían estar incompletos ──
+        const avisos=[];
+        if(minsAt>90) avisos.push(`Los datos tienen <b>${minsAt} min</b> sin refrescar. Dale <b>Actualizar</b> para traer lo último del iCal.`);
+        if(D.truncado) avisos.push(`Llegó el <b>máximo de registros</b>: puede faltar información. Avísame para paginar la consulta.`);
+        if(hk2SinMapa.size) avisos.push(`Deptos del iCal <b>sin nombre mapeado</b>: ${[...hk2SinMapa].join(', ')} — se muestran con su código y podrían no cruzar con las limpiezas registradas.`);
+        const rb=document.getElementById('hk2-riesgos');
+        if(rb) rb.innerHTML = avisos.length
+            ? `<div class="hk2-warnbox"><span style="font-size:15px">⚠️</span><div>${avisos.join('<br>')}</div></div>` : '';
         // chicas no disponibles del día
         const naIds=new Set(D.nodisp.filter(n=>n.fecha===fSel).map(n=>String(n.staff_id)));
         const nomDe={}; D.staff.forEach(s=>nomDe[s.id]=s.nombre);
@@ -7416,14 +7523,16 @@
         const avisada=!!(r.l&&r.l.avisada);
         const turn=r.in&&r.out&&!r.blk;
         let cls='hk2-row';
-        if(r.blk) cls+=' blk'; else if((r.out)&&!asigId) cls+=' sinch'; else if(limpia) cls+=' done'; else if(turn) cls+=' turn'; else if(!r.out&&r.in) cls+=' entry';
+        if(r.alerta) cls+=' alerta';
+        else if(r.blk) cls+=' blk'; else if((r.out)&&!asigId) cls+=' sinch'; else if(limpia) cls+=' done'; else if(turn) cls+=' turn'; else if(!r.out&&r.in) cls+=' entry';
         const inH=r.in?`<span class="hk2-pill in"><span class="ar">↓</span>${r.dep}</span>`:`<span class="hk2-blank">·</span>`;
         let outH;
         if(r.blk) outH=`<span class="hk2-pill b" onclick="this.closest('.hk2-row').querySelector('.hk2-blkdet').classList.toggle('open')">🔒 ${r.dep} <span class="note">${r.out?'se limpia después':'bloqueado'}</span> <span style="font-size:10px;opacity:.7">▾</span></span>`;
         else if(r.out) outH=`<span class="hk2-pill out"><span class="ar">↑</span>${r.dep}${r.finBlk?' <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.8">fin de bloqueo</span>':''}</span>`;
+        else if(r.alerta) outH=`<span class="hk2-pill alert">⚠️ ¿LIMPIO? <span class="note">sin limpieza desde la salida del ${hk2FmtCorto(r.alerta)}</span></span>`;
         else outH=`<span class="hk2-blank">·</span>`;
         let chH;
-        if(r.out||r.blk){
+        if(r.out||r.blk||r.alerta){
             let list=[...hk2Data.staff];
             if(esBolongo&&anaId){ const a=list.find(s=>String(s.id)===anaId); if(a) list=[a,...list.filter(s=>String(s.id)!==anaId)]; }
             const opts=list.filter(s=>!naIds.has(String(s.id))||String(s.id)===asigId)
@@ -7434,7 +7543,7 @@
             const optVacia=`<option value="" ${asigId?'':'selected'}>${asigId?'— sin chica —':'— asignar —'}</option>`;
             chH=`<div style="display:flex;align-items:center;min-width:0"><div class="hk2-chw">${avIni}<select class="hk2-ch" onchange="hk2Asignar('${r.dep}','${fSel}',${lid},this.value)">${optVacia}${opts}</select></div>${(esBolongo&&asigId&&asigId===anaId)?'<span class="hk2-fija">FIJA</span>':''}</div>`;
         } else chH=`<span class="hk2-blank">·</span>`;
-        const cks=(r.out||r.blk)?`<div class="hk2-cks">
+        const cks=(r.out||r.blk||r.alerta)?`<div class="hk2-cks">
             <span class="hk2-ck avis${avisada?' on':''}" title="Ya se le avisó a la chica (tap)" onclick="hk2Avisada(${lid},${avisada})">📣</span>
             <span class="hk2-ck bot${limpia?' on':''}" title="La marca el bot al terminar" onclick="hk2BotClick(event,${lid},'${r.dep}','${fSel}',${!!limpia})">✓<span class="lk">🤖</span></span>
         </div>`:`<div class="hk2-cks"></div>`;
