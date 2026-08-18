@@ -431,8 +431,15 @@
         .hk2-stat b{color:var(--text-primary)}
         .hk2-stat.warn{color:#f7d488;border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.12)}
         .hk2-sync{font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-align:right;margin-top:7px}
-        .hk2-week{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:8px 2px 4px;margin-top:10px}
+        .hk2-wkwrap{display:flex;align-items:center;gap:6px;margin-top:10px}
+        .hk2-warr{flex-shrink:0;width:30px;height:56px;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,.03);color:var(--text-tertiary);font-size:16px;cursor:pointer;transition:.15s}
+        .hk2-warr:hover{background:rgba(255,255,255,.07);color:#fff}
+        .hk2-hoy{flex-shrink:0;padding:0 12px;height:36px;border-radius:11px;border:1px solid rgba(224,122,62,.4);background:rgba(224,122,62,.12);color:#f6c79c;font-family:var(--font-mono);font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700}
+        .hk2-week{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:8px 2px 4px;flex:1}
         .hk2-week::-webkit-scrollbar{display:none}
+        .hk2-day.past .dd{color:var(--text-tertiary)}
+        .hk2-span2{grid-column:1/3;min-width:0}
+        .hk2-span2 .hk2-pill{width:100%;justify-content:flex-start}
         .hk2-day{flex:0 0 auto;min-width:70px;padding:9px 8px 8px;border-radius:14px;text-align:center;cursor:pointer;border:1px solid var(--glass-border);background:rgba(255,255,255,.02);position:relative;transition:.15s}
         .hk2-day .dn{font-family:var(--font-mono);font-size:9px;letter-spacing:1px;color:var(--text-tertiary);text-transform:uppercase}
         .hk2-day .dd{font-family:var(--font-display);font-size:19px;font-weight:800;margin-top:2px;line-height:1}
@@ -527,6 +534,8 @@
             .hk2-colhead{display:none}
             .hk2-row{grid-template-columns:1fr 1fr;grid-template-areas:"in out" "chica cks";gap:9px 10px;padding:13px 14px 13px 12px}
             .hk2-row .in-s{grid-area:in}.hk2-row .out-s{grid-area:out}.hk2-row .ch-s{grid-area:chica}.hk2-row .hk2-cks{grid-area:cks;justify-self:end}
+            .hk2-row .hk2-span2{grid-area:auto;grid-row:1;grid-column:1/-1}
+            .hk2-warr{height:48px}
             .hk2-pill{font-size:12px;padding:7px 10px}
             .hk2-day{min-width:64px}
         }
@@ -2737,7 +2746,12 @@
                     </div>
                 </div>
 
-                <div class="hk2-week" id="hk2-week"></div>
+                <div class="hk2-wkwrap">
+                    <button class="hk2-warr" onclick="hk2Shift(-1)" title="Días anteriores">‹</button>
+                    <div class="hk2-week" id="hk2-week"></div>
+                    <button class="hk2-warr" onclick="hk2Shift(1)" title="Días siguientes">›</button>
+                    <button class="hk2-hoy" id="hk2-hoy-btn" onclick="hk2Ini=0;hk2Dia=0;hk2Cargar()" style="display:none">HOY</button>
+                </div>
 
                 <div class="hk2-avail">
                     <span class="lbl">🚫 No trabaja este día:</span>
@@ -5288,13 +5302,31 @@
     async function registrarVisitaCF(depto, fechaISO) {
         const btn = document.querySelector(`[onclick*="registrarVisitaCF('${depto}'"]`);
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner"></i> Enviando...'; }
+
+        // Abre el chat de la reserva en Airbnb DE INMEDIATO (dentro del gesto del clic;
+        // si no, Safari lo bloquea). Igual que marcarQR de Frakcio.
+        const _codAir = _codAirDe(depto, fechaISO);
+        if(_codAir){ try{ window.open('https://www.airbnb.com/hosting/reservations/details/'+_codAir, '_blank'); }catch(e){} }
+
+        // ── Copiado del link del QR (a prueba de Safari) ─────────────────────────
+        // Safari NO deja copiar tras un await. Lanzamos ComunidadFeliz YA (en el gesto)
+        // y registramos el copiado con ClipboardItem + promesa. CF se llama UNA sola vez.
+        const regSalida = todosRegistros.find(x => {
+            const d = (x.depto || '').toUpperCase().trim(), dep = depto.toUpperCase();
+            return (d === dep || d.startsWith(dep + ' ') || dep.startsWith(d + ' '));
+        });
+        const fechaSalida = regSalida ? (regSalida.fecha_salida || fechaISO) : fechaISO;
+        const _cfPromise = enviarVisitaComunidadFeliz(depto, fechaISO, fechaSalida); // dentro del gesto
+        const _urlPromise = _cfPromise.then(r => r.qrUrl || r.invitationUrl || '').catch(()=> '');
+        if(navigator.clipboard && window.ClipboardItem){
+            try{
+                navigator.clipboard.write([ new ClipboardItem({ 'text/plain': _urlPromise.then(u => new Blob([u||''], {type:'text/plain'})) }) ]).catch(()=>{});
+            }catch(e){ /* navegador viejo: queda el botón de copiar del modal */ }
+        }
+
         try {
-            const regSalida = todosRegistros.find(x => {
-                const d = (x.depto || '').toUpperCase().trim(), dep = depto.toUpperCase();
-                return (d === dep || d.startsWith(dep + ' ') || dep.startsWith(d + ' '));
-            });
-            const fechaSalida = regSalida ? (regSalida.fecha_salida || fechaISO) : fechaISO;
-            const r = await enviarVisitaComunidadFeliz(depto, fechaISO, fechaSalida);
+            // Reutiliza la promesa ya lanzada (no llama CF otra vez)
+            const r = await _cfPromise;
             comunidadVisitas.push({ depto, fecha: fechaISO, qr_url: r.qrUrl || null, invitation_url: r.invitationUrl || null });
             // Persistir en comunidad_visitas (sobrevive recarga y lo lee la oficina)
             fetch(`${SUPABASE_URL}/rest/v1/comunidad_visitas`, { method:"POST", keepalive:true, headers:{ "apikey":SUPABASE_KEY, "Authorization":`Bearer ${SUPABASE_KEY}`, "Content-Type":"application/json", "Prefer":"return=minimal" }, body: JSON.stringify({ depto, fecha: fechaISO, qr_url: r.qrUrl||null, invitation_url: r.invitationUrl||null }) }).catch(()=>{});
@@ -7236,9 +7268,12 @@
     // 📣 avisada = manual (limpiezas.avisada). ✓ limpia = la marca el bot
     // (estatus terminada/pagada); manual solo vía menú de confirmación.
     // ══════════════════════════════════════════════════════
-    let hk2Dia = 0;        // 0=hoy … 6
+    let hk2Dia = 0;        // índice del día seleccionado dentro de la ventana (0…6)
+    let hk2Ini = 0;        // desplazamiento de la ventana en días (negativo = pasado)
     let hk2Data = null;    // cache de datos
     let hk2NaTabla = true; // false si falta la tabla hk_no_disponible
+
+    function hk2Shift(d){ hk2Ini += d; hk2Cargar(); }
 
     function hk2MX(){ const d=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Mexico_City'})); d.setHours(0,0,0,0); return d; }
     function hk2ISO(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -7253,7 +7288,10 @@
 
     async function hk2Cargar(){
         const cont=document.getElementById('hk2-rows'); if(!cont) return;
-        const hoy=hk2MX(); const d0=hk2ISO(hoy); const d6=hk2ISO(hk2AddD(hoy,6)); const d7=hk2ISO(hk2AddD(hoy,7));
+        const hoyReal=hk2MX();
+        const hoy=hk2AddD(hoyReal,hk2Ini);   // inicio de la ventana visible (puede ser pasado)
+        const d0=hk2ISO(hoy); const d6=hk2ISO(hk2AddD(hoy,6)); const d7=hk2ISO(hk2AddD(hoy,7));
+        const hb=document.getElementById('hk2-hoy-btn'); if(hb) hb.style.display = hk2Ini!==0 ? 'inline-block' : 'none';
         try{
             const [rB,rL,rS,rN]=await Promise.all([
                 fetch(`${SUPABASE_URL}/rest/v1/bookings?select=unit_id,check_in,check_out,source,notes,status&check_in=lte.${d6}&check_out=gte.${d0}&order=check_in.asc`,{headers:hk2H()}),
@@ -7269,7 +7307,7 @@
             const pref=x=>hk2EsBloqueo(x)?0:(x.source==='airbnb'?3:(x.source==='hostfully'?2:1));
             const best={};
             bookings.forEach(b=>{ const k=`${b.unit_id}|${b.check_in}|${b.check_out}`; if(!best[k]||pref(b)>pref(best[k])) best[k]=b; });
-            hk2Data={hoy,d0,bookings:Object.values(best),limp,staff,nodisp,at:new Date()};
+            hk2Data={hoy,hoyReal,d0,bookings:Object.values(best),limp,staff,nodisp,at:new Date()};
             hk2Render();
             hk2SucioSync();
         }catch(e){
@@ -7318,11 +7356,12 @@
     function hk2Render(){
         const D=hk2Data; if(!D) return;
         const fSel=hk2ISO(hk2AddD(D.hoy,hk2Dia));
-        // tira de 7 días
+        // tira de 7 días (la ventana puede incluir días pasados)
+        const hoyRealISO=hk2ISO(D.hoyReal||D.hoy);
         let wkH='';
         for(let i=0;i<7;i++){
-            const dd=hk2AddD(D.hoy,i), st=hk2RowsFor(hk2ISO(dd)).stats;
-            wkH+=`<div class="hk2-day${i===0?' today':''}${i===hk2Dia?' sel':''}" onclick="hk2Dia=${i};hk2Render()">
+            const dd=hk2AddD(D.hoy,i), ddISO=hk2ISO(dd), st=hk2RowsFor(ddISO).stats;
+            wkH+=`<div class="hk2-day${ddISO===hoyRealISO?' today':''}${ddISO<hoyRealISO?' past':''}${i===hk2Dia?' sel':''}" onclick="hk2Dia=${i};hk2Render()">
                 <div class="dn">${HK2_DIAS[dd.getDay()]}</div><div class="dd">${dd.getDate()}</div>
                 <div class="dc">${st.sal} sal${st.sin?` · <b>${st.sin}!</b>`:''}</div></div>`;
         }
@@ -7376,7 +7415,9 @@
                 .map(s=>`<option value="${s.id}" ${String(s.id)===asigId?'selected':''}>${s.nombre}${(esBolongo&&String(s.id)===anaId)?' ⭐':''}</option>`).join('');
             const asigNom=asigId?(hk2Data.staff.find(s=>String(s.id)===asigId)||{}).nombre||'':'';
             const avIni=asigNom?`<span class="hk2-av">${asigNom.trim()[0].toUpperCase()}</span>`:`<span class="hk2-av q">?</span>`;
-            chH=`<div style="display:flex;align-items:center;min-width:0"><div class="hk2-chw">${avIni}<select class="hk2-ch" onchange="hk2Asignar('${r.dep}','${fSel}',${lid},this.value)">${asigId?'':'<option value="" selected>— asignar —</option>'}${opts}</select></div>${(esBolongo&&asigId&&asigId===anaId)?'<span class="hk2-fija">FIJA</span>':''}</div>`;
+            // Opción vacía SIEMPRE presente: permite regresar el depa a "sin chica"
+            const optVacia=`<option value="" ${asigId?'':'selected'}>${asigId?'— sin chica —':'— asignar —'}</option>`;
+            chH=`<div style="display:flex;align-items:center;min-width:0"><div class="hk2-chw">${avIni}<select class="hk2-ch" onchange="hk2Asignar('${r.dep}','${fSel}',${lid},this.value)">${optVacia}${opts}</select></div>${(esBolongo&&asigId&&asigId===anaId)?'<span class="hk2-fija">FIJA</span>':''}</div>`;
         } else chH=`<span class="hk2-blank">·</span>`;
         const cks=(r.out||r.blk)?`<div class="hk2-cks">
             <span class="hk2-ck avis${avisada?' on':''}" title="Ya se le avisó a la chica (tap)" onclick="hk2Avisada(${lid},${avisada})">📣</span>
@@ -7395,12 +7436,28 @@
                 <div class="hk2-free">Se libera y se limpia el <b>${hk2FmtCorto(r.blk.check_out)}</b></div></div>`;
         }
         const sigTag=r.sig?`<span class="hk2-sig">limpia día sig.</span>`:'';
+        // Bloqueado sin entrada real: la pill morada abarca las DOS columnas (entrada + salida)
+        if(r.blk && !r.in){
+            return `<div class="${cls}"><div class="in-s hk2-span2">${outH}</div><div class="ch-s">${chH}</div>${cks}${sigTag}${det}</div>`;
+        }
         return `<div class="${cls}"><div class="in-s">${inH}</div><div class="out-s">${outH}</div><div class="ch-s">${chH}</div>${cks}${sigTag}${det}</div>`;
     }
 
     // ── Acciones ──
     async function hk2Asignar(dep,fiso,limpId,staffId){
-        if(!staffId) return;
+        // Regresar a "sin chica": limpia el staff del registro (y apaga la palomita de avisada)
+        if(!staffId){
+            if(!limpId){ return; } // no había nada asignado
+            try{
+                const res=await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${limpId}`,{method:'PATCH',headers:hk2H(true),body:JSON.stringify({staff_id:null,avisada:false})});
+                if(!res.ok){ // fallback si aún no existe la columna avisada
+                    await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${limpId}`,{method:'PATCH',headers:hk2H(true),body:JSON.stringify({staff_id:null})});
+                }
+                toast(`✓ ${dep} sin chica`);
+            }catch(e){ toast('⚠️ '+(e.message||e)); }
+            hk2Cargar();
+            return;
+        }
         try{
             if(limpId){
                 await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${limpId}`,{method:'PATCH',headers:hk2H(true),body:JSON.stringify({staff_id:staffId})});
@@ -7579,7 +7636,7 @@
             const D=hk2Data; if(!D) return;
             const ahoraMX=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Mexico_City'}));
             if(ahoraMX.getHours()<11) return;
-            const hoyISO=D.d0;
+            const hoyISO=hk2ISO(D.hoyReal||D.hoy); // siempre el HOY real, aunque la ventana esté en el pasado
             const checkouts=D.bookings.filter(b=>!hk2EsBloqueo(b)&&b.check_out===hoyISO).map(b=>hk2Depto(b.unit_id));
             if(!checkouts.length) return;
             const inList=checkouts.map(d=>`"${d}"`).join(',');
