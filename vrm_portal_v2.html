@@ -7339,15 +7339,30 @@
             }
             return {l:null,sig:false};
         };
-        const deptos=[...new Set([...Object.keys(sal),...Object.keys(blk),...Object.keys(ent)])];
+        // ── FIN DE BLOQUEO = SE LIMPIA ESE DÍA ──────────────────────────────────────
+        // Un bloqueo que TERMINA hoy libera el depa: hay que limpiarlo (venía cerrado/sucio)
+        // y muy probablemente entra huésped el mismo día. Si no se cuenta aquí, el depa
+        // desaparece de las salidas y nadie manda limpieza (caso GD 303A).
+        const finBlk={};
+        bloqueos.forEach(b=>{
+            if(b.check_out!==fiso) return;
+            const dep=hk2Depto(b.unit_id);
+            if(blk[dep]) return;   // otro bloqueo arranca hoy → sigue cerrado, no se limpia
+            if(sal[dep]) return;   // ya hay salida real de huésped hoy → esa manda
+            finBlk[dep]=b;
+        });
+
+        const deptos=[...new Set([...Object.keys(sal),...Object.keys(blk),...Object.keys(ent),...Object.keys(finBlk)])];
         const rows=deptos.map(dep=>{
-            const r={dep,in:ent[dep]||null,out:sal[dep]||null,blk:blk[dep]||null,l:null,sig:false};
+            const r={dep,in:ent[dep]||null,out:sal[dep]||finBlk[dep]||null,blk:blk[dep]||null,
+                     finBlk:!!finBlk[dep],l:null,sig:false};
             if(r.out||r.blk){ const m=lDe(dep); r.l=m.l; r.sig=m.sig; }
             return r;
         });
+        // Orden: turnovers primero (incluye fin-de-bloqueo con entrada = lo más urgente)
         const peso=r=>(r.in&&r.out&&!r.blk)?0:(r.out&&!r.blk)?1:r.blk?2:3;
         rows.sort((a,b)=>peso(a)-peso(b)||a.dep.localeCompare(b.dep));
-        const stats={sal:Object.keys(sal).length,ent:Object.keys(ent).length,
+        const stats={sal:Object.keys(sal).length+Object.keys(finBlk).length,ent:Object.keys(ent).length,
             turn:rows.filter(r=>r.in&&r.out&&!r.blk).length,
             sin:rows.filter(r=>(r.out||r.blk)&&(!r.l||!r.l.staff_id)).length};
         return {rows,stats};
@@ -7405,7 +7420,7 @@
         const inH=r.in?`<span class="hk2-pill in"><span class="ar">↓</span>${r.dep}</span>`:`<span class="hk2-blank">·</span>`;
         let outH;
         if(r.blk) outH=`<span class="hk2-pill b" onclick="this.closest('.hk2-row').querySelector('.hk2-blkdet').classList.toggle('open')">🔒 ${r.dep} <span class="note">${r.out?'se limpia después':'bloqueado'}</span> <span style="font-size:10px;opacity:.7">▾</span></span>`;
-        else if(r.out) outH=`<span class="hk2-pill out"><span class="ar">↑</span>${r.dep}</span>`;
+        else if(r.out) outH=`<span class="hk2-pill out"><span class="ar">↑</span>${r.dep}${r.finBlk?' <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.8">fin de bloqueo</span>':''}</span>`;
         else outH=`<span class="hk2-blank">·</span>`;
         let chH;
         if(r.out||r.blk){
