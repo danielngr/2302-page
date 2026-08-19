@@ -451,6 +451,9 @@
             display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap}
         .hk2-pill.alert .note{font-family:var(--font-mono);font-size:9px;opacity:.85;font-weight:500}
         .hk2-stat.alerta{color:#ffb3b3;border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.14)}
+        /* salida sin prisa: hay días libres antes de la próxima entrada → se puede posponer */
+        .hk2-pill.out.relax{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.12);color:#c9c9cf}
+        .hk2-row.relaxrow{border-left-color:rgba(255,255,255,.18) !important}
         .hk2-pill.okclean{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#a9edcf;
             display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap}
         .hk2-pill.okclean .note{font-family:var(--font-mono);font-size:9px;opacity:.8;font-weight:500}
@@ -7299,7 +7302,13 @@
     function hk2ISO(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
     function hk2AddD(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
     const HK2_DIAS=['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
-    function hk2EsBloqueo(b){ return ((b.notes||'').toLowerCase().includes('not available')); }
+    // Detecta bloqueos en TODAS sus variantes reales de la base:
+    // "Airbnb (Not available)" (173) y "Blocked" (23). Antes solo se veía la primera,
+    // así que 23 bloqueos se trataban como reservas de huésped.
+    function hk2EsBloqueo(b){
+        const n=(b.notes||'').toLowerCase();
+        return n.includes('not available')||n.includes('blocked')||n.includes('bloqueo');
+    }
     // unit_id sin mapear → se marca para avisar (si no, el nombre no cruza con `limpiezas`)
     const hk2SinMapa=new Set();
     function hk2Depto(uid){
@@ -7350,7 +7359,9 @@
                 const det=!rB.ok?('reservas/iCal HTTP '+rB.status):('limpiezas HTTP '+rL.status);
                 throw new Error('No se pudieron cargar los datos ('+det+')');
             }
-            const bookings=await rB.json();
+            // Descartar CANCELADAS: hay 150 reservas + 76 bloqueos cancelados en la base
+            // que antes se mostraban como movimientos reales (trabajo fantasma).
+            const bookings=(await rB.json()).filter(b=>String(b.status||'').toLowerCase()!=='cancelled');
             const limp=await rL.json();
             const staff=rS.ok?await rS.json():[];
             hk2NaTabla=rN.ok; const nodisp=rN.ok?await rN.json():[];
@@ -7422,9 +7433,13 @@
                 .map(b=>b.check_out).sort();
             return s.length?s[s.length-1]:null;
         };
+        // SOLO cuenta como limpio si está CONFIRMADO: el bot lo marcó al terminar, o se
+        // marcó manual. Una limpieza apenas "asignada" (pendiente) NO cuenta — la chica
+        // pudo no haber ido. Esta es la regla que evita dar por limpio lo que no lo está.
         const yaLimpio=(dep,desde,hasta)=>{
             const up=hk2Norm(dep);
-            return D.limp.some(l=>hk2Norm(l.depto_codigo)===up&&l.fecha>=desde&&l.fecha<=hasta);
+            return D.limp.some(l=>hk2Norm(l.depto_codigo)===up&&l.fecha>=desde&&l.fecha<=hasta
+                && (l.estatus==='terminada'||l.estatus==='pagada'));
         };
 
         // ── FIN DE BLOQUEO = SE LIMPIA ESE DÍA ──────────────────────────────────────
@@ -7470,14 +7485,29 @@
         // llega el huésped, no el día que salió el anterior. Por eso el día de la entrada
         // se muestra como ENTRADA + SALIDA.
         // Contraste: hueco corto (A101, 1 noche) → la limpieza vive en el día de la salida.
-        const HUECO_LARGO=4;   // noches
+        // Regla: lo que decide NO es la duración del hueco, sino si alguien pudo ocuparlo.
+        //  · Hueco CON evento de bloqueo en el iCal (dueño/mantenimiento cerró fechas)
+        //    → pudo haber gente adentro → SIEMPRE se repasa, dure 1 noche o 10.
+        //  · Hueco SIN evento → Airbnb no pudo vender esas noches (estancia mínima):
+        //    nadie entró, la limpieza de la salida sigue valiendo.
+        //  · Excepción de seguridad: hueco muy largo sin evento → igual se repasa,
+        //    porque nadie garantiza que estuvo cerrado tanto tiempo (polvo, dueño sin avisar).
+        // REGLA ÚNICA (no depende de bloqueos, que demostradamente no siempre llegan):
+        // toda entrada que NO sea turnover del mismo día exige confirmar que está listo.
+        // Se muestra SIEMPRE la fila con su estado:
+        //   · limpieza confirmada de ayer u hoy  → verde "listo"
+        //   · cualquier otra cosa                → pendiente, hay que asignar/confirmar
+        // Cubre bloqueo de 1 noche, de 10, dueño que fue sin avisar, o polvo por días.
+        const ayerISO=hk2ISO(hk2AddD(new Date(fiso+'T12:00:00'),-1));
         Object.keys(ent).forEach(dep=>{
-            if(sal[dep]||blk[dep]||finBlk[dep]) return;
+            if(sal[dep]||blk[dep]||finBlk[dep]) return;   // turnover real: ya tiene su salida hoy
             const ultSal=ultSalidaHasta(dep,fiso);
-            if(!ultSal) return;
-            const noches=hk2Noches(ultSal,fiso);
-            if(noches<HUECO_LARGO) return;      // hueco corto → se limpió el día de la salida
-            finBlk[dep]={deduced:true, ultSal, hueco:noches};
+            const noches=ultSal?hk2Noches(ultSal,fiso):null;
+            const blkEnHueco=ultSal&&bloqueos.find(b=>hk2Depto(b.unit_id)===dep
+                && b.check_out>ultSal && b.check_in<fiso);
+            const listo=yaLimpio(dep,ayerISO,fiso);       // confirmada ayer u hoy
+            finBlk[dep]={deduced:true, ultSal:ultSal||null, hueco:noches,
+                         ocupado:!!blkEnHueco, listo};
         });
 
         // ── ESTANCIA MÍNIMA: la limpieza pertenece al día de la SALIDA ──────────────
@@ -7493,7 +7523,7 @@
             const blkCubre=bloqueos.some(b=>hk2Depto(b.unit_id)===dep&&b.check_in<next&&b.check_out>fiso);
             if(blkCubre) return;
             const noches=hk2Noches(fiso,next);
-            if(noches>=1&&noches<=3) gapInfo[dep]={next,noches};
+            if(noches>=1) gapInfo[dep]={next,noches};   // margen antes de la próxima llegada
         });
 
         // ── RED DE SEGURIDAD (día de la entrada): si llega huésped y NO hay limpieza
@@ -7530,7 +7560,8 @@
             const alertaOn=Object.prototype.hasOwnProperty.call(alerta,dep);
             const arr=arrastre[dep]||null;
             const r={dep,in:ent[dep]||null,out:sal[dep]||fb||null,blk:blk[dep]||null,
-                     finBlk:!!fb,hueco:fb&&fb.hueco?fb.hueco:null,gap:gapInfo[dep]||null,arr,
+                     finBlk:!!fb,hueco:fb&&fb.hueco?fb.hueco:null,ocupado:!!(fb&&fb.ocupado),
+                     listo:!!(fb&&fb.listo),gap:gapInfo[dep]||null,arr,
                      alertaOn,alertaSal:alertaOn?alerta[dep]:null,l:null,sig:false};
             if(arr){ const m=lDe(dep,arr.ultSal); r.l=m.l; r.sig=m.sig; }
             if(r.out||r.blk||alertaOn){
@@ -7615,6 +7646,7 @@
         let cls='hk2-row';
         if(r.alertaOn||(r.arr&&r.in)) cls+=' alerta';
         else if(r.arr) cls+=' sinch';
+        else if(r.gap&&r.gap.noches>=2&&!r.finBlk&&!asigId) cls+=' relaxrow';
         else if(r.blk) cls+=' blk'; else if((r.out)&&!asigId) cls+=' sinch'; else if(limpia) cls+=' done'; else if(turn) cls+=' turn'; else if(!r.out&&r.in) cls+=' entry';
         const inH=r.in?`<span class="hk2-pill in"><span class="ar">↓</span>${r.dep}</span>`:`<span class="hk2-blank">·</span>`;
         let outH;
@@ -7623,17 +7655,36 @@
             // "fin de bloqueo" = bloqueo MANUAL del calendario que llegó hasta una entrada.
             // "estancia mínima · entran el X" = hueco de Airbnb tras esta salida (el aviso
             // vive en el día de la SALIDA; el día de la entrada solo muestra la entrada).
-            const fbNote=r.finBlk?(r.hueco?`cerrado ${r.hueco} noches`:'fin de bloqueo'):'';
-            const gapNote=r.gap?`estancia mínima · entran el ${hk2FmtCorto(r.gap.next)}`:'';
+            // Textos en lenguaje operativo, sin tecnicismos:
+            // · hueco largo → alguien pudo ocuparlo (dueño) o juntó polvo → hay que repasar
+            // · fin de bloqueo → el calendario estuvo cerrado y hoy se abre
+            // Estado claro: si está confirmado limpio se ve "listo"; si no, dice por qué revisar
+            const fbNote=r.finBlk
+                ?(r.listo?'✓ listo (limpieza confirmada)'
+                  :(r.ocupado?'estuvo bloqueado · confirmar'
+                    :(r.hueco?`${r.hueco} ${r.hueco===1?'día':'días'} sin uso · confirmar`
+                      :'confirmar que está listo')))
+                :'';
+            // · hueco corto por estancia mínima → NADIE entra en medio, es solo que Airbnb
+            //   no puede vender esas noches. Se aclara para que no se confunda con ocupación.
+            // Margen operativo en el día de la SALIDA: cuánto tiempo hay antes de la próxima
+            // llegada. Con 2+ días de margen la limpieza puede posponerse sin riesgo.
+            const gapNote=r.gap
+                ?(r.gap.noches===1?`entra mañana`
+                  :`sin prisa · ${r.gap.noches} días libres, entra el ${hk2FmtCorto(r.gap.next)}`)
+                :'';
             const nota=fbNote||gapNote;
-            outH=`<span class="hk2-pill out"><span class="ar">↑</span>${r.dep}${nota?` <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.8">${nota}</span>`:''}</span>`;
+            // 'sinprisa' = salida con 2+ días de margen antes de la próxima entrada
+            const sinPrisa=!!(r.gap&&r.gap.noches>=2&&!r.finBlk);
+            const pillCls=(r.finBlk&&r.listo)?'okclean':(sinPrisa?'out relax':'out');
+            outH=`<span class="hk2-pill ${pillCls}">${(r.finBlk&&r.listo)?'':'<span class="ar">↑</span>'}${r.dep}${nota?` <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.8">${nota}</span>`:''}</span>`;
         }
-        else if(r.alertaOn) outH=`<span class="hk2-pill alert">⚠️ ¿LIMPIO? <span class="note">${r.alertaSal?('sin limpieza desde la salida del '+hk2FmtCorto(r.alertaSal)):'sin limpieza registrada en 30 días'}</span></span>`;
+        else if(r.alertaOn) outH=`<span class="hk2-pill alert">⚠️ LLEGA HOY <span class="note">${r.alertaSal?('nadie confirmó limpieza desde el '+hk2FmtCorto(r.alertaSal)):'sin limpieza confirmada'}</span></span>`;
         else if(r.arr){
             // Limpieza pendiente arrastrada: sigue viva hasta marcarse hecha
             const urgente=!!r.in;
-            const cuando=r.arr.prox?` · ${r.in?'LLEGAN HOY':'entran el '+hk2FmtCorto(r.arr.prox)}`:'';
-            outH=`<span class="hk2-pill ${urgente?'alert':'out'}">${urgente?'⚠️':'⏳'} ${r.dep} <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.85">pendiente desde ${hk2FmtCorto(r.arr.ultSal)}${cuando}</span></span>`;
+            const cuando=r.arr.prox?` · ${r.in?'LLEGAN HOY':'llegan el '+hk2FmtCorto(r.arr.prox)}`:'';
+            outH=`<span class="hk2-pill ${urgente?'alert':'out'}">${urgente?'⚠️':'⏳'} ${r.dep} <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.85">sin limpiar desde el ${hk2FmtCorto(r.arr.ultSal)}${cuando}</span></span>`;
         }
         else outH=`<span class="hk2-blank">·</span>`;
         let chH;
