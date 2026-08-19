@@ -2785,9 +2785,10 @@
                 <div class="hk2-legend">
                     <span><i style="background:#34D399"></i>entrada</span>
                     <span><i style="background:#E8895A"></i>salida / turnover</span>
-                    <span><i style="background:#A78BFA"></i>bloqueado</span>
+                    <span><i style="background:#A78BFA"></i>bloqueado manual (calendario)</span>
+                    <span style="opacity:.85"><i style="background:#E8895A;opacity:.5"></i>"estancia mínima" = hueco automático de Airbnb</span>
                     <span><i style="background:#FBBF24"></i>sin chica</span>
-                    <span><i style="background:#22D3EE"></i>no disponible</span>
+                    <span><i style="background:#22D3EE"></i>chica no disponible</span>
                 </div>
 
             </div>
@@ -7463,35 +7464,55 @@
                 finBlk[dep]={deduced:true, icalBlk:bPrev, ultSal:ultSalidaHasta(dep,fiso)};
             }
         });
-        // ── RESPALDO: el iCal no trae el bloqueo (pasa con estancia mínima) ─────────
-        // Entrada sin salida real, sin bloqueo hoy y sin bloqueo ayer → el hueco previo
-        // funcionó como bloqueo igual. Mismo trato: entrada + salida "fin de bloqueo".
+        // ── ESTANCIA MÍNIMA: la limpieza pertenece al día de la SALIDA ──────────────
+        // Si tras un checkout hay un hueco (chip "minimum stay" de Airbnb — NO viene en
+        // el iCal) y luego una entrada, el día de la salida lleva el aviso
+        // "estancia mínima · entran el X". El día de la entrada muestra SOLO la entrada.
+        const gapInfo={};
+        Object.keys(sal).forEach(dep=>{
+            const futuras=reales.filter(b=>hk2Depto(b.unit_id)===dep&&b.check_in>fiso).map(b=>b.check_in).sort();
+            if(!futuras.length) return;
+            const next=futuras[0];
+            // si el hueco lo cubre un bloqueo MANUAL del iCal, ese flujo ya se maneja aparte
+            const blkCubre=bloqueos.some(b=>hk2Depto(b.unit_id)===dep&&b.check_in<next&&b.check_out>fiso);
+            if(blkCubre) return;
+            const noches=hk2Noches(fiso,next);
+            if(noches>=1&&noches<=3) gapInfo[dep]={next,noches};
+        });
+
+        // ── RED DE SEGURIDAD (día de la entrada): si llega huésped y NO hay limpieza
+        // registrada desde la última salida, alerta roja. Si ya se limpió (lo normal,
+        // porque la limpieza se hizo el día del checkout), la entrada sale sola y limpia.
+        const alerta={};
         Object.keys(ent).forEach(dep=>{
             if(sal[dep]||blk[dep]||finBlk[dep]) return;
             const ultSal=ultSalidaHasta(dep,fiso);
-            finBlk[dep]={deduced:true, ultSal:ultSal||null};
+            const desde=ultSal||hk2ISO(hk2AddD(new Date(fiso+'T12:00:00'),-30));
+            if(!yaLimpio(dep,desde,fiso)) alerta[dep]=ultSal||'';
         });
 
         const deptos=[...new Set([...Object.keys(sal),...Object.keys(blk),...Object.keys(ent),...Object.keys(finBlk)])];
         const rows=deptos.map(dep=>{
             const fb=finBlk[dep];
+            const alertaOn=Object.prototype.hasOwnProperty.call(alerta,dep);
             const r={dep,in:ent[dep]||null,out:sal[dep]||fb||null,blk:blk[dep]||null,
-                     finBlk:!!fb,l:null,sig:false};
-            if(r.out||r.blk){
-                // rango de búsqueda de la limpieza para filas de fin de bloqueo (real o deducido)
-                const desde=fb ? (fb.ultSal||fb.check_in||hk2ISO(hk2AddD(new Date(fiso+'T12:00:00'),-30))) : null;
+                     finBlk:!!fb,gap:gapInfo[dep]||null,
+                     alertaOn,alertaSal:alertaOn?alerta[dep]:null,l:null,sig:false};
+            if(r.out||r.blk||alertaOn){
+                const desde=fb ? (fb.ultSal||fb.check_in||hk2ISO(hk2AddD(new Date(fiso+'T12:00:00'),-30)))
+                              : (alertaOn ? (alerta[dep]||hk2ISO(hk2AddD(new Date(fiso+'T12:00:00'),-30))) : null);
                 const m=lDe(dep,desde); r.l=m.l; r.sig=m.sig;
             }
             return r;
         });
-        // Orden: alertas hasta arriba, luego turnovers, salidas, bloqueos y entradas solas
-        // Turnovers pendientes primero; los ya limpios (informativos) después de las salidas
+        // Orden: alertas rojas primero, turnovers pendientes, salidas, bloqueos, entradas
         const limpiaDe=r=>r.l&&(r.l.estatus==='terminada'||r.l.estatus==='pagada');
-        const peso=r=>(r.in&&r.out&&!r.blk)?(limpiaDe(r)?1.5:0):(r.out&&!r.blk)?1:r.blk?2:3;
+        const peso=r=>r.alertaOn?-1:(r.in&&r.out&&!r.blk)?(limpiaDe(r)?1.5:0):(r.out&&!r.blk)?1:r.blk?2:3;
         rows.sort((a,b)=>peso(a)-peso(b)||a.dep.localeCompare(b.dep));
         const stats={sal:Object.keys(sal).length+Object.keys(finBlk).length,ent:Object.keys(ent).length,
             turn:rows.filter(r=>r.in&&r.out&&!r.blk).length,
-            sin:rows.filter(r=>(r.out||r.blk)&&(!r.l||!r.l.staff_id)).length};
+            alerta:rows.filter(r=>r.alertaOn).length,
+            sin:rows.filter(r=>(r.out||r.blk||r.alertaOn)&&(!r.l||!r.l.staff_id)).length};
         return {rows,stats};
     }
 
@@ -7515,7 +7536,7 @@
                 <div class="hk2-big ent"><div class="ic">↓</div><div><div class="num">${stats.ent}</div><div class="lb">Entradas</div></div></div>
                 <div class="hk2-big sal"><div class="ic">↑</div><div><div class="num">${stats.sal}</div><div class="lb">Salidas</div></div></div>
                 <div class="hk2-minis">
-                    <span class="hk2-stat">⚡ <b>${stats.turn}</b> turnovers</span>
+                    ${stats.alerta?`<span class="hk2-stat alerta">⚠️ <b>${stats.alerta}</b> ¿llega sin limpiar?</span>`:`<span class="hk2-stat">⚡ <b>${stats.turn}</b> turnovers</span>`}
                     ${stats.sin?`<span class="hk2-stat warn">⚠ <b>${stats.sin}</b> sin asignar</span>`:`<span class="hk2-stat" style="color:var(--status-green);border-color:rgba(52,211,153,.3)">✓ todo asignado</span>`}
                 </div>
             </div>`;
@@ -7552,14 +7573,24 @@
         const avisada=!!(r.l&&r.l.avisada);
         const turn=r.in&&r.out&&!r.blk;
         let cls='hk2-row';
-        if(r.blk) cls+=' blk'; else if((r.out)&&!asigId) cls+=' sinch'; else if(limpia) cls+=' done'; else if(turn) cls+=' turn'; else if(!r.out&&r.in) cls+=' entry';
+        if(r.alertaOn) cls+=' alerta';
+        else if(r.blk) cls+=' blk'; else if((r.out)&&!asigId) cls+=' sinch'; else if(limpia) cls+=' done'; else if(turn) cls+=' turn'; else if(!r.out&&r.in) cls+=' entry';
         const inH=r.in?`<span class="hk2-pill in"><span class="ar">↓</span>${r.dep}</span>`:`<span class="hk2-blank">·</span>`;
         let outH;
         if(r.blk) outH=`<span class="hk2-pill b" onclick="this.closest('.hk2-row').querySelector('.hk2-blkdet').classList.toggle('open')">🔒 ${r.dep} <span class="note">${r.out?'se limpia después':'bloqueado'}</span> <span style="font-size:10px;opacity:.7">▾</span></span>`;
-        else if(r.out) outH=`<span class="hk2-pill out"><span class="ar">↑</span>${r.dep}${r.finBlk?' <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.8">fin de bloqueo</span>':''}</span>`;
+        else if(r.out){
+            // "fin de bloqueo" = bloqueo MANUAL del calendario que llegó hasta una entrada.
+            // "estancia mínima · entran el X" = hueco de Airbnb tras esta salida (el aviso
+            // vive en el día de la SALIDA; el día de la entrada solo muestra la entrada).
+            const fbNote=r.finBlk?'fin de bloqueo':'';
+            const gapNote=r.gap?`estancia mínima · entran el ${hk2FmtCorto(r.gap.next)}`:'';
+            const nota=fbNote||gapNote;
+            outH=`<span class="hk2-pill out"><span class="ar">↑</span>${r.dep}${nota?` <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.8">${nota}</span>`:''}</span>`;
+        }
+        else if(r.alertaOn) outH=`<span class="hk2-pill alert">⚠️ ¿LIMPIO? <span class="note">${r.alertaSal?('sin limpieza desde la salida del '+hk2FmtCorto(r.alertaSal)):'sin limpieza registrada en 30 días'}</span></span>`;
         else outH=`<span class="hk2-blank">·</span>`;
         let chH;
-        if(r.out||r.blk){
+        if(r.out||r.blk||r.alertaOn){
             let list=[...hk2Data.staff];
             if(esBolongo&&anaId){ const a=list.find(s=>String(s.id)===anaId); if(a) list=[a,...list.filter(s=>String(s.id)!==anaId)]; }
             const opts=list.filter(s=>!naIds.has(String(s.id))||String(s.id)===asigId)
@@ -7570,14 +7601,14 @@
             const optVacia=`<option value="" ${asigId?'':'selected'}>${asigId?'— sin chica —':'— asignar —'}</option>`;
             chH=`<div style="display:flex;align-items:center;min-width:0"><div class="hk2-chw">${avIni}<select class="hk2-ch" onchange="hk2Asignar('${r.dep}','${fSel}',${lid},this.value)">${optVacia}${opts}</select></div>${(esBolongo&&asigId&&asigId===anaId)?'<span class="hk2-fija">FIJA</span>':''}</div>`;
         } else chH=`<span class="hk2-blank">·</span>`;
-        const cks=(r.out||r.blk)?`<div class="hk2-cks">
+        const cks=(r.out||r.blk||r.alertaOn)?`<div class="hk2-cks">
             <span class="hk2-ck avis${avisada?' on':''}" title="Ya se le avisó a la chica (tap)" onclick="hk2Avisada(${lid},${avisada})">📣</span>
             <span class="hk2-ck bot${limpia?' on':''}" title="La marca el bot al terminar" onclick="hk2BotClick(event,${lid},'${r.dep}','${fSel}',${!!limpia})">✓<span class="lk">🤖</span></span>
         </div>`:`<div class="hk2-cks"></div>`;
         let det='';
         if(r.blk){
             const n=hk2Noches(r.blk.check_in,r.blk.check_out);
-            det=`<div class="hk2-blkdet"><div class="t">🔒 Bloqueado (estancia mínima / calendario) — fechas del iCal</div>
+            det=`<div class="hk2-blkdet"><div class="t">🔒 Cerrado en el calendario (bloqueo manual) — fechas del iCal</div>
                 <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
                     <span class="hk2-bd"><span class="dl">Desde</span><br><span class="dv">${hk2FmtCorto(r.blk.check_in)}</span></span>
                     <span style="color:var(--text-tertiary)">⟶</span>
