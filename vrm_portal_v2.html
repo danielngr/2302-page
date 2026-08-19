@@ -7561,7 +7561,8 @@
             const arr=arrastre[dep]||null;
             const r={dep,in:ent[dep]||null,out:sal[dep]||fb||null,blk:blk[dep]||null,
                      finBlk:!!fb,hueco:fb&&fb.hueco?fb.hueco:null,ocupado:!!(fb&&fb.ocupado),
-                     listo:!!(fb&&fb.listo),gap:gapInfo[dep]||null,arr,
+                     listo:!!(fb&&fb.listo),ultSalTxt:(fb&&fb.ultSal)?hk2FmtCorto(fb.ultSal):null,
+                     gap:gapInfo[dep]||null,arr,
                      alertaOn,alertaSal:alertaOn?alerta[dep]:null,l:null,sig:false};
             if(arr){ const m=lDe(dep,arr.ultSal); r.l=m.l; r.sig=m.sig; }
             if(r.out||r.blk||alertaOn){
@@ -7581,7 +7582,7 @@
         rows.sort((a,b)=>peso(a)-peso(b)||a.dep.localeCompare(b.dep));
         const stats={sal:Object.keys(sal).length+Object.keys(finBlk).length,ent:Object.keys(ent).length,
             turn:rows.filter(r=>r.in&&r.out&&!r.blk).length,
-            alerta:rows.filter(r=>r.alertaOn||(r.arr&&r.in)).length,
+            alerta:rows.filter(r=>r.alertaOn||(r.arr&&r.in)||(r.finBlk&&!r.listo)).length,
             pend:rows.filter(r=>r.arr).length,
             sin:rows.filter(r=>(r.out||r.blk||r.alertaOn||r.arr)&&(!r.l||!r.l.staff_id)).length};
         return {rows,stats};
@@ -7644,7 +7645,8 @@
         const avisada=!!(r.l&&r.l.avisada);
         const turn=r.in&&r.out&&!r.blk;
         let cls='hk2-row';
-        if(r.alertaOn||(r.arr&&r.in)) cls+=' alerta';
+        // Fila roja siempre que llegue huésped sin limpieza confirmada
+        if(r.alertaOn||(r.arr&&r.in)||(r.finBlk&&!r.listo)) cls+=' alerta';
         else if(r.arr) cls+=' sinch';
         else if(r.gap&&r.gap.noches>=2&&!r.finBlk&&!asigId) cls+=' relaxrow';
         else if(r.blk) cls+=' blk'; else if((r.out)&&!asigId) cls+=' sinch'; else if(limpia) cls+=' done'; else if(turn) cls+=' turn'; else if(!r.out&&r.in) cls+=' entry';
@@ -7658,12 +7660,13 @@
             // Textos en lenguaje operativo, sin tecnicismos:
             // · hueco largo → alguien pudo ocuparlo (dueño) o juntó polvo → hay que repasar
             // · fin de bloqueo → el calendario estuvo cerrado y hoy se abre
-            // Estado claro: si está confirmado limpio se ve "listo"; si no, dice por qué revisar
+            // Solo se afirma lo que consta: si hay limpieza confirmada o no. NUNCA se
+            // inventa la causa del hueco (pudo ser bloqueo que el iCal no trajo).
             const fbNote=r.finBlk
-                ?(r.listo?'✓ listo (limpieza confirmada)'
-                  :(r.ocupado?'estuvo bloqueado · confirmar'
-                    :(r.hueco?`${r.hueco} ${r.hueco===1?'día':'días'} sin uso · confirmar`
-                      :'confirmar que está listo')))
+                ?(r.listo?'✓ listo · limpieza confirmada'
+                  :(r.ocupado?'estuvo bloqueado · SIN limpieza confirmada'
+                    :(r.ultSalTxt?`SIN limpieza confirmada · última salida ${r.ultSalTxt}`
+                      :'SIN limpieza confirmada')))
                 :'';
             // · hueco corto por estancia mínima → NADIE entra en medio, es solo que Airbnb
             //   no puede vender esas noches. Se aclara para que no se confunda con ocupación.
@@ -7674,10 +7677,12 @@
                   :`sin prisa · ${r.gap.noches} días libres, entra el ${hk2FmtCorto(r.gap.next)}`)
                 :'';
             const nota=fbNote||gapNote;
-            // 'sinprisa' = salida con 2+ días de margen antes de la próxima entrada
+            // BLINDAJE: entrada sin limpieza confirmada (bot o manual) = SIEMPRE alerta roja.
+            const sinConfirmar=!!(r.finBlk&&!r.listo);
             const sinPrisa=!!(r.gap&&r.gap.noches>=2&&!r.finBlk);
-            const pillCls=(r.finBlk&&r.listo)?'okclean':(sinPrisa?'out relax':'out');
-            outH=`<span class="hk2-pill ${pillCls}">${(r.finBlk&&r.listo)?'':'<span class="ar">↑</span>'}${r.dep}${nota?` <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.8">${nota}</span>`:''}</span>`;
+            const pillCls=sinConfirmar?'alert':((r.finBlk&&r.listo)?'okclean':(sinPrisa?'out relax':'out'));
+            const icono=sinConfirmar?'⚠️ ':((r.finBlk&&r.listo)?'':'<span class="ar">↑</span>');
+            outH=`<span class="hk2-pill ${pillCls}">${icono}${r.dep}${nota?` <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.85">${nota}</span>`:''}</span>`;
         }
         else if(r.alertaOn) outH=`<span class="hk2-pill alert">⚠️ LLEGA HOY <span class="note">${r.alertaSal?('nadie confirmó limpieza desde el '+hk2FmtCorto(r.alertaSal)):'sin limpieza confirmada'}</span></span>`;
         else if(r.arr){
