@@ -7464,6 +7464,22 @@
                 finBlk[dep]={deduced:true, icalBlk:bPrev, ultSal:ultSalidaHasta(dep,fiso)};
             }
         });
+        // ── ENTRADA TRAS HUECO LARGO = ENTRADA + SALIDA ese día ─────────────────────
+        // Caso GD 303A (real): salió el 12, entró el 18, SIN bloqueo en el iCal (Airbnb
+        // no lo exporta). Un depa que estuvo cerrado varios días se limpia el día que
+        // llega el huésped, no el día que salió el anterior. Por eso el día de la entrada
+        // se muestra como ENTRADA + SALIDA.
+        // Contraste: hueco corto (A101, 1 noche) → la limpieza vive en el día de la salida.
+        const HUECO_LARGO=4;   // noches
+        Object.keys(ent).forEach(dep=>{
+            if(sal[dep]||blk[dep]||finBlk[dep]) return;
+            const ultSal=ultSalidaHasta(dep,fiso);
+            if(!ultSal) return;
+            const noches=hk2Noches(ultSal,fiso);
+            if(noches<HUECO_LARGO) return;      // hueco corto → se limpió el día de la salida
+            finBlk[dep]={deduced:true, ultSal, hueco:noches};
+        });
+
         // ── ESTANCIA MÍNIMA: la limpieza pertenece al día de la SALIDA ──────────────
         // Si tras un checkout hay un hueco (chip "minimum stay" de Airbnb — NO viene en
         // el iCal) y luego una entrada, el día de la salida lleva el aviso
@@ -7491,15 +7507,38 @@
             if(!yaLimpio(dep,desde,fiso)) alerta[dep]=ultSal||'';
         });
 
-        const deptos=[...new Set([...Object.keys(sal),...Object.keys(blk),...Object.keys(ent),...Object.keys(finBlk)])];
+        // ── ARRASTRE: limpieza pendiente que NO desaparece hasta marcarse hecha ─────
+        // Modelo infalible: si un depa tuvo salida y nadie registró limpieza, la tarea
+        // sigue viva TODOS los días siguientes (hasta 10). No depende de interpretar
+        // bloqueos ni estancia mínima: solo de "salió y no consta que se limpiara".
+        const arrastre={};
+        [...new Set(D.bookings.map(b=>hk2Depto(b.unit_id)))].forEach(dep=>{
+            if(sal[dep]||blk[dep]||finBlk[dep]) return;   // ya tiene fila propia hoy
+            const ultSal=ultSalidaHasta(dep,fiso);
+            if(!ultSal||ultSal===fiso) return;
+            const dias=hk2Noches(ultSal,fiso);
+            if(dias>10) return;                           // no arrastrar eternamente
+            if(yaLimpio(dep,ultSal,fiso)) return;         // ya se limpió → resuelto
+            const prox=reales.filter(b=>hk2Depto(b.unit_id)===dep&&b.check_in>=ultSal)
+                .map(b=>b.check_in).sort()[0]||null;
+            arrastre[dep]={ultSal,prox,dias};
+        });
+
+        const deptos=[...new Set([...Object.keys(sal),...Object.keys(blk),...Object.keys(ent),...Object.keys(finBlk),...Object.keys(arrastre)])];
         const rows=deptos.map(dep=>{
             const fb=finBlk[dep];
             const alertaOn=Object.prototype.hasOwnProperty.call(alerta,dep);
+            const arr=arrastre[dep]||null;
             const r={dep,in:ent[dep]||null,out:sal[dep]||fb||null,blk:blk[dep]||null,
-                     finBlk:!!fb,gap:gapInfo[dep]||null,
+                     finBlk:!!fb,hueco:fb&&fb.hueco?fb.hueco:null,gap:gapInfo[dep]||null,arr,
                      alertaOn,alertaSal:alertaOn?alerta[dep]:null,l:null,sig:false};
+            if(arr){ const m=lDe(dep,arr.ultSal); r.l=m.l; r.sig=m.sig; }
             if(r.out||r.blk||alertaOn){
-                const desde=fb ? (fb.ultSal||fb.check_in||hk2ISO(hk2AddD(new Date(fiso+'T12:00:00'),-30)))
+                // Hueco largo: la limpieza SOLO vale si es reciente (ayer u hoy). Una limpieza
+                // de hace días no deja el depa listo para recibir (caso 303A: limpiado el 13,
+                // llegada el 18 → hacía falta repaso).
+                const ayer=hk2ISO(hk2AddD(new Date(fiso+'T12:00:00'),-1));
+                const desde=fb ? (fb.hueco ? ayer : (fb.ultSal||fb.check_in||hk2ISO(hk2AddD(new Date(fiso+'T12:00:00'),-30))))
                               : (alertaOn ? (alerta[dep]||hk2ISO(hk2AddD(new Date(fiso+'T12:00:00'),-30))) : null);
                 const m=lDe(dep,desde); r.l=m.l; r.sig=m.sig;
             }
@@ -7507,12 +7546,13 @@
         });
         // Orden: alertas rojas primero, turnovers pendientes, salidas, bloqueos, entradas
         const limpiaDe=r=>r.l&&(r.l.estatus==='terminada'||r.l.estatus==='pagada');
-        const peso=r=>r.alertaOn?-1:(r.in&&r.out&&!r.blk)?(limpiaDe(r)?1.5:0):(r.out&&!r.blk)?1:r.blk?2:3;
+        const peso=r=>(r.alertaOn||(r.arr&&r.in))?-2:r.arr?-1:(r.in&&r.out&&!r.blk)?(limpiaDe(r)?1.5:0):(r.out&&!r.blk)?1:r.blk?2:3;
         rows.sort((a,b)=>peso(a)-peso(b)||a.dep.localeCompare(b.dep));
         const stats={sal:Object.keys(sal).length+Object.keys(finBlk).length,ent:Object.keys(ent).length,
             turn:rows.filter(r=>r.in&&r.out&&!r.blk).length,
-            alerta:rows.filter(r=>r.alertaOn).length,
-            sin:rows.filter(r=>(r.out||r.blk||r.alertaOn)&&(!r.l||!r.l.staff_id)).length};
+            alerta:rows.filter(r=>r.alertaOn||(r.arr&&r.in)).length,
+            pend:rows.filter(r=>r.arr).length,
+            sin:rows.filter(r=>(r.out||r.blk||r.alertaOn||r.arr)&&(!r.l||!r.l.staff_id)).length};
         return {rows,stats};
     }
 
@@ -7573,7 +7613,8 @@
         const avisada=!!(r.l&&r.l.avisada);
         const turn=r.in&&r.out&&!r.blk;
         let cls='hk2-row';
-        if(r.alertaOn) cls+=' alerta';
+        if(r.alertaOn||(r.arr&&r.in)) cls+=' alerta';
+        else if(r.arr) cls+=' sinch';
         else if(r.blk) cls+=' blk'; else if((r.out)&&!asigId) cls+=' sinch'; else if(limpia) cls+=' done'; else if(turn) cls+=' turn'; else if(!r.out&&r.in) cls+=' entry';
         const inH=r.in?`<span class="hk2-pill in"><span class="ar">↓</span>${r.dep}</span>`:`<span class="hk2-blank">·</span>`;
         let outH;
@@ -7582,15 +7623,21 @@
             // "fin de bloqueo" = bloqueo MANUAL del calendario que llegó hasta una entrada.
             // "estancia mínima · entran el X" = hueco de Airbnb tras esta salida (el aviso
             // vive en el día de la SALIDA; el día de la entrada solo muestra la entrada).
-            const fbNote=r.finBlk?'fin de bloqueo':'';
+            const fbNote=r.finBlk?(r.hueco?`cerrado ${r.hueco} noches`:'fin de bloqueo'):'';
             const gapNote=r.gap?`estancia mínima · entran el ${hk2FmtCorto(r.gap.next)}`:'';
             const nota=fbNote||gapNote;
             outH=`<span class="hk2-pill out"><span class="ar">↑</span>${r.dep}${nota?` <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.8">${nota}</span>`:''}</span>`;
         }
         else if(r.alertaOn) outH=`<span class="hk2-pill alert">⚠️ ¿LIMPIO? <span class="note">${r.alertaSal?('sin limpieza desde la salida del '+hk2FmtCorto(r.alertaSal)):'sin limpieza registrada en 30 días'}</span></span>`;
+        else if(r.arr){
+            // Limpieza pendiente arrastrada: sigue viva hasta marcarse hecha
+            const urgente=!!r.in;
+            const cuando=r.arr.prox?` · ${r.in?'LLEGAN HOY':'entran el '+hk2FmtCorto(r.arr.prox)}`:'';
+            outH=`<span class="hk2-pill ${urgente?'alert':'out'}">${urgente?'⚠️':'⏳'} ${r.dep} <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.85">pendiente desde ${hk2FmtCorto(r.arr.ultSal)}${cuando}</span></span>`;
+        }
         else outH=`<span class="hk2-blank">·</span>`;
         let chH;
-        if(r.out||r.blk||r.alertaOn){
+        if(r.out||r.blk||r.alertaOn||r.arr){
             let list=[...hk2Data.staff];
             if(esBolongo&&anaId){ const a=list.find(s=>String(s.id)===anaId); if(a) list=[a,...list.filter(s=>String(s.id)!==anaId)]; }
             const opts=list.filter(s=>!naIds.has(String(s.id))||String(s.id)===asigId)
@@ -7601,7 +7648,7 @@
             const optVacia=`<option value="" ${asigId?'':'selected'}>${asigId?'— sin chica —':'— asignar —'}</option>`;
             chH=`<div style="display:flex;align-items:center;min-width:0"><div class="hk2-chw">${avIni}<select class="hk2-ch" onchange="hk2Asignar('${r.dep}','${fSel}',${lid},this.value)">${optVacia}${opts}</select></div>${(esBolongo&&asigId&&asigId===anaId)?'<span class="hk2-fija">FIJA</span>':''}</div>`;
         } else chH=`<span class="hk2-blank">·</span>`;
-        const cks=(r.out||r.blk||r.alertaOn)?`<div class="hk2-cks">
+        const cks=(r.out||r.blk||r.alertaOn||r.arr)?`<div class="hk2-cks">
             <span class="hk2-ck avis${avisada?' on':''}" title="Ya se le avisó a la chica (tap)" onclick="hk2Avisada(${lid},${avisada})">📣</span>
             <span class="hk2-ck bot${limpia?' on':''}" title="La marca el bot al terminar" onclick="hk2BotClick(event,${lid},'${r.dep}','${fSel}',${!!limpia})">✓<span class="lk">🤖</span></span>
         </div>`:`<div class="hk2-cks"></div>`;
