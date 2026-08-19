@@ -4,6 +4,8 @@
 <title>VRM · Portal del propietario</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--ink:#0A0806;--ink2:#0F0C08;--panel:#161209;--raise:#1D170D;
@@ -14,26 +16,23 @@ html{scroll-behavior:smooth}
 body{background:var(--ink);color:var(--ivory);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;
  background-image:radial-gradient(140% 70% at 50% -8%,rgba(227,196,140,.07),transparent 55%);background-attachment:fixed;min-height:100dvh}
 .mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.fr{font-family:'Fraunces'}
 button{font-family:inherit;background:none;border:0;color:inherit;cursor:pointer}
-/* ============ LOGIN ============ */
 #gate{position:fixed;inset:0;display:grid;place-items:center;background:var(--ink);z-index:100;padding:24px;
  background-image:radial-gradient(120% 90% at 50% 110%,rgba(227,196,140,.09),transparent 60%)}
 .gcard{width:100%;max-width:360px;text-align:center;animation:rise .8s cubic-bezier(.2,.8,.2,1)}
 @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 .crest{width:64px;height:64px;margin:0 auto 22px;border:1px solid var(--champ);border-radius:50%;display:grid;place-items:center;position:relative;color:var(--champ);font-family:'Fraunces';font-size:24px;font-weight:600}
 .crest:after{content:'';position:absolute;inset:5px;border:1px solid rgba(227,196,140,.3);border-radius:50%}
-.gcard h1{font-family:'Fraunces';font-weight:600;font-size:24px;letter-spacing:.01em}
+.gcard h1{font-family:'Fraunces';font-weight:600;font-size:24px}
 .gcard .sub{color:var(--muted);font-size:13px;margin:6px 0 34px}
-.field{position:relative;margin-bottom:16px;text-align:left}
+.field{margin-bottom:16px;text-align:left}
 .field input{width:100%;background:var(--panel);border:1px solid var(--soft);border-radius:14px;padding:11px 16px 13px;color:var(--ivory);font-size:15px;font-family:inherit;transition:border-color .2s}
 .field input:focus{outline:none;border-color:var(--champ)}
 .field label{display:block;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:0 0 6px 4px}
-.enter{width:100%;margin-top:10px;background:linear-gradient(160deg,var(--champ-hi),var(--champ));color:#221A0C;font-weight:600;font-size:15px;border-radius:14px;padding:14px;transition:transform .15s,box-shadow .2s;box-shadow:0 10px 34px rgba(227,196,140,.18)}
+.enter{width:100%;margin-top:10px;background:linear-gradient(160deg,var(--champ-hi),var(--champ));color:#221A0C;font-weight:600;font-size:15px;border-radius:14px;padding:14px;transition:transform .15s;box-shadow:0 10px 34px rgba(227,196,140,.18)}
 .enter:active{transform:scale(.985)}
 .gerr{color:#E0705C;font-size:12.5px;margin-top:12px;min-height:18px}
 .gfoot{color:var(--faint);font-size:11px;margin-top:30px}
-/* ============ APP ============ */
 #app{display:none;max-width:760px;margin:0 auto;padding:0 20px calc(48px + env(safe-area-inset-bottom))}
 .top{display:flex;align-items:center;justify-content:space-between;padding:20px 0 6px;position:sticky;top:0;background:linear-gradient(var(--ink) 78%,transparent);z-index:10}
 .brand{display:flex;align-items:center;gap:10px}
@@ -44,28 +43,23 @@ button{font-family:inherit;background:none;border:0;color:inherit;cursor:pointer
 .hello{font-family:'Fraunces';font-weight:400;font-size:clamp(21px,5.4vw,27px);margin:22px 0 3px}
 .hello i{font-style:italic;color:var(--champ)}
 .hsub{color:var(--muted);font-size:13px;margin-bottom:20px}
-/* switcher */
 .sw{display:flex;gap:6px;background:var(--panel);border:1px solid var(--soft);border-radius:16px;padding:5px;margin-bottom:26px;overflow-x:auto;scrollbar-width:none}
 .sw::-webkit-scrollbar{display:none}
 .sw button{flex:1;min-width:78px;padding:9px 10px;border-radius:12px;font-size:12.5px;color:var(--muted);font-weight:500;white-space:nowrap;transition:all .22s}
 .sw button.on{background:var(--raise);color:var(--champ-hi);box-shadow:inset 0 0 0 1px var(--line)}
 .sw button .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
-/* hero */
 .hero{text-align:center;margin:8px 0 26px}
 .hero .lab{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted)}
 .hero .num{font-family:'Fraunces';font-weight:600;font-size:clamp(52px,15vw,84px);letter-spacing:-.03em;line-height:1.02;margin:8px 0 2px;
  background:linear-gradient(178deg,var(--champ-hi) 10%,var(--champ) 58%,var(--champ-dim));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-variant-numeric:tabular-nums}
-.hero .cents{font-size:.42em;vertical-align:.62em;letter-spacing:0}
 .hero .from{color:var(--muted);font-size:13px}
 .hero .from b{color:var(--ivory);font-weight:500}
 .hero .from button{color:var(--champ);border-bottom:1px dotted var(--champ-dim);padding-bottom:1px}
-/* proportion bar */
 .prop{margin:20px auto 8px;max-width:430px}
 .pbar{height:8px;border-radius:5px;overflow:hidden;display:flex;background:var(--raise);border:1px solid var(--soft)}
 .pbar i{display:block;height:100%;transition:width .8s cubic-bezier(.2,.7,.2,1)}
 .pkey{display:flex;justify-content:center;gap:18px;font-size:11.5px;color:var(--muted);margin-top:10px;flex-wrap:wrap}
-.pkey .sw2{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
-/* categories */
+.pkey .sw2,.legend .sw2{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 .cats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:26px 0 8px}
 .cat{background:linear-gradient(165deg,var(--panel),var(--ink2));border:1px solid var(--soft);border-radius:20px;padding:18px 17px 16px;text-align:left;transition:transform .16s,border-color .2s;position:relative;overflow:hidden}
 .cat:active{transform:scale(.977)}
@@ -77,36 +71,56 @@ button{font-family:inherit;background:none;border:0;color:inherit;cursor:pointer
 .cat .chev{position:absolute;top:18px;right:16px;color:var(--faint);font-size:13px}
 .cat .track{height:3px;border-radius:2px;background:var(--raise);margin-top:12px;overflow:hidden}
 .cat .track i{display:block;height:100%;background:linear-gradient(90deg,var(--champ-dim),var(--champ));width:0;transition:width .9s ease}
-/* section titles */
+/* ====== ESTADO / FIRMA ====== */
+.state{margin:30px 0 6px;background:linear-gradient(168deg,var(--panel),var(--ink2));border:1px solid var(--line);border-radius:22px;padding:20px 20px 18px;position:relative;overflow:hidden}
+.state:before{content:'';position:absolute;inset:0;background:radial-gradient(90% 120% at 100% 0%,rgba(227,196,140,.06),transparent 55%);pointer-events:none}
+.state .se{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.steps{display:flex;align-items:flex-start;margin:16px 0 6px}
+.step{flex:1;text-align:center;position:relative}
+.step .nd{width:26px;height:26px;border-radius:50%;border:1px solid var(--faint);display:grid;place-items:center;margin:0 auto 7px;font-size:11px;color:var(--faint);background:var(--ink2);position:relative;z-index:1;transition:all .3s}
+.step .sl{font-size:10.5px;color:var(--faint);line-height:1.3}
+.step .sd{font-size:9.5px;color:var(--faint);opacity:.7;margin-top:1px}
+.step:not(:last-child):after{content:'';position:absolute;top:13px;left:calc(50% + 16px);right:calc(-50% + 16px);height:1px;background:var(--soft)}
+.step.done .nd{border-color:var(--champ);color:#221A0C;background:var(--champ)}
+.step.done .sl{color:var(--ivory)}
+.step.done:not(:last-child):after{background:var(--champ-dim)}
+.step.now .nd{border-color:var(--champ);color:var(--champ);box-shadow:0 0 0 4px rgba(227,196,140,.12)}
+.step.now .sl{color:var(--champ-hi)}
+.confirmbar{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.btn-main{flex:1;min-width:200px;background:linear-gradient(160deg,var(--champ-hi),var(--champ));color:#221A0C;font-weight:600;font-size:14.5px;border-radius:14px;padding:14px 18px;box-shadow:0 12px 34px rgba(227,196,140,.16);transition:transform .15s}
+.btn-main:active{transform:scale(.985)}
+.btn-ghost{flex:1;min-width:160px;border:1px solid var(--line);color:var(--champ);border-radius:14px;padding:14px 18px;font-size:13.5px}
+.confirmed-line{display:flex;align-items:center;gap:12px;margin-top:16px;background:rgba(127,179,160,.07);border:1px solid rgba(127,179,160,.25);border-radius:14px;padding:13px 16px}
+.confirmed-line .ok{width:30px;height:30px;border-radius:50%;background:var(--patina);color:#0F1A16;display:grid;place-items:center;font-size:14px;flex:none;animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.confirmed-line .tt{font-size:13px;color:var(--ivory)}
+.confirmed-line .tt small{display:block;color:var(--muted);font-size:11px}
+.doclink{margin-left:auto;color:var(--champ);font-size:12.5px;border-bottom:1px dotted var(--champ-dim);white-space:nowrap}
 .stitle{display:flex;align-items:baseline;justify-content:space-between;margin:34px 0 14px}
 .stitle h2{font-family:'Fraunces';font-weight:600;font-size:19px}
 .stitle .m{font-size:12px;color:var(--muted)}
-/* calendar */
 .cal{background:linear-gradient(170deg,var(--panel),var(--ink2));border:1px solid var(--soft);border-radius:22px;padding:18px 16px 20px}
-.calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px}
 .calhead .cm{font-family:'Fraunces';font-weight:600;font-size:16px}
 .calkpi{display:flex;gap:14px;font-size:11.5px;color:var(--muted)}
 .calkpi b{color:var(--champ-hi);font-family:'JetBrains Mono';font-weight:600}
 .dow{display:grid;grid-template-columns:repeat(7,1fr);font-size:9.5px;letter-spacing:.12em;color:var(--faint);text-transform:uppercase;text-align:center;margin-bottom:6px}
-.week{position:relative;display:grid;grid-template-columns:repeat(7,1fr);height:64px;border-top:1px solid var(--soft)}
-.week .day{padding:6px 0 0 7px;font-size:10.5px;color:var(--faint);font-family:'JetBrains Mono')}
+.week{position:relative;display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid var(--soft)}
+.week .day{padding:6px 0 0 7px;font-size:10.5px;color:var(--faint)}
 .week .day.out{opacity:.25}
-.stay{position:absolute;height:16px;border-radius:9px;font-size:9.5px;line-height:16px;padding:0 8px;color:#20180B;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 3px 10px rgba(0,0,0,.35);cursor:default}
+.stay{position:absolute;border-radius:9px;color:#20180B;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 3px 10px rgba(0,0,0,.35);padding:0 8px}
 .legend{display:flex;gap:16px;margin-top:14px;font-size:11px;color:var(--muted);flex-wrap:wrap}
-.legend .sw2{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
-/* notice */
 .notice{margin-top:26px;border:1px solid var(--line);border-radius:18px;padding:17px 18px;display:flex;gap:13px;align-items:flex-start;background:linear-gradient(180deg,rgba(227,196,140,.05),transparent)}
 .notice .ni{color:var(--champ);flex:none;margin-top:1px}
 .notice p{font-size:12.5px;color:var(--muted);line-height:1.6}
 .notice b{color:var(--ivory);font-weight:500}
-.ask{display:inline-block;margin-top:10px;background:rgba(227,196,140,.1);border:1px solid var(--line);color:var(--champ-hi);border-radius:12px;padding:9px 16px;font-size:12.5px;font-weight:500}
+.ask{display:inline-block;margin-top:10px;background:rgba(227,196,140,.1);border:1px solid var(--line);color:var(--champ-hi);border-radius:12px;padding:9px 16px;font-size:12.5px;font-weight:500;text-decoration:none}
 .logout{display:block;margin:34px auto 0;color:var(--faint);font-size:12px;border-bottom:1px dotted var(--faint);padding-bottom:1px;width:fit-content}
-/* ============ SHEET ============ */
 #ovl{position:fixed;inset:0;background:rgba(4,3,1,.66);backdrop-filter:blur(5px);opacity:0;pointer-events:none;transition:opacity .28s;z-index:60}
 #ovl.on{opacity:1;pointer-events:auto}
-#sheet{position:fixed;left:0;right:0;bottom:0;z-index:70;background:linear-gradient(180deg,#191408,var(--ink2));border:1px solid var(--line);border-bottom:0;border-radius:26px 26px 0 0;
- max-width:600px;margin:0 auto;transform:translateY(104%);transition:transform .38s cubic-bezier(.32,.72,.28,1);max-height:82dvh;display:flex;flex-direction:column;box-shadow:0 -20px 80px rgba(0,0,0,.6)}
-#sheet.on{transform:translateY(0)}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:70;background:linear-gradient(180deg,#191408,var(--ink2));border:1px solid var(--line);border-bottom:0;border-radius:26px 26px 0 0;
+ max-width:600px;margin:0 auto;transform:translateY(104%);transition:transform .38s cubic-bezier(.32,.72,.28,1);max-height:88dvh;display:flex;flex-direction:column;box-shadow:0 -20px 80px rgba(0,0,0,.6)}
+.sheet.on{transform:translateY(0)}
 .grab{width:40px;height:4px;border-radius:3px;background:var(--faint);opacity:.5;margin:12px auto 4px;flex:none}
 .shead{padding:10px 24px 16px;border-bottom:1px solid var(--soft);flex:none}
 .shead .se{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
@@ -121,27 +135,80 @@ button{font-family:inherit;background:none;border:0;color:inherit;cursor:pointer
 .li.tot{border-top:1px solid var(--line);margin-top:4px}
 .li.tot .ll{font-family:'Fraunces';font-weight:600}
 .li.tot .lv{color:var(--champ-hi);font-weight:600;font-size:17px}
-.li.pos .lv{color:var(--patina)}
-.li.neg .lv{color:var(--ivory)}
-@media(min-width:640px){.cats{grid-template-columns:repeat(4,1fr)}.week{height:72px}}
+/* firma */
+.signwrap{padding:6px 0 4px}
+.sigsum{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px}
+.sigsum .a{font-size:12px;color:var(--muted)}
+.sigsum .b{font-family:'Fraunces';font-weight:600;font-size:24px;color:var(--champ-hi)}
+.legal{font-size:11.5px;color:var(--faint);line-height:1.6;margin-bottom:18px}
+.padwrap{position:relative;border:1px solid var(--line);border-radius:16px;background:rgba(0,0,0,.25);overflow:hidden}
+#pad{display:block;width:100%;height:170px;touch-action:none;cursor:crosshair}
+.padline{position:absolute;left:24px;right:24px;bottom:38px;border-bottom:1px solid rgba(239,231,210,.25);pointer-events:none}
+.padx{position:absolute;left:24px;bottom:14px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);pointer-events:none}
+.padclear{position:absolute;top:10px;right:12px;color:var(--faint);font-size:11.5px;border-bottom:1px dotted var(--faint)}
+.signactions{display:flex;gap:10px;margin-top:18px}
+.btn-main[disabled]{opacity:.35;box-shadow:none;pointer-events:none}
+/* success */
+.success{text-align:center;padding:26px 0 8px}
+.seal{width:86px;height:86px;margin:0 auto 18px;border-radius:50%;border:1px solid var(--champ);display:grid;place-items:center;position:relative;color:var(--champ);font-family:'Fraunces';font-weight:600;font-size:30px;animation:seal .8s cubic-bezier(.2,1.4,.4,1)}
+.seal:after{content:'';position:absolute;inset:6px;border:1px solid rgba(227,196,140,.35);border-radius:50%}
+@keyframes seal{0%{transform:scale(.3) rotate(-14deg);opacity:0}60%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+.success h4{font-family:'Fraunces';font-weight:600;font-size:22px}
+.success .when{font-family:'JetBrains Mono';font-size:12px;color:var(--muted);margin:6px 0 14px}
+.success p{font-size:13px;color:var(--muted);max-width:380px;margin:0 auto 20px;line-height:1.65}
+.success p b{color:var(--ivory);font-weight:500}
+
+/* ====== BLOQUEOS ====== */
+.calbar{display:flex;justify-content:flex-end;margin:-4px 0 10px}
+.blockbtn{display:flex;align-items:center;gap:8px;border:1px solid var(--line);color:var(--champ);border-radius:12px;padding:9px 15px;font-size:12.5px;font-weight:500;transition:background .2s}
+.blockbtn:hover{background:rgba(227,196,140,.07)}
+.selbanner{display:none;align-items:center;gap:10px;background:rgba(227,196,140,.08);border:1px solid var(--line);border-radius:14px;padding:11px 14px;margin-bottom:12px;font-size:12.5px}
+.selbanner.on{display:flex}
+.selbanner .bd{width:9px;height:9px;border-radius:50%;flex:none}
+.selbanner b{color:var(--champ-hi);font-weight:600}
+.selbanner .cancel{margin-left:auto;color:var(--muted);border-bottom:1px dotted var(--faint);font-size:12px}
+.week .day.tappable{cursor:pointer;border-radius:10px;transition:background .15s}
+.week .day.tappable:hover{background:rgba(227,196,140,.08)}
+.week .day.dis{opacity:.28;text-decoration:line-through;cursor:not-allowed}
+.week .day.selpick{background:rgba(227,196,140,.16);box-shadow:inset 0 0 0 1px var(--champ);color:var(--champ-hi)!important;border-radius:10px}
+.week .day.selin{background:rgba(227,196,140,.09);border-radius:0}
+.blockbar{position:absolute;border-radius:9px;color:var(--ivory);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px;cursor:pointer;
+ border:1px dashed rgba(239,231,210,.4);background:repeating-linear-gradient(-45deg,rgba(239,231,210,.05),rgba(239,231,210,.05) 4px,rgba(239,231,210,.16) 4px,rgba(239,231,210,.16) 8px)}
+.pickdepa{display:flex;flex-direction:column;gap:10px;padding:6px 0 12px}
+.pickdepa button{display:flex;align-items:center;gap:13px;background:var(--raise);border:1px solid var(--soft);border-radius:16px;padding:16px;text-align:left;transition:border-color .2s,transform .15s}
+.pickdepa button:hover{border-color:var(--line)}
+.pickdepa button:active{transform:scale(.98)}
+.pickdepa .pd{width:12px;height:12px;border-radius:50%;flex:none}
+.pickdepa .pn{font-family:'Fraunces';font-weight:600;font-size:15.5px}
+.pickdepa .ps{font-size:11px;color:var(--faint)}
+.pickdepa .pc{margin-left:auto;color:var(--faint)}
+.notearea{width:100%;min-height:92px;background:var(--raise);border:1px solid var(--soft);border-radius:14px;color:var(--ivory);font-family:inherit;font-size:14px;padding:13px 15px;resize:vertical;transition:border-color .2s}
+.notearea:focus{outline:none;border-color:var(--champ)}
+.notereq{font-size:11px;color:var(--faint);margin:7px 0 0 3px}
+.notereq.warn{color:#E0705C}
+.blocksum{display:flex;align-items:center;gap:12px;background:var(--raise);border:1px solid var(--soft);border-radius:14px;padding:13px 15px;margin-bottom:14px}
+.blocksum .bd2{width:10px;height:10px;border-radius:50%;flex:none}
+.blocksum .bt{font-size:13.5px}
+.blocksum .bt small{display:block;color:var(--muted);font-size:11px}
+.delblock{color:#E0705C;font-size:13px;border:1px solid rgba(224,112,92,.35);border-radius:12px;padding:12px 16px;width:100%;margin-top:6px}
+
+@media(min-width:640px){.cats{grid-template-columns:repeat(4,1fr)}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style></head>
 <body>
-<!-- LOGIN -->
 <div id="gate">
   <div class="gcard">
     <div class="crest">V</div>
     <h1>Portal del propietario</h1>
     <div class="sub">VRM · Conviva Inmuebles</div>
-    <div class="field"><label>Usuario</label><input id="u" autocomplete="username" placeholder="tu usuario"></div>
+    <div class="field"><label>Correo</label><input id="u" type="email" autocomplete="username" placeholder="tu@correo.com"></div>
     <div class="field"><label>Contraseña</label><input id="p" type="password" autocomplete="current-password" placeholder="••••••••"></div>
     <button class="enter" onclick="login()">Entrar</button>
     <div class="gerr" id="gerr"></div>
-    <div class="gfoot">Acceso privado · demo: anabel / vrm2026</div>
+    <div class="gfoot">Acceso privado de propietarios · VRM</div>
   </div>
 </div>
 
-<!-- APP -->
 <div id="app">
   <div class="top">
     <div class="brand"><div class="mini">V</div><div class="t">VRM · Conviva<b>Portal del propietario</b></div></div>
@@ -149,20 +216,21 @@ button{font-family:inherit;background:none;border:0;color:inherit;cursor:pointer
   </div>
   <h1 class="hello">Buenas tardes, <i>Anabel</i>.</h1>
   <div class="hsub">Tu cierre de mayo está listo. Publicado el 5 de junio · 09:00.</div>
-
   <div class="sw" id="sw"></div>
-
   <div class="hero">
     <div class="lab">Recibes</div>
     <div class="num mono" id="heroNum">$0</div>
     <div class="from">de <b id="heroDep"></b> depositados por tus reservas · <button onclick="openDep()">ver detalle</button></div>
-    <div class="prop"><div class="pbar" id="pbar"></div>
-      <div class="pkey" id="pkey"></div></div>
+    <div class="prop"><div class="pbar" id="pbar"></div><div class="pkey" id="pkey"></div></div>
   </div>
-
   <div class="cats" id="cats"></div>
 
+  <!-- ESTADO DEL CIERRE -->
+  <div class="state" id="state"></div>
+
   <div class="stitle"><h2>Tu calendario</h2><div class="m" id="calsub"></div></div>
+  <div class="calbar"><button class="blockbtn" onclick="startBlockFlow()">⊘ Bloquear fechas</button></div>
+  <div class="selbanner" id="selbanner"></div>
   <div class="cal">
     <div class="calhead"><div class="cm">Mayo 2026</div><div class="calkpi" id="calkpi"></div></div>
     <div class="dow"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
@@ -171,58 +239,91 @@ button{font-family:inherit;background:none;border:0;color:inherit;cursor:pointer
   </div>
 
   <div class="notice"><span class="ni">◈</span>
-    <p><b>¿Algo no te cuadra?</b> Tienes <b>48 horas</b> a partir de la publicación para aclaraciones — después el cierre queda firme y programamos tu dispersión.
+    <p><b>¿Algo no te cuadra?</b> Levantar una aclaración pausa el reloj de revisión mientras lo resolvemos contigo.
     <br><a class="ask" href="https://wa.me/5215500000000?text=Hola%2C%20tengo%20una%20duda%20sobre%20mi%20cierre%20de%20mayo" target="_blank">Levantar aclaración por WhatsApp →</a></p>
   </div>
-
   <button class="logout" onclick="logout()">Cerrar sesión</button>
+  
 </div>
 
-<!-- SHEET -->
-<div id="ovl" onclick="closeSheet()"></div>
-<div id="sheet"><div class="grab"></div><div class="shead" id="shead"></div><div class="sbody" id="sbody"></div></div>
+<div id="ovl" onclick="closeAll()"></div>
+<div class="sheet" id="sheet"><div class="grab"></div><div class="shead" id="shead"></div><div class="sbody" id="sbody"></div></div>
+<div class="sheet" id="blocksheet"><div class="grab"></div><div class="shead" id="bshead"></div><div class="sbody" id="bsbody"></div></div>
+<div class="sheet" id="signsheet"><div class="grab"></div>
+  <div class="shead"><div class="se">Confirmación del cierre · Mayo 2026</div><h3>Firma de conformidad</h3></div>
+  <div class="sbody" id="signbody"></div>
+</div>
 
 <script>
-const D={"owner": "Anabel", "period": "Mayo 2026", "published": "5 de junio, 09:00", "window_h": 48, "depas": {"p9s": {"name": "Marítima 9-S", "short": "9-S", "color": "#E3C48C", "bruto": 75137.94, "isr": 2290.32, "dep": 72847.61, "pct": 15, "cats": {"gestion": [["Comisión VRM · 15%", 10927.14], ["Administración", 1000]], "limpieza": [["6 limpiezas", 4200], ["Lavandería", 1669], ["Artículos de limpieza", 343], ["Amenidades", 350]], "servicios": [["Luz · CFE", 5100], ["Aguas", 330], ["Internet", 519]], "mantenimiento": [["Mantenimiento", 12311.96]]}, "stays": [["2026-05-02", 3, "Myriam"], ["2026-05-08", 3, "Juan Carlos"], ["2026-05-14", 3, "Elena"], ["2026-05-18", 5, "Gabriel"], ["2026-05-27", 3, "Felipe"], ["2026-05-30", 4, "America"]]}, "p10i": {"name": "Marítima 10-i", "short": "10-i", "color": "#6FA290", "bruto": 98530.74, "isr": 3003.34, "dep": 95527.41, "pct": 15, "cats": {"gestion": [["Comisión VRM · 15%", 14329.11], ["Administración", 1000]], "limpieza": [["6 limpiezas", 4800], ["Lavandería", 2391], ["Artículos de limpieza", 872], ["Amenidades", 350]], "servicios": [["Luz · CFE", 10000], ["Aguas", 330], ["Internet", 509]], "mantenimiento": [["Mantenimiento", 12026]]}, "stays": [["2026-05-01", 3, "Osvaldo"], ["2026-05-08", 7, "Esmeralda"], ["2026-05-15", 3, "Adriana"], ["2026-05-21", 4, "Jacob"], ["2026-05-27", 4, "Roberto"]]}, "palb": {"name": "Albatros 301", "short": "301", "color": "#C98B6B", "bruto": 34791.34, "isr": 1060.45, "dep": 33730.89, "pct": 15, "cats": {"gestion": [["Comisión VRM · 15%", 5059.63], ["Administración", 1000]], "limpieza": [["9 limpiezas", 7200], ["Lavandería", 2697], ["Papel higiénico", 261], ["Amenidades", 275]], "servicios": [["5 garrafones de agua", 300]], "mantenimiento": [["Cambio contactor y rep. tarjeta A/A", 3248], ["Fumigación, lavado y desinfección de colchones", 8990]]}, "stays": [["2026-05-01", 2, "Mayarí"], ["2026-05-22", 2, "Juan Ángel"], ["2026-05-24", 2, "Omar"], ["2026-05-28", 3, "Ángel"]]}}, "catmeta": {"gestion": {"label": "Gestión", "icon": "◈", "desc": "Comisión y administración"}, "limpieza": {"label": "Limpieza", "icon": "❋", "desc": "Limpiezas, lavandería y amenidades"}, "servicios": {"label": "Servicios", "icon": "◍", "desc": "Luz, agua e internet"}, "mantenimiento": {"label": "Mantenimiento", "icon": "⚒", "desc": "Reparaciones y extraordinarios"}}};
+/* ================= SUPABASE ================= */
+const SUPA_URL='https://grsykedeppdwenpfxlfh.supabase.co';
+const SUPA_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdyc3lrZWRlcHBkd2VucGZ4bGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3MDU0NzAsImV4cCI6MjA4NzI4MTQ3MH0.1fjVfOMl8bERU2FiL7izZcv0Jckns5l-sEmRwlER71o';
+const sb=window.supabase?window.supabase.createClient(SUPA_URL,SUPA_ANON):null;
+const PERIODO='2026-05';
+const CATMETA={gestion:{label:'Gestión',icon:'◈',desc:'Comisión y administración'},
+ limpieza:{label:'Limpieza',icon:'❋',desc:'Limpiezas, lavandería y amenidades'},
+ servicios:{label:'Servicios',icon:'◍',desc:'Luz, agua e internet'},
+ mantenimiento:{label:'Mantenimiento',icon:'⚒',desc:'Reparaciones y extraordinarios'}};
+let D=null;
+async function loadAll(){
+  const {data:{user}}=await sb.auth.getUser(); if(!user)throw new Error('Sin sesión.');
+  const {data:props,error:e1}=await sb.from('propietarios').select('*').limit(1);
+  if(e1)throw new Error(e1.message);
+  if(!props||!props.length)throw new Error('Tu usuario no está vinculado a un propietario.');
+  const owner=props[0];
+  const {data:depas}=await sb.from('propiedades_portal').select('*').eq('propietario_id',owner.id).eq('activa',true).order('nombre');
+  const ids=depas.map(d=>d.id);
+  const {data:cierres}=await sb.from('cierres').select('*').in('propiedad_id',ids).eq('periodo',PERIODO);
+  const cids=cierres.map(c=>c.id);
+  const {data:partidas}=cids.length?await sb.from('cierre_partidas').select('*').in('cierre_id',cids).order('orden'):{data:[]};
+  const {data:estancias}=await sb.from('estancias').select('*').in('propiedad_id',ids).eq('periodo',PERIODO);
+  const {data:bloqueos}=await sb.from('bloqueos').select('*').in('propiedad_id',ids).order('fecha_inicio');
+  const {data:confs}=await sb.from('confirmaciones').select('*').eq('propietario_id',owner.id).eq('periodo',PERIODO);
+  const dd={};
+  depas.forEach(p=>{
+    const c=(cierres||[]).find(x=>x.propiedad_id===p.id);
+    const cats={gestion:[],limpieza:[],servicios:[],mantenimiento:[]};
+    if(c)(partidas||[]).filter(x=>x.cierre_id===c.id).forEach(x=>cats[x.categoria].push([x.etiqueta,Number(x.monto)]));
+    dd[p.id]={name:p.nombre,short:p.corto,color:p.color,
+      bruto:c?Number(c.bruto):0,isr:c?Number(c.isr):0,dep:c?Number(c.deposito):0,pct:c?Number(c.pct_comision):0,
+      cats,stays:(estancias||[]).filter(s=>s.propiedad_id===p.id).map(s=>[s.fecha_inicio,s.noches,s.huesped])};
+  });
+  const fmtWhen=t=>new Date(t).toLocaleDateString('es-MX',{day:'numeric',month:'short'})+' · '+new Date(t).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  D={owner:owner.nombre,ownerId:owner.id,depas:dd,catmeta:CATMETA,
+     blocks:(bloqueos||[]).map(b=>({id:b.id,depa:b.propiedad_id,start:parseInt(b.fecha_inicio.slice(8)),end:parseInt(b.fecha_fin.slice(8)),note:b.nota})),
+     conf:(confs&&confs.length)?{when:fmtWhen(confs[0].confirmado_en),folio:confs[0].folio,sig:confs[0].firma_png}:null};
+}
 const fmt=n=>'$'+Math.round(n).toLocaleString('en-US');
 const fmt2=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const CATCOLORS={gestion:'#E3C48C',limpieza:'#C98B6B',servicios:'#8FA7C9',mantenimiento:'#A9927B'};
 let view='all';
-
-function agg(){
-  const ks=view==='all'?Object.keys(D.depas):[view];
+function agg(v){
+  const ks=(v||view)==='all'?Object.keys(D.depas):[(v||view)];
   const out={dep:0,bruto:0,isr:0,cats:{gestion:0,limpieza:0,servicios:0,mantenimiento:0},items:{gestion:[],limpieza:[],servicios:[],mantenimiento:[]},stays:[],names:ks};
   ks.forEach(k=>{const d=D.depas[k];out.dep+=d.dep;out.bruto+=d.bruto;out.isr+=d.isr;
-    for(const c in d.cats){d.cats[c].forEach(([l,v])=>{out.cats[c]+=v;out.items[c].push([l,v,d.short,d.color]);});}
+    for(const c in d.cats){d.cats[c].forEach(([l,val])=>{out.cats[c]+=val;out.items[c].push([l,val,d.short,d.color]);});}
     d.stays.forEach(s=>out.stays.push({start:s[0],n:s[1],guest:s[2],depa:k,color:d.color,short:d.short}));});
-  out.ret=Object.values(out.cats).reduce((a,b)=>a+b,0);
-  out.neto=out.dep-out.ret;
-  return out;
+  out.ret=Object.values(out.cats).reduce((a,b)=>a+b,0);out.neto=out.dep-out.ret;return out;
 }
-// switcher
 const sw=document.getElementById('sw');
 function buildSw(){
   const opts=[['all','Portafolio',null],...Object.keys(D.depas).map(k=>[k,D.depas[k].short,D.depas[k].color])];
   sw.innerHTML=opts.map(([k,l,c])=>`<button class="${view===k?'on':''}" onclick="setView('${k}')">${c?`<span class="dot" style="background:${c}"></span>`:''}${l}</button>`).join('');
 }
-function setView(v){view=v;buildSw();render(true);}
-// count-up
+function setView(v){view=v;buildSw();render();}
 let raf;
 function countTo(el,target){
   cancelAnimationFrame(raf);
-  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(reduce){el.innerHTML=fmt(target);return;}
-  const t0=performance.now(),dur=750,from=0;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){el.innerHTML=fmt(target);return;}
+  const t0=performance.now(),dur=750;
   function step(t){const p=Math.min((t-t0)/dur,1);const e=1-Math.pow(1-p,3);
-    el.innerHTML=fmt(from+(target-from)*e);
-    if(p<1)raf=requestAnimationFrame(step);}
+    el.innerHTML=fmt(target*e);if(p<1)raf=requestAnimationFrame(step);}
   raf=requestAnimationFrame(step);
 }
-function render(anim){
+function render(){
   const A=agg();
   countTo(document.getElementById('heroNum'),A.neto);
   document.getElementById('heroDep').textContent=fmt2(A.dep);
-  // proportion bar: neto + 4 cats
   const pb=document.getElementById('pbar');
   const segs=[['Recibes',A.neto,'var(--patina)'],...Object.keys(A.cats).map(c=>[D.catmeta[c].label,A.cats[c],CATCOLORS[c]])];
   pb.innerHTML=segs.map(([l,v,c])=>`<i style="background:${c};width:0" data-w="${(v/A.dep*100).toFixed(2)}"></i>`).join('');
@@ -230,70 +331,307 @@ function render(anim){
   document.getElementById('pkey').innerHTML=
     `<span><span class="sw2" style="background:var(--patina)"></span>Recibes ${(A.neto/A.dep*100).toFixed(0)}%</span>`+
     Object.keys(A.cats).map(c=>`<span><span class="sw2" style="background:${CATCOLORS[c]}"></span>${D.catmeta[c].label} ${(A.cats[c]/A.dep*100).toFixed(0)}%</span>`).join('');
-  // cats
   const maxc=Math.max(...Object.values(A.cats));
   document.getElementById('cats').innerHTML=Object.keys(A.cats).map(c=>`
-    <button class="cat" onclick="openCat('${c}')">
-      <span class="chev">›</span>
-      <div class="ic">${D.catmeta[c].icon}</div>
-      <div class="cl">${D.catmeta[c].label}</div>
-      <div class="cd">${D.catmeta[c].desc}</div>
-      <div class="cv">${fmt2(A.cats[c])}</div>
-      <div class="track"><i data-w="${(A.cats[c]/maxc*100).toFixed(1)}"></i></div>
-    </button>`).join('');
+    <button class="cat" onclick="openCat('${c}')"><span class="chev">›</span>
+      <div class="ic">${D.catmeta[c].icon}</div><div class="cl">${D.catmeta[c].label}</div>
+      <div class="cd">${D.catmeta[c].desc}</div><div class="cv">${fmt2(A.cats[c])}</div>
+      <div class="track"><i data-w="${(A.cats[c]/maxc*100).toFixed(1)}"></i></div></button>`).join('');
   requestAnimationFrame(()=>document.querySelectorAll('.cat .track i').forEach(i=>i.style.width=i.dataset.w+'%'));
-  renderCal(A);
+  renderCal(A);renderState();
 }
-// ---------- calendar ----------
+/* -------- ESTADO + FIRMA -------- */
+function getConf(){return D&&D.conf?D.conf:null}
+function renderState(){
+  const conf=getConf();
+  const el=document.getElementById('state');
+  const A=agg('all');
+  const steps=(stage,when)=>`
+   <div class="steps">
+     <div class="step done"><div class="nd">✓</div><div class="sl">Publicado</div><div class="sd">5 jun · 09:00</div></div>
+     <div class="step ${stage==='rev'?'now':'done'}"><div class="nd">${stage==='rev'?'2':'✓'}</div><div class="sl">Revisión</div><div class="sd">${stage==='rev'?'quedan 31 h':'completada'}</div></div>
+     <div class="step ${stage==='rev'?'':'done'}"><div class="nd">${stage==='rev'?'3':'✓'}</div><div class="sl">Confirmado</div><div class="sd">${conf?conf.when:'—'}</div></div>
+     <div class="step ${stage==='pay'?'now':''}"><div class="nd">4</div><div class="sl">Dispersión</div><div class="sd">${stage==='pay'?'programada':'—'}</div></div>
+   </div>`;
+  if(!conf){
+    el.innerHTML=`<div class="se">Estado de tu cierre</div>${steps('rev')}
+      <div class="confirmbar">
+        <button class="btn-main" onclick="openSign()">Confirmar y firmar mi cierre</button>
+        <a class="btn-ghost" style="text-align:center" href="https://wa.me/5215500000000" target="_blank">Tengo una duda</a>
+      </div>`;
+  }else{
+    el.innerHTML=`<div class="se">Estado de tu cierre</div>${steps('pay')}
+      <div class="confirmed-line"><div class="ok">✓</div>
+        <div class="tt">Cierre confirmado con tu firma<small>${conf.when} · Folio ${conf.folio} · Acta enviada a tu correo</small></div>
+        <button class="doclink" onclick="makePDF()">Ver acta (PDF)</button></div>`;
+  }
+}
+function openSign(){
+  const A=agg('all');
+  document.getElementById('signbody').innerHTML=`
+    <div class="signwrap">
+      <div class="sigsum"><div class="a">Recibes en total · Mayo 2026<br><span style="color:var(--faint);font-size:11px">Marítima 9-S · Marítima 10-i · Albatros 301</span></div>
+        <div class="b mono">${fmt2(A.neto)}</div></div>
+      <div class="legal">Al firmar confirmo que revisé el estado de resultados de mis propiedades correspondiente a mayo 2026, que estoy de acuerdo con los depósitos, retiros y el neto a recibir, y autorizo a VRM · Conviva Inmuebles a programar la dispersión correspondiente.</div>
+      <div class="padwrap"><canvas id="pad"></canvas><div class="padline"></div><div class="padx">Firma del propietario</div>
+        <button class="padclear" onclick="clearPad()">borrar</button></div>
+      <div class="signactions">
+        <button class="btn-ghost" onclick="closeAll()">Aún no</button>
+        <button class="btn-main" id="signGo" disabled onclick="doConfirm()">Firmar y confirmar</button>
+      </div>
+    </div>`;
+  document.getElementById('ovl').classList.add('on');
+  document.getElementById('signsheet').classList.add('on');
+  document.body.style.overflow='hidden';
+  setTimeout(initPad,60);
+}
+let pad,ctx,drawing=false,hasInk=false,strokes=[];
+function initPad(){
+  pad=document.getElementById('pad');const r=pad.getBoundingClientRect();
+  pad.width=r.width*devicePixelRatio;pad.height=r.height*devicePixelRatio;
+  ctx=pad.getContext('2d');ctx.scale(devicePixelRatio,devicePixelRatio);
+  ctx.strokeStyle='#F3DFAE';ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.shadowColor='rgba(227,196,140,.55)';ctx.shadowBlur=4;
+  hasInk=false;strokes=[];
+  const pos=e=>{const rr=pad.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return[t.clientX-rr.left,t.clientY-rr.top];};
+  const down=e=>{e.preventDefault();drawing=true;const[x,y]=pos(e);ctx.beginPath();ctx.moveTo(x,y);strokes.push([[x,y]]);};
+  const move=e=>{if(!drawing)return;e.preventDefault();const[x,y]=pos(e);ctx.lineTo(x,y);ctx.stroke();strokes[strokes.length-1].push([x,y]);
+    if(!hasInk){hasInk=true;document.getElementById('signGo').disabled=false;}};
+  const up=()=>{drawing=false;};
+  pad.onpointerdown=down;pad.onpointermove=move;window.addEventListener('pointerup',up);
+}
+function clearPad(){if(!ctx)return;ctx.clearRect(0,0,pad.width,pad.height);hasInk=false;document.getElementById('signGo').disabled=true;}
+async function doConfirm(){
+  const sig=pad.toDataURL('image/png');
+  const now=new Date();
+  const when=now.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+' · '+now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  const folio='VRM-2026-05-ANB-'+String(Math.floor(100+Math.random()*900));
+  const A=agg('all');
+  const btn=document.getElementById('signGo'); btn.disabled=true; btn.textContent='Firmando…';
+  const {error}=await sb.from('confirmaciones').insert({propietario_id:D.ownerId,periodo:PERIODO,folio,firma_png:sig,neto_confirmado:A.neto});
+  if(error){btn.disabled=false;btn.textContent='Firmar y confirmar';alert('No se pudo registrar: '+error.message);return;}
+  D.conf={when,folio,sig};
+  document.getElementById('signbody').innerHTML=`
+    <div class="success"><div class="seal">V</div>
+      <h4>Cierre confirmado</h4>
+      <div class="when mono">${when} · Folio ${folio}</div>
+      <p>Enviamos tu <b>acta de conformidad</b> a tu correo con el detalle completo de la operación.<br>Tu dispersión de <b>${fmt2(A.neto)}</b> ha quedado programada.</p>
+      <div class="signactions" style="max-width:380px;margin:0 auto">
+        <button class="btn-ghost" onclick="closeAll();renderState()">Listo</button>
+        <button class="btn-main" onclick="makePDF()">Ver acta (PDF)</button>
+      </div></div>`;
+}
+/* -------- PDF ACTA -------- */
+function makePDF(){
+  const conf=getConf(); if(!conf) return;
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'pt',format:'a4'});
+  const W=595, M=64; let y=70;
+  const C=(t,yy,size,style,color)=>{doc.setFont('times',style||'normal');doc.setFontSize(size);doc.setTextColor(...(color||[26,20,10]));doc.text(t,W/2,yy,{align:'center'});};
+  // letterhead
+  doc.setDrawColor(140,115,51);doc.setLineWidth(1);doc.circle(W/2,y,17);doc.circle(W/2,y,13.5);
+  doc.setFont('times','bold');doc.setFontSize(15);doc.setTextColor(140,115,51);doc.text('V',W/2,y+5,{align:'center'});
+  y+=40; C('VRM · CONVIVA INMUEBLES',y,11,'bold',[90,74,33]); y+=14;
+  C('Administración de propiedades vacacionales · Puerto Vallarta',y,8.5,'normal',[120,110,90]); y+=18;
+  doc.setDrawColor(200,180,130);doc.setLineWidth(.7);doc.line(M,y,W-M,y); y+=30;
+  C('ACTA DE CONFORMIDAD',y,17,'bold'); y+=16;
+  C('Cierre mensual · Mayo 2026',y,11,'italic',[90,80,60]); y+=12;
+  C('Folio '+conf.folio+'   ·   '+conf.when,y,9,'normal',[120,110,90]); y+=28;
+  const A=agg('all');
+  doc.setFont('times','normal');doc.setFontSize(10.5);doc.setTextColor(50,42,26);
+  const intro=doc.splitTextToSize('Por medio de la presente, la propietaria Anabel hace constar que revisó y aceptó el estado de resultados del período mayo 2026 correspondiente a las propiedades administradas por VRM · Conviva Inmuebles que se detallan a continuación, manifestando su conformidad con los depósitos, retiros y el importe neto a recibir.',W-2*M);
+  doc.text(intro,M,y); y+=intro.length*13+16;
+  // table
+  const cols=[M, M+180, M+300, M+410, W-M];
+  doc.setFont('times','bold');doc.setFontSize(9);doc.setTextColor(90,74,33);
+  doc.text('PROPIEDAD',cols[0],y);doc.text('DEPÓSITO',cols[2],y,{align:'right'});doc.text('RETIROS',cols[3],y,{align:'right'});doc.text('NETO',cols[4],y,{align:'right'});
+  y+=6; doc.setDrawColor(200,180,130);doc.line(M,y,W-M,y); y+=15;
+  doc.setFont('times','normal');doc.setFontSize(10);doc.setTextColor(40,33,20);
+  Object.values(D.depas).forEach(d=>{
+    const ret=Object.values(d.cats).flat().reduce((a,[,v])=>a+v,0);
+    doc.text(d.name,cols[0],y);
+    doc.text(fmt2(d.dep),cols[2],y,{align:'right'});
+    doc.text('−'+fmt2(ret),cols[3],y,{align:'right'});
+    doc.setFont('times','bold');doc.text(fmt2(d.dep-ret),cols[4],y,{align:'right'});doc.setFont('times','normal');
+    y+=17;});
+  doc.setDrawColor(200,180,130);doc.line(M,y-6,W-M,y-6); y+=8;
+  doc.setFont('times','bold');doc.setFontSize(11.5);
+  doc.text('Total a recibir',cols[0],y); doc.text(fmt2(A.neto),cols[4],y,{align:'right'}); y+=24;
+  doc.setFont('times','italic');doc.setFontSize(9);doc.setTextColor(110,100,80);
+  const catline='Retiros del período: Gestión '+fmt2(A.cats.gestion)+' · Limpieza '+fmt2(A.cats.limpieza)+' · Servicios '+fmt2(A.cats.servicios)+' · Mantenimiento '+fmt2(A.cats.mantenimiento)+'.';
+  const cl=doc.splitTextToSize(catline,W-2*M); doc.text(cl,M,y); y+=cl.length*11+8;
+  doc.setFont('times','normal');doc.setFontSize(8.5);
+  const legal=doc.splitTextToSize('El detalle partida por partida de cada categoría, así como las estancias que integran el depósito, están disponibles de forma permanente en el Portal del Propietario. La presente acta se emite de manera electrónica y la firma aquí estampada corresponde al trazo registrado por la propietaria en el portal seguro de VRM.',W-2*M);
+  doc.text(legal,M,y); y+=legal.length*10+30;
+  // signatures
+  const sx1=M+20,sx2=W-M-160;
+  if(conf.sig){try{doc.addImage(conf.sig,'PNG',sx1,y-8,150,52);}catch(e){}}
+  doc.setDrawColor(120,105,70);doc.setLineWidth(.7);
+  doc.line(sx1,y+48,sx1+150,y+48); doc.line(sx2,y+48,sx2+150,y+48);
+  doc.setFontSize(8.5);doc.setTextColor(90,80,60);
+  doc.text('Anabel · Propietaria',sx1+75,y+60,{align:'center'});
+  doc.text('VRM · Conviva Inmuebles',sx2+75,y+60,{align:'center'});
+  doc.setDrawColor(140,115,51);doc.circle(sx2+75,y+18,15);doc.setFont('times','bold');doc.setFontSize(11);doc.setTextColor(140,115,51);doc.text('V',sx2+75,y+22,{align:'center'});
+  // footer
+  doc.setFont('times','normal');doc.setFontSize(7.5);doc.setTextColor(140,130,110);
+  doc.text('VRM · Conviva Inmuebles S.A. de C.V. · Puerto Vallarta, Jalisco · propietarios@vrm.mx',W/2,800,{align:'center'});
+  doc.save('VRM_Acta_Conformidad_Mayo2026_'+conf.folio+'.pdf');
+}
+
+/* ================= BLOQUEOS ================= */
+let selMode={active:false,depa:null,start:null,end:null};
+function getBlocks(){return D?D.blocks:[]}
+function occupiedSet(depa){
+  const s=new Set();
+  D.depas[depa].stays.forEach(st=>{const sd=parseInt(st[0].slice(8));for(let d=sd;d<sd+st[1]&&d<=31;d++)s.add(d);});
+  getBlocks().filter(b=>b.depa===depa).forEach(b=>{for(let d=b.start;d<=b.end;d++)s.add(d);});
+  return s;
+}
+function startBlockFlow(){
+  if(view!=='all'){enterSel(view);return;}
+  document.getElementById('bshead').innerHTML=`<div class="se">Bloquear fechas</div><h3>¿En cuál propiedad?</h3>`;
+  document.getElementById('bsbody').innerHTML=`<div class="pickdepa">`+
+    Object.keys(D.depas).map(k=>`<button onclick="enterSel('${k}')">
+      <span class="pd" style="background:${D.depas[k].color}"></span>
+      <span><span class="pn">${D.depas[k].name}</span><span class="ps"> · elegir fechas aquí</span></span>
+      <span class="pc">›</span></button>`).join('')+`</div>`;
+  openB();
+}
+function enterSel(k){
+  closeAll();
+  selMode={active:true,depa:k,start:null,end:null};
+  if(view!==k)setView(k); else render();
+  const b=document.getElementById('selbanner');
+  b.className='selbanner on';
+  b.innerHTML=`<span class="bd" style="background:${D.depas[k].color}"></span>
+    Bloqueando en <b>&nbsp;${D.depas[k].name}</b>&nbsp;— toca el primer y el último día
+    <button class="cancel" onclick="exitSel()">Cancelar</button>`;
+  document.querySelector('.cal').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function exitSel(){selMode={active:false,depa:null,start:null,end:null};document.getElementById('selbanner').className='selbanner';render();}
+function dayTap(d){
+  if(!selMode.active)return;
+  const occ=occupiedSet(selMode.depa);
+  if(occ.has(d))return;
+  if(selMode.start===null){selMode.start=d;selMode.end=null;}
+  else if(selMode.end===null){
+    let a=Math.min(selMode.start,d),b=Math.max(selMode.start,d);
+    for(let x=a;x<=b;x++){if(occ.has(x)){selMode.start=d;selMode.end=null;render();return;}}
+    selMode.start=a;selMode.end=b;openBlockNote();
+  } else {selMode.start=d;selMode.end=null;}
+  render();
+}
+function openBlockNote(){
+  const k=selMode.depa,a=selMode.start,b=selMode.end,n=b-a+1;
+  document.getElementById('bshead').innerHTML=`<div class="se">Bloquear fechas</div><h3>Confirma tu bloqueo</h3>`;
+  document.getElementById('bsbody').innerHTML=`
+    <div class="blocksum"><span class="bd2" style="background:${D.depas[k].color}"></span>
+      <div class="bt">${D.depas[k].name}<small>${a===b?`${a} de mayo`:`del ${a} al ${b} de mayo`} · ${n} ${n===1?'día':'días'}</small></div></div>
+    <label style="display:block;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:2px 0 7px 3px">Motivo del bloqueo · obligatorio</label>
+    <textarea class="notearea" id="bnote" placeholder="Ej. Uso personal — vacaciones familiares" oninput="noteCheck()"></textarea>
+    <div class="notereq" id="notereq">La nota es obligatoria para poder bloquear.</div>
+    <div class="signactions">
+      <button class="btn-ghost" onclick="closeAll();">Volver</button>
+      <button class="btn-main" id="bgo" disabled onclick="confirmBlock()">Bloquear fechas</button>
+    </div>`;
+  openB();
+  setTimeout(()=>document.getElementById('bnote').focus(),350);
+}
+function noteCheck(){
+  const v=document.getElementById('bnote').value.trim();
+  const ok=v.length>=4;
+  document.getElementById('bgo').disabled=!ok;
+  const r=document.getElementById('notereq');
+  r.textContent=ok?'✓ Nota registrada.':'La nota es obligatoria para poder bloquear.';
+  r.className='notereq'+(ok?'':'');
+}
+async function confirmBlock(){
+  const note=document.getElementById('bnote').value.trim();
+  if(note.length<4){const r=document.getElementById('notereq');r.className='notereq warn';return;}
+  const k=selMode.depa,a=selMode.start,b=selMode.end;
+  const pad2=n=>String(n).padStart(2,'0');
+  const go=document.getElementById('bgo'); go.disabled=true; go.textContent='Bloqueando…';
+  const {data,error}=await sb.from('bloqueos').insert({propiedad_id:k,fecha_inicio:'2026-05-'+pad2(a),fecha_fin:'2026-05-'+pad2(b),nota:note}).select().single();
+  if(error){go.disabled=false;go.textContent='Bloquear fechas';alert('No se pudo bloquear: '+error.message);return;}
+  D.blocks.push({id:data.id,depa:k,start:a,end:b,note});
+  document.getElementById('bsbody').innerHTML=`
+    <div class="success" style="padding-top:12px"><div class="seal" style="width:66px;height:66px;font-size:22px">⊘</div>
+      <h4>Fechas bloqueadas</h4>
+      <p>${D.depas[k].name} · ${a===b?`${a} de mayo`:`del ${a} al ${b} de mayo`}.<br>Sincronizaremos el bloqueo con todas las plataformas.</p>
+      <div class="signactions" style="max-width:320px;margin:0 auto"><button class="btn-main" onclick="closeAll()">Listo</button></div></div>`;
+  exitSel();
+}
+function openBlockInfo(i){
+  const b=getBlocks()[i];if(!b)return;
+  const k=b.depa;
+  document.getElementById('bshead').innerHTML=`<div class="se">Bloqueo activo</div><h3>${D.depas[k].name}</h3>`;
+  document.getElementById('bsbody').innerHTML=`
+    <div class="blocksum"><span class="bd2" style="background:${D.depas[k].color}"></span>
+      <div class="bt">${b.start===b.end?`${b.start} de mayo`:`Del ${b.start} al ${b.end} de mayo`}<small>${b.end-b.start+1} ${b.end-b.start+1===1?'día bloqueado':'días bloqueados'}</small></div></div>
+    <div class="li"><div><div class="ll">Motivo</div><div class="ls">${b.note}</div></div></div>
+    <button class="delblock" onclick="removeBlock(${i})">Quitar bloqueo</button>`;
+  openB();
+}
+async function removeBlock(i){
+  const b=getBlocks()[i]; if(!b)return;
+  const {error}=await sb.from('bloqueos').delete().eq('id',b.id);
+  if(error){alert('No se pudo quitar: '+error.message);return;}
+  D.blocks.splice(i,1); closeAll(); render();
+}
+function openB(){document.getElementById('ovl').classList.add('on');document.getElementById('blocksheet').classList.add('on');document.body.style.overflow='hidden';}
+
+/* -------- calendario -------- */
 function renderCal(A){
-  const Y=2026,M=4; // Mayo (0-index)
-  const first=new Date(Y,M,1),days=31;
-  let dow=(first.getDay()+6)%7; // Monday=0
-  const cells=[];for(let i=0;i<dow;i++)cells.push(null);
+  const wk0=(new Date(2026,4,1).getDay()+6)%7, days=31;
+  const cells=[];for(let i=0;i<wk0;i++)cells.push(null);
   for(let d=1;d<=days;d++)cells.push(d);
   while(cells.length%7)cells.push(null);
   const weeks=[];for(let i=0;i<cells.length;i+=7)weeks.push(cells.slice(i,i+7));
-  // lanes: depa order
-  const laneOf={};A.names.forEach((k,i)=>laneOf[k]=i);
-  const nl=A.names.length;
-  const wh=document.getElementById('weeks');
-  wh.innerHTML=weeks.map((wk,wi)=>{
+  const laneOf={};A.names.forEach((k,i)=>laneOf[k]=i);const nl=A.names.length;
+  const blocks=getBlocks().map((b,i)=>({...b,idx:i})).filter(b=>A.names.includes(b.depa));
+  const occ=selMode.active?occupiedSet(selMode.depa):null;
+  const inSel=d=>selMode.active&&selMode.start!==null&&selMode.end===null&&d===selMode.start;
+  const inRange=d=>selMode.active&&selMode.start!==null&&selMode.end!==null&&d>=selMode.start&&d<=selMode.end;
+  document.getElementById('weeks').innerHTML=weeks.map(wk=>{
+    const wDays=wk.filter(d=>d); if(!wDays.length)return '';
+    const w0=wDays[0],w1=wDays[wDays.length-1];
     let bars='';
     A.stays.forEach(s=>{
-      const sd=parseInt(s.start.slice(8)),ed=sd+s.n; // checkout day exclusive
-      const wStart=wk.find(x=>x)!==undefined?wk.filter(x=>x)[0]:null;
-      // compute day index range of this week
-      const wDays=wk.map((d,i)=>d).filter(d=>d);
-      if(!wDays.length)return;
-      const w0=wDays[0],w1=wDays[wDays.length-1];
-      const a=Math.max(sd,w0),b=Math.min(ed-0.5,w1+0.999); // bar through last night
+      const sd=parseInt(s.start.slice(8)),last=sd+s.n-1;
+      const a=Math.max(sd,w0),b=Math.min(last,w1);
       if(a>b)return;
-      const col0=wk.indexOf(a<=w0?w0:a);
-      const startCol=wk.findIndex(d=>d===Math.max(sd,w0));
-      const span=(Math.min(ed-1,w1)-Math.max(sd,w0))+1;
-      if(startCol<0||span<=0)return;
-      const lane=laneOf[s.depa];
-      const top=26+lane*(nl>1?13:18);
-      const showName=(sd>=w0&&sd<=w1);
-      bars+=`<div class="stay" style="left:calc(${startCol}/7*100% + 3px);width:calc(${span}/7*100% - 7px);top:${top}px;background:${s.color};height:${nl>1?11:16}px;line-height:${nl>1?11:16}px;font-size:${nl>1?8.5:9.5}px" title="${s.guest} · ${s.n} noches">${showName&&span>1?s.guest:''}</div>`;
-    });
-    return `<div class="week" style="height:${nl>1?26+nl*13+8:64}px">${wk.map(d=>`<div class="day ${d?'':'out'} mono">${d||''}</div>`).join('')}${bars}</div>`;
+      const startCol=wk.indexOf(a),span=b-a+1;
+      if(startCol<0)return;
+      const lane=laneOf[s.depa],h=nl>1?11:16,top=26+lane*(nl>1?13:18);
+      bars+=`<div class="stay" style="left:calc(${startCol}/7*100% + 3px);width:calc(${span}/7*100% - 7px);top:${top}px;background:${s.color};height:${h}px;line-height:${h}px;font-size:${nl>1?8.5:9.5}px" title="${s.guest} · ${s.n} noches">${(sd>=w0&&sd<=w1&&span>1)?s.guest:''}</div>`;});
+    blocks.forEach(b=>{
+      const a=Math.max(b.start,w0),bb=Math.min(b.end,w1);
+      if(a>bb)return;
+      const startCol=wk.indexOf(a),span=bb-a+1;
+      if(startCol<0)return;
+      const lane=laneOf[b.depa],h=nl>1?11:16,top=26+lane*(nl>1?13:18);
+      bars+=`<div class="blockbar" onclick="openBlockInfo(${b.idx})" style="left:calc(${startCol}/7*100% + 3px);width:calc(${span}/7*100% - 7px);top:${top}px;height:${h}px;line-height:${h-2}px;font-size:${nl>1?8.5:9.5}px" title="Bloqueado · ${b.note}">${(b.start>=w0&&b.start<=w1&&span>1)?'⊘ '+b.note:'⊘'}</div>`;});
+    return `<div class="week" style="height:${nl>1?26+nl*13+8:64}px">${wk.map(d=>{
+      if(!d)return `<div class="day out mono"></div>`;
+      let cls='day mono';
+      if(selMode.active){cls+=occ.has(d)?' dis':' tappable';if(inSel(d))cls+=' selpick';if(inRange(d))cls+=(d===selMode.start||d===selMode.end?' selpick':' selin');}
+      return `<div class="${cls}" onclick="dayTap(${d})">${d}</div>`;}).join('')}${bars}</div>`;
   }).join('');
-  const noches=A.stays.reduce((a,s)=>a+s.n,0);
-  const cap=31*A.names.length;
-  document.getElementById('calkpi').innerHTML=`<span><b>${A.stays.length}</b> estancias</span><span><b>${noches}</b> noches</span><span><b>${Math.round(noches/cap*100)}%</b> ocupación</span>`;
+  const noches=A.stays.reduce((a,s)=>a+s.n,0),cap=31*A.names.length;
+  const bd=blocks.reduce((a,b)=>a+(b.end-b.start+1),0);
+  document.getElementById('calkpi').innerHTML=`<span><b>${A.stays.length}</b> estancias</span><span><b>${noches}</b> noches</span><span><b>${Math.round(noches/cap*100)}%</b> ocupación</span>`+(bd?`<span><b>${bd}</b> bloqueados</span>`:'');
   document.getElementById('calsub').textContent=view==='all'?'Tus 3 propiedades · Airbnb':D.depas[view].name+' · Airbnb';
-  document.getElementById('legend').innerHTML=A.names.map(k=>`<span><span class="sw2" style="background:${D.depas[k].color}"></span>${D.depas[k].name}</span>`).join('');
+  document.getElementById('legend').innerHTML=A.names.map(k=>`<span><span class="sw2" style="background:${D.depas[k].color}"></span>${D.depas[k].name}</span>`).join('')+(blocks.length?`<span><span class="sw2" style="border:1px dashed rgba(239,231,210,.5);background:repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(239,231,210,.3) 2px,rgba(239,231,210,.3) 4px)"></span>Bloqueado por ti</span>`:'');
 }
-// ---------- sheets ----------
+/* -------- sheets genéricos -------- */
 function openSheet(title,eyebrow,total,rows){
   document.getElementById('shead').innerHTML=`<div class="se">${eyebrow}</div><h3>${title}</h3><div class="st">${total}</div>`;
   document.getElementById('sbody').innerHTML=rows;
   document.getElementById('ovl').classList.add('on');document.getElementById('sheet').classList.add('on');
   document.body.style.overflow='hidden';
 }
-function closeSheet(){document.getElementById('ovl').classList.remove('on');document.getElementById('sheet').classList.remove('on');document.body.style.overflow='';}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();});
+function closeAll(){['sheet','signsheet','blocksheet'].forEach(id=>document.getElementById(id).classList.remove('on'));
+  document.getElementById('ovl').classList.remove('on');document.body.style.overflow='';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAll();});
 function openCat(c){
   const A=agg();
   const rows=A.items[c].map(([l,v,short,color])=>`<div class="li"><div><div class="ll">${l}</div>${view==='all'?`<div class="ls"><span style="color:${color}">●</span> ${short}</div>`:''}</div><div class="lv">−${fmt2(v)}</div></div>`).join('')
@@ -304,20 +642,30 @@ function openDep(){
   const A=agg();
   let rows=`<div class="li"><div class="ll">Reservaciones (bruto)</div><div class="lv">${fmt2(A.bruto)}</div></div>
     <div class="li"><div><div class="ll">Retención ISR</div><div class="ls">Airbnb lo entera al SAT por ti</div></div><div class="lv">−${fmt2(A.isr)}</div></div>
-    <div class="li tot"><div class="ll">Depósito del mes</div><div class="lv">${fmt2(A.dep)}</div></div>`;
-  rows+=`<div style="margin-top:18px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint)">Estancias que lo generaron</div>`;
-  rows+=A.stays.sort((a,b)=>a.start.localeCompare(b.start)).map(s=>`<div class="li"><div><div class="ll">${s.guest}</div><div class="ls"><span style="color:${s.color}">●</span> ${D.depas[s.depa].name} · llegó ${parseInt(s.start.slice(8))} de mayo</div></div><div class="lv" style="color:var(--muted)">${s.n} noches</div></div>`).join('');
+    <div class="li tot"><div class="ll">Depósito del mes</div><div class="lv">${fmt2(A.dep)}</div></div>
+    <div style="margin-top:18px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint)">Estancias que lo generaron</div>`;
+  rows+=[...A.stays].sort((a,b)=>a.start.localeCompare(b.start)).map(s=>`<div class="li"><div><div class="ll">${s.guest}</div><div class="ls"><span style="color:${s.color}">●</span> ${D.depas[s.depa].name} · llegó ${parseInt(s.start.slice(8))} de mayo</div></div><div class="lv" style="color:var(--muted)">${s.n} noches</div></div>`).join('');
   openSheet('Tu depósito',view==='all'?'Portafolio · Mayo 2026':D.depas[view].name+' · Mayo 2026',fmt2(A.dep),rows);
 }
-// ---------- auth ----------
-function login(){
-  const u=document.getElementById('u').value.trim().toLowerCase(),p=document.getElementById('p').value;
-  if(u==='anabel'&&p==='vrm2026'){sessionStorage.setItem('vrm_auth','1');enter();}
-  else document.getElementById('gerr').textContent='Usuario o contraseña incorrectos.';
+/* -------- auth (Supabase) -------- */
+async function login(){
+  const u=document.getElementById('u').value.trim(),p=document.getElementById('p').value;
+  const err=document.getElementById('gerr');
+  if(!sb||SUPA_ANON.includes('PEGA_AQUI')){err.textContent='Configura la anon key de Supabase en el archivo.';return;}
+  err.textContent='Entrando…';
+  const {error}=await sb.auth.signInWithPassword({email:u,password:p});
+  if(error){err.textContent='Correo o contraseña incorrectos.';return;}
+  await enter();
 }
-function enter(){document.getElementById('gate').style.display='none';document.getElementById('app').style.display='block';buildSw();render(true);}
-function logout(){sessionStorage.removeItem('vrm_auth');location.reload();}
-document.getElementById('p').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
-if(sessionStorage.getItem('vrm_auth')==='1')enter();
+async function enter(){
+  try{await loadAll();}catch(e){document.getElementById('gerr').textContent=e.message;try{await sb.auth.signOut();}catch(_){ }return;}
+  document.getElementById('gate').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.querySelector('.hello').innerHTML='Buenas tardes, <i>'+D.owner+'</i>.';
+  buildSw();render();
+}
+async function logout(){await sb.auth.signOut();location.reload();}
+['u','p'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')login();}));
+(async()=>{if(sb&&!SUPA_ANON.includes('PEGA_AQUI')){const {data:{session}}=await sb.auth.getSession();if(session)await enter();}})();
 </script>
 </body></html>
