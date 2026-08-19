@@ -430,6 +430,27 @@
         .hk2-stat{font-family:var(--font-mono);font-size:10.5px;font-weight:600;padding:5px 10px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid var(--glass-border);color:var(--text-secondary)}
         .hk2-stat b{color:var(--text-primary)}
         .hk2-stat.warn{color:#f7d488;border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.12)}
+        .hk2-stat.done{color:#7fe3ad;border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.12);cursor:pointer}
+        .hk2-stat.done:hover{background:rgba(52,211,153,.2)}
+        /* Lista rápida de limpiezas ya terminadas ese día (lo que cuenta la nómina) */
+        .hk2-hechas{margin-top:12px;border:1px solid rgba(52,211,153,.28);background:rgba(52,211,153,.06);
+            border-radius:13px;overflow:hidden}
+        .hk2-hechas .hd{display:flex;justify-content:space-between;align-items:center;gap:10px;
+            padding:9px 14px;font-family:var(--font-mono);font-size:10px;letter-spacing:.6px;
+            text-transform:uppercase;color:#7fe3ad;border-bottom:1px solid rgba(52,211,153,.18)}
+        .hk2-hechas .hd .x{cursor:pointer;opacity:.7;font-size:13px}
+        .hk2-hechas .hd .x:hover{opacity:1}
+        .hk2-hechas ul{list-style:none;margin:0;padding:5px 0;max-height:280px;overflow-y:auto}
+        .hk2-hechas li{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;
+            padding:7px 14px;font-size:12.5px;border-bottom:1px solid rgba(255,255,255,.04)}
+        .hk2-hechas li:last-child{border-bottom:none}
+        .hk2-hechas li .dp{font-weight:700;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .hk2-hechas li .ch{font-family:var(--font-mono);font-size:11px;color:#7fe3ad}
+        .hk2-hechas li .hr{font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);min-width:44px;text-align:right}
+        .hk2-hechas .tot{padding:8px 14px;font-family:var(--font-mono);font-size:10.5px;
+            color:var(--text-secondary);border-top:1px solid rgba(52,211,153,.18)}
+        .hk2-hechas .vacio{padding:14px;text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--text-tertiary)}
+        @media(max-width:820px){ .hk2-hechas li{grid-template-columns:1fr auto;row-gap:2px} .hk2-hechas li .hr{grid-column:2} }
         .hk2-sync{font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);text-align:right;margin-top:7px}
         .hk2-wkwrap{display:flex;align-items:center;gap:6px;margin-top:10px}
         .hk2-warr{flex-shrink:0;width:30px;height:56px;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,.03);color:var(--text-tertiary);font-size:16px;cursor:pointer;transition:.15s}
@@ -2764,6 +2785,8 @@
                         <div class="hk2-sync" id="hk2-sync">sync automático c/hora</div>
                     </div>
                 </div>
+
+                <div id="hk2-hechas"></div>
 
                 <div id="hk2-riesgos"></div>
 
@@ -7290,6 +7313,10 @@
     // 📣 avisada = manual (limpiezas.avisada). ✓ limpia = la marca el bot
     // (estatus terminada/pagada); manual solo vía menú de confirmación.
     // ══════════════════════════════════════════════════════
+    // Días que una limpieza confirmada sigue valiendo como "listo" antes de una
+    // entrada. Más chico = más seguro pero más alertas; más grande = menos ruido.
+    const HK2_VIGENCIA = 3;
+    let hk2VerHechas = false;   // panel "limpiezas hechas" abierto/cerrado
     let hk2Dia = 0;        // índice del día seleccionado dentro de la ventana (0…6)
     let hk2Ini = 0;        // desplazamiento de la ventana en días (negativo = pasado)
     let hk2Data = null;    // cache de datos
@@ -7498,14 +7525,17 @@
         //   · limpieza confirmada de ayer u hoy  → verde "listo"
         //   · cualquier otra cosa                → pendiente, hay que asignar/confirmar
         // Cubre bloqueo de 1 noche, de 10, dueño que fue sin avisar, o polvo por días.
-        const ayerISO=hk2ISO(hk2AddD(new Date(fiso+'T12:00:00'),-1));
+        // VENTANA DE VIGENCIA: una limpieza confirmada cuenta como "listo" si se hizo
+        // dentro de los últimos HK2_VIGENCIA días antes de la llegada. Ajustable:
+        // más chico = más seguro pero más alertas; más grande = menos ruido.
+        const desdeVig=hk2ISO(hk2AddD(new Date(fiso+'T12:00:00'),-HK2_VIGENCIA));
         Object.keys(ent).forEach(dep=>{
             if(sal[dep]||blk[dep]||finBlk[dep]) return;   // turnover real: ya tiene su salida hoy
             const ultSal=ultSalidaHasta(dep,fiso);
             const noches=ultSal?hk2Noches(ultSal,fiso):null;
             const blkEnHueco=ultSal&&bloqueos.find(b=>hk2Depto(b.unit_id)===dep
                 && b.check_out>ultSal && b.check_in<fiso);
-            const listo=yaLimpio(dep,ayerISO,fiso);       // confirmada ayer u hoy
+            const listo=yaLimpio(dep,desdeVig,fiso);
             finBlk[dep]={deduced:true, ultSal:ultSal||null, hueco:noches,
                          ocupado:!!blkEnHueco, listo};
         });
@@ -7588,6 +7618,38 @@
         return {rows,stats};
     }
 
+    // ── Limpiezas YA TERMINADAS de un día (exactamente lo que cobra la nómina) ──
+    function hk2HechasDe(fiso){
+        if(!hk2Data) return [];
+        return hk2Data.limp
+            .filter(l=>l.fecha===fiso && (l.estatus==='terminada'||l.estatus==='pagada'))
+            .sort((a,b)=>String(a.hora_fin||'~').localeCompare(String(b.hora_fin||'~'))
+                        ||String(a.depto_codigo).localeCompare(String(b.depto_codigo)));
+    }
+    function hk2ToggleHechas(){ hk2VerHechas=!hk2VerHechas; hk2Render(); }
+
+    function hk2RenderHechas(fiso){
+        const cont=document.getElementById('hk2-hechas'); if(!cont) return;
+        if(!hk2VerHechas){ cont.innerHTML=''; return; }
+        const lista=hk2HechasDe(fiso);
+        const nom={}; (hk2Data.staff||[]).forEach(s=>nom[String(s.id)]=s.nombre);
+        const hora=h=>h?String(h).slice(0,5):'—';
+        const money=n=>'$'+(Math.round((n||0)*100)/100).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+        const total=lista.reduce((a,l)=>a+(parseFloat(l.tarifa_aplicada)||0),0);
+        const pagadas=lista.filter(l=>l.estatus==='pagada').length;
+        cont.innerHTML=`<div class="hk2-hechas">
+            <div class="hd"><span>✓ Limpiezas hechas · ${hk2FmtCorto(fiso)}</span>
+                <span class="x" onclick="hk2ToggleHechas()" title="Cerrar">✕</span></div>
+            ${lista.length?`<ul>${lista.map(l=>`<li>
+                    <span class="dp">${l.depto_codigo}</span>
+                    <span class="ch">${nom[String(l.staff_id)]||'sin chica'}</span>
+                    <span class="hr">${hora(l.hora_fin)}</span>
+                </li>`).join('')}</ul>
+            <div class="tot">${lista.length} limpieza${lista.length===1?'':'s'} · ${money(total)} para nómina${pagadas?` · ${pagadas} ya pagada${pagadas===1?'':'s'}`:''}</div>`
+            :`<div class="vacio">Todavía nadie marca limpieza terminada este día</div>`}
+        </div>`;
+    }
+
     function hk2Render(){
         const D=hk2Data; if(!D) return;
         const fSel=hk2ISO(hk2AddD(D.hoy,hk2Dia));
@@ -7610,8 +7672,10 @@
                 <div class="hk2-minis">
                     ${stats.alerta?`<span class="hk2-stat alerta">⚠️ <b>${stats.alerta}</b> ¿llega sin limpiar?</span>`:`<span class="hk2-stat">⚡ <b>${stats.turn}</b> turnovers</span>`}
                     ${stats.sin?`<span class="hk2-stat warn">⚠ <b>${stats.sin}</b> sin asignar</span>`:`<span class="hk2-stat" style="color:var(--status-green);border-color:rgba(52,211,153,.3)">✓ todo asignado</span>`}
+                    <span class="hk2-stat done" onclick="hk2ToggleHechas()" title="Ver las limpiezas marcadas como terminadas — son las que cuenta la nómina">✓ <b>${hk2HechasDe(fSel).length}</b> hechas ${hk2VerHechas?'▴':'▾'}</span>
                 </div>
             </div>`;
+        hk2RenderHechas(fSel);
         const at=D.at;
         const minsAt=Math.round((Date.now()-at.getTime())/60000);
         document.getElementById('hk2-sync').textContent=`datos de las ${at.getHours()}:${String(at.getMinutes()).padStart(2,'0')}${minsAt>90?' ⚠ viejos':''}`;
@@ -7687,8 +7751,10 @@
         else if(r.alertaOn) outH=`<span class="hk2-pill alert">⚠️ LLEGA HOY <span class="note">${r.alertaSal?('nadie confirmó limpieza desde el '+hk2FmtCorto(r.alertaSal)):'sin limpieza confirmada'}</span></span>`;
         else if(r.arr){
             // Limpieza pendiente arrastrada: sigue viva hasta marcarse hecha
-            const urgente=!!r.in;
-            const cuando=r.arr.prox?` · ${r.in?'LLEGAN HOY':'llegan el '+hk2FmtCorto(r.arr.prox)}`:'';
+            const hoyMismo=!!(r.in||(r.arr.prox&&r.arr.prox===fSel));
+            const urgente=hoyMismo;
+            const cuando=r.arr.prox
+                ?` · ${hoyMismo?'LLEGAN HOY':(r.arr.prox<fSel?'llegaron el ':'llegan el ')+hk2FmtCorto(r.arr.prox)}`:'';
             outH=`<span class="hk2-pill ${urgente?'alert':'out'}">${urgente?'⚠️':'⏳'} ${r.dep} <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.85">sin limpiar desde el ${hk2FmtCorto(r.arr.ultSal)}${cuando}</span></span>`;
         }
         else outH=`<span class="hk2-blank">·</span>`;
