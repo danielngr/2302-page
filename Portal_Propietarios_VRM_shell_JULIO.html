@@ -395,7 +395,7 @@ async function loadAll(){
   const fmtWhen=t=>new Date(t).toLocaleDateString('es-MX',{day:'numeric',month:'short'})+' · '+new Date(t).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   const RES=(reservas||[]).map(r=>({depa:r.propiedad_id,ci:r.check_in,co:r.check_out,src:r.source,tipo:r.tipo}));
   D={owner:owner.nombre,ownerId:owner.id,depas:dd,catmeta:CATMETA,reservas:RES,
-     blocks:(bloqueos||[]).map(b=>({id:b.id,depa:b.propiedad_id,start:b.fecha_inicio,end:b.fecha_fin,note:b.nota})),
+     blocks:(bloqueos||[]).map(b=>({id:b.id,depa:b.propiedad_id,start:b.fecha_inicio,end:b.fecha_fin,note:b.nota,creado:b.creado_en})),
      periodos:[],
      conf:(confs&&confs.length)?{when:fmtWhen(confs[0].confirmado_en),folio:confs[0].folio,sig:confs[0].firma_png}:null};
   const {data:pers}=await sb.from('cierres').select('periodo').in('propiedad_id',ids);
@@ -623,6 +623,11 @@ function shiftMonth(delta){
 }
 function goToday(){const t=new Date();calY=t.getFullYear();calM=t.getMonth();render();}
 
+
+async function avisarInterno(payload){
+  try{ await sb.functions.invoke('aviso-bloqueo',{body:payload}); }catch(_){ /* silencioso */ }
+}
+
 /* ================= BLOQUEOS ================= */
 let selMode={active:false,depa:null,start:null,end:null};
 function getBlocks(){return D?D.blocks:[]}
@@ -673,6 +678,14 @@ function dayTap(dISO){
   } else {selMode.start=dISO;selMode.end=null;}
   render();
 }
+
+function fmtSello(ts){
+  if(!ts)return '';
+  const d=new Date(ts);
+  const f=d.toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+  const h=d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  return f+' · '+h+' h';
+}
 function fechaLarga(isoStr){const[y,m,d]=isoStr.split('-').map(Number);return `${d} de ${MESES[m-1]}`;}
 function rangoTexto(a,b){
   if(a===b)return fechaLarga(a);
@@ -712,11 +725,12 @@ async function confirmBlock(){
   const go=document.getElementById('bgo'); go.disabled=true; go.textContent='Bloqueando…';
   const {data,error}=await sb.from('bloqueos').insert({propiedad_id:k,fecha_inicio:a,fecha_fin:b,nota:note}).select().single();
   if(error){go.disabled=false;go.textContent='Bloquear fechas';alert('No se pudo bloquear: '+error.message);return;}
-  D.blocks.push({id:data.id,depa:k,start:a,end:b,note});
+  D.blocks.push({id:data.id,depa:k,start:a,end:b,note,creado:data.creado_en||new Date().toISOString()});
+  avisarInterno({bloqueo_id:data.id,accion:'creado'});
   document.getElementById('bsbody').innerHTML=`
     <div class="success" style="padding-top:12px"><div class="seal" style="width:66px;height:66px;font-size:22px">⊘</div>
       <h4>Fechas bloqueadas</h4>
-      <p>${D.depas[k].name} · ${rangoTexto(a,b)}.<br>Se cerrará en Airbnb y Hostfully en las próximas horas.<br><span style="font-size:11.5px;color:var(--faint)">Si necesitas que sea inmediato, avísanos por WhatsApp.</span></p>
+      <p>${D.depas[k].name} · ${rangoTexto(a,b)}.<br><span style="font-size:11.5px;color:var(--faint)">Registrado el ${fmtSello(new Date().toISOString())}</span><br>Se cerrará en Airbnb y Hostfully en las próximas horas.<br><span style="font-size:11.5px;color:var(--faint)">Si necesitas que sea inmediato, avísanos por WhatsApp.</span></p>
       <div class="signactions" style="max-width:320px;margin:0 auto"><button class="btn-main" onclick="closeAll()">Listo</button></div></div>`;
   exitSel();
 }
@@ -728,6 +742,7 @@ function openBlockInfo(i){
     <div class="blocksum"><span class="bd2" style="background:${D.depas[k].color}"></span>
       <div class="bt">${rangoTexto(b.start,b.end)}${b.start.slice(0,4)!==String(new Date().getFullYear())?' de '+b.start.slice(0,4):''}<small>${n} ${n===1?'día bloqueado':'días bloqueados'}</small></div></div>
     <div class="li"><div><div class="ll">Motivo</div><div class="ls">${b.note}</div></div></div>
+    ${b.creado?`<div class="li"><div><div class="ll">Solicitado</div><div class="ls">${fmtSello(b.creado)}</div></div></div>`:''}
     <div class="li"><div><div class="ll">Estado</div><div class="ls">Publicado a Airbnb y Hostfully vía calendario sincronizado</div></div><div class="lv" style="color:var(--patina);font-size:13px">● Activo</div></div>
     <button class="delblock" onclick="removeBlock(${i})">Quitar bloqueo</button>`;
   openB();
@@ -736,6 +751,7 @@ async function removeBlock(i){
   const b=getBlocks()[i]; if(!b)return;
   const {error}=await sb.from('bloqueos').delete().eq('id',b.id);
   if(error){alert('No se pudo quitar: '+error.message);return;}
+  avisarInterno({accion:'eliminado',propiedad:D.depas[b.depa].name,propietario:D.owner,rango:rangoTexto(b.start,b.end)});
   D.blocks.splice(i,1); closeAll(); render();
 }
 function openB(){document.getElementById('ovl').classList.add('on');document.getElementById('blocksheet').classList.add('on');document.body.style.overflow='hidden';}
