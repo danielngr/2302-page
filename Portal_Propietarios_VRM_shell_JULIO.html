@@ -108,6 +108,7 @@ button{font-family:inherit;background:none;border:0;color:inherit;cursor:pointer
 .week{position:relative;display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid var(--soft)}
 .week .day{padding:6px 0 0 7px;font-size:10.5px;color:var(--faint)}
 .week .day.out{opacity:.25}
+.stay.plat{color:#EFE7D2;font-weight:500;opacity:.85}
 .stay{position:absolute;border-radius:9px;color:#20180B;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 3px 10px rgba(0,0,0,.35);padding:0 8px}
 .legend{display:flex;gap:16px;margin-top:14px;font-size:11px;color:var(--muted);flex-wrap:wrap}
 .notice{margin-top:26px;border:1px solid var(--line);border-radius:18px;padding:17px 18px;display:flex;gap:13px;align-items:flex-start;background:linear-gradient(180deg,rgba(227,196,140,.05),transparent)}
@@ -379,6 +380,8 @@ async function loadAll(){
   const {data:partidas}=cids.length?await sb.from('cierre_partidas').select('*').in('cierre_id',cids).order('orden'):{data:[]};
   const {data:estancias}=await sb.from('estancias').select('*').in('propiedad_id',ids).eq('periodo',PERIODO);
   const {data:bloqueos}=await sb.from('bloqueos').select('*').in('propiedad_id',ids).order('fecha_inicio');
+  // reservas reales (iCal · todas las plataformas · pasadas recientes y futuras)
+  let reservas=[];try{const r=await sb.from('portal_reservas').select('*').in('propiedad_id',ids).order('check_in');reservas=r.data||[];}catch(_){reservas=[];}
   const {data:confs}=await sb.from('confirmaciones').select('*').eq('propietario_id',owner.id).eq('periodo',PERIODO);
   const dd={};
   depas.forEach(p=>{
@@ -390,7 +393,8 @@ async function loadAll(){
       cats,stays:(estancias||[]).filter(s=>s.propiedad_id===p.id).map(s=>[s.fecha_inicio,s.noches,s.huesped])};
   });
   const fmtWhen=t=>new Date(t).toLocaleDateString('es-MX',{day:'numeric',month:'short'})+' · '+new Date(t).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-  D={owner:owner.nombre,ownerId:owner.id,depas:dd,catmeta:CATMETA,
+  const RES=(reservas||[]).map(r=>({depa:r.propiedad_id,ci:r.check_in,co:r.check_out,src:r.source,tipo:r.tipo}));
+  D={owner:owner.nombre,ownerId:owner.id,depas:dd,catmeta:CATMETA,reservas:RES,
      blocks:(bloqueos||[]).map(b=>({id:b.id,depa:b.propiedad_id,start:b.fecha_inicio,end:b.fecha_fin,note:b.nota})),
      periodos:[],
      conf:(confs&&confs.length)?{when:fmtWhen(confs[0].confirmado_en),folio:confs[0].folio,sig:confs[0].firma_png}:null};
@@ -407,6 +411,7 @@ function agg(v){
   ks.forEach(k=>{const d=D.depas[k];out.dep+=d.dep;out.bruto+=d.bruto;out.isr+=d.isr;
     for(const c in d.cats){d.cats[c].forEach(([l,val])=>{out.cats[c]+=val;out.items[c].push([l,val,d.short,d.color]);});}
     d.stays.forEach(s=>out.stays.push({start:s[0],n:s[1],guest:s[2],depa:k,color:d.color,short:d.short}));});
+  out.reservas=(D.reservas||[]).filter(r=>ks.includes(r.depa));
   out.ret=Object.values(out.cats).reduce((a,b)=>a+b,0);out.neto=out.dep-out.ret;return out;
 }
 const sw=document.getElementById('sw');
@@ -622,11 +627,13 @@ function goToday(){const t=new Date();calY=t.getFullYear();calM=t.getMonth();ren
 let selMode={active:false,depa:null,start:null,end:null};
 function getBlocks(){return D?D.blocks:[]}
 function occupiedSet(depa){
-  // set de fechas ISO ocupadas (estancias del periodo + bloqueos de cualquier mes)
+  // fechas ISO ocupadas: reservas reales de iCal (cualquier mes) + bloqueos propios
   const s=new Set();
-  (D.depas[depa].stays||[]).forEach(st=>{
-    for(let i=0;i<st[1];i++) s.add(addDays(st[0],i));
+  (D.reservas||[]).filter(r=>r.depa===depa).forEach(r=>{
+    let d=r.ci; while(d<r.co){ s.add(d); d=addDays(d,1); }   // check_out exclusivo
   });
+  // respaldo: estancias del cierre (por si aún no hay unit_id mapeado)
+  (D.depas[depa].stays||[]).forEach(st=>{ for(let i=0;i<st[1];i++) s.add(addDays(st[0],i)); });
   getBlocks().filter(b=>b.depa===depa).forEach(b=>{
     let d=b.start; while(d<=b.end){ s.add(d); d=addDays(d,1); }
   });
@@ -742,14 +749,13 @@ function renderCal(A){
   while(cells.length%7)cells.push(null);
   const weeks=[];for(let i=0;i<cells.length;i+=7)weeks.push(cells.slice(i,i+7));
   const laneOf={};A.names.forEach((k,i)=>laneOf[k]=i);const nl=A.names.length;
-  const esCierre=(calY===PER_Y&&calM===PER_M);
   const hoy=new Date(), hoyISO=iso(hoy.getFullYear(),hoy.getMonth(),hoy.getDate());
-
-  // etiqueta del mes
+  const mesISO=`${calY}-${pad2(calM+1)}`;
   document.getElementById('calMonthLbl').textContent=MESES[calM]+' '+calY;
 
-  // barras: estancias (sólo del mes del cierre) + bloqueos (de cualquier mes)
   const blocks=getBlocks().map((b,i)=>({...b,idx:i})).filter(b=>A.names.includes(b.depa));
+  const reservas=(A.reservas||[]);
+  const usaReales=reservas.length>0;
   const occ=selMode.active?occupiedSet(selMode.depa):null;
 
   document.getElementById('weeks').innerHTML=weeks.map(wk=>{
@@ -757,22 +763,38 @@ function renderCal(A){
     const w0=iso(calY,calM,wDays[0]), w1=iso(calY,calM,wDays[wDays.length-1]);
     let bars='';
     const colOf=dISO=>wk.indexOf(parseInt(dISO.slice(8)));
-    const spanOf=(a,b)=>nDias(a,b);
-    if(esCierre) A.stays.forEach(s=>{
-      const last=addDays(s.start,s.n-1);
-      const a=s.start>w0?s.start:w0, b=last<w1?last:w1;
-      if(a>b)return;
-      const startCol=colOf(a); if(startCol<0)return;
-      const span=spanOf(a,b);
-      const lane=laneOf[s.depa],h=nl>1?11:16,top=26+lane*(nl>1?13:18);
-      bars+=`<div class="stay" style="left:calc(${startCol}/7*100% + 3px);width:calc(${span}/7*100% - 7px);top:${top}px;background:${s.color};height:${h}px;line-height:${h}px;font-size:${nl>1?8.5:9.5}px" title="${s.guest} · ${s.n} noches">${(s.start>=w0&&s.start<=w1&&span>1)?s.guest:''}</div>`;});
+    const barra=(a,b,color,txt,cls,title,extra)=>{
+      const startCol=colOf(a); if(startCol<0)return '';
+      const span=nDias(a,b);
+      const lane=extra.lane,h=nl>1?11:16,top=26+lane*(nl>1?13:18);
+      return `<div class="${cls}" ${extra.click||''} style="left:calc(${startCol}/7*100% + 3px);width:calc(${span}/7*100% - 7px);top:${top}px;${color?`background:${color};`:''}height:${h}px;line-height:${cls==='blockbar'?h-2:h}px;font-size:${nl>1?8.5:9.5}px" title="${title}">${span>1?txt:''}</div>`;
+    };
+    if(usaReales){
+      reservas.forEach(r=>{
+        const last=addDays(r.co,-1);                       // última noche
+        const a=r.ci>w0?r.ci:w0, b=last<w1?last:w1;
+        if(a>b)return;
+        const d=D.depas[r.depa];
+        const esBloqPlat=r.tipo==='bloqueo_plataforma';
+        const et=esBloqPlat?'No disponible':({airbnb:'Airbnb',hostfully:'Directa'}[r.src]||r.src);
+        bars+=barra(a,b,esBloqPlat?'rgba(150,137,111,.5)':d.color,
+          (r.ci>=w0&&r.ci<=w1)?et:'',esBloqPlat?'stay plat':'stay',
+          `${d.name} · ${et} · ${r.ci} → ${r.co}`,{lane:laneOf[r.depa]});
+      });
+    } else {
+      A.stays.forEach(s=>{
+        const last=addDays(s.start,s.n-1);
+        const a=s.start>w0?s.start:w0, b=last<w1?last:w1;
+        if(a>b)return;
+        bars+=barra(a,b,s.color,(s.start>=w0&&s.start<=w1)?s.guest:'','stay',`${s.guest} · ${s.n} noches`,{lane:laneOf[s.depa]});
+      });
+    }
     blocks.forEach(b=>{
       const a=b.start>w0?b.start:w0, bb=b.end<w1?b.end:w1;
       if(a>bb)return;
-      const startCol=colOf(a); if(startCol<0)return;
-      const span=spanOf(a,bb);
-      const lane=laneOf[b.depa],h=nl>1?11:16,top=26+lane*(nl>1?13:18);
-      bars+=`<div class="blockbar" onclick="openBlockInfo(${b.idx})" style="left:calc(${startCol}/7*100% + 3px);width:calc(${span}/7*100% - 7px);top:${top}px;height:${h}px;line-height:${h-2}px;font-size:${nl>1?8.5:9.5}px" title="Bloqueado · ${b.note}">${(b.start>=w0&&b.start<=w1&&span>1)?'⊘ '+b.note:'⊘'}</div>`;});
+      bars+=barra(a,bb,'',(b.start>=w0&&b.start<=w1)?'⊘ '+b.note:'⊘','blockbar',
+        `Bloqueado · ${b.note}`,{lane:laneOf[b.depa],click:`onclick="openBlockInfo(${b.idx})"`});
+    });
     return `<div class="week" style="height:${nl>1?26+nl*13+8:64}px">${wk.map(d=>{
       if(!d)return `<div class="day out mono"></div>`;
       const dISO=iso(calY,calM,d);
@@ -787,17 +809,28 @@ function renderCal(A){
       return `<div class="${cls}" onclick="dayTap('${dISO}')">${d}</div>`;}).join('')}${bars}</div>`;
   }).join('');
 
-  // KPIs
-  const bd=blocks.filter(b=>b.start.slice(0,7)===`${calY}-${pad2(calM+1)}`||b.end.slice(0,7)===`${calY}-${pad2(calM+1)}`)
-                 .reduce((a,b)=>a+nDias(b.start,b.end),0);
-  if(esCierre){
-    const noches=A.stays.reduce((a,s)=>a+s.n,0),cap=days*A.names.length;
-    document.getElementById('calkpi').innerHTML=`<span><b>${A.stays.length}</b> estancias</span><span><b>${noches}</b> noches</span><span><b>${Math.round(noches/cap*100)}%</b> ocupación</span>`+(bd?`<span><b>${bd}</b> bloqueados</span>`:'');
-  }else{
-    document.getElementById('calkpi').innerHTML=`<span style="color:var(--faint)">Reservas visibles sólo en el mes del cierre</span>`+(bd?`<span><b>${bd}</b> bloqueados</span>`:'');
+  // KPIs del mes visible
+  const bd=blocks.reduce((a,b)=>{let n=0,x=b.start;while(x<=b.end){if(x.slice(0,7)===mesISO)n++;x=addDays(x,1);}return a+n;},0);
+  let nochesMes=0,estanciasMes=0;
+  if(usaReales){
+    reservas.forEach(r=>{if(r.tipo==='bloqueo_plataforma')return;let x=r.ci,t=0;
+      while(x<r.co){if(x.slice(0,7)===mesISO)t++;x=addDays(x,1);}
+      if(t>0){nochesMes+=t;estanciasMes++;}});
+  } else {
+    A.stays.forEach(s=>{let x=s.start,t=0;for(let i=0;i<s.n;i++){if(x.slice(0,7)===mesISO)t++;x=addDays(x,1);}
+      if(t>0){nochesMes+=t;estanciasMes++;}});
   }
-  document.getElementById('calsub').textContent=(view==='all'?'Tus '+A.names.length+' propiedades':D.depas[view].name)+' · puedes bloquear cualquier mes';
-  document.getElementById('legend').innerHTML=A.names.map(k=>`<span><span class="sw2" style="background:${D.depas[k].color}"></span>${D.depas[k].name}</span>`).join('')+(blocks.length?`<span><span class="sw2" style="border:1px dashed rgba(239,231,210,.5);background:repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(239,231,210,.3) 2px,rgba(239,231,210,.3) 4px)"></span>Bloqueado por ti · se cierra en las plataformas</span>`:'');
+  const cap=days*A.names.length;
+  document.getElementById('calkpi').innerHTML=
+    `<span><b>${estanciasMes}</b> ${estanciasMes===1?'estancia':'estancias'}</span>`+
+    `<span><b>${nochesMes}</b> noches</span>`+
+    `<span><b>${Math.round(nochesMes/cap*100)}%</b> ocupación</span>`+
+    (bd?`<span><b>${bd}</b> bloqueados</span>`:'');
+  document.getElementById('calsub').textContent=(view==='all'?'Tus '+A.names.length+' propiedades':D.depas[view].name)+(usaReales?' · todas las plataformas':' · Airbnb');
+  const leyenda=A.names.map(k=>`<span><span class="sw2" style="background:${D.depas[k].color}"></span>${D.depas[k].name}</span>`).join('');
+  const extras=(usaReales?`<span><span class="sw2" style="background:rgba(150,137,111,.5)"></span>No disponible</span>`:'')+
+    (blocks.length?`<span><span class="sw2" style="border:1px dashed rgba(239,231,210,.5);background:repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(239,231,210,.3) 2px,rgba(239,231,210,.3) 4px)"></span>Bloqueado por ti · se cierra en las plataformas</span>`:'');
+  document.getElementById('legend').innerHTML=leyenda+extras;
 }
 
 /* -------- sheets genéricos -------- */
