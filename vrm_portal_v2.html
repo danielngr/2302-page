@@ -8611,6 +8611,144 @@
 
     let nomOffset = (new Date().getDay() === 4) ? 0 : -1; // por defecto: la semana que se paga (cerró el jueves), igual que Dispersión y el .py
     function nomCambiarSemana(d, reset){ nomOffset = reset ? ((new Date().getDay() === 4) ? 0 : -1) : nomOffset + d; cargarNomina(); }
+    // ══════════════════════════════════════════════════════
+    // TARJETA TEMPORAL — una chica cobra en otra cuenta SOLO esta semana.
+    // Vive en nomina_cuenta_semana (staff_id + semana_inicio). No toca
+    // staff_limpieza, así que la tarjeta de siempre queda intacta.
+    // ══════════════════════════════════════════════════════
+    // Cacheado POR PERIODO: la nómina semanal y el panel quincenal usan
+    // fechas distintas y conviven en pantalla, así que no pueden compartir
+    // un solo diccionario o se pisan entre ellos.
+    let nomTarjPorPeriodo = {};  // { '2026-08-14': { staff_id: {...} } }
+    let nomTarjTabla = true;     // false si aún no corrieron el SQL de la tabla
+
+    async function nomCargarTarjetas(periodoISO){
+        nomTarjPorPeriodo[periodoISO] = {};
+        try{
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/nomina_cuenta_semana?semana_inicio=eq.${periodoISO}&select=staff_id,cuenta_bancaria,banco,nota`,
+                { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"} });
+            if(!r.ok){ nomTarjTabla = false; return; }
+            nomTarjTabla = true;
+            (await r.json()).forEach(t => { nomTarjPorPeriodo[periodoISO][String(t.staff_id)] = t; });
+        }catch(e){ nomTarjTabla = false; }
+    }
+
+    // Devuelve la cuenta que se debe usar en ese periodo: la temporal si
+    // existe, si no la de siempre. `temporal` marca cuál se aplicó.
+    function nomCuentaDe(s, periodoISO){
+        const fija   = s.cuenta_bancaria || s.cuenta || '';
+        const t      = (nomTarjPorPeriodo[periodoISO]||{})[String(s.id)];
+        if(t && t.cuenta_bancaria){
+            return { cuenta:t.cuenta_bancaria,
+                     banco: t.banco || (typeof dispGetBanco==='function' ? dispGetBanco(t.cuenta_bancaria) : '') || '',
+                     nota: t.nota || '', temporal:true, fija };
+        }
+        return { cuenta:fija,
+                 banco: s.banco || (typeof dispGetBanco==='function' ? dispGetBanco(fija) : '') || '',
+                 nota:'', temporal:false, fija };
+    }
+
+    function nomTarjetaModal(staffId, nombre, semanaISO){
+        if(!nomTarjTabla){
+            toast('⚠️ Falta correr el SQL de tarjeta temporal');
+            return;
+        }
+        const actual = (nomTarjPorPeriodo[semanaISO]||{})[String(staffId)] || null;
+        const wrap = document.createElement('div');
+        wrap.className = 'modal-overlay';
+        wrap.id = 'nom-tarj-modal';
+        wrap.style.zIndex = '600';
+        wrap.innerHTML = `
+          <div class="modal-box" style="max-width:440px">
+            <div class="modal-head">
+              <div>
+                <div style="font-family:var(--font-display);font-size:14px;font-weight:700">💳 Tarjeta solo esta semana</div>
+                <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-secondary);margin-top:3px">${nombre} · semana del ${semanaISO}</div>
+              </div>
+              <button class="btn btn-ghost" onclick="nomTarjetaCerrar()" style="padding:4px 8px"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="padding:20px">
+              <div style="font-size:11.5px;color:var(--text-tertiary);line-height:1.5;margin-bottom:14px">
+                Su tarjeta de siempre no se toca. Esta cuenta se usa únicamente
+                para la nómina y el Excel de <b>esta</b> semana.
+              </div>
+              <label style="font-size:10px;font-family:var(--font-mono);letter-spacing:.6px;color:var(--text-tertiary);text-transform:uppercase">Cuenta o CLABE</label>
+              <input id="nom-tarj-cuenta" inputmode="numeric" autocomplete="off"
+                     value="${actual ? actual.cuenta_bancaria : ''}"
+                     placeholder="16 dígitos (tarjeta) o 18 (CLABE)"
+                     style="width:100%;margin-top:6px;padding:12px 13px;border-radius:11px;border:1px solid var(--glass-border);background:rgba(255,255,255,.04);color:var(--text-primary);font-family:var(--font-mono);font-size:15px;letter-spacing:1px;outline:none">
+              <div id="nom-tarj-banco" style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);margin-top:7px;min-height:15px"></div>
+              <label style="display:block;margin-top:14px;font-size:10px;font-family:var(--font-mono);letter-spacing:.6px;color:var(--text-tertiary);text-transform:uppercase">Motivo (opcional)</label>
+              <input id="nom-tarj-nota" value="${actual ? (actual.nota||'').replace(/"/g,'&quot;') : ''}"
+                     placeholder="ej. le bloquearon su tarjeta"
+                     style="width:100%;margin-top:6px;padding:10px 13px;border-radius:11px;border:1px solid var(--glass-border);background:rgba(255,255,255,.04);color:var(--text-primary);font-size:13px;outline:none">
+              <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+                <button class="btn btn-primary" id="nom-tarj-guardar"
+                        onclick="nomTarjetaGuardar('${staffId}','${semanaISO}')" style="flex:1">Guardar</button>
+                ${actual ? `<button class="btn" onclick="nomTarjetaQuitar('${staffId}','${semanaISO}')"
+                        style="color:var(--status-red);border:1px solid rgba(230,57,70,.3);background:none">Quitar</button>` : ''}
+              </div>
+            </div>
+          </div>`;
+        document.body.appendChild(wrap);
+        const inp = document.getElementById('nom-tarj-cuenta');
+        const pinta = () => {
+            const v = inp.value.replace(/\D/g,'');
+            const b = (typeof dispGetBanco==='function') ? dispGetBanco(v) : '';
+            const el = document.getElementById('nom-tarj-banco');
+            if(!v){ el.textContent=''; el.style.color='var(--text-secondary)'; return; }
+            if(v.length!==16 && v.length!==18){
+                el.textContent = `${v.length} dígitos — debe ser 16 o 18`;
+                el.style.color = 'var(--status-red)';
+            } else {
+                el.textContent = b ? `✓ ${b}` : '✓ longitud correcta';
+                el.style.color = 'var(--status-green)';
+            }
+        };
+        inp.addEventListener('input', pinta); pinta(); inp.focus();
+    }
+    function nomTarjetaCerrar(){ const m=document.getElementById('nom-tarj-modal'); if(m) m.remove(); }
+
+    async function nomTarjetaGuardar(staffId, semanaISO){
+        const cuenta = (document.getElementById('nom-tarj-cuenta').value||'').replace(/\D/g,'');
+        const nota   = (document.getElementById('nom-tarj-nota').value||'').trim();
+        if(cuenta.length!==16 && cuenta.length!==18){
+            toast('⚠️ La cuenta debe tener 16 o 18 dígitos'); return;
+        }
+        const btn = document.getElementById('nom-tarj-guardar');
+        if(btn){ btn.disabled=true; btn.textContent='Guardando…'; }
+        const banco = (typeof dispGetBanco==='function' ? dispGetBanco(cuenta) : '') || '';
+        try{
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/nomina_cuenta_semana?on_conflict=staff_id,semana_inicio`, {
+                method:'POST',
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,
+                         "Content-Type":"application/json","Prefer":"resolution=merge-duplicates,return=minimal"},
+                body: JSON.stringify({ staff_id:staffId, semana_inicio:semanaISO,
+                                       cuenta_bancaria:cuenta, banco, nota: nota||null })
+            });
+            if(!r.ok) throw new Error('HTTP '+r.status);
+            toast('✓ Tarjeta de esta semana guardada');
+            nomTarjetaCerrar();
+            await nomCargarTarjetas(semanaISO);
+            cargarNomina(); if(typeof dispCargar==='function') dispCargar();
+        }catch(e){
+            toast('⚠️ '+(e.message||e));
+            if(btn){ btn.disabled=false; btn.textContent='Guardar'; }
+        }
+    }
+
+    async function nomTarjetaQuitar(staffId, semanaISO){
+        try{
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/nomina_cuenta_semana?staff_id=eq.${staffId}&semana_inicio=eq.${semanaISO}`,
+                { method:'DELETE', headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Prefer":"return=minimal"} });
+            if(!r.ok) throw new Error('HTTP '+r.status);
+            toast('✓ Vuelve a su tarjeta de siempre');
+            nomTarjetaCerrar();
+            await nomCargarTarjetas(semanaISO);
+            cargarNomina(); if(typeof dispCargar==='function') dispCargar();
+        }catch(e){ toast('⚠️ '+(e.message||e)); }
+    }
+
     async function cargarNomina() {
         const body = document.getElementById('nom-body');
 
@@ -8643,6 +8781,8 @@
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             })
         ]);
+
+        await nomCargarTarjetas(viernesISO);   // tarjetas temporales de esta semana
 
         const staff = await resStaff.json();
         const limpiezas = await resLimp.json();
@@ -8698,16 +8838,21 @@
                     <i class="ph ph-caret-down nom-chevron"></i>
                 </div>
                 <div class="nom-detail">
-                    <!-- Banco -->
-                    <div class="nom-bank">
+                    <!-- Banco (con tarjeta temporal si la hay) -->
+                    ${(() => { const c = nomCuentaDe(s, viernesISO); return `
+                    <div class="nom-bank"${c.temporal?' style="border-color:rgba(245,192,96,.45);background:rgba(245,192,96,.08)"':''}>
                         <div class="nom-bank-info">
-                            <span class="nom-bank-label">${s.banco||'Banco'}</span>
-                            <span class="nom-bank-val">${s.cuenta||'—'}</span>
+                            <span class="nom-bank-label">${c.banco||'Banco'}${c.temporal?' <span style="font-size:8.5px;background:rgba(245,192,96,.2);color:#f7d488;border:1px solid rgba(245,192,96,.4);border-radius:100px;padding:1px 6px;font-family:var(--font-mono);letter-spacing:.5px;margin-left:5px">SOLO ESTA SEMANA</span>':''}</span>
+                            <span class="nom-bank-val">${c.cuenta||'—'}</span>
+                            ${c.temporal?`<span style="display:block;font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:3px">de siempre: ${c.fija||'—'}${c.nota?' · '+c.nota:''}</span>`:''}
                         </div>
-                        <button class="btn btn-ghost" onclick="navigator.clipboard.writeText('${s.cuenta||''}');toast('✓ CLABE copiada')" style="padding:8px 12px">
+                        <button class="btn btn-ghost" onclick="nomTarjetaModal('${s.id}','${(s.nombre||'').replace(/'/g,'')}','${viernesISO}')" style="padding:8px 11px" title="Cambiar tarjeta solo esta semana">
+                            <i class="ph ph-credit-card"></i>
+                        </button>
+                        <button class="btn btn-ghost" onclick="navigator.clipboard.writeText('${c.cuenta||''}');toast('✓ CLABE copiada')" style="padding:8px 12px">
                             <i class="ph ph-copy"></i>
                         </button>
-                    </div>
+                    </div>`; })()}
                     <!-- Limpiezas -->
                     <div class="nom-limpiezas">${limpRows||'<div style="padding:8px 12px;font-size:12px;color:var(--text-tertiary)">Sin limpiezas terminadas</div>'}</div>
                     <!-- Ajustes -->
@@ -8853,6 +8998,7 @@
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             })
         ]);
+        await nomCargarTarjetas(q.inicioISO);   // tarjetas temporales de esta quincena
         const limp  = resLimp.ok  ? await resLimp.json()  : [];
         const cRows = resCifra.ok ? await resCifra.json() : [];
         const staff = resStaff.ok ? await resStaff.json() : [];
@@ -8877,8 +9023,9 @@
         // NO se suma nada entre ellas; cada quien cobra a su propia cuenta (así va al Excel/nómina).
         const filas = QUINCENAL_IDS.map(id => {
             const s = chicaDe[id] || {}; const nom = s.nombre || '—';
-            const cuenta = s.cuenta_bancaria || '—';
-            const banco  = s.banco || (typeof dispGetBanco==='function' ? dispGetBanco(s.cuenta_bancaria||'') : '') || '—';
+            const _c     = nomCuentaDe(s, q.inicioISO);   // tarjeta temporal de la quincena si la hay
+            const cuenta = _c.cuenta || '—';
+            const banco  = (_c.banco || '—') + (_c.temporal ? ' · SOLO ESTA QUINCENA' : '');
             const p = porChica[id];
             const neto  = cifraPos ? (p.total - cifra) : p.total;
             const pagar = Math.max(0, neto);
@@ -8998,6 +9145,7 @@
             const cifra = cRows.length ? (parseFloat(cRows[0].monto)||0) : 0;
             if(!cifra){ toast('⚠️ Captura primero la cifra del contrato de esta quincena'); return; }
 
+            await nomCargarTarjetas(q.inicioISO);   // tarjeta temporal de esta quincena
             const chicaDe = {}; staff.forEach(s => chicaDe[s.id] = s);
             const porChica = {}; QUINCENAL_IDS.forEach(id => porChica[id]=0);
             limp.forEach(l => { if(porChica[l.staff_id]!==undefined) porChica[l.staff_id]+=parseFloat(l.tarifa_aplicada)||0; });
@@ -9006,9 +9154,10 @@
             const personas = QUINCENAL_IDS.map(id => {
                 const s = chicaDe[id] || {};
                 const neto = (porChica[id]||0) - cifra;
+                const _c = nomCuentaDe(s, q.inicioISO);   // tarjeta temporal de la quincena si la hay
                 return {
-                    cuenta: s.cuenta_bancaria || '',
-                    banco:  s.banco || (typeof dispGetBanco==='function' ? dispGetBanco(s.cuenta_bancaria||'') : '') || '',
+                    cuenta: _c.cuenta,
+                    banco:  _c.banco,
                     nombre_completo: s.nombre_completo || s.nombre || '',
                     monto: Math.max(0, neto)
                 };
@@ -12610,6 +12759,8 @@ function updateNotifBadge(){
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             })
         ]);
+        await nomCargarTarjetas(sem.viernesISO);   // tarjetas temporales de esta semana
+
         const staff    = await resStaff.json();
         const limpiezas = await resLimp.json();
         const ajustes   = await resAjustes.json();
@@ -12637,12 +12788,14 @@ function updateNotifBadge(){
             // Fijos = monto fijo + sus ajustes (bonos/descuentos); variables = base (limpiezas + ajustes)
             const montoFinal = s.es_fijo ? ((parseFloat(s.monto_fijo) || 0) + (ajustesPorStaff[s.id] || 0)) : base;
             if(montoFinal > 0) {   // igual que el .py: omite si <= 0 (incluye fijos sin monto)
+                const _c = nomCuentaDe(s, sem.viernesISO);   // tarjeta temporal de la semana si la hay
                 dispPersonas.push({
                     id: s.id,
                     apodo: s.nombre,
                     nombre_completo: s.nombre_completo || s.nombre,
-                    cuenta: s.cuenta_bancaria || '',
-                    banco: s.banco || dispGetBanco(s.cuenta_bancaria||''),
+                    cuenta: _c.cuenta,
+                    banco: _c.banco,
+                    tarjeta_temporal: _c.temporal,
                     monto: montoFinal,
                     es_fijo: s.es_fijo || false,
                     es_extra: false
