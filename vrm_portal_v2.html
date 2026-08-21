@@ -8987,7 +8987,7 @@
         const pg  = document.getElementById('quin-pago');  if(pg)  pg.textContent = `· se paga ${q.payLabel}`;
 
         const idsIn = `(${QUINCENAL_IDS.join(',')})`;
-        const [resLimp, resCifra, resStaff] = await Promise.all([
+        const [resLimp, resCifra, resStaff, resAjus] = await Promise.all([
             fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.finISO}&select=staff_id,depto_codigo,fecha,tarifa_aplicada&order=fecha.asc`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
             }),
@@ -8996,12 +8996,17 @@
             }),
             fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?id=in.${idsIn}&select=id,nombre,nombre_completo,cuenta_bancaria,banco`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            }),
+            // Ajustes (bonos/descuentos) de la quincena — mismo criterio que la nómina semanal
+            fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=in.(pendiente,pagado)&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.finISO}&select=staff_id,monto,motivo,fecha`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             })
         ]);
         await nomCargarTarjetas(q.inicioISO);   // tarjetas temporales de esta quincena
         const limp  = resLimp.ok  ? await resLimp.json()  : [];
         const cRows = resCifra.ok ? await resCifra.json() : [];
         const staff = resStaff.ok ? await resStaff.json() : [];
+        const ajustes = resAjus && resAjus.ok ? await resAjus.json() : [];
         const cifra = cRows.length ? (parseFloat(cRows[0].monto)||0) : 0;
 
         const inp = document.getElementById('quin-cifra');
@@ -9015,8 +9020,10 @@
         const arrastre = limp.filter(l => l.fecha >  q.payEffISO);
 
         const porChica = {};
-        QUINCENAL_IDS.forEach(id => porChica[id] = { total:0, n:0, limps:[] });
+        QUINCENAL_IDS.forEach(id => porChica[id] = { total:0, n:0, limps:[], ajuste:0, ajustes:[] });
         aPagar.forEach(l => { const p = porChica[l.staff_id]; if(p){ p.total += parseFloat(l.tarifa_aplicada)||0; p.n++; p.limps.push(l); } });
+        // Los ajustes se suman al neto igual que en la nómina semanal
+        ajustes.forEach(a => { const p = porChica[a.staff_id]; if(p){ p.ajuste += parseFloat(a.monto)||0; p.ajustes.push(a); } });
         const cifraPos = cifra > 0;
 
         // Cada chica es una CUENTA SEPARADA: su efectivo = sus limpiezas − su contrato ($cifra).
@@ -9027,11 +9034,17 @@
             const cuenta = _c.cuenta || '—';
             const banco  = (_c.banco || '—') + (_c.temporal ? ' · SOLO ESTA QUINCENA' : '');
             const p = porChica[id];
-            const neto  = cifraPos ? (p.total - cifra) : p.total;
+            const neto  = (cifraPos ? (p.total - cifra) : p.total) + p.ajuste;
             const pagar = Math.max(0, neto);
             const bajo  = cifraPos && neto < 0; // sus limpiezas no llegan al contrato
             const netoColor = !cifraPos ? 'var(--text-tertiary)' : (pagar > 0 ? 'var(--status-green)' : 'var(--text-tertiary)');
             const netoTxt = `$${(cifraPos?pagar:p.total).toLocaleString('es-MX',{minimumFractionDigits:2})}`;
+            const ajusRows = p.ajustes.map(a => {
+                const m = parseFloat(a.monto)||0;
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 20px 6px 44px;font-size:11px;font-family:var(--font-mono);border-bottom:1px solid rgba(255,255,255,.03);color:${m<0?'var(--status-red)':'var(--status-green)'}">
+                        <span>${a.motivo||'Ajuste'} · ${a.fecha}</span>
+                        <span>${m<0?'−':'+'}$${Math.abs(m).toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
+                    </div>`; }).join('');
             const detRows = p.limps.length
                 ? p.limps.map(l => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 20px 6px 44px;font-size:11px;font-family:var(--font-mono);color:var(--text-secondary);border-bottom:1px solid rgba(255,255,255,.03)">
                         <span>${l.depto_codigo||'—'} · ${l.fecha}</span>
@@ -9045,7 +9058,7 @@
                         <div style="min-width:0">
                             <div style="font-size:13px;font-weight:600">${nom}</div>
                             <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-secondary);margin-top:2px">${cuenta} · ${banco}</div>
-                            <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:1px">limpiezas $${p.total.toLocaleString('es-MX',{minimumFractionDigits:2})} · ${p.n} limp.${cifraPos ? ' − contrato $'+cifra.toLocaleString('es-MX',{minimumFractionDigits:2}) : ' · <span style=\"color:var(--status-red)\">falta contrato</span>'}${bajo?' · cubierto por contrato':''}</div>
+                            <div style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:1px">limpiezas $${p.total.toLocaleString('es-MX',{minimumFractionDigits:2})} · ${p.n} limp.${cifraPos ? ' − contrato $'+cifra.toLocaleString('es-MX',{minimumFractionDigits:2}) : ' · <span style=\"color:var(--status-red)\">falta contrato</span>'}${p.ajuste ? ` · <span style="color:${p.ajuste<0?'var(--status-red)':'var(--status-green)'}">${p.ajuste<0?'−':'+'}$${Math.abs(p.ajuste).toLocaleString('es-MX',{minimumFractionDigits:2})} ajuste${p.ajustes.length!==1?'s':''}</span>` : ''}${bajo?' · cubierto por contrato':''}</div>
                         </div>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px">
@@ -9053,7 +9066,7 @@
                         <button class="btn btn-ghost" onclick="event.stopPropagation();navigator.clipboard.writeText('${cuenta}');toast('✓ Cuenta de ${nom} copiada')" style="padding:6px 9px" title="Copiar cuenta"><i class="ph ph-copy"></i></button>
                     </div>
                 </div>
-                <div id="quin-det-${id}" style="display:none;background:rgba(0,0,0,.15)">${detRows}</div>
+                <div id="quin-det-${id}" style="display:none;background:rgba(0,0,0,.15)">${detRows}${ajusRows}</div>
             </div>`;
         }).join('');
 
@@ -9103,6 +9116,13 @@
         const porChica = {}; QUINCENAL_IDS.forEach(id => porChica[id]=0);
         limp.forEach(l => { if(porChica[l.staff_id]!==undefined) porChica[l.staff_id]+=parseFloat(l.tarifa_aplicada)||0; });
         const totalLimp = Object.values(porChica).reduce((a,v)=>a+v,0);
+        // Ajustes de la quincena (bonos/descuentos), igual que en la nómina semanal
+        const resA = await fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=in.(pendiente,pagado)&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.payEffISO}&select=staff_id,monto`, {
+            headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+        });
+        const ajusL = resA.ok ? await resA.json() : [];
+        const ajusDeL = {}; ajusL.forEach(a => { ajusDeL[a.staff_id] = (ajusDeL[a.staff_id]||0) + (parseFloat(a.monto)||0); });
+        const totalAjus = Object.values(ajusDeL).reduce((a,v)=>a+v,0);
 
         const resC = await fetch(`${SUPABASE_URL}/rest/v1/nomina_contrato_quincenal?periodo=eq.${q.key}&select=monto`, {
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
@@ -9111,8 +9131,9 @@
         const cifra = cRows.length ? (parseFloat(cRows[0].monto)||0) : 0;
         if(!cifra){ if(!confirm('⚠️ No has capturado el contrato de esta quincena.\n\n¿Liquidar de todos modos? El efectivo se calcularía SIN descuento.')) return; }
         // Efectivo = suma de (limpiezas de cada chica − contrato), sin bajar de 0
-        const totalPagar = QUINCENAL_IDS.reduce((a,id)=> a + Math.max(0, (cifra ? porChica[id]-cifra : porChica[id])), 0);
-        if(!confirm(`¿Liquidar quincena ${q.label}?\n\nLimpiezas de las 4: $${totalLimp.toLocaleString('es-MX',{minimumFractionDigits:2})}\n− Contrato $${cifra.toLocaleString('es-MX',{minimumFractionDigits:2})} a CADA una (×${QUINCENAL_IDS.length})\n= Total a pagar en efectivo: $${totalPagar.toLocaleString('es-MX',{minimumFractionDigits:2})}\n\nSe marcarán como PAGADAS las ${limp.length} limpieza(s) hasta el día de pago. Lo del finde (si aplica) se queda para la siguiente quincena.`)) return;
+        const totalPagar = QUINCENAL_IDS.reduce((a,id)=> a + Math.max(0, (cifra ? porChica[id]-cifra : porChica[id]) + (ajusDeL[id]||0)), 0);
+        const lineaAjus = totalAjus ? `\n${totalAjus<0?'−':'+'} Ajustes: $${Math.abs(totalAjus).toLocaleString('es-MX',{minimumFractionDigits:2})}` : '';
+        if(!confirm(`¿Liquidar quincena ${q.label}?\n\nLimpiezas de las 4: $${totalLimp.toLocaleString('es-MX',{minimumFractionDigits:2})}\n− Contrato $${cifra.toLocaleString('es-MX',{minimumFractionDigits:2})} a CADA una (×${QUINCENAL_IDS.length})${lineaAjus}\n= Total a pagar en efectivo: $${totalPagar.toLocaleString('es-MX',{minimumFractionDigits:2})}\n\nSe marcarán como PAGADAS las ${limp.length} limpieza(s) hasta el día de pago. Lo del finde (si aplica) se queda para la siguiente quincena.`)) return;
 
         toast('⏳ Liquidando quincena…');
         const patch = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.payEffISO}`, {
@@ -9134,10 +9155,11 @@
         toast('⏳ Generando Excel de las 4...');
         try {
             const H = {"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`};
-            const [rL, rC, rS] = await Promise.all([
+            const [rL, rC, rS, rA] = await Promise.all([
                 fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.payEffISO}&select=staff_id,tarifa_aplicada`, {headers:H}),
                 fetch(`${SUPABASE_URL}/rest/v1/nomina_contrato_quincenal?periodo=eq.${q.key}&select=monto`, {headers:H}),
-                fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?id=in.${idsIn}&select=id,nombre,nombre_completo,cuenta_bancaria,banco`, {headers:H})
+                fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?id=in.${idsIn}&select=id,nombre,nombre_completo,cuenta_bancaria,banco`, {headers:H}),
+                fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=in.(pendiente,pagado)&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.payEffISO}&select=staff_id,monto`, {headers:H})
             ]);
             const limp  = rL.ok ? await rL.json() : [];
             const cRows = rC.ok ? await rC.json() : [];
@@ -9147,13 +9169,15 @@
 
             await nomCargarTarjetas(q.inicioISO);   // tarjeta temporal de esta quincena
             const chicaDe = {}; staff.forEach(s => chicaDe[s.id] = s);
+            const ajus = rA && rA.ok ? await rA.json() : [];
             const porChica = {}; QUINCENAL_IDS.forEach(id => porChica[id]=0);
             limp.forEach(l => { if(porChica[l.staff_id]!==undefined) porChica[l.staff_id]+=parseFloat(l.tarifa_aplicada)||0; });
+            const ajusDe = {}; ajus.forEach(a => { ajusDe[a.staff_id] = (ajusDe[a.staff_id]||0) + (parseFloat(a.monto)||0); });
 
             // Una fila por chica con neto > 0 (las cubiertas por contrato no llevan transferencia)
             const personas = QUINCENAL_IDS.map(id => {
                 const s = chicaDe[id] || {};
-                const neto = (porChica[id]||0) - cifra;
+                const neto = (porChica[id]||0) - cifra + (ajusDe[id]||0);
                 const _c = nomCuentaDe(s, q.inicioISO);   // tarjeta temporal de la quincena si la hay
                 return {
                     cuenta: _c.cuenta,
