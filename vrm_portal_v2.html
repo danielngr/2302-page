@@ -3950,8 +3950,64 @@
 
     <!-- ══ LÓGICA APP ══ -->
     <script>
-    const SUPABASE_URL = "https://grsykedeppdwenpfxlfh.supabase.co";
+    // ══════════════════════════════════════════════════════
+    // A QUÉ SERVIDOR LE PEDIMOS LOS DATOS
+    //
+    // grsykedeppdwenpfxlfh.supabase.co NO publica IPv6, y las redes
+    // móviles prefieren IPv6. Por eso el portal abría pero se quedaba
+    // cargando para siempre con datos celulares: el HTML llegaba desde
+    // GitHub Pages, los datos nunca.
+    //
+    // api.vrmstays.com es un proxy en Cloudflare (dual-stack) que sí se
+    // alcanza desde cualquier red. El portal lo prueba una vez al abrir
+    // y se queda con el que responda, así que funciona con o sin proxy
+    // y se recupera solo si el proxy algún día se cae.
+    // ══════════════════════════════════════════════════════
+    const SUPABASE_DIRECTO = "https://grsykedeppdwenpfxlfh.supabase.co";
+    const SUPABASE_PROXY   = "https://api.vrmstays.com";
+    let   SUPABASE_URL     = SUPABASE_DIRECTO;   // se ajusta en vrmElegirBase()
+
+    async function vrmPing(base, ms){
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), ms);
+        try{
+            // /rest/v1/ sin llave responde un JSON de error: con eso basta
+            // para saber que la ruta de red existe.
+            const r = await fetch(`${base}/rest/v1/`, {
+                method:'GET', signal:ctrl.signal, cache:'no-store'
+            });
+            return r.status > 0;   // cualquier respuesta sirve: la ruta de red existe
+        }catch(e){
+            console.warn('[VRM] no responde ' + base + ': ' + (e && e.message));
+            return false;
+        }
+        finally{ clearTimeout(t); }
+    }
+
+    async function vrmElegirBase(){
+        // Lo que funcionó la última vez, para no esperar en cada carga
+        try{
+            const guardado = localStorage.getItem('vrm_base');
+            if(guardado === SUPABASE_PROXY || guardado === SUPABASE_DIRECTO) SUPABASE_URL = guardado;
+        }catch(e){}
+        // Probamos los dos a la vez y nos quedamos con el proxy si vive
+        const [okProxy, okDirecto] = await Promise.all([
+            vrmPing(SUPABASE_PROXY, 4000),
+            vrmPing(SUPABASE_DIRECTO, 4000)
+        ]);
+        const elegido = okProxy ? SUPABASE_PROXY : (okDirecto ? SUPABASE_DIRECTO : SUPABASE_URL);
+        SUPABASE_URL = elegido;
+        try{ localStorage.setItem('vrm_base', elegido); }catch(e){}
+        window.__vrmBase = { elegido, okProxy, okDirecto };
+        if(!okProxy && !okDirecto) console.warn('[VRM] No se alcanza ninguna base de datos');
+        return elegido;
+    }
+
     const SUPABASE_KEY = "sb_publishable_H5I7SXxD2jqFbrgr4En6Cg_9lPzisnm";
+
+    // Arranca la elección de servidor. Va DESPUÉS de SUPABASE_KEY a propósito:
+    // antes quedaba en zona muerta y el ping fallaba en silencio.
+    const vrmBaseLista = vrmElegirBase();
     const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbPcCF6EoM93GIga20ntKOsuys9KLp4gkG2czTR4qyy_nASRil8qURTuceB_Rw5PEMR_us7EpQNADX/pub?gid=220927923&single=true&output=csv";
     const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
     // ── Nómina QUINCENAL (contrato): Marichuy, Ana, Lola, Rebe ──
@@ -4227,6 +4283,7 @@
 
     // ── Cargar Supabase ─────────────────────────────────────────
     async function cargarRegistros() {
+        await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         try {
             const fields = 'id,depto,nombre,fecha_entrada,fecha_salida,num_adultos,num_menores,pdf_generado,tipo_formato,template,ocupantes,telefono,email,num_mascotas,vehiculo_modelo,vehiculo_placas,created_at'; // foto_id/firma se cargan bajo demanda (traerFotoFirma) — eran ~7MB en la lista
             // Solo últimos 60 días en carga inicial — mucho más rápido
@@ -7199,6 +7256,7 @@
     }
 
     async function cargarCierreMensual() {
+        await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         const mes = cmGetMes(cmMesOffset);
         document.getElementById('cm-mes-label').textContent = mes.label;
         document.getElementById('cm-periodo').textContent = `Limpiezas registradas en ${mes.label}`;
@@ -7416,6 +7474,7 @@
     function hk2H(json){ const h={"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}; if(json){h["Content-Type"]="application/json";h["Prefer"]="return=minimal";} return h; }
 
     async function hk2Cargar(){
+        await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         const cont=document.getElementById('hk2-rows'); if(!cont) return;
         const hoyReal=hk2MX();
         const hoy=hk2AddD(hoyReal,hk2Ini);   // inicio de la ventana visible (puede ser pasado)
@@ -8114,6 +8173,7 @@
     //   r[0]=fecha(D/M/YYYY), r[2]=entrada, r[3]=salida, r[5]=checkinISO, r[6]=checkoutISO, r[8]=origen, r[9]=codAirbnb, r[10]=huésped
     // Así calcularStatsHoy() y renderTodo() siguen funcionando sin cambios.
     async function cargarEntradas() {
+        await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         try {
             // Ventana: desde ayer hasta +6 días (cubre HOY/AYER/MAÑANA/+4DÍAS)
             const hoyMX = new Date(new Date().toLocaleString("en-US",{timeZone:"America/Mexico_City"}));
@@ -8217,6 +8277,7 @@
     // CONTROL DE REGISTROS (reconciliación últimos 7 días)
     // ══════════════════════════════════════════════════════
     async function cargarReconciliacion() {
+        await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         const desde = getMXISO(-6);   // hoy y 6 días atrás = 7 días
         const hasta = getMXISO(0);
         const lblRango = document.getElementById('rec-rango');
@@ -8323,6 +8384,7 @@
     }
 
     async function cargarHousekeeping() {
+        await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         // HK v1 fue reemplazado por el planeador hk2; si algo viejo llama aquí, redirigir.
         if(!document.getElementById('hk-fecha-label')) return hk2Cargar();
         document.getElementById('hk-fecha-label').textContent = hkFechaLabel(hkFecha);
@@ -8847,6 +8909,7 @@
     }
 
     async function cargarNomina() {
+        await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         const body = document.getElementById('nom-body');
 
         // Periodo: semana navegable (viernes→jueves) según nomOffset
@@ -9107,6 +9170,7 @@
     }
 
     async function cargarQuincenal(){
+        await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         const body = document.getElementById('quin-body');
         if(!body) return;
         const q = quincenaPorOffset(quinOffset);
@@ -9556,6 +9620,7 @@
     }
 
     async function cargarHistorico() {
+        await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         const body = document.getElementById('hist-body');
         body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando...</div>`;
 
@@ -9736,6 +9801,7 @@
 
     // Cargar limpiezas para cruzar con reviews
     async function cargarLimpiezasRV() {
+        await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         if(limpiezasRV.length > 0) return; // ya cargadas
         try {
             // Paginación — Supabase devuelve máx 1000 por request
@@ -12566,6 +12632,7 @@ function updateNotifBadge(){
     }
 
     async function cargarRankingReviews() {
+        await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         const container = document.getElementById('ls-ranking-list');
         if(!container) return;
         container.innerHTML = '<div style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:11px;text-align:center;padding:20px">Calculando...</div>';
@@ -12645,6 +12712,7 @@ function updateNotifBadge(){
 
     
     async function cargarLimpiezaStats() {
+        await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
         const DIAS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
 
@@ -12861,6 +12929,7 @@ function updateNotifBadge(){
     function dispNext() { if(dispSemanaOffset < 0) dispNavegar(1); }
 
     async function dispCargar() {
+        await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         dispPersonas = []; // limpiar antes de cargar
         dispRender();      // mostrar vacío mientras carga
         const myOffset = dispSemanaOffset;
