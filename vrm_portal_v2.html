@@ -3964,7 +3964,13 @@
     // y se recupera solo si el proxy algún día se cae.
     // ══════════════════════════════════════════════════════
     const SUPABASE_DIRECTO = "https://grsykedeppdwenpfxlfh.supabase.co";
-    const SUPABASE_PROXY   = "https://api.vrmstays.com";
+    // Candidatos de proxy, en orden de preferencia. workers.dev ya es
+    // dual-stack, así que funciona sin necesidad de dominio propio;
+    // api.vrmstays.com queda listo por si algún día se configura.
+    const SUPABASE_PROXIES = [
+        "https://api.vrmstays.com",
+        "https://vrm-api.daniel-ngr-rz.workers.dev"
+    ];
     let   SUPABASE_URL     = SUPABASE_DIRECTO;   // se ajusta en vrmElegirBase()
 
     async function vrmPing(base, ms){
@@ -3985,21 +3991,22 @@
     }
 
     async function vrmElegirBase(){
+        const candidatos = SUPABASE_PROXIES.concat([SUPABASE_DIRECTO]);
         // Lo que funcionó la última vez, para no esperar en cada carga
         try{
             const guardado = localStorage.getItem('vrm_base');
-            if(guardado === SUPABASE_PROXY || guardado === SUPABASE_DIRECTO) SUPABASE_URL = guardado;
+            if(candidatos.includes(guardado)) SUPABASE_URL = guardado;
         }catch(e){}
-        // Probamos los dos a la vez y nos quedamos con el proxy si vive
-        const [okProxy, okDirecto] = await Promise.all([
-            vrmPing(SUPABASE_PROXY, 4000),
-            vrmPing(SUPABASE_DIRECTO, 4000)
-        ]);
-        const elegido = okProxy ? SUPABASE_PROXY : (okDirecto ? SUPABASE_DIRECTO : SUPABASE_URL);
+        // Probamos todos a la vez y nos quedamos con el primero que viva.
+        // Los proxies van antes que Supabase directo porque son los únicos
+        // que se alcanzan desde datos móviles (Supabase no publica IPv6).
+        const vivos = await Promise.all(candidatos.map(b => vrmPing(b, 4000)));
+        const i = vivos.findIndex(Boolean);
+        const elegido = i >= 0 ? candidatos[i] : SUPABASE_URL;
         SUPABASE_URL = elegido;
         try{ localStorage.setItem('vrm_base', elegido); }catch(e){}
-        window.__vrmBase = { elegido, okProxy, okDirecto };
-        if(!okProxy && !okDirecto) console.warn('[VRM] No se alcanza ninguna base de datos');
+        window.__vrmBase = { elegido, vivos: candidatos.filter((b,n) => vivos[n]) };
+        if(i < 0) console.warn('[VRM] No se alcanza ninguna base de datos');
         return elegido;
     }
 
