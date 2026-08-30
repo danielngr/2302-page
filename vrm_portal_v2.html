@@ -375,6 +375,35 @@
         .list-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
 
         /* Separador fecha */
+        /* ── Bloque "aparecieron hace poco" ─────────────────────── */
+        .nv-box{ margin:14px 18px 6px; border:1px solid rgba(224,122,62,.38);
+                 border-radius:14px; background:rgba(224,122,62,.06); overflow:hidden; }
+        .nv-head{ display:flex; align-items:center; gap:8px; padding:11px 15px 0; }
+        .nv-dot{ width:7px; height:7px; border-radius:50%; background:var(--accent-terracota);
+                 box-shadow:0 0 8px var(--accent-glow); flex-shrink:0; }
+        .nv-title{ font-family:var(--font-mono); font-size:10px; letter-spacing:.14em;
+                   text-transform:uppercase; color:var(--accent-terracota); font-weight:700; }
+        .nv-count{ margin-left:auto; font-family:var(--font-mono); font-size:10px;
+                   letter-spacing:.06em; color:var(--text-tertiary); white-space:nowrap; }
+        .nv-sub{ padding:4px 15px 10px; font-size:11px; color:var(--text-tertiary); line-height:1.4; }
+        .nv-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+                  border-top:1px solid rgba(224,122,62,.20); }
+        .nv-row{ display:grid; grid-template-columns:18px 1fr auto auto; align-items:center;
+                 gap:9px; padding:8px 15px; border-bottom:1px solid rgba(255,255,255,.045); }
+        .nv-grid .nv-row:nth-last-child(-n+1){ border-bottom:none; }
+        .nv-ic{ font-size:12px; line-height:1; text-align:center; }
+        .nv-dep{ font-family:var(--font-mono); font-size:12px; color:var(--text-primary);
+                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .nv-tag{ font-family:var(--font-mono); font-size:8.5px; letter-spacing:.1em;
+                 padding:2px 6px; border-radius:5px; background:rgba(255,255,255,.07);
+                 color:var(--text-tertiary); }
+        .nv-fec{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-tertiary);
+                 white-space:nowrap; min-width:46px; text-align:right; }
+        @media (max-width:700px){
+            .nv-box{ margin:12px 10px 6px; }
+            .nv-grid{ grid-template-columns:1fr; }
+            .nv-row{ padding:8px 12px; }
+        }
         .date-sep {
             padding: 8px 32px 4px;
             font-size: 10px; font-family: var(--font-mono); color: var(--text-tertiary);
@@ -4998,7 +5027,7 @@
                 const _verboSR = (tipo==='gforms'||tipo==='frakcio') ? 'enviado' : 'generado';
                 const _kebabSR = `<button class="kebab-btn kebab-sr" title="Marcar como ${_verboSR} manualmente" onclick="event.stopPropagation();openRowMenuSR(event,'${(depto||'').replace(/'/g,'')}','${fiso}','${_coISO}','${tipo}','${_verboSR}')">\u22EE</button>`;
                 const _hrsNueva = _esNueva((row[7]||'').trim());
-                if(_hrsNueva) nuevas.push({dep:displayDepto(depto), dia:fs, hrs:_hrsNueva, blk:_o==='Bloqueo'});
+                if(_hrsNueva) nuevas.push({dep:displayDepto(depto), dia:fs, iso:fiso, hrs:_hrsNueva, blk:_o==='Bloqueo'});
                 const deptoDisp=displayDepto(depto)+_origenBadge(_o)+_nuevaBadge((row[7]||'').trim())+_chatBtnHTML(_o,_c)+_kebabSR; // nombre + origen + chat + marcar-manual
 
                 if(getComunidadProperty(depto)){
@@ -5228,17 +5257,31 @@
         if(nuevas.length){
             const uniq = [];
             nuevas.forEach(n => { if(!uniq.some(u=>u.dep===n.dep&&u.dia===n.dia)) uniq.push(n); });
-            const chips = uniq.map(n =>
-                `<span style="display:inline-block;background:rgba(0,0,0,.22);border-radius:8px;padding:3px 9px;margin:3px 5px 0 0;font-family:var(--font-mono);font-size:11px">${n.blk?'🔒 ':''}${n.dep} <span style="opacity:.6">· ${n.dia}</span></span>`
-            ).join('');
-            html = `<div style="margin:14px 18px 4px;padding:12px 14px;border-radius:12px;border:1px solid rgba(224,122,62,.45);background:rgba(224,122,62,.10)">
-                <div style="font-family:var(--font-display);font-size:12.5px;font-weight:700;color:var(--accent-terracota)">
-                  ⚡ ${uniq.length} ${uniq.length===1?'entrada apareció':'entradas aparecieron'} en las últimas ${REG_NUEVA_HORAS} h
+            // Bloqueos primero (son los que nadie registró), luego por fecha y nombre.
+            uniq.sort((a,b) => (b.blk-a.blk) || a.iso.localeCompare(b.iso) || a.dep.localeCompare(b.dep,'es'));
+            const fechaCorta = iso => {
+                const [y,m,d] = iso.split('-').map(Number);
+                return `${d} ${MESES_L[m-1]}`;
+            };
+            const filasN = uniq.map(n => `
+                <div class="nv-row">
+                  <span class="nv-ic">${n.blk?'🔒':'🧳'}</span>
+                  <span class="nv-dep">${n.dep}</span>
+                  <span class="nv-tag">${n.blk?'BLOQUEO':'RESERVA'}</span>
+                  <span class="nv-fec">${fechaCorta(n.iso)}</span>
+                </div>`).join('');
+            const nBlk = uniq.filter(n=>n.blk).length;
+            const resumen = nBlk===uniq.length ? `${nBlk} bloqueo${nBlk>1?'s':''}`
+                          : nBlk===0           ? `${uniq.length} reserva${uniq.length>1?'s':''}`
+                          : `${nBlk} bloqueo${nBlk>1?'s':''} · ${uniq.length-nBlk} reserva${uniq.length-nBlk>1?'s':''}`;
+            html = `<div class="nv-box">
+                <div class="nv-head">
+                  <span class="nv-dot"></span>
+                  <span class="nv-title">Aparecieron en las últimas ${REG_NUEVA_HORAS} h</span>
+                  <span class="nv-count">${resumen}</span>
                 </div>
-                <div style="font-size:11px;color:var(--text-tertiary);margin-top:3px;line-height:1.45">
-                  No estaban en el portal antes. Revisa que tengan su registro.
-                </div>
-                <div style="margin-top:6px">${chips}</div>
+                <div class="nv-sub">No estaban en el portal antes. Revisa que tengan su registro.</div>
+                <div class="nv-grid">${filasN}</div>
               </div>` + html;
         }
 
@@ -8248,7 +8291,7 @@
             const desdeISO = iso(desde), hastaISO = iso(hasta);
 
             // Traer reservas cuyo check_in O check_out caiga en la ventana
-            const url = `${SUPABASE_URL}/rest/v1/bookings?select=unit_id,check_in,check_out,source,notes,codigo_reserva,status,created_at`
+            const url = `${SUPABASE_URL}/rest/v1/bookings?select=unit_id,check_in,check_out,source,notes,codigo_reserva,status,created_at,guest_name,guest_phone`
                 + `&or=(and(check_in.gte.${desdeISO},check_in.lte.${hastaISO}),and(check_out.gte.${desdeISO},check_out.lte.${hastaISO}))`
                 + `&limit=2000`;   // sin filtro de status: se filtra abajo, en el cliente
             const _ctrl = new AbortController();
@@ -8300,12 +8343,16 @@
                 // (cuando la fila entro por primera vez a la base) para poder
                 // marcar en la lista lo que aparecio tarde.
                 const nac = b.created_at || "";
+                // El iCal de Airbnb NUNCA trae nombre de huesped en un bloqueo
+                // (solo 'Airbnb (Not available)'). Cuando el dato existe es
+                // porque alguien lo capturo a mano; aqui se muestra.
+                const hsp = (b.guest_name || "").trim();
                 if(b.check_in && b.check_in>=desdeISO && b.check_in<=hastaISO){
-                    filas.push([fmtDMY(b.check_in),"",depto,"","",b.check_in,b.check_out,nac,origen,cod,""]);
+                    filas.push([fmtDMY(b.check_in),"",depto,"","",b.check_in,b.check_out,nac,origen,cod,hsp]);
                 }
                 // CHECK-OUT
                 if(b.check_out && b.check_out>=desdeISO && b.check_out<=hastaISO){
-                    filas.push([fmtDMY(b.check_out),"","",depto,"",b.check_in,b.check_out,nac,origen,cod,""]);
+                    filas.push([fmtDMY(b.check_out),"","",depto,"",b.check_in,b.check_out,nac,origen,cod,hsp]);
                 }
             }
             window._sheetRows = filas;
@@ -8394,6 +8441,24 @@
                   style="flex:1;padding:10px;border-radius:11px;border:1px solid var(--accent-terracota);background:rgba(224,122,62,.12);color:var(--accent-terracota);font-size:12.5px;font-weight:600;cursor:pointer">🔒 Bloqueo</button>
                 <button type="button" class="reg-man-tipo" data-tipo="reserva" onclick="regManTipo(this)"
                   style="flex:1;padding:10px;border-radius:11px;border:1px solid var(--glass-border);background:none;color:var(--text-secondary);font-size:12.5px;font-weight:600;cursor:pointer">🧳 Reserva</button>
+              </div>
+
+              <div style="display:flex;gap:10px;margin-top:14px">
+                <div style="flex:1.4">
+                  <label style="font-size:10px;font-family:var(--font-mono);letter-spacing:.6px;color:var(--text-tertiary);text-transform:uppercase">Huésped (opcional)</label>
+                  <input id="reg-man-hsp" placeholder="ej. German Zulueta" autocomplete="off"
+                    style="width:100%;margin-top:6px;padding:11px 12px;border-radius:11px;border:1px solid var(--glass-border);background:rgba(255,255,255,.04);color:var(--text-primary);font-size:13px;outline:none">
+                </div>
+                <div style="flex:1">
+                  <label style="font-size:10px;font-family:var(--font-mono);letter-spacing:.6px;color:var(--text-tertiary);text-transform:uppercase">Teléfono</label>
+                  <input id="reg-man-tel" inputmode="tel" placeholder="3333999722" autocomplete="off"
+                    style="width:100%;margin-top:6px;padding:11px 12px;border-radius:11px;border:1px solid var(--glass-border);background:rgba(255,255,255,.04);color:var(--text-primary);font-family:var(--font-mono);font-size:13px;outline:none">
+                </div>
+              </div>
+              <div style="font-size:10.5px;color:var(--text-tertiary);line-height:1.45;margin-top:7px">
+                Un bloqueo de Airbnb nunca trae estos datos: el iCal solo dice
+                “no disponible”. Si el depa se ocupa con un huésped, captúralo aquí
+                o no va a existir en ningún lado del portal.
               </div>
 
               <div id="reg-man-cod-wrap" style="display:none;margin-top:14px">
@@ -8490,6 +8555,10 @@
             status: 'confirmed'
         };
         if(cod) fila.codigo_reserva = cod;
+        const hsp = (document.getElementById('reg-man-hsp').value || '').trim();
+        const tel = (document.getElementById('reg-man-tel').value || '').trim();
+        if(hsp) fila.guest_name  = hsp;
+        if(tel) fila.guest_phone = tel;
 
         const txt = btn.textContent;
         btn.disabled = true; btn.textContent = 'Guardando…';
@@ -8524,7 +8593,7 @@
         try{
             const r = await fetch(
                 `${SUPABASE_URL}/rest/v1/bookings?source=eq.manual`
-                + `&select=id,unit_id,check_in,check_out,notes&order=check_in.desc&limit=40`,
+                + `&select=id,unit_id,check_in,check_out,notes,guest_name&order=check_in.desc&limit=40`,
                 { cache:'no-store', headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`} }
             );
             if(!r.ok) throw new Error('HTTP '+r.status);
@@ -8537,7 +8606,7 @@
                 const nom = UNIT_TO_PORTAL[b.unit_id] || b.unit_id;
                 const esBlk = /bloqueo|blocked|not available/i.test(b.notes||'');
                 return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-                    <span style="flex:1;color:var(--text-primary)">${esBlk?'🔒':'🧳'} ${nom}</span>
+                    <span style="flex:1;color:var(--text-primary)">${esBlk?'🔒':'🧳'} ${nom}${b.guest_name?` <span style="color:var(--text-tertiary)">· ${b.guest_name}</span>`:''}</span>
                     <span style="color:var(--text-tertiary);white-space:nowrap">${b.check_in} → ${b.check_out}</span>
                     <button onclick="regManualBorrar('${b.id}', this)" title="Borrar"
                       style="background:none;border:none;color:var(--status-red);cursor:pointer;padding:2px 5px;font-size:15px"><i class="ph ph-trash"></i></button>
