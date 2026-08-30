@@ -2797,6 +2797,7 @@
                         <span id="badge-entradas-hdr" style="display:none"></span>
                         <span class="reg-upd-group" style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">
                             <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-tertiary);white-space:nowrap" id="last-upd"></span>
+                            <button onclick="regManualModal()" title="Agregar una entrada a mano (bloqueos que el iCal aun no trae)" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;padding:4px 6px;font-size:18px;flex-shrink:0" id="btn-reg-manual"><i class="ph ph-plus-circle"></i></button>
                             <button onclick="sincronizarIcals(this)" title="Sincronizar reservas de Airbnb ahora" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;padding:4px 6px;font-size:18px;flex-shrink:0" id="btn-sync-icals"><i class="ph ph-cloud-arrow-down"></i></button>
                             <button onclick="cargarRegistros()" title="Recargar vista" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;padding:4px 6px;font-size:18px;flex-shrink:0"><i class="ph ph-arrows-clockwise"></i></button>
                         </span>
@@ -4705,6 +4706,26 @@
         if(origen==='Bloqueo') return `<span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;padding:2px 6px;border-radius:20px;background:rgba(150,150,150,.15);color:#999;margin-left:6px;vertical-align:middle">🔒 Bloqueo</span>`;
         return '';
     }
+    // ── "NUEVA": entro a la base hace poco ────────────────────────
+    // Un bloqueo que alguien puso directo en Airbnb no se puede ver antes
+    // de que Airbnb lo publique en su iCal (tarda horas). Lo unico que se
+    // puede hacer es que, cuando por fin aterrice, no pase desapercibido.
+    // Se marca cualquier fila cuyo created_at sea de las ultimas N horas.
+    const REG_NUEVA_HORAS = 18;
+    function _esNueva(createdAt){
+        if(!createdAt) return 0;
+        const t = Date.parse(createdAt);
+        if(isNaN(t)) return 0;
+        const hrs = (Date.now() - t) / 3600000;
+        return (hrs >= 0 && hrs <= REG_NUEVA_HORAS) ? hrs : 0;
+    }
+    function _nuevaBadge(createdAt){
+        const hrs = _esNueva(createdAt);
+        if(!hrs) return '';
+        const txt = hrs < 1 ? 'hace minutos'
+                  : `hace ${Math.round(hrs)} h`;
+        return `<span title="Esta reserva aparecio ${txt}. Antes no estaba en el portal." style="font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;padding:2px 6px;border-radius:20px;background:rgba(224,122,62,.18);color:var(--accent-terracota);margin-left:6px;vertical-align:middle;font-weight:700">NUEVA · ${txt}</span>`;
+    }
     function _chatBtnHTML(origen, codAir){
         let url, title;
         if(origen==='Airbnb' && codAir){ url=`https://www.airbnb.com/hosting/reservations/details/${codAir}`; title='Abrir chat en Airbnb'; }
@@ -4918,6 +4939,7 @@
         const hoyBase = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Mexico_City"})); hoyBase.setHours(0,0,0,0);
         let html = "";
         let totalEntradas = 0, totalPend = 0;
+        const nuevas = [];   // filas que aparecieron en la base hace pocas horas
 
         for(let i = rango[0]; i <= rango[1]; i++) {
             const dia = new Date(hoyBase); dia.setDate(hoyBase.getDate()+i);
@@ -4975,7 +4997,9 @@
                 // Botón ⋮ para marcar manualmente una fila SIN registro (se oculta por CSS en las ya hechas).
                 const _verboSR = (tipo==='gforms'||tipo==='frakcio') ? 'enviado' : 'generado';
                 const _kebabSR = `<button class="kebab-btn kebab-sr" title="Marcar como ${_verboSR} manualmente" onclick="event.stopPropagation();openRowMenuSR(event,'${(depto||'').replace(/'/g,'')}','${fiso}','${_coISO}','${tipo}','${_verboSR}')">\u22EE</button>`;
-                const deptoDisp=displayDepto(depto)+_origenBadge(_o)+_chatBtnHTML(_o,_c)+_kebabSR; // nombre + origen + chat + marcar-manual
+                const _hrsNueva = _esNueva((row[7]||'').trim());
+                if(_hrsNueva) nuevas.push({dep:displayDepto(depto), dia:fs, hrs:_hrsNueva, blk:_o==='Bloqueo'});
+                const deptoDisp=displayDepto(depto)+_origenBadge(_o)+_nuevaBadge((row[7]||'').trim())+_chatBtnHTML(_o,_c)+_kebabSR; // nombre + origen + chat + marcar-manual
 
                 if(getComunidadProperty(depto)){
                     // ComunidadFeliz (BOLONGO) — buscar registro del huésped de forma
@@ -5196,6 +5220,26 @@
 
         if(!html) {
             html=`<div style="padding:50px;text-align:center;color:var(--text-tertiary)"><i class="ph ph-calendar-blank" style="font-size:36px;opacity:.3;display:block;margin-bottom:12px"></i>Sin entradas para este día</div>`;
+        }
+
+        // Resumen arriba de la lista: lo que se coló mientras no mirabas.
+        // Un bloqueo puesto directo en Airbnb solo se puede ver cuando su
+        // iCal lo publica; esto hace que ese momento no pase de largo.
+        if(nuevas.length){
+            const uniq = [];
+            nuevas.forEach(n => { if(!uniq.some(u=>u.dep===n.dep&&u.dia===n.dia)) uniq.push(n); });
+            const chips = uniq.map(n =>
+                `<span style="display:inline-block;background:rgba(0,0,0,.22);border-radius:8px;padding:3px 9px;margin:3px 5px 0 0;font-family:var(--font-mono);font-size:11px">${n.blk?'🔒 ':''}${n.dep} <span style="opacity:.6">· ${n.dia}</span></span>`
+            ).join('');
+            html = `<div style="margin:14px 18px 4px;padding:12px 14px;border-radius:12px;border:1px solid rgba(224,122,62,.45);background:rgba(224,122,62,.10)">
+                <div style="font-family:var(--font-display);font-size:12.5px;font-weight:700;color:var(--accent-terracota)">
+                  ⚡ ${uniq.length} ${uniq.length===1?'entrada apareció':'entradas aparecieron'} en las últimas ${REG_NUEVA_HORAS} h
+                </div>
+                <div style="font-size:11px;color:var(--text-tertiary);margin-top:3px;line-height:1.45">
+                  No estaban en el portal antes. Revisa que tengan su registro.
+                </div>
+                <div style="margin-top:6px">${chips}</div>
+              </div>` + html;
         }
 
         body.innerHTML = html;
@@ -7701,7 +7745,19 @@
             arrastre[dep]={ultSal,prox,dias};
         });
 
-        const deptos=[...new Set([...Object.keys(sal),...Object.keys(blk),...Object.keys(ent),...Object.keys(finBlk),...Object.keys(arrastre)])];
+        // ── LIMPIEZAS SUELTAS: existen en la base pero ninguna reserva las explica ──
+        // Pasa cuando el iCal no trajo la reserva (Airbnb a veces no la exporta) o
+        // cuando se agrega una limpieza a mano. Sin esto quedarían invisibles en
+        // Housekeeping aunque sí se cobren en la nómina.
+        const sueltas={};
+        D.limp.filter(l=>l.fecha===fiso).forEach(l=>{
+            const dep=(l.depto_codigo||'').toString().trim();
+            if(!dep) return;
+            if(sal[dep]||blk[dep]||ent[dep]||finBlk[dep]||arrastre[dep]) return;
+            sueltas[dep]=l;
+        });
+
+        const deptos=[...new Set([...Object.keys(sal),...Object.keys(blk),...Object.keys(ent),...Object.keys(finBlk),...Object.keys(arrastre),...Object.keys(sueltas)])];
         const rows=deptos.map(dep=>{
             const fb=finBlk[dep];
             const alertaOn=Object.prototype.hasOwnProperty.call(alerta,dep);
@@ -7709,8 +7765,9 @@
             const r={dep,in:ent[dep]||null,out:sal[dep]||fb||null,blk:blk[dep]||null,
                      finBlk:!!fb,hueco:fb&&fb.hueco?fb.hueco:null,ocupado:!!(fb&&fb.ocupado),
                      listo:!!(fb&&fb.listo),ultSalTxt:(fb&&fb.ultSal)?hk2FmtCorto(fb.ultSal):null,
-                     gap:gapInfo[dep]||null,arr,
+                     gap:gapInfo[dep]||null,arr,suelta:!!sueltas[dep],
                      alertaOn,alertaSal:alertaOn?alerta[dep]:null,l:null,sig:false};
+            if(sueltas[dep]){ const m=lDe(dep,fiso); r.l=m.l; r.sig=m.sig; }
             if(arr){ const m=lDe(dep,arr.ultSal); r.l=m.l; r.sig=m.sig; }
             if(r.out||r.blk||alertaOn){
                 // Hueco largo: la limpieza SOLO vale si es reciente (ayer u hoy). Una limpieza
@@ -7731,7 +7788,7 @@
             turn:rows.filter(r=>r.in&&r.out&&!r.blk).length,
             alerta:rows.filter(r=>r.alertaOn||(r.arr&&r.in)||(r.finBlk&&!r.listo)).length,
             pend:rows.filter(r=>r.arr).length,
-            sin:rows.filter(r=>(r.out||r.blk||r.alertaOn||r.arr)&&(!r.l||!r.l.staff_id)).length};
+            sin:rows.filter(r=>(r.out||r.blk||r.alertaOn||r.arr||r.suelta)&&(!r.l||!r.l.staff_id)).length};
         return {rows,stats};
     }
 
@@ -7754,7 +7811,7 @@
         const {rows} = hk2RowsFor(fiso);
         const g = {bot:[], manual:[], falta:[], total:0};
         rows.forEach(r=>{
-            if(!(r.out || r.blk || r.alertaOn || r.arr)) return;   // no se limpia hoy
+            if(!(r.out || r.blk || r.alertaOn || r.arr || r.suelta)) return;   // no se limpia hoy
             g.total++;
             const item = {dep:r.dep, l:r.l};
             if(hk2EsBot(r.l))         g.bot.push(item);
@@ -7920,9 +7977,10 @@
                 ?` · ${hoyMismo?'LLEGAN HOY':(r.arr.prox<fSel?'llegaron el ':'llegan el ')+hk2FmtCorto(r.arr.prox)}`:'';
             outH=`<span class="hk2-pill ${urgente?'alert':'out'}">${urgente?'⚠️':'⏳'} ${r.dep} <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.85">sin limpiar desde el ${hk2FmtCorto(r.arr.ultSal)}${cuando}</span></span>`;
         }
+        else if(r.suelta) outH=`<span class="hk2-pill out"><span class="ar">↑</span>${r.dep} <span class="note" style="font-family:var(--font-mono);font-size:9px;opacity:.85">agregada a mano · sin reserva en el iCal</span></span>`;
         else outH=`<span class="hk2-blank">·</span>`;
         let chH;
-        if(r.out||r.blk||r.alertaOn||r.arr){
+        if(r.out||r.blk||r.alertaOn||r.arr||r.suelta){
             let list=[...hk2Data.staff];
             if(esBolongo&&anaId){ const a=list.find(s=>String(s.id)===anaId); if(a) list=[a,...list.filter(s=>String(s.id)!==anaId)]; }
             const opts=list.filter(s=>!naIds.has(String(s.id))||String(s.id)===asigId)
@@ -7933,7 +7991,7 @@
             const optVacia=`<option value="" ${asigId?'':'selected'}>${asigId?'— sin chica —':'— asignar —'}</option>`;
             chH=`<div style="display:flex;align-items:center;min-width:0"><div class="hk2-chw">${avIni}<select class="hk2-ch" onchange="hk2Asignar('${r.dep}','${fSel}',${lid},this.value)">${optVacia}${opts}</select></div>${(esBolongo&&asigId&&asigId===anaId)?'<span class="hk2-fija">FIJA</span>':''}</div>`;
         } else chH=`<span class="hk2-blank">·</span>`;
-        const cks=(r.out||r.blk||r.alertaOn||r.arr)?`<div class="hk2-cks">
+        const cks=(r.out||r.blk||r.alertaOn||r.arr||r.suelta)?`<div class="hk2-cks">
             <span class="hk2-ck avis${avisada?' on':''}" title="Ya se le avisó a la chica (tap)" onclick="hk2Avisada(${lid},${avisada})">📣</span>
             <span class="hk2-ck bot${limpia?' on':''}" title="La marca el bot al terminar" onclick="hk2BotClick(event,${lid},'${r.dep}','${fSel}',${!!limpia})">✓<span class="lk">🤖</span></span>
         </div>`:`<div class="hk2-cks"></div>`;
@@ -8190,9 +8248,9 @@
             const desdeISO = iso(desde), hastaISO = iso(hasta);
 
             // Traer reservas cuyo check_in O check_out caiga en la ventana
-            const url = `${SUPABASE_URL}/rest/v1/bookings?select=unit_id,check_in,check_out,source,notes,codigo_reserva,status`
+            const url = `${SUPABASE_URL}/rest/v1/bookings?select=unit_id,check_in,check_out,source,notes,codigo_reserva,status,created_at`
                 + `&or=(and(check_in.gte.${desdeISO},check_in.lte.${hastaISO}),and(check_out.gte.${desdeISO},check_out.lte.${hastaISO}))`
-                + `&status=eq.confirmed&limit=2000`;
+                + `&limit=2000`;   // sin filtro de status: se filtra abajo, en el cliente
             const _ctrl = new AbortController();
             const _to = setTimeout(() => _ctrl.abort(), 8000);
             const res = await fetch(url, {
@@ -8201,7 +8259,10 @@
             });
             clearTimeout(_to);
             if(!res.ok) throw new Error("bookings HTTP "+res.status);
-            const data = await res.json();
+            // Se filtra aqui y no en la consulta a proposito: status=not.eq.cancelled
+            // en PostgREST tambien descarta los NULL, y un bloqueo sin status
+            // quedaria invisible. Mismo criterio que Housekeeping.
+            const data = (await res.json()).filter(b => String(b.status||'').toLowerCase() !== 'cancelled');
 
             // ISO (YYYY-MM-DD) → D/M/YYYY sin ceros (formato que espera el semáforo)
             const fmtDMY = isoDate => {
@@ -8219,7 +8280,7 @@
             // ── Dedup Hostfully+Airbnb: la MISMA reserva (mismo depto + entrada + salida) llega
             // por los dos iCal. Se conserva UNA sola. Preferencia: Airbnb (su chat va directo a la
             // reserva) > Hostfully > otros. Una reserva real SIEMPRE gana sobre un bloqueo.
-            const _esBloqueoB = x => (x.notes||'').toLowerCase().includes('not available');
+            const _esBloqueoB = x => hk2EsBloqueo(x);   // 'not available', 'blocked' o 'bloqueo'
             const _prefB = x => _esBloqueoB(x) ? 0 : (x.source==='airbnb' ? 3 : (x.source==='hostfully' ? 2 : 1));
             const _dedup = new Map();
             for(const b of data){
@@ -8230,17 +8291,21 @@
             const dataDedup = Array.from(_dedup.values());
             for(const b of dataDedup){
                 const depto = nombreDepto(b.unit_id);
-                const esBloqueo = (b.notes||'').toLowerCase().includes('not available');
+                const esBloqueo = hk2EsBloqueo(b);
                 // Bloqueos (fechas cerradas por el dueño) se marcan distinto para distinguirlos de huéspedes
                 const origen = esBloqueo ? 'Bloqueo' : origenTxt(b.source);
                 const cod = esBloqueo ? '' : (b.codigo_reserva || '');
                 // CHECK-IN
+                // La columna 7 va vacia historicamente; ahi guardamos created_at
+                // (cuando la fila entro por primera vez a la base) para poder
+                // marcar en la lista lo que aparecio tarde.
+                const nac = b.created_at || "";
                 if(b.check_in && b.check_in>=desdeISO && b.check_in<=hastaISO){
-                    filas.push([fmtDMY(b.check_in),"",depto,"","",b.check_in,b.check_out,"",origen,cod,""]);
+                    filas.push([fmtDMY(b.check_in),"",depto,"","",b.check_in,b.check_out,nac,origen,cod,""]);
                 }
                 // CHECK-OUT
                 if(b.check_out && b.check_out>=desdeISO && b.check_out<=hastaISO){
-                    filas.push([fmtDMY(b.check_out),"","",depto,"",b.check_in,b.check_out,"",origen,cod,""]);
+                    filas.push([fmtDMY(b.check_out),"","",depto,"",b.check_in,b.check_out,nac,origen,cod,""]);
                 }
             }
             window._sheetRows = filas;
@@ -8250,6 +8315,256 @@
             console.error("bookings error (se sigue sin entradas):", e);
             if(!window._sheetRows) window._sheetRows = [];
             renderTodo();
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════
+    // ENTRADA MANUAL  ·  para bloqueos que el iCal no trae
+    // ──────────────────────────────────────────────────────
+    // Airbnb cachea su exportación de calendario: si bloqueas un
+    // depa para hoy o mañana, el iCal tarda horas en reflejarlo y
+    // el portal llega tarde justo cuando más se necesita. Esto
+    // escribe la fila directo en `bookings`, igual que el sync,
+    // así que aparece en Registros Y en Housekeeping.
+    // ══════════════════════════════════════════════════════
+
+    function regManDepas(){
+        // unit_id → nombre bonito, sin repetidos, ordenado por nombre
+        const vistos = new Set(); const out = [];
+        Object.keys(UNIT_TO_PORTAL).forEach(uid => {
+            const nom = UNIT_TO_PORTAL[uid];
+            if(vistos.has(nom)) return;
+            vistos.add(nom); out.push({uid, nom});
+        });
+        out.sort((a,b) => a.nom.localeCompare(b.nom,'es'));
+        return out;
+    }
+    function regManISO(offset){
+        const hoy = new Date(new Date().toLocaleString("en-US",{timeZone:"America/Mexico_City"}));
+        hoy.setDate(hoy.getDate() + (offset||0));
+        const y=hoy.getFullYear(), m=String(hoy.getMonth()+1).padStart(2,'0'), d=String(hoy.getDate()).padStart(2,'0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function regManualModal(){
+        const depas = regManDepas();
+        const wrap = document.createElement('div');
+        wrap.className = 'modal-overlay';
+        wrap.id = 'reg-man-modal';
+        wrap.style.zIndex = '600';
+        wrap.innerHTML = `
+          <div class="modal-box" style="max-width:520px">
+            <div class="modal-head">
+              <div>
+                <div style="font-family:var(--font-display);font-size:14px;font-weight:700">➕ Agregar entrada a mano</div>
+                <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-secondary);margin-top:3px">para bloqueos que el iCal todavía no trae</div>
+              </div>
+              <button class="btn btn-ghost" onclick="regManualCerrar()" style="padding:4px 8px"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="padding:20px">
+
+              <div style="font-size:11.5px;color:var(--text-tertiary);line-height:1.5;margin-bottom:16px">
+                Airbnb tarda horas en publicar un bloqueo nuevo en su calendario.
+                Esto lo mete de una vez para que salga <b>hoy</b> en Registros y en Housekeeping.
+                Cuando el iCal lo traiga solo, borra el manual desde la lista de abajo.
+              </div>
+
+              <label style="font-size:10px;font-family:var(--font-mono);letter-spacing:.6px;color:var(--text-tertiary);text-transform:uppercase">Departamento</label>
+              <select id="reg-man-depa" style="width:100%;margin-top:6px;padding:11px 12px;border-radius:11px;border:1px solid var(--glass-border);background:rgba(255,255,255,.04);color:var(--text-primary);font-size:13.5px;outline:none">
+                ${depas.map(d => `<option value="${d.uid}">${d.nom}</option>`).join('')}
+              </select>
+
+              <div style="display:flex;gap:10px;margin-top:14px">
+                <div style="flex:1">
+                  <label style="font-size:10px;font-family:var(--font-mono);letter-spacing:.6px;color:var(--text-tertiary);text-transform:uppercase">Entra</label>
+                  <input type="date" id="reg-man-in" value="${regManISO(0)}"
+                    style="width:100%;margin-top:6px;padding:11px 12px;border-radius:11px;border:1px solid var(--glass-border);background:rgba(255,255,255,.04);color:var(--text-primary);font-family:var(--font-mono);font-size:13px;outline:none">
+                </div>
+                <div style="flex:1">
+                  <label style="font-size:10px;font-family:var(--font-mono);letter-spacing:.6px;color:var(--text-tertiary);text-transform:uppercase">Sale</label>
+                  <input type="date" id="reg-man-out" value="${regManISO(2)}"
+                    style="width:100%;margin-top:6px;padding:11px 12px;border-radius:11px;border:1px solid var(--glass-border);background:rgba(255,255,255,.04);color:var(--text-primary);font-family:var(--font-mono);font-size:13px;outline:none">
+                </div>
+              </div>
+
+              <label style="display:block;margin-top:14px;font-size:10px;font-family:var(--font-mono);letter-spacing:.6px;color:var(--text-tertiary);text-transform:uppercase">Qué es</label>
+              <div style="display:flex;gap:8px;margin-top:7px">
+                <button type="button" class="reg-man-tipo activo" data-tipo="bloqueo" onclick="regManTipo(this)"
+                  style="flex:1;padding:10px;border-radius:11px;border:1px solid var(--accent-terracota);background:rgba(224,122,62,.12);color:var(--accent-terracota);font-size:12.5px;font-weight:600;cursor:pointer">🔒 Bloqueo</button>
+                <button type="button" class="reg-man-tipo" data-tipo="reserva" onclick="regManTipo(this)"
+                  style="flex:1;padding:10px;border-radius:11px;border:1px solid var(--glass-border);background:none;color:var(--text-secondary);font-size:12.5px;font-weight:600;cursor:pointer">🧳 Reserva</button>
+              </div>
+
+              <div id="reg-man-cod-wrap" style="display:none;margin-top:14px">
+                <label style="font-size:10px;font-family:var(--font-mono);letter-spacing:.6px;color:var(--text-tertiary);text-transform:uppercase">Código de reserva (opcional)</label>
+                <input id="reg-man-cod" placeholder="ej. HMABC12345" autocomplete="off"
+                  style="width:100%;margin-top:6px;padding:11px 12px;border-radius:11px;border:1px solid var(--glass-border);background:rgba(255,255,255,.04);color:var(--text-primary);font-family:var(--font-mono);font-size:13px;letter-spacing:1px;outline:none">
+              </div>
+
+              <div id="reg-man-aviso" style="margin-top:14px;min-height:0"></div>
+
+              <div style="display:flex;gap:10px;margin-top:18px">
+                <button class="btn btn-primary" id="reg-man-guardar" onclick="regManualGuardar(this)" style="flex:1">Agregar</button>
+              </div>
+
+              <div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--glass-border)">
+                <div style="font-size:10px;font-family:var(--font-mono);letter-spacing:.6px;color:var(--text-tertiary);text-transform:uppercase;margin-bottom:10px">Entradas puestas a mano</div>
+                <div id="reg-man-lista" style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-secondary)">Cargando…</div>
+              </div>
+
+            </div>
+          </div>`;
+        document.body.appendChild(wrap);
+        regManValidar();
+        ['reg-man-depa','reg-man-in','reg-man-out'].forEach(id => {
+            const e = document.getElementById(id);
+            if(e) e.addEventListener('change', regManValidar);
+        });
+        regManualLista();
+    }
+    function regManualCerrar(){ const m=document.getElementById('reg-man-modal'); if(m) m.remove(); }
+
+    function regManTipo(btn){
+        document.querySelectorAll('.reg-man-tipo').forEach(b => {
+            const on = (b === btn);
+            b.classList.toggle('activo', on);
+            b.style.border     = on ? '1px solid var(--accent-terracota)' : '1px solid var(--glass-border)';
+            b.style.background = on ? 'rgba(224,122,62,.12)' : 'none';
+            b.style.color      = on ? 'var(--accent-terracota)' : 'var(--text-secondary)';
+        });
+        const esRes = btn.dataset.tipo === 'reserva';
+        const w = document.getElementById('reg-man-cod-wrap');
+        if(w) w.style.display = esRes ? 'block' : 'none';
+    }
+    function regManTipoActual(){
+        const b = document.querySelector('.reg-man-tipo.activo');
+        return b ? b.dataset.tipo : 'bloqueo';
+    }
+
+    // Avisa si las fechas no cuadran o si ya hay algo en esas fechas
+    function regManValidar(){
+        const av = document.getElementById('reg-man-aviso');
+        if(!av) return true;
+        const uid = (document.getElementById('reg-man-depa')||{}).value;
+        const ci  = (document.getElementById('reg-man-in') ||{}).value;
+        const co  = (document.getElementById('reg-man-out')||{}).value;
+        const pinta = (txt, color) => {
+            av.innerHTML = txt ? `<div style="font-size:11.5px;line-height:1.45;color:${color}">${txt}</div>` : '';
+        };
+        if(!ci || !co){ pinta('Faltan fechas.', 'var(--status-red)'); return false; }
+        if(co <= ci){ pinta('La salida tiene que ser después de la entrada.', 'var(--status-red)'); return false; }
+
+        // ¿ya hay una reserva del iCal traslapando? — solo advierte, no bloquea
+        const filas = window._sheetRows || [];
+        const nom = UNIT_TO_PORTAL[uid] || uid;
+        const choca = filas.slice(1).some(f => {
+            if(f[2] !== nom && f[3] !== nom) return false;
+            const a = f[5], b = f[6];          // check_in / check_out de esa fila
+            return a && b && a < co && b > ci; // traslape real
+        });
+        if(choca){
+            pinta('⚠️ Ya hay algo en esas fechas para ese depa. Revisa que no lo estés duplicando.', 'var(--accent-gold)');
+            return true;
+        }
+        pinta('', '');
+        return true;
+    }
+
+    async function regManualGuardar(btn){
+        if(!regManValidar()) return;
+        const uid  = document.getElementById('reg-man-depa').value;
+        const ci   = document.getElementById('reg-man-in').value;
+        const co   = document.getElementById('reg-man-out').value;
+        const tipo = regManTipoActual();
+        const cod  = tipo === 'reserva' ? (document.getElementById('reg-man-cod').value || '').trim() : '';
+
+        const fila = {
+            unit_id: uid,
+            check_in: ci,
+            check_out: co,
+            source: 'manual',
+            // 'Bloqueo' / 'Reserved' son las mismas palabras que usa el sync,
+            // así que Housekeeping y Registros los leen sin cambios.
+            notes: tipo === 'bloqueo' ? 'Bloqueo' : 'Reserved',
+            status: 'confirmed'
+        };
+        if(cod) fila.codigo_reserva = cod;
+
+        const txt = btn.textContent;
+        btn.disabled = true; btn.textContent = 'Guardando…';
+        try{
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/bookings`, {
+                method:'POST',
+                headers:{
+                    'apikey':SUPABASE_KEY, 'Authorization':`Bearer ${SUPABASE_KEY}`,
+                    'Content-Type':'application/json', 'Prefer':'return=representation'
+                },
+                body: JSON.stringify(fila)
+            });
+            if(!r.ok){
+                const det = await r.text();
+                throw new Error(`HTTP ${r.status} · ${det.slice(0,180)}`);
+            }
+            toast('✅ Entrada agregada');
+            await regManualLista();
+            await cargarEntradas();
+            if(typeof hk2Cargar === 'function') hk2Cargar();
+        }catch(e){
+            console.error('[VRM] alta manual falló:', e);
+            toast('❌ No se pudo guardar: ' + (e.message||e));
+        }finally{
+            btn.disabled = false; btn.textContent = txt;
+        }
+    }
+
+    async function regManualLista(){
+        const cont = document.getElementById('reg-man-lista');
+        if(!cont) return;
+        try{
+            const r = await fetch(
+                `${SUPABASE_URL}/rest/v1/bookings?source=eq.manual`
+                + `&select=id,unit_id,check_in,check_out,notes&order=check_in.desc&limit=40`,
+                { cache:'no-store', headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`} }
+            );
+            if(!r.ok) throw new Error('HTTP '+r.status);
+            const rows = await r.json();
+            if(!rows.length){
+                cont.innerHTML = '<div style="color:var(--text-tertiary)">Ninguna todavía.</div>';
+                return;
+            }
+            cont.innerHTML = rows.map(b => {
+                const nom = UNIT_TO_PORTAL[b.unit_id] || b.unit_id;
+                const esBlk = /bloqueo|blocked|not available/i.test(b.notes||'');
+                return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+                    <span style="flex:1;color:var(--text-primary)">${esBlk?'🔒':'🧳'} ${nom}</span>
+                    <span style="color:var(--text-tertiary);white-space:nowrap">${b.check_in} → ${b.check_out}</span>
+                    <button onclick="regManualBorrar('${b.id}', this)" title="Borrar"
+                      style="background:none;border:none;color:var(--status-red);cursor:pointer;padding:2px 5px;font-size:15px"><i class="ph ph-trash"></i></button>
+                  </div>`;
+            }).join('');
+        }catch(e){
+            cont.innerHTML = '<div style="color:var(--status-red)">No se pudo leer la lista.</div>';
+        }
+    }
+
+    async function regManualBorrar(id, btn){
+        btn.disabled = true;
+        try{
+            // El filtro source=eq.manual va a propósito: así este botón
+            // NUNCA puede borrar una reserva que vino del iCal.
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/bookings?id=eq.${encodeURIComponent(id)}&source=eq.manual`, {
+                method:'DELETE',
+                headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+            });
+            if(!r.ok) throw new Error('HTTP '+r.status);
+            toast('🗑️ Borrada');
+            await regManualLista();
+            await cargarEntradas();
+            if(typeof hk2Cargar === 'function') hk2Cargar();
+        }catch(e){
+            btn.disabled = false;
+            toast('❌ No se pudo borrar: ' + (e.message||e));
         }
     }
 
