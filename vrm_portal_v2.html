@@ -524,6 +524,12 @@
         .hk2-day .dc b{color:#f7d488}
         .hk2-day.sel{background:linear-gradient(180deg,rgba(224,122,62,.16),rgba(224,122,62,.06));border-color:rgba(224,122,62,.45)}
         /* ══ TABLERO SALIDAS DEL DÍA ══════════════════════════════ */
+        .hk2-det-toggle{display:flex;align-items:center;gap:8px;padding:11px 16px;cursor:pointer;
+            border-top:1px solid var(--glass-border);font-family:var(--font-mono);font-size:10px;
+            letter-spacing:.13em;text-transform:uppercase;color:var(--text-tertiary)}
+        .hk2-det-toggle:hover{color:var(--text-secondary);background:rgba(255,255,255,.02)}
+        .hk2-det-toggle.abierto{color:var(--text-secondary)}
+        .hk2-det-toggle .ch{margin-left:auto;font-size:12px}
         .sd-cerrado{display:flex;align-items:center;gap:8px;margin-top:12px;padding:10px 15px;
             border:1px solid var(--glass-border);border-radius:12px;background:rgba(255,255,255,.02);
             cursor:pointer;font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;
@@ -553,6 +559,7 @@
         .sd-grp.pend .sd-gt{color:var(--accent-terracota)}
         .sd-grp.ok   .sd-gt{color:#7fe3ad}
         .sd-grp.man  .sd-gt{color:var(--accent-gold)}
+        .sd-grp.cur  .sd-gt{color:#6cb8ff}
         .sd-vacio{padding:4px 16px 12px;font-size:11.5px;color:var(--text-tertiary)}
 
         /* Rejilla fija: la palomita, el depa, las etiquetas, la chica y la hora
@@ -580,6 +587,10 @@
         .sd-hr{font-family:var(--font-mono);font-size:11px;text-align:right;justify-self:end}
         .sd-hr.bot{color:#7fe3ad}
         .sd-hr.man{color:var(--accent-gold);font-size:10px}
+        .sd-hr.cur{color:#6cb8ff;font-size:10px}
+        .sd-chk.cur{color:#6cb8ff}
+        .sd-row.curso{background:rgba(108,184,255,.05)}
+        .sd-row.curso .sd-dep{color:var(--text-primary)}
         .sd-btn{font-family:var(--font-mono);font-size:10px;letter-spacing:.04em;
             padding:5px 8px;border-radius:8px;cursor:pointer;white-space:nowrap;
             border:1px solid rgba(224,122,62,.4);background:rgba(224,122,62,.10);
@@ -2914,7 +2925,13 @@
 
                 <div class="hk2-panel">
                     <div class="hk2-colhead"><div class="i">↓ Entrada</div><div class="o">↑ Salida — se limpia</div><div>Chica</div><div style="text-align:center">Avisada · Limpia</div></div>
-                    <div id="hk2-rows"><div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando…</div></div>
+                    <!-- Vista de detalle (asignar chica, avisar, no disponible).
+                         Va plegada: el tablero de arriba es el día a día; esto es
+                         para planear. Tener las dos listas abiertas confundía. -->
+                    <div class="hk2-det-toggle" id="hk2-det-toggle" onclick="hk2ToggleDetalle()">
+                        <span>Detalle y asignación</span><span class="ch" id="hk2-det-ch">▾</span>
+                    </div>
+                    <div id="hk2-rows" style="display:none"><div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando…</div></div>
                 </div>
 
                 <div class="hk2-legend">
@@ -7871,27 +7888,39 @@
     // El bot escribe hora_inicio/hora_fin al terminar; una marca manual
     // solo cambia el estatus. Por eso la hora distingue una de otra.
     // ══════════════════════════════════════════════════════
-    function hk2EsBot(l){
-        return !!(l && (l.estatus==='terminada'||l.estatus==='pagada') && (l.hora_fin||l.hora_inicio));
+    // Estado real de una limpieza, leído de las horas que escribe el bot.
+    // La chica le avisa DOS veces: al llegar (hora_inicio) y al terminar
+    // (hora_fin). Distinguir esos dos momentos es justo lo que hacía falta:
+    // "llegó" y "terminó" no son lo mismo y antes se veían igual.
+    //   terminada → avisó que acabó
+    //   curso     → avisó que llegó y sigue adentro
+    //   manual    → alguien la cerró desde el portal, sin pasar por el bot
+    //   nada      → nadie ha confirmado nada
+    function hk2EstadoLimp(l){
+        if(!l) return 'nada';
+        const cerrada = (l.estatus==='terminada' || l.estatus==='pagada');
+        if(l.hora_fin)    return 'terminada';
+        if(l.hora_inicio) return cerrada ? 'terminada' : 'curso';
+        return cerrada ? 'manual' : 'nada';
     }
-    function hk2EsManual(l){
-        return !!(l && (l.estatus==='terminada'||l.estatus==='pagada') && !l.hora_fin && !l.hora_inicio);
-    }
+    function hk2EsBot(l){    return hk2EstadoLimp(l)==='terminada'; }
+    function hk2EsManual(l){ return hk2EstadoLimp(l)==='manual';    }
 
     // Clasifica las salidas del día en: registradas por el bot, marcadas
     // a mano, y las que todavía nadie confirma. Se queda con el contexto de
     // cada una (si es bloqueo, si además entra huésped, si viene arrastrada)
     // para poder pintarlo sin volver a recorrer las filas.
     function hk2SalidasDe(fiso){
-        if(!hk2Data) return {bot:[], manual:[], falta:[], total:0};
+        if(!hk2Data) return {bot:[], curso:[], manual:[], falta:[], total:0};
         const {rows} = hk2RowsFor(fiso);
-        const g = {bot:[], manual:[], falta:[], total:0};
+        const g = {bot:[], curso:[], manual:[], falta:[], total:0};
         rows.forEach(r=>{
             if(!(r.out || r.blk || r.alertaOn || r.arr || r.suelta)) return;   // no se limpia hoy
             g.total++;
             const item = {
                 dep: r.dep,
                 l:   r.l,
+                dias: (r.arr && r.arr.dias) || 0,   // cuántos días lleva sin limpiar
                 blk: !!r.blk,                 // el depa queda cerrado (bloqueo del iCal)
                 turn:!!(r.in && r.out),       // sale uno y entra otro el mismo día
                 ent: !!r.in,
@@ -7899,19 +7928,38 @@
                 suelta: !!r.suelta,           // limpieza sin reserva que la explique
                 urge: !!(r.alertaOn || (r.arr && r.in))
             };
-            if(hk2EsBot(r.l))         g.bot.push(item);
-            else if(hk2EsManual(r.l)) g.manual.push(item);
-            else                      g.falta.push(item);
+            const est = hk2EstadoLimp(r.l);
+            if(est==='terminada')   g.bot.push(item);
+            else if(est==='curso')  g.curso.push(item);
+            else if(est==='manual') g.manual.push(item);
+            else                    g.falta.push(item);
         });
         const porHora=(a,b)=>String((a.l&&a.l.hora_fin)||'~').localeCompare(String((b.l&&b.l.hora_fin)||'~'))
                              || a.dep.localeCompare(b.dep);
         g.bot.sort(porHora); g.manual.sort(porHora);
+        g.curso.sort((a,b)=>String((a.l&&a.l.hora_inicio)||'~').localeCompare(String((b.l&&b.l.hora_inicio)||'~')));
         // Las que faltan: primero las urgentes, luego las que reciben huésped hoy.
         g.falta.sort((a,b)=> (b.urge-a.urge) || (b.turn-a.turn) || a.dep.localeCompare(b.dep));
         return g;
     }
 
     function hk2ToggleHechas(){ hk2VerHechas=!hk2VerHechas; hk2Render(); }
+
+    // El detalle arranca plegado y recuerda la elección entre visitas.
+    let hk2VerDetalle = (()=>{ try{ return localStorage.getItem('vrm_hk_det')==='1'; }catch(e){ return false; } })();
+    function hk2AplicarDetalle(){
+        const box=document.getElementById('hk2-rows');
+        const ch =document.getElementById('hk2-det-ch');
+        const tg =document.getElementById('hk2-det-toggle');
+        if(box) box.style.display = hk2VerDetalle ? '' : 'none';
+        if(ch)  ch.textContent    = hk2VerDetalle ? '▴' : '▾';
+        if(tg)  tg.classList.toggle('abierto', hk2VerDetalle);
+    }
+    function hk2ToggleDetalle(){
+        hk2VerDetalle=!hk2VerDetalle;
+        try{ localStorage.setItem('vrm_hk_det', hk2VerDetalle?'1':'0'); }catch(e){}
+        hk2AplicarDetalle();
+    }
 
     // ══════════════════════════════════════════════════════════════
     // TABLERO "SALIDAS DEL DÍA"
@@ -7934,7 +7982,7 @@
         const hora=h=>h?String(h).slice(0,5):'';
         const chicaDe=l=>(l&&nom[String(l.staff_id)])||'';
         const money=n=>'$'+(Math.round((n||0)*100)/100).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
-        const hechas=g.bot.concat(g.manual);
+        const hechas=g.bot.concat(g.manual);   // 'adentro ahora' NO cuenta: todavía no termina
         const total=hechas.reduce((a,x)=>a+(parseFloat(x.l&&x.l.tarifa_aplicada)||0),0);
         const pct = g.total ? Math.round(hechas.length/g.total*100) : 100;
         const esc = t => String(t||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
@@ -7945,23 +7993,33 @@
             if(x.blk)    t.push('<span class="sd-tg blk">🔒 BLOQUEO</span>');
             if(x.turn)   t.push('<span class="sd-tg trn">⚡ ENTRA HOY</span>');
             else if(x.ent) t.push('<span class="sd-tg trn">↓ ENTRADA</span>');
-            if(x.arr)    t.push('<span class="sd-tg arr">↷ ARRASTRE</span>');
+            if(x.arr)    t.push(`<span class="sd-tg arr" title="Salió hace ${x.dias} día(s) y nadie ha registrado la limpieza. Sigue apareciendo hasta que se marque.">SALIÓ HACE ${x.dias}D</span>`);
             if(x.suelta) t.push('<span class="sd-tg sue">SIN RESERVA</span>');
             return t.join('');
         };
 
+        // El sello de la derecha dice EXACTAMENTE qué avisó la chica:
+        //   "9:40 → 11:42" = avisó que llegó y que terminó
+        //   "terminó 11:42" = solo avisó al terminar
+        //   "llegó 10:15"   = avisó que llegó, todavía no termina
+        //   "a mano"        = nunca pasó por el bot
+        const sello=(x,tipo)=>{
+            const hi=hora(x.l&&x.l.hora_inicio), hf=hora(x.l&&x.l.hora_fin);
+            if(tipo==='manual') return `<span class="sd-hr man">a mano</span>`;
+            if(tipo==='curso')  return `<span class="sd-hr cur">llegó ${hi||'—'}</span>`;
+            if(hi&&hf)          return `<span class="sd-hr bot">${hi} → ${hf}</span>`;
+            if(hf)              return `<span class="sd-hr bot">terminó ${hf}</span>`;
+            return `<span class="sd-hr bot">✓</span>`;
+        };
         const filaHecha=(x,tipo)=>{
             const ch=chicaDe(x.l);
-            const hr=hora(x.l&&x.l.hora_fin);
-            const sello = tipo==='bot'
-                ? `<span class="sd-hr bot">${hr||'✓'}</span>`
-                : `<span class="sd-hr man">a mano</span>`;
-            return `<div class="sd-row done">
-                <span class="sd-chk">✓</span>
+            const icon = tipo==='curso' ? '<span class="sd-chk cur">◐</span>' : '<span class="sd-chk">✓</span>';
+            return `<div class="sd-row ${tipo==='curso'?'curso':'done'}">
+                ${icon}
                 <span class="sd-dep">${x.dep}</span>
                 <span class="sd-tags">${tags(x)}</span>
                 <span class="sd-ch">${ch||'<i class="sd-nn">sin chica</i>'}</span>
-                ${sello}
+                ${sello(x,tipo)}
             </div>`;
         };
 
@@ -7990,9 +8048,10 @@
               <span class="sd-x" onclick="hk2ToggleHechas()" title="Cerrar">✕</span>
             </div>
             <div class="sd-bar"><div class="sd-fill${pct===100?' full':''}" style="width:${pct}%"></div></div>
-            ${grupo(`⏳ Sin confirmar`,'pend',g.falta,filaFalta,'Todas confirmadas 🎉')}
-            ${grupo(`🤖 Registradas en el bot`,'ok',g.bot,x=>filaHecha(x,'bot'),'Todavía nadie le avisa al bot')}
-            ${g.manual.length?grupo(`✋ Marcadas a mano`,'man',g.manual,x=>filaHecha(x,'manual'),''):''}
+            ${grupo(`⏳ Nadie ha avisado`,'pend',g.falta,filaFalta,'Todas confirmadas 🎉')}
+            ${g.curso.length?grupo(`🧹 Adentro ahora — avisó que llegó`,'cur',g.curso,x=>filaHecha(x,'curso'),''):''}
+            ${grupo(`✅ Avisó que terminó`,'ok',g.bot,x=>filaHecha(x,'bot'),'Todavía nadie avisa que terminó')}
+            ${g.manual.length?grupo(`✋ Cerradas desde el portal`,'man',g.manual,x=>filaHecha(x,'manual'),''):''}
           </div>`;
     }
 
@@ -8082,6 +8141,7 @@
         cont.innerHTML = rows.length
             ? rows.map(r=>hk2RowHTML(r,fSel,naIds)).join('')
             : `<div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Sin movimientos este día 🎉</div>`;
+        hk2AplicarDetalle();
     }
 
     function hk2RowHTML(r,fSel,naIds){
