@@ -564,7 +564,7 @@
 
         /* Rejilla fija: la palomita, el depa, las etiquetas, la chica y la hora
            caen SIEMPRE en la misma columna, así la lista se lee en vertical. */
-        .sd-row{display:grid;grid-template-columns:16px minmax(120px,1.4fr) 150px 1fr 104px;
+        .sd-row{display:grid;grid-template-columns:16px minmax(120px,1.4fr) 150px 1fr 30px 104px;
             align-items:center;gap:10px;padding:7px 16px;
             border-top:1px solid rgba(255,255,255,.04)}
         .sd-row:hover{background:rgba(255,255,255,.025)}
@@ -582,7 +582,23 @@
         .sd-tg.arr{background:rgba(245,192,112,.15);color:var(--accent-gold)}
         .sd-tg.sue{background:rgba(230,57,70,.15);color:#ff8b91}
         .sd-ch{font-size:11.5px;color:var(--text-secondary);white-space:nowrap;
-            overflow:hidden;text-overflow:ellipsis}
+            overflow:hidden;text-overflow:ellipsis;text-align:left}
+        /* La chica es un botón: se cambia sin salir de la fila. */
+        .sd-chsel{background:none;border:1px solid transparent;border-radius:7px;
+            padding:3px 7px;cursor:pointer;font-family:inherit;font-size:11.5px;
+            color:var(--text-secondary);display:inline-flex;align-items:center;gap:5px;
+            max-width:100%;justify-self:start}
+        .sd-chsel:hover{border-color:var(--glass-border);background:rgba(255,255,255,.05);
+            color:var(--text-primary)}
+        .sd-chsel .cv{opacity:.45;font-size:9px}
+        .sd-chsel.vacia{color:var(--accent-terracota);border-color:rgba(224,122,62,.3)}
+        .sd-av{background:none;border:none;cursor:pointer;font-size:12px;opacity:.28;
+            padding:2px;line-height:1;justify-self:center}
+        .sd-av:hover{opacity:.75}
+        .sd-av.on{opacity:1;filter:drop-shadow(0 0 5px rgba(245,192,112,.55))}
+        .sd-av.off{cursor:default;color:var(--text-tertiary);opacity:.18}
+        #hk2menu .it.off{opacity:.45}
+        #hk2menu .it small{opacity:.6;font-size:9.5px}
         .sd-nn{color:var(--text-tertiary);opacity:.6;font-size:11px}
         .sd-hr{font-family:var(--font-mono);font-size:11px;text-align:right;justify-self:end}
         .sd-hr.bot{color:#7fe3ad}
@@ -598,10 +614,11 @@
         .sd-btn:hover{background:rgba(224,122,62,.22)}
         .sd-row .sd-btn{justify-self:end}
         @media (max-width:760px){
-            .sd-row{grid-template-columns:16px 1fr auto;row-gap:3px;padding:9px 12px}
-            .sd-tags{grid-column:2/4;order:3}
-            .sd-ch{grid-column:2;order:4;font-size:11px}
-            .sd-hr,.sd-btn{grid-column:3;order:5;justify-self:end}
+            .sd-row{grid-template-columns:16px 1fr 30px auto;row-gap:4px;padding:9px 12px}
+            .sd-tags{grid-column:2/5;order:3}
+            .sd-ch,.sd-chsel{grid-column:2;order:4;font-size:11px}
+            .sd-av{grid-column:3;order:5}
+            .sd-hr,.sd-btn{grid-column:4;order:6;justify-self:end}
             .sd-head,.sd-gh,.sd-vacio{padding-left:12px;padding-right:12px}
         }
         .hk2-day.sel .dd{color:var(--accent-terracota)}
@@ -2925,13 +2942,6 @@
 
                 <div class="hk2-panel">
                     <div class="hk2-colhead"><div class="i">↓ Entrada</div><div class="o">↑ Salida — se limpia</div><div>Chica</div><div style="text-align:center">Avisada · Limpia</div></div>
-                    <!-- Vista de detalle (asignar chica, avisar, no disponible).
-                         Va plegada: el tablero de arriba es el día a día; esto es
-                         para planear. Tener las dos listas abiertas confundía. -->
-                    <div class="hk2-det-toggle" id="hk2-det-toggle" onclick="hk2ToggleDetalle()">
-                        <span>Detalle y asignación</span><span class="ch" id="hk2-det-ch">▾</span>
-                    </div>
-                    <div id="hk2-rows" style="display:none"><div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Cargando…</div></div>
                 </div>
 
                 <div class="hk2-legend">
@@ -7617,7 +7627,7 @@
 
     async function hk2Cargar(){
         await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
-        const cont=document.getElementById('hk2-rows'); if(!cont) return;
+        const cont=document.getElementById('hk2-hechas'); if(!cont) return;
         const hoyReal=hk2MX();
         const hoy=hk2AddD(hoyReal,hk2Ini);   // inicio de la ventana visible (puede ser pasado)
         const d0=hk2ISO(hoy); const d6=hk2ISO(hk2AddD(hoy,6)); const d7=hk2ISO(hk2AddD(hoy,7));
@@ -7945,21 +7955,6 @@
 
     function hk2ToggleHechas(){ hk2VerHechas=!hk2VerHechas; hk2Render(); }
 
-    // El detalle arranca plegado y recuerda la elección entre visitas.
-    let hk2VerDetalle = (()=>{ try{ return localStorage.getItem('vrm_hk_det')==='1'; }catch(e){ return false; } })();
-    function hk2AplicarDetalle(){
-        const box=document.getElementById('hk2-rows');
-        const ch =document.getElementById('hk2-det-ch');
-        const tg =document.getElementById('hk2-det-toggle');
-        if(box) box.style.display = hk2VerDetalle ? '' : 'none';
-        if(ch)  ch.textContent    = hk2VerDetalle ? '▴' : '▾';
-        if(tg)  tg.classList.toggle('abierto', hk2VerDetalle);
-    }
-    function hk2ToggleDetalle(){
-        hk2VerDetalle=!hk2VerDetalle;
-        try{ localStorage.setItem('vrm_hk_det', hk2VerDetalle?'1':'0'); }catch(e){}
-        hk2AplicarDetalle();
-    }
 
     // ══════════════════════════════════════════════════════════════
     // TABLERO "SALIDAS DEL DÍA"
@@ -8031,25 +8026,44 @@
             return `<span class="sd-hr bot">✓</span>`;
         };
         const filaHecha=(x,tipo)=>{
-            const ch=chicaDe(x.l);
             const icon = tipo==='curso' ? '<span class="sd-chk cur">◐</span>' : '<span class="sd-chk">✓</span>';
             return `<div class="sd-row ${tipo==='curso'?'curso':'done'}">
                 ${icon}
                 <span class="sd-dep">${x.dep}</span>
                 <span class="sd-tags">${tags(x)}</span>
-                <span class="sd-ch">${ch||'<i class="sd-nn">sin chica</i>'}</span>
+                ${celdaChica(x, tipo==='curso')}
+                ${tipo==='curso'?celdaAviso(x):'<span class="sd-av off">·</span>'}
                 ${sello(x,tipo)}
             </div>`;
         };
 
-        const filaFalta=x=>{
+        // La chica se cambia desde la propia fila. Antes esto vivía en la tabla
+        // de tarjetas de abajo; al retirarla, la asignación se mudó aquí.
+        const celdaChica=(x,editable)=>{
             const ch=chicaDe(x.l);
+            const lid=x.l&&x.l.id ? `'${x.l.id}'` : 'null';
+            if(!editable) return `<span class="sd-ch">${ch||'<i class="sd-nn">sin chica</i>'}</span>`;
+            return `<button class="sd-ch sd-chsel${ch?'':' vacia'}"
+                onclick="event.stopPropagation();hk2MenuChica(event,'${esc(x.dep)}','${fiso}',${lid})"
+                title="Cambiar quién la limpia">${ch||'asignar'} <span class="cv">▾</span></button>`;
+        };
+        // Palomita de "ya le avisé". Solo tiene sentido si hay chica asignada.
+        const celdaAviso=x=>{
+            const l=x.l;
+            if(!l||!l.id||!l.staff_id) return `<span class="sd-av off">·</span>`;
+            const on=!!l.avisada;
+            return `<button class="sd-av${on?' on':''}"
+                onclick="event.stopPropagation();hk2Avisada('${l.id}',${on})"
+                title="${on?'Ya le avisaste':'Marcar que ya le avisaste'}">📣</button>`;
+        };
+        const filaFalta=x=>{
             const lid=x.l&&x.l.id ? `'${x.l.id}'` : 'null';
             return `<div class="sd-row pend${x.urge?' urge':''}">
                 <span class="sd-chk pend">○</span>
                 <span class="sd-dep">${x.dep}</span>
                 <span class="sd-tags">${tags(x)}</span>
-                <span class="sd-ch">${ch||'<i class="sd-nn">sin chica</i>'}</span>
+                ${celdaChica(x,true)}
+                ${celdaAviso(x)}
                 <button class="sd-btn" onclick="event.stopPropagation();hk2MarcarDesdeTablero(event,${lid},'${esc(x.dep)}','${fiso}')">Marcar limpia</button>
             </div>`;
         };
@@ -8072,6 +8086,20 @@
             ${grupo(`✅ Avisó que terminó`,'ok',g.bot,x=>filaHecha(x,'bot'),'Todavía nadie avisa que terminó')}
             ${g.manual.length?grupo(`✋ Cerradas desde el portal`,'man',g.manual,x=>filaHecha(x,'manual'),''):''}
           </div>`;
+    }
+
+    // Elegir o cambiar la chica desde la fila del tablero.
+    function hk2MenuChica(ev, dep, fiso, limpId){
+        const m=hk2Menu();
+        const na=new Set((hk2Data.nodisp||[]).filter(n=>n.fecha===fiso).map(n=>String(n.staff_id)));
+        const filas=(hk2Data.staff||[]).map(st=>{
+            const off=na.has(String(st.id));
+            return `<div class="it${off?' off':''}" onclick="event.stopPropagation();hk2Asignar('${String(dep).replace(/'/g,"\\'")}','${fiso}',${limpId?`'${limpId}'`:'null'},'${st.id}')">
+                ${st.nombre}${off?' <small>no trabaja hoy</small>':''}</div>`;
+        }).join('');
+        m.innerHTML=`<div class="h">¿Quién limpia ${dep}?</div>${filas}`+
+            (limpId?`<div class="it" onclick="event.stopPropagation();hk2Asignar('${String(dep).replace(/'/g,"\\'")}','${fiso}','${limpId}','')">— quitar chica —</div>`:'');
+        hk2MenuPos(m,ev);
     }
 
     // Marcar limpia desde el tablero. Si el depa ya tiene chica asignada,
@@ -8156,11 +8184,8 @@
         document.getElementById('hk2-na-chips').innerHTML=
             [...naIds].map(id=>`<span class="hk2-off" onclick="hk2AbrirCal('${id}','${(nomDe[id]||'').replace(/'/g,'')}')" title="Ver calendario">${nomDe[id]||'—'} <span style="opacity:.6" onclick="event.stopPropagation();hk2QuitarNoDisp('${id}','${fSel}')" title="Quitar este día">✕</span></span>`).join('')
             || `<span style="font-size:11px;color:var(--text-tertiary)">todas disponibles</span>`;
-        const cont=document.getElementById('hk2-rows');
-        cont.innerHTML = rows.length
-            ? rows.map(r=>hk2RowHTML(r,fSel,naIds)).join('')
-            : `<div style="padding:40px;text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px">Sin movimientos este día 🎉</div>`;
-        hk2AplicarDetalle();
+        // La tabla de tarjetas quedó retirada: todo vive en el tablero de arriba.
+        // hk2RowHTML se conserva sin usar por si hay que consultar alguna regla.
     }
 
     function hk2RowHTML(r,fSel,naIds){
