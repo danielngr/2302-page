@@ -7979,7 +7979,26 @@
         }
         const g=hk2SalidasDe(fiso);
         const nom={}; (hk2Data.staff||[]).forEach(s=>nom[String(s.id)]=s.nombre);
-        const hora=h=>h?String(h).slice(0,5):'';
+        // OJO: en la base hora_inicio/hora_fin vienen como TIMESTAMP completo
+        // ('2026-08-30T11:42:00+00'), no como 'HH:MM:SS'. Cortar los primeros
+        // 5 caracteres daba "2026-" en pantalla. Se aceptan los dos formatos y
+        // el timestamp se pasa a hora de México, igual que el resto del portal.
+        const hora=h=>{
+            if(!h) return '';
+            const t=String(h).trim();
+            const m=t.match(/^(\d{1,2}):(\d{2})/);          // ya viene como hora suelta
+            if(m) return `${m[1].padStart(2,'0')}:${m[2]}`;
+            // Con zona horaria explícita (Z o ±HH:MM) sí hay que convertir a México.
+            // SIN zona, la hora que trae el texto YA es la hora local en que la chica
+            // avisó: convertirla la movería varias horas y saldría mal.
+            const conZona=/(Z|[+-]\d{2}:?\d{2})$/.test(t);
+            const hm=t.match(/T(\d{2}):(\d{2})/);
+            if(!conZona) return hm ? `${hm[1]}:${hm[2]}` : '';
+            const ms=Date.parse(t);
+            if(isNaN(ms)) return hm ? `${hm[1]}:${hm[2]}` : '';
+            return new Date(ms).toLocaleTimeString('es-MX',
+                {timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit',hour12:false});
+        };
         const chicaDe=l=>(l&&nom[String(l.staff_id)])||'';
         const money=n=>'$'+(Math.round((n||0)*100)/100).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
         const hechas=g.bot.concat(g.manual);   // 'adentro ahora' NO cuenta: todavía no termina
