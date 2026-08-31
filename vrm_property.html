@@ -6841,6 +6841,14 @@ const bgMaterial = new THREE.ShaderMaterial({
     varying vec2 vUv;
 
     float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    // ★ dither de salida (Dave Hoskins hash12): sin sin(), estable en float32 a
+    //   cualquier DPR. Sin esto, un degradado azul oscuro tan grande se cuantiza
+    //   a 8 bits y salen escalones/contornos visibles en las zonas profundas.
+    float hash12(vec2 p) {
+      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
+    }
     float noise(vec2 p) {
       vec2 i = floor(p), f = fract(p);
       vec2 u = f * f * (3.0 - 2.0 * f);
@@ -6884,6 +6892,9 @@ const bgMaterial = new THREE.ShaderMaterial({
       finalColor += uRayColor * softRays(uv, t) * 0.22;
       finalColor += vec3(0.91, 0.89, 0.85) * particles(uv, t) * 0.5;
       finalColor = mix(finalColor, uColorDeep * 0.7, (1.0 - uv.y) * 0.08);
+      // ★ grano/dither final — mismo tratamiento que el index
+      vec2 gp = gl_FragCoord.xy + fract(t * vec2(0.7137, 0.3219)) * 64.0;
+      finalColor += vec3(hash12(gp) * 0.010 - 0.005);
       gl_FragColor = vec4(finalColor, 1.0);
     }
   `
