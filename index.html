@@ -5693,6 +5693,7 @@ renderer.toneMappingExposure = 1.05;
 // contextos que la versión estable (cero costo extra de composición).
 const frontCanvas = document.getElementById('whale-front');
 let frontRenderer = null;
+let __frontArmed = false;   // ★ capa de composición del overlay pre-armada
 function ensureFrontRenderer() {
   if (!frontRenderer) {
     frontRenderer = new THREE.WebGLRenderer({
@@ -5850,6 +5851,23 @@ const bgMaterial = new THREE.ShaderMaterial({
     float hash(vec2 p) {
       return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
     }
+
+    // ★★ HASH DE GRANO — SIN sin(), ESTABLE EN float32 (Dave Hoskins, hash12)
+    //    El hash de arriba SOLO es seguro con entradas pequenas (noise/fbm/
+    //    particulas usan p < ~60, ahi va perfecto y por eso se queda igual).
+    //    El grano final, en cambio, lo alimentaba con uv*uResolution + t :
+    //    coordenadas de ~5x10^5 que ADEMAS crecian con el tiempo. Con 24 bits
+    //    de mantisa el argumento de sin() queda cuantizado a ~0.06 rad, el
+    //    hash deja de ser aleatorio y degenera en franjas diagonales regulares
+    //    que ademas se desplazan solas y cambian con el DPR — la "textura rara
+    //    que se pone y se quita". Este hash no usa sin() ni numeros grandes:
+    //    verificado como ruido blanco puro (pico/medio 4.0, identico al azar
+    //    real) a DPR 1.5 y 2 y a t=0 y t=600s.
+    float hash12(vec2 p) {
+      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
+    }
     
     float noise(vec2 p) {
       vec2 i = floor(p);
@@ -5974,7 +5992,16 @@ const bgMaterial = new THREE.ShaderMaterial({
       finalColor *= vignette;
       
       // === 6. GRAIN sutil ===
-      float grain = hash(uv * uResolution + t) * 0.025 - 0.0125;
+      // ★ gl_FragCoord = pixeles de dispositivo reales -> el grano mide siempre
+      //   1 pixel exacto sea cual sea el DPR (antes se calculaba en px CSS, asi
+      //   que a DPR 1.5 quedaba a caballo entre pixeles y batia con el
+      //   reescalado del compositor). El desplazamiento temporal va acotado con
+      //   fract() para que nunca crezca sin limite.
+      vec2 gp = gl_FragCoord.xy + fract(t * vec2(0.7137, 0.3219)) * 64.0;
+      // amplitud: antes ±0.0125 en LINEAL, que en los azules oscuros del fondo
+      // se dispara a ~±8/255 tras la conversion a sRGB (demasiado). ±0.005 rompe
+      // el banding de sobra y se lee como grano fino. Subir aqui si se quiere mas.
+      float grain = hash12(gp) * 0.010 - 0.005;
       finalColor += vec3(grain);
       
       gl_FragColor = vec4(finalColor, 1.0);
@@ -6396,12 +6423,33 @@ function loadGLB() {
       //   la escena: crea el 2º contexto WebGL, su envMap y compila el shader
       //   del cristal en ese contexto. Así el primer paso de ATRÁS→ENFRENTE no
       //   tiene tirón (el hitch era la creación perezosa en pleno scroll).
+      // ★★ FIX: este pre-calentamiento era POCO FIABLE. En el momento en que
+      //    corre, animate() ya pudo haber puesto whaleGroup.visible=false y
+      //    scale=0 (revealProgress vale 0 al principio de la página). Con la
+      //    ballena invisible o a escala 0, three.js la descarta y el render de
+      //    calentamiento NO compilaba absolutamente nada: el hitch de compilar
+      //    el shader de cristal + alojar el render target de transmission del
+      //    2º contexto seguía cayendo entero en el frame de la transición.
+      //    Ahora forzamos visible + escala real, usamos compile() (que recorre
+      //    la escena sin importar visibilidad ni frustum) y ADEMÁS un render
+      //    real (compile() no aloja el render target de transmission), y luego
+      //    restauramos el estado exacto que había.
       try {
         const _fr = ensureFrontRenderer();
-        const _me = scene.environment;
+        const _me  = scene.environment;
+        const _vis = whaleGroup.visible;
+        const _scl = whaleGroup.scale.clone();
+        whaleGroup.visible = true;
+        if (_scl.x < 0.05) whaleGroup.scale.setScalar(1);
         if (frontEnvMap) scene.environment = frontEnvMap;
-        _fr.render(scene, camera);          // 1ª compilación de shaders (invisible)
+        if (typeof _fr.compile === 'function') _fr.compile(scene, camera);
+        _fr.render(scene, camera);          // aloja transmission RT (invisible)
+        // el canvas principal comparte la escena pero NO el contexto: compila
+        // también ahí para que el primer frame con ballena no tenga tirón.
+        if (typeof renderer.compile === 'function') renderer.compile(scene, camera);
         scene.environment = _me;
+        whaleGroup.visible = _vis;
+        whaleGroup.scale.copy(_scl);
         frontCanvas.style.opacity = '0';    // sigue oculto hasta la ventana real
       } catch (e) { /* si falla, cae al modo perezoso de siempre */ }
     },
@@ -7262,11 +7310,31 @@ bloomPass.strength = 0.26;
 //     equipo de verdad no sostiene ~28fps) → cambios rarísimos = cero tirones
 //     por reasignar el buffer. En segundo plano no renderiza.
 let __lastHeavy = 0;
-const __dprFloor = isMobile ? 1.0 : 0.85;   // desktop puede bajar más si sufre (4K/5K)
-const __dprCap = DPR_MAIN;                        // 1.5 móvil / 2 desktop
-let __dpr = __dprCap;                             // arranca nítido
+// ★★ ESCALERA DE DPR EN PASOS LIMPIOS.
+//    Antes el gobernador bajaba en escalones continuos de -0.15 (2 -> 1.85 ->
+//    1.70 -> 1.55 ...). Cada uno de esos valores obliga al compositor a
+//    reescalar el canvas con un factor raro contra la pantalla Retina, y
+//    cualquier detalle de 1 px (el grano, el bloom) se convierte en un patron
+//    de interferencia visible. Con una escalera fija de razones limpias el
+//    reescalado es benigno y ademas hay MUCHOS menos realojos de framebuffer.
+const __dprCap = DPR_MAIN;
+const __dprLadder = (isMobile ? [1.5, 1.25, 1.0] : [2, 1.5, 1.25, 1.0])
+  .filter(function(v){ return v <= __dprCap + 1e-6; });
+if (!__dprLadder.length) __dprLadder.push(__dprCap);
+const __dprFloor = __dprLadder[__dprLadder.length - 1];
+let __dprIdx = 0;
+let __dpr = __dprLadder[0];
 let __emaFrame = 1000 / 40;
 let __govCooldown = 90;
+// ★ Nunca cambiamos la resolucion en pleno scroll: realojar el framebuffer a
+//   media coreografia se ve como un parpadeo/cambio de textura. Esperamos a
+//   que la pagina este quieta ~350ms.
+let __lastScrollTs = 0;
+try {
+  var __pingScroll = function(){ __lastScrollTs = performance.now(); };
+  window.addEventListener('scroll', __pingScroll, { passive: true });
+  if (window.__lenis && window.__lenis.on) window.__lenis.on('scroll', __pingScroll);
+} catch(_){}
 function __applyDPR(v){
   __dpr = Math.max(__dprFloor, Math.min(__dprCap, +v.toFixed(3)));
   renderer.setPixelRatio(__dpr);
@@ -7285,8 +7353,11 @@ let __capFps30 = false;
 function __governResolution(frameMs){
   __emaFrame += (frameMs - __emaFrame) * 0.05;
   if (__govCooldown > 0){ __govCooldown--; return; }
-  if (__emaFrame > (1000 / 40) * 1.5 && __dpr > __dprFloor){ __applyDPR(__dpr - 0.15); __govCooldown = 150; }
-  else if (!__capFps30 && __dpr <= __dprFloor + 0.001 && __emaFrame > 45){
+  if (__emaFrame > (1000 / 40) * 1.5 && __dprIdx < __dprLadder.length - 1){
+    if (performance.now() - __lastScrollTs < 350) return;   // ★ quieto o nada
+    __dprIdx++; __applyDPR(__dprLadder[__dprIdx]); __govCooldown = 150;
+  }
+  else if (!__capFps30 && __dprIdx >= __dprLadder.length - 1 && __emaFrame > 45){
     // ★ NIVEL 2 (máquina débil confirmada): 30fps estables + fuera el pase de
     //   aberración cromática (sutil; un fullscreen-pass menos por frame) y en
     //   la pasada frontal se renderiza la ballena UNA sola vez (ver loop).
@@ -7896,27 +7967,79 @@ function animate(time) {
   canvas.style.opacity = '1';
 
   // ════════════════════════════════════════════════════════════════════
+  // ESTADO DE LA PASADA FRONTAL — ★★ SE CALCULA **ANTES** DE RENDERIZAR ★★
+  //
+  // El tirón del giro atrás→adelante era esto: fOp y window.__whaleFrontOn se
+  // calculaban al FINAL de animate(), pero el bloque de render los leía ARRIBA
+  // → siempre con UN FRAME DE DESFASE. Consecuencias exactas:
+  //   · al ENTRAR: un frame con la ballena dibujada en LOS DOS canvas (doble
+  //     render de transmission = pico de frametime justo en la transición)
+  //   · al SALIR: un frame con la ballena en NINGUNO de los dos (parpadeo)
+  //   · con rush (scroll rápido) fOp cae de golpe y el desfase lo volvía salto
+  // Ahora todo el estado es del MISMO frame → la transición es continua.
+  // ════════════════════════════════════════════════════════════════════
+  let fOp = 0;
+  const FADE = 0.009;   // sube a opacidad 1 en ~sp0.501 (ballena aún fuera de cuadro)
+  if (sp > FRONT_PASS_IN && sp < FRONT_PASS_OUT) {
+    fOp = Math.min(1, Math.min(sp - FRONT_PASS_IN, FRONT_PASS_OUT - sp) / FADE);
+  }
+  // ★ TRAVESÍA: en scroll rápido el overlay frontal se apaga — la ballena
+  //   cruza al fondo (zambullida), no destella gigante sobre los textos.
+  fOp *= (1 - rushF);
+  if (fOp < 0.001) fOp = 0;
+  window.__whaleFrontOn   = fOp > 0;
+  window.__whaleFrontFull = fOp >= 0.999;
+
+  // ★ PRE-ARMADO DE LA CAPA: el overlay es un canvas a pantalla completa con
+  //   opacity:0. Un elemento totalmente transparente no tiene capa de
+  //   composición viva, así que al primer valor >0 el compositor tiene que
+  //   crear una capa de ~2560×1668 en Retina EN el frame de la transición.
+  //   Avisamos con will-change un poco antes de llegar y la soltamos al
+  //   alejarnos (no queremos una capa a pantalla completa viva todo el rato).
+  {
+    const _near = sp > FRONT_PASS_IN - 0.05 && sp < FRONT_PASS_OUT + 0.05;
+    if (_near !== __frontArmed) {
+      __frontArmed = _near;
+      frontCanvas.style.willChange = _near ? 'opacity' : 'auto';
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════
   // RENDER — pipeline ORIGINAL (composer, canvas único opaco):
   // fondo → velo interno (solo el agua) → ballena → bloom → aberración.
-  // ★ MÁQUINA DÉBIL + pasada frontal a opacidad plena: la ballena se dibuja
-  //   SOLO en el overlay frontal (idéntica y encima de todo) — ahorra el
-  //   render de transmisión duplicado del canvas principal en esa ventana.
+  //
+  // ★★ La ballena se salta en el canvas TRASERO sólo cuando el overlay la
+  //    cubre POR COMPLETO (fOp>=0.999). Antes bastaba con fOp>0.001: durante
+  //    TODO el fundido la ballena existía únicamente dentro de un overlay casi
+  //    transparente, o sea que se desvanecía y reaparecía. Ese "se desinfla y
+  //    vuelve" es justo lo que se leía como trabado en el giro.
   // ════════════════════════════════════════════════════════════════════
-  // ★★ FIX del mini-lag en la pasada frontal (TODAS las máquinas): dentro de
-  //    la ventana, la ballena vive en el overlay (encima de TODO) — dibujarla
-  //    también en el canvas de atrás duplicaba el render sin aportar un solo
-  //    píxel visible (el overlay cubre los mismos píxeles; el texto es opaco).
-  //    Además, sin ballena en el canvas principal el bloom/aberración no
-  //    tienen nada que resaltar → se saltan. Resultado: la ventana frontal
-  //    pasa de ~4 renders/frame a ~1.5 — el "pelo de lag" desaparece.
-  const _frontActive = window.__whaleFrontOn === true;
-  const _skipMainWhale = _frontActive && whaleGroup.visible;
+  // ★★ FUNDIDO CRUZADO REAL entre el canvas trasero y el overlay.
+  //    Con el skip a fOp>=0.999 se acababa el parpadeo, pero durante el
+  //    fundido la ballena quedaba dibujada ENTERA en los dos sitios a la vez
+  //    (opacidad total ~1.98) → destello de doble brillo. Repartimos: atrás
+  //    (1-fOp), delante fOp. La suma es 1 en TODO momento, así que la ballena
+  //    ni se apaga ni se duplica: sólo cambia de capa sin que se note.
+  const _mainOp = _whaleOp * (1 - fOp);
+  if (fOp > 0 && whaleMaterials.length > 0) {
+    for (let i = 0; i < whaleMaterials.length; i++) whaleMaterials[i].opacity = _mainOp;
+  }
+  const _skipMainWhale = (_mainOp <= 0.02) && whaleGroup.visible;
   if (_skipMainWhale) whaleGroup.visible = false;
   // bloom solo cuando hay ballena en el canvas principal (el fondo solo no
   // supera el threshold 0.84 — apagarlo es visualmente idéntico y gratis)
   const _bloomOn = whaleGroup.visible;
   if (bloomPass.enabled !== _bloomOn) bloomPass.enabled = _bloomOn;
-  if (!__capFps30 && chromaticPass.enabled === _frontActive) chromaticPass.enabled = !_frontActive;
+  // ★ La aberración cromática se DESVANECE con el fundido en vez de apagarse
+  //   de golpe. Encenderla/apagarla en el frame exacto de la transición era un
+  //   cambio de imagen instantáneo (un "pop") superpuesto al giro. Cuando su
+  //   offset ya es cero, se desactiva de verdad y se ahorra el pase completo.
+  if (!__capFps30) {
+    const _ca = 0.0004 * (1 - fOp);
+    const _caOn = _ca > 2e-6;
+    if (chromaticPass.enabled !== _caOn) chromaticPass.enabled = _caOn;
+    if (_caOn) chromaticPass.uniforms.uOffset.value.set(_ca, _ca);
+  }
   composer.render();
   if (_skipMainWhale) whaleGroup.visible = true;
 
@@ -7925,34 +8048,24 @@ function animate(time) {
   // ventana. Renderiza la MISMA escena/cámara → textura idéntica; el fade
   // en los bordes de la ventana hace la transición imperceptible.
   // ════════════════════════════════════════════════════════════════════
-  {
-    let fOp = 0;
-    const FADE = 0.009;   // sube a opacidad 1 en ~sp0.501 (ballena aún fuera) → entra ya sólida
-    if (sp > FRONT_PASS_IN && sp < FRONT_PASS_OUT) {
-      const eIn = Math.min(1, (sp - FRONT_PASS_IN) / FADE);
-      const eOut = Math.min(1, (FRONT_PASS_OUT - sp) / FADE);
-      fOp = Math.min(eIn, eOut);
+  if (fOp > 0) {
+    frontCanvas.style.opacity = String(fOp);
+    const fr = ensureFrontRenderer();
+    // en el overlay la ballena va a su opacidad PLENA; el fundido lo hace la
+    // opacidad CSS del canvas (fOp). Junto con el (1-fOp) de atrás, suma 1.
+    if (whaleMaterials.length > 0) {
+      for (let i = 0; i < whaleMaterials.length; i++) whaleMaterials[i].opacity = _whaleOp;
     }
-    // ★ TRAVESÍA: en scroll rápido el overlay frontal se apaga — la ballena
-    //   cruza al fondo (zambullida), no destella gigante sobre los textos.
-    fOp *= (1 - rushF);
-    window.__whaleFrontOn = (fOp > 0.001);      // ← ventana activa (el fade ocurre con la
-    window.__whaleFrontFull = (fOp >= 0.999);   //    ballena FUERA de cuadro → saltar el
-                                                //    canvas trasero es 100% invisible)
-    if (fOp > 0.001) {
-      frontCanvas.style.opacity = String(fOp);
-      const fr = ensureFrontRenderer();
-      // ★ Cristal BRILLANTE: usamos el envMap del contexto del overlay durante
-      // este render (los reflejos hacen el cristal luminoso, no opaco), y lo
-      // restauramos enseguida para el render principal del siguiente frame.
-      const _mainEnv = scene.environment;
-      if (frontEnvMap) scene.environment = frontEnvMap;
-      fr.render(scene, camera);
-      scene.environment = _mainEnv;
-    } else if (frontCanvas.style.opacity !== '0') {
-      frontCanvas.style.opacity = '0';
-      frontCanvas.style.filter = '';
-    }
+    // ★ Cristal BRILLANTE: usamos el envMap del contexto del overlay durante
+    // este render (los reflejos hacen el cristal luminoso, no opaco), y lo
+    // restauramos enseguida para el render principal del siguiente frame.
+    const _mainEnv = scene.environment;
+    if (frontEnvMap) scene.environment = frontEnvMap;
+    fr.render(scene, camera);
+    scene.environment = _mainEnv;
+  } else if (frontCanvas.style.opacity !== '0') {
+    frontCanvas.style.opacity = '0';
+    frontCanvas.style.filter = '';
   }
   // (el requestAnimationFrame ya se agendó al inicio de animate())
 }
