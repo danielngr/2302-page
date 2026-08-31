@@ -613,6 +613,9 @@
             color:var(--accent-terracota)}
         .sd-btn:hover{background:rgba(224,122,62,.22)}
         .sd-row .sd-btn{justify-self:end}
+        .sd-btn.cerrar{border-color:rgba(108,184,255,.45);background:rgba(108,184,255,.12);color:#6cb8ff}
+        .sd-btn.cerrar:hover{background:rgba(108,184,255,.24)}
+        .sd-tg.cur{background:rgba(108,184,255,.16);color:#6cb8ff}
         @media (max-width:760px){
             .sd-row{grid-template-columns:16px 1fr 30px auto;row-gap:4px;padding:9px 12px}
             .sd-tags{grid-column:2/5;order:3}
@@ -7784,6 +7787,14 @@
             const blkEnHueco=ultSal&&bloqueos.find(b=>hk2Depto(b.unit_id)===dep
                 && b.check_out>ultSal && b.check_in<fiso);
             const listo=yaLimpio(dep,desdeVig,fiso);
+            // Si la ÚLTIMA SALIDA ya tiene su limpieza confirmada y nadie pudo
+            // ocupar el depa desde entonces, no hay nada que hacer: el día solo
+            // lleva la ENTRADA, no una salida por limpiar. Antes la fila salía
+            // igual "en verde", y eso ensuciaba la lista con trabajo inexistente.
+            // Sigue apareciendo cuando NO consta la limpieza (el caso GD 303A)
+            // o cuando hubo un bloqueo en el hueco: ahí alguien pudo entrar
+            // después de que se limpió y hay que repasar.
+            if(listo && !blkEnHueco) return;
             finBlk[dep]={deduced:true, ultSal:ultSal||null, hueco:noches,
                          ocupado:!!blkEnHueco, listo};
         });
@@ -7988,8 +7999,12 @@
         const esc = t => String(t||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
         // Etiquetas de contexto: por qué este depa se limpia hoy
-        const tags=x=>{
+        const tags=(x,tipo)=>{
             const t=[];
+            if(tipo==='curso'){
+                const hi=hora(x.l&&x.l.hora_inicio);
+                t.push(`<span class="sd-tg cur">LLEGÓ ${hi||'—'}</span>`);
+            }
             if(x.blk)    t.push('<span class="sd-tg blk">🔒 BLOQUEO</span>');
             if(x.turn)   t.push('<span class="sd-tg trn">⚡ ENTRA HOY</span>');
             else if(x.ent) t.push('<span class="sd-tg trn">↓ ENTRADA</span>');
@@ -8006,9 +8021,18 @@
         const sello=(x,tipo)=>{
             const hi=hora(x.l&&x.l.hora_inicio), hf=hora(x.l&&x.l.hora_fin);
             if(tipo==='manual') return `<span class="sd-hr man">a mano</span>`;
-            if(tipo==='curso')  return `<span class="sd-hr cur">llegó ${hi||'—'}</span>`;
+            // En curso: la columna la ocupa el botón de cerrarla, y la hora de
+            // llegada se muestra como etiqueta para no perderla.
+            if(tipo==='curso'){
+                const lid=x.l&&x.l.id ? `'${x.l.id}'` : 'null';
+                return `<button class="sd-btn cerrar" title="Avisó que llegó pero no que terminó. Cierra la limpieza para que se le pague."
+                    onclick="event.stopPropagation();hk2CerrarEnCurso(${lid},'${esc(x.dep)}','${fiso}')">✓ Terminó</button>`;
+            }
             if(hi&&hf)          return `<span class="sd-hr bot">${hi} → ${hf}</span>`;
             if(hf)              return `<span class="sd-hr bot">terminó ${hf}</span>`;
+            // Llegó con el bot pero se cerró desde el portal: se dice tal cual,
+            // no se inventa una hora de fin que nadie registró.
+            if(hi)              return `<span class="sd-hr man">llegó ${hi} · cerrada</span>`;
             return `<span class="sd-hr bot">✓</span>`;
         };
         const filaHecha=(x,tipo)=>{
@@ -8016,7 +8040,7 @@
             return `<div class="sd-row ${tipo==='curso'?'curso':'done'}">
                 ${icon}
                 <span class="sd-dep">${x.dep}</span>
-                <span class="sd-tags">${tags(x)}</span>
+                <span class="sd-tags">${tags(x,tipo)}</span>
                 ${celdaChica(x, tipo==='curso')}
                 ${tipo==='curso'?celdaAviso(x):'<span class="sd-av off">·</span>'}
                 ${sello(x,tipo)}
@@ -8047,7 +8071,7 @@
             return `<div class="sd-row pend${x.urge?' urge':''}">
                 <span class="sd-chk pend">○</span>
                 <span class="sd-dep">${x.dep}</span>
-                <span class="sd-tags">${tags(x)}</span>
+                <span class="sd-tags">${tags(x,'falta')}</span>
                 ${celdaChica(x,true)}
                 ${celdaAviso(x)}
                 <button class="sd-btn" onclick="event.stopPropagation();hk2MarcarDesdeTablero(event,${lid},'${esc(x.dep)}','${fiso}')">Marcar limpia</button>
@@ -8086,6 +8110,25 @@
         m.innerHTML=`<div class="h">¿Quién limpia ${dep}?</div>${filas}`+
             (limpId?`<div class="it" onclick="event.stopPropagation();hk2Asignar('${String(dep).replace(/'/g,"\\'")}','${fiso}','${limpId}','')">— quitar chica —</div>`:'');
         hk2MenuPos(m,ev);
+    }
+
+    // Cerrar una limpieza que quedó a medias: la chica avisó al bot que llegó
+    // pero se le olvidó avisar que terminó. Sin esto la limpieza se queda en
+    // 'pendiente' para siempre y NO entra a la nómina — o sea, no se le paga.
+    // Solo se toca el estatus: la hora de fin se deja vacía a propósito, porque
+    // nadie sabe a qué hora acabó de verdad e inventarla ensucia el histórico.
+    async function hk2CerrarEnCurso(limpId, dep, fiso){
+        if(!limpId){ toast('⚠️ No encuentro el registro de esa limpieza'); return; }
+        if(!confirm(`¿Dar por terminada la limpieza de ${dep}?\n\nAvisó que llegó pero nunca que terminó.\nAl cerrarla entra a la nómina y se le paga.`)) return;
+        try{
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?id=eq.${limpId}`, {
+                method:'PATCH', headers:hk2H(true),
+                body: JSON.stringify({estatus:'terminada'})
+            });
+            if(!res.ok){ toast('⚠️ '+(await res.text()).slice(0,70)); return; }
+            toast(`✓ ${dep} cerrada — ya cuenta para la nómina`);
+        }catch(e){ toast('⚠️ '+(e.message||e)); }
+        hk2Cargar();
     }
 
     // Marcar limpia desde el tablero. Si el depa ya tiene chica asignada,
