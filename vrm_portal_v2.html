@@ -9876,9 +9876,10 @@
 
         const sinLimp = aPagar.length === 0;
         const disAttr = sinLimp ? 'disabled' : '';
+        // Un solo botón, igual que en la nómina semanal. El Excel y el liquidar
+        // salieron: el Excel lo arma el Action y el liquidar ya no se usa.
         const accion = `<div style="padding:0 20px 16px;display:flex;justify-content:flex-end;gap:8px">
-            <button class="btn btn-ghost" onclick="quinGenerarExcel()" style="font-size:11px${sinLimp?';opacity:.4':''}" ${disAttr}><i class="ph ph-file-xls"></i> Generar Excel</button>
-            <button class="btn btn-outline-white" onclick="liquidarQuincena()" style="font-size:11px${sinLimp?';opacity:.4':''}" ${disAttr}><i class="ph-bold ph-check-circle"></i> Liquidar quincena</button>
+            <button class="btn btn-outline-white" id="quin-tg-btn" onclick="quinEnviarTelegram()" style="font-size:11px${sinLimp?';opacity:.4':''}" ${disAttr}><i class="ph-bold ph-paper-plane-tilt"></i> Enviar a Telegram</button>
         </div>`;
 
         body.innerHTML = filas + arrHtml + resumen + accion;
@@ -10222,6 +10223,53 @@
         } catch(e) {
             toast("⚠️ Error de red: " + e.message);
         } finally {
+            if(btn){ btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '<i class="ph-bold ph-paper-plane-tilt"></i> Enviar a Telegram'; }
+        }
+    }
+
+    // Dispara la quincena. Manda tipo y periodo en el cuerpo para que la
+    // Edge Function sepa que NO es la semanal. Si esa función todavía no lee
+    // esos campos, va a generar la semanal — por eso el aviso del confirm.
+    async function quinEnviarTelegram(){
+        const q = quincenaPorOffset(quinOffset);
+        const btn = document.getElementById('quin-tg-btn');
+        if(!confirm(`¿Disparar la QUINCENA ${q.label} a Telegram?\n\nSe genera con los datos actuales, incluidos los ajustes.\nTe llega el Excel al chat en ~1 min.`)) return;
+        if(btn){ btn.disabled = true; btn.style.opacity = '0.6'; btn.innerHTML = '<i class="ph ph-spinner"></i> Enviando...'; }
+        try{
+            const res = await fetch(`${SUPABASE_URL}/functions/v1/disparar-nomina`, {
+                method:'POST',
+                headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json'},
+                // Se mandan las MISMAS fechas con las que el panel calcula lo que
+                // se paga: desde el corte anterior (exclusivo) hasta el día de pago
+                // efectivo. Usar el fin de quincena en vez de payEff metería en el
+                // Excel limpiezas de fin de semana que no se pagan todavía.
+                body: JSON.stringify({
+                    tipo:'quincenal',
+                    periodo:  q.key,
+                    desde:    q.windowStartISO,   // exclusivo
+                    hasta:    q.payEffISO,        // inclusivo — día de pago efectivo
+                    inicio:   q.inicioISO,        // para la tarjeta temporal de la quincena
+                    label:    q.label,
+                    staff_ids: QUINCENAL_IDS
+                })
+            });
+            const txt = await res.text();
+            let data = {}; try{ data = JSON.parse(txt); }catch(e){}
+            if(!res.ok){ toast('⚠️ No se pudo disparar: ' + txt.substring(0,80)); return; }
+            // GUARDA IMPORTANTE: la v1 de disparar-nomina ignora el cuerpo y
+            // siempre lanza la SEMANAL. Si la respuesta no confirma que se fue
+            // la quincenal, hay que decirlo — creer que mandaste una cosa y
+            // haber mandado otra es dinero mal pagado.
+            if(data && data.tipo === 'quincenal'){
+                toast(`✓ Quincena disparada (${data.workflow||''}) — llega en ~1 min`);
+            } else {
+                alert('⚠️ CUIDADO\n\nSe disparó, pero la función NO confirmó que fuera la quincenal.\n'
+                    + 'Lo más probable es que siga la versión vieja de disparar-nomina,\n'
+                    + 'que ignora el tipo y genera SIEMPRE la nómina semanal.\n\n'
+                    + 'Revisa el Excel que te llegue antes de pagar.');
+            }
+        }catch(e){ toast('⚠️ Error de red: ' + (e.message||e)); }
+        finally{
             if(btn){ btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '<i class="ph-bold ph-paper-plane-tilt"></i> Enviar a Telegram'; }
         }
     }
