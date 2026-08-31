@@ -628,8 +628,6 @@
         .hk2-off{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:100px;background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.32);color:#8ee9f5;cursor:pointer}
         .hk2-add{font-size:11.5px;color:var(--text-tertiary);border:1px dashed var(--glass-border);border-radius:100px;padding:5px 11px;cursor:pointer}
         .hk2-panel{border:1px solid var(--glass-border);border-radius:16px;overflow:hidden;margin-top:12px;background:rgba(255,255,255,.015)}
-        .hk2-colhead{display:grid;grid-template-columns:1fr 1fr 1.35fr 84px;gap:14px;padding:13px 20px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.8px;color:var(--text-tertiary);text-transform:uppercase;border-bottom:1px solid var(--glass-border);background:rgba(255,255,255,.015)}
-        .hk2-colhead .i{color:#8fe4bf}.hk2-colhead .o{color:#f0b596}
         .hk2-row{display:grid;grid-template-columns:1fr 1fr 1.35fr 84px;gap:14px;align-items:center;padding:12px 20px 12px 16px;border-left:3px solid transparent;position:relative}
         .hk2-row + .hk2-row{border-top:1px solid rgba(255,255,255,.04)}
         .hk2-row.turn{border-left-color:var(--accent-terracota)}
@@ -685,8 +683,6 @@
         #hk2menu .it{display:flex;flex-direction:column;gap:2px;padding:9px 10px;border-radius:9px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-secondary)}
         #hk2menu .it:hover{background:rgba(52,211,153,.12);color:var(--status-green)}
         #hk2menu .it small{font-weight:400;opacity:.65}
-        .hk2-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--text-secondary);margin:12px 4px 24px}
-        .hk2-legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
         .hk2-sig{position:absolute;right:14px;top:6px;font-family:var(--font-mono);font-size:7.5px;color:var(--text-tertiary)}
         /* calendario "no trabaja" */
         .hk2cal{max-width:360px;width:calc(100vw - 40px);padding:18px 18px 16px}
@@ -706,7 +702,6 @@
         .hk2cal-foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;gap:10px}
         .hk2cal-hint{font-size:10.5px;color:var(--text-tertiary)}
         @media(max-width:768px){
-            .hk2-colhead{display:none}
             .hk2-row{grid-template-columns:1fr 1fr;grid-template-areas:"in out" "chica cks";gap:9px 10px;padding:13px 14px 13px 12px}
             .hk2-row .in-s{grid-area:in}.hk2-row .out-s{grid-area:out}.hk2-row .ch-s{grid-area:chica}.hk2-row .hk2-cks{grid-area:cks;justify-self:end}
             .hk2-row .hk2-span2{grid-area:auto;grid-row:1;grid-column:1/-1}
@@ -2923,14 +2918,15 @@
                     </div>
                 </div>
 
-                <div id="hk2-hechas"></div>
-
                 <div id="hk2-riesgos"></div>
 
+                <!-- El selector de día va ARRIBA de la lista: primero eliges el día,
+                     luego ves lo que hay. Antes estaba debajo y no se entendía que
+                     mandaba sobre el tablero. Las flechas mueven semanas completas. -->
                 <div class="hk2-wkwrap">
-                    <button class="hk2-warr" onclick="hk2Shift(-1)" title="Días anteriores">‹</button>
+                    <button class="hk2-warr" onclick="hk2Shift(-7)" title="Semana anterior">‹</button>
                     <div class="hk2-week" id="hk2-week"></div>
-                    <button class="hk2-warr" onclick="hk2Shift(1)" title="Días siguientes">›</button>
+                    <button class="hk2-warr" onclick="hk2Shift(7)" title="Semana siguiente">›</button>
                     <button class="hk2-hoy" id="hk2-hoy-btn" onclick="hk2Ini=0;hk2Dia=0;hk2Cargar()" style="display:none">HOY</button>
                 </div>
 
@@ -2940,18 +2936,8 @@
                     <span class="hk2-add" onclick="hk2AddNoDisp(event)">+ agregar</span>
                 </div>
 
-                <div class="hk2-panel">
-                    <div class="hk2-colhead"><div class="i">↓ Entrada</div><div class="o">↑ Salida — se limpia</div><div>Chica</div><div style="text-align:center">Avisada · Limpia</div></div>
-                </div>
+                <div id="hk2-hechas"></div>
 
-                <div class="hk2-legend">
-                    <span><i style="background:#34D399"></i>entrada</span>
-                    <span><i style="background:#E8895A"></i>salida / turnover</span>
-                    <span><i style="background:#A78BFA"></i>bloqueado manual (calendario)</span>
-                    <span style="opacity:.85"><i style="background:#E8895A;opacity:.5"></i>"estancia mínima" = hueco automático de Airbnb</span>
-                    <span><i style="background:#FBBF24"></i>sin chica</span>
-                    <span><i style="background:#22D3EE"></i>chica no disponible</span>
-                </div>
 
             </div>
 
@@ -9806,7 +9792,7 @@
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             }),
             // Ajustes (bonos/descuentos) de la quincena — mismo criterio que la nómina semanal
-            fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=in.(pendiente,pagado)&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.finISO}&select=staff_id,monto,motivo,fecha`, {
+            fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=in.(pendiente,pagado)&staff_id=in.${idsIn}&fecha=gt.${q.windowStartISO}&fecha=lte.${q.finISO}&select=id,staff_id,monto,motivo,fecha`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             })
         ]);
@@ -9849,9 +9835,10 @@
             const netoTxt = `$${(cifraPos?pagar:p.total).toLocaleString('es-MX',{minimumFractionDigits:2})}`;
             const ajusRows = p.ajustes.map(a => {
                 const m = parseFloat(a.monto)||0;
-                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 20px 6px 44px;font-size:11px;font-family:var(--font-mono);border-bottom:1px solid rgba(255,255,255,.03);color:${m<0?'var(--status-red)':'var(--status-green)'}">
-                        <span>${a.motivo||'Ajuste'} · ${a.fecha}</span>
+                return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 20px 6px 44px;font-size:11px;font-family:var(--font-mono);border-bottom:1px solid rgba(255,255,255,.03);color:${m<0?'var(--status-red)':'var(--status-green)'}">
+                        <span style="flex:1">${a.motivo||'Ajuste'} · ${a.fecha}</span>
                         <span>${m<0?'−':'+'}$${Math.abs(m).toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
+                        ${a.id?`<button onclick="event.stopPropagation();quinQuitarAjuste('${a.id}')" title="Quitar este ajuste" style="background:none;border:none;color:var(--status-red);cursor:pointer;padding:0 2px;font-size:12px;opacity:.55">✕</button>`:''}
                     </div>`; }).join('');
             const detRows = p.limps.length
                 ? p.limps.map(l => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 20px 6px 44px;font-size:11px;font-family:var(--font-mono);color:var(--text-secondary);border-bottom:1px solid rgba(255,255,255,.03)">
@@ -9871,6 +9858,7 @@
                     </div>
                     <div style="display:flex;align-items:center;gap:8px">
                         <div style="text-align:right;font-family:var(--font-mono);font-size:15px;font-weight:700;color:${netoColor}">${netoTxt}</div>
+                        <button class="btn btn-ghost" onclick="event.stopPropagation();quinAjuste('${id}','${(nom||'').replace(/'/g,'')}')" style="padding:6px 9px" title="Agregar bono o descuento"><i class="ph ph-plus-minus"></i></button>
                         <button class="btn btn-ghost" onclick="event.stopPropagation();navigator.clipboard.writeText('${cuenta}');toast('✓ Cuenta de ${nom} copiada')" style="padding:6px 9px" title="Copiar cuenta"><i class="ph ph-copy"></i></button>
                     </div>
                 </div>
@@ -9894,6 +9882,89 @@
         </div>`;
 
         body.innerHTML = filas + arrHtml + resumen + accion;
+    }
+
+    // ── AJUSTES DE LA QUINCENA ────────────────────────────────────
+    // El panel quincenal ya restaba los ajustes, pero no había forma de
+    // crearlos desde aquí: había que ir al SQL. La fecha se limita a la
+    // ventana que el panel realmente suma, porque un ajuste fuera de rango
+    // se guarda "bien" y no aparece en ningún lado — el peor de los errores.
+    function quinAjuste(staffId, nombre){
+        const q = quincenaPorOffset(quinOffset);
+        // El panel suma con  fecha > windowStart  y  fecha <= fin
+        const minISO = (()=>{ const d=new Date(q.windowStartISO+'T12:00:00'); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0]; })();
+        const maxISO = q.finISO;
+        const hoyISO = getMXISO(0);
+        const defISO = hoyISO < minISO ? minISO : (hoyISO > maxISO ? maxISO : hoyISO);
+        // Con id propio: la página tiene otros .modal-overlay (comentarios, etc.)
+        // y un querySelector genérico cerraría el que no es.
+        document.getElementById('quin-aj-modal')?.remove();
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.id = 'quin-aj-modal';
+        overlay.style.zIndex = '620';
+        overlay.innerHTML = `<div class="modal-box" style="max-width:420px">
+            <div class="modal-head">
+                <span style="font-family:var(--font-mono);font-size:11px;color:var(--accent-terracota)">AJUSTE QUINCENA — ${nombre}</span>
+                <button class="btn btn-ghost" onclick="document.getElementById('quin-aj-modal')?.remove()" style="padding:4px 8px"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="padding:20px">
+                <div style="font-size:11.5px;color:var(--text-tertiary);line-height:1.5;margin-bottom:14px">
+                    Se resta o suma al neto de <b>${nombre}</b> en <b>${q.label}</b>.
+                    Pon el monto en negativo para un descuento y en positivo para un bono.
+                </div>
+                <div class="ajuste-form">
+                    <input class="ajuste-input" id="qaj-monto" type="number" placeholder="Monto (+bono / −descuento)" step="0.01">
+                    <input class="ajuste-input" id="qaj-motivo" type="text" placeholder="Motivo (préstamo, bono, faltante…)">
+                    <label style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:4px">Día dentro de la quincena</label>
+                    <input class="ajuste-input" id="qaj-fecha" type="date" value="${defISO}" min="${minISO}" max="${maxISO}">
+                    <button class="btn btn-outline-white" onclick="quinGuardarAjuste('${staffId}')">
+                        <i class="ph-bold ph-check"></i> Guardar ajuste
+                    </button>
+                </div>
+            </div>
+        </div>`;
+        overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+        document.body.appendChild(overlay);
+        setTimeout(()=>document.getElementById('qaj-monto')?.focus(), 60);
+    }
+
+    async function quinGuardarAjuste(staffId){
+        const monto  = parseFloat(document.getElementById('qaj-monto')?.value);
+        const motivo = (document.getElementById('qaj-motivo')?.value || '').trim();
+        if(isNaN(monto) || monto === 0){ toast('⚠️ Ingresa un monto válido'); return; }
+        if(!motivo){ toast('⚠️ El motivo es obligatorio'); document.getElementById('qaj-motivo')?.focus(); return; }
+        const q = quincenaPorOffset(quinOffset);
+        const inp = document.getElementById('qaj-fecha');
+        let fecha = inp?.value || inp?.min;
+        // Red de seguridad: si la fecha se sale de la ventana, el ajuste
+        // existiría en la base pero el panel nunca lo sumaría.
+        if(fecha < inp.min) fecha = inp.min;
+        if(fecha > inp.max) fecha = inp.max;
+        try{
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes`, {
+                method:'POST', keepalive:true,
+                headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'return=minimal'},
+                body: JSON.stringify({staff_id:staffId, monto, motivo, estatus:'pendiente', fecha})
+            });
+            if(!res.ok){ toast('⚠️ No se guardó: '+(await res.text()).slice(0,80)); return; }
+            document.getElementById('quin-aj-modal')?.remove();
+            toast(`✓ Ajuste de ${monto<0?'−':'+'}$${Math.abs(monto).toLocaleString('es-MX',{minimumFractionDigits:2})} guardado`);
+            cargarQuincenal();
+        }catch(e){ toast('⚠️ '+(e.message||e)); }
+    }
+
+    async function quinQuitarAjuste(id){
+        if(!confirm('¿Quitar este ajuste?')) return;
+        try{
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?id=eq.${encodeURIComponent(id)}`, {
+                method:'DELETE',
+                headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+            });
+            if(!res.ok){ toast('⚠️ No se pudo quitar'); return; }
+            toast('🗑️ Ajuste quitado');
+            cargarQuincenal();
+        }catch(e){ toast('⚠️ '+(e.message||e)); }
     }
 
     async function guardarCifraContrato(){
