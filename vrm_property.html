@@ -1634,6 +1634,118 @@ console.log('%c[VRM Property] v2 cargada ✓ — ID: ' + (window.VRM_UNIT_ID || 
   /* Booking modal styles se inyectan en su propio bloque al final */
 </style>
 
+<style id="vrmLujoCss">
+/* ═══════════════════════════════════════════════════════════════════════
+   VRM · CAPA DE LUJO (overrides) — hereda el look editorial del index.
+   Solo sobreescribe estética; no toca lógica (carrusel, Stripe, mapa).
+   ═══════════════════════════════════════════════════════════════════════ */
+:root{ --vl-gold:#C8A87C; --vl-gold-deep:#B89668; }
+body{ counter-reset: vlsec; }
+
+/* atmósfera oceánica de fondo, igual que el index (god-rays + grano) */
+body::before{ content:''; position:fixed; inset:0; z-index:-2; pointer-events:none;
+  background:
+    radial-gradient(120% 70% at 50% -8%, rgba(74,143,181,.16), transparent 58%),
+    radial-gradient(90% 60% at 82% 16%, rgba(184,150,104,.05), transparent 55%),
+    linear-gradient(180deg,#12233b 0%, #0A1428 46%, #070f1f 100%); }
+body::after{ content:''; position:fixed; inset:0; z-index:-1; opacity:.5; pointer-events:none;
+  background:repeating-linear-gradient(103deg, transparent 0 38px, rgba(200,168,124,.026) 38px 39px); }
+
+/* ─── HERO cinematográfico ─── */
+.pp-hero{ aspect-ratio:auto !important; height:78vh !important; min-height:540px; max-height:none !important; }
+@media (min-width:720px){ .pp-hero{ height:82vh !important; max-height:88vh !important; } }
+.pp-hero-slide{ animation:vlKen 22s ease-in-out infinite alternate; }
+@keyframes vlKen{ from{ transform:scale(1.045); } to{ transform:scale(1.12); } }
+/* velo más cinematográfico: claro arriba, denso abajo para el título */
+.pp-hero-gradient{ background:linear-gradient(180deg,
+   rgba(10,20,40,.5) 0%, transparent 24%, transparent 44%,
+   rgba(7,12,22,.42) 66%, rgba(7,12,22,.94) 100%) !important; }
+.pp-hero-bottom{ bottom:34px !important; left:clamp(20px,5vw,52px) !important; right:clamp(20px,5vw,52px) !important; }
+.pp-hero-zone-bottom{ color:var(--vl-gold) !important; letter-spacing:.24em !important; font-size:11.5px !important; }
+.pp-hero-title{ font-size:clamp(42px,8.5vw,88px) !important; line-height:.94 !important;
+  letter-spacing:-.012em !important; margin-bottom:18px !important; font-weight:300 !important; }
+.pp-hero-title em{ display:block; font-size:.6em; margin-top:4px; }
+.pp-hero-price{ display:flex; align-items:baseline; gap:8px; }
+.pp-hero-price-amount{ font-family:var(--pp-serif) !important; font-style:italic; font-size:34px !important; color:var(--vl-gold) !important; }
+.pp-hero-price-label,.pp-hero-price-unit{ letter-spacing:.16em !important; text-transform:uppercase; font-size:11px !important; color:var(--pp-sand,#C5BBA8) !important; }
+
+/* flechas de navegación del hero (desktop) */
+.vl-hero-arrow{ position:absolute; top:50%; transform:translateY(-50%); z-index:6;
+  width:48px; height:48px; border-radius:50%; display:none; align-items:center; justify-content:center;
+  background:rgba(10,20,40,.42); backdrop-filter:blur(6px); border:1px solid rgba(232,228,218,.22);
+  color:#fff; cursor:pointer; transition:background .25s, transform .25s; opacity:.9; }
+.vl-hero-arrow:hover{ background:rgba(10,20,40,.7); }
+.vl-hero-arrow.prev{ left:20px; } .vl-hero-arrow.next{ right:20px; }
+.vl-hero-arrow svg{ width:20px; height:20px; }
+@media (hover:hover) and (min-width:720px){ .vl-hero-arrow{ display:flex; } }
+.pp-hero-track{ cursor:grab; scroll-behavior:smooth; }
+.pp-hero-track.vl-dragging{ cursor:grabbing; scroll-behavior:auto; }
+.pp-hero-slide{ scroll-snap-stop:normal !important; } /* fluidez multi-swipe */
+.pp-hero-dot.active{ background:var(--vl-gold) !important; }
+
+/* ─── STATS con hairlines de oro ─── */
+.pp-stats{ border-top:1px solid rgba(184,150,104,.18); border-bottom:1px solid rgba(184,150,104,.18);
+  padding:22px clamp(18px,4vw,40px) !important; }
+.pp-stat-num{ font-family:var(--pp-serif) !important; font-size:23px !important; font-weight:400 !important; }
+.pp-stat-label{ letter-spacing:.16em !important; }
+.pp-stat-divider{ background:rgba(184,150,104,.18) !important; }
+
+/* ─── SECCIONES editoriales: número dorado + hairline ─── */
+.pp-section, .pp-desc, .pp-photos-section{ padding-left:clamp(18px,5vw,52px) !important; padding-right:clamp(18px,5vw,52px) !important; }
+.pp-section-eyebrow{ position:relative; display:flex; align-items:baseline; gap:12px;
+  color:var(--pp-mist,#E8E4DA) !important; font-family:var(--pp-serif) !important;
+  font-size:22px !important; letter-spacing:.01em !important; text-transform:none !important; font-weight:400 !important;
+  padding-bottom:14px; border-bottom:1px solid rgba(184,150,104,.22); margin-bottom:26px !important; }
+.pp-section-eyebrow::before{ counter-increment:vlsec; content:counter(vlsec,decimal-leading-zero);
+  font-style:italic; font-size:13px; color:var(--vl-gold); letter-spacing:.05em; }
+
+/* ─── GALERÍA asimétrica ─── */
+.pp-photos-grid{ grid-template-columns:2fr 1fr 1fr !important; grid-auto-rows:132px !important; gap:9px !important; }
+.pp-photo-tile{ aspect-ratio:auto !important; border-radius:2px !important;
+  border:1px solid rgba(184,150,104,.1); transition:transform .5s cubic-bezier(.2,1,.3,1); }
+.pp-photo-tile:hover{ transform:scale(.985); }
+.pp-photo-tile:nth-child(1){ grid-column:1; grid-row:span 2; }
+.pp-photo-tile:nth-child(2){ grid-column:2 / 4; grid-row:span 1; }
+@media (max-width:720px){
+  .pp-photos-grid{ grid-template-columns:1fr 1fr !important; grid-auto-rows:118px !important; }
+  .pp-photo-tile:nth-child(1){ grid-column:1 / 3; grid-row:span 2; }
+  .pp-photo-tile:nth-child(2){ grid-column:auto; grid-row:auto; }
+}
+
+/* ─── AMENITIES lista refinada con hairlines ─── */
+.pp-amenities{ gap:0 60px !important; }
+.pp-amenity{ font-size:15px !important; padding:15px 0; border-bottom:1px solid rgba(184,150,104,.14);
+  gap:14px !important; }
+.pp-amenity-icon{ color:var(--vl-gold) !important; }
+.pp-amenity-icon svg{ width:17px; height:17px; }
+
+/* ─── DOCK sticky en cristal ─── */
+.pp-sticky{ left:14px !important; right:14px !important; bottom:16px !important;
+  max-width:760px !important; border-radius:52px !important;
+  background:rgba(16,28,46,.6) !important; backdrop-filter:blur(18px) saturate(1.2);
+  -webkit-backdrop-filter:blur(18px) saturate(1.2);
+  border:1px solid rgba(184,150,104,.3) !important; box-shadow:0 18px 46px rgba(0,0,0,.5) !important;
+  padding:12px 12px 12px 26px !important; }
+.pp-sticky-reserve{ border-radius:40px !important; padding:15px 20px !important;
+  background:linear-gradient(120deg,var(--vl-gold),var(--vl-gold-deep)) !important; }
+.pp-sticky-reserve-text{ letter-spacing:.14em !important; }
+
+/* revelado suave al entrar en viewport */
+.vl-reveal{ opacity:0; transform:translateY(22px); transition:opacity .8s cubic-bezier(.2,1,.3,1), transform .8s cubic-bezier(.2,1,.3,1); }
+.vl-reveal.vl-in{ opacity:1; transform:none; }
+
+/* el pill 'Swipe for more' estorba: las barritas + flechas ya lo comunican */
+.pp-hero-hint{ display:none !important; }
+/* barritas del carrusel: más visibles arriba-izquierda */
+.pp-hero-dots{ top:18px !important; left:20px !important; }
+.pp-hero-dot{ background:rgba(232,228,218,.32) !important; }
+.pp-hero-dot.active{ width:22px !important; }
+/* el badge de rating combina */
+.pp-hero-rating{ background:rgba(10,20,40,.42) !important; backdrop-filter:blur(6px); border:1px solid rgba(232,228,218,.18) !important; }
+
+@media (prefers-reduced-motion:reduce){ .pp-hero-slide{ animation:none; } .vl-reveal{ opacity:1; transform:none; transition:none; } }
+</style>
+
 </head>
 <body>
 <script>
@@ -1758,7 +1870,7 @@ window.VRM_img = function(url, size){
 <div class="loader" id="loader">
   <div class="loader-mark">vrm</div>
   <div class="loader-rule"></div>
-  <div class="loader-meta">La Cruz de Huanacaxtle</div>
+  <div class="loader-meta">Vacation Rental México</div>
 </div><style id="vrmTrazoCss">
   .loader{z-index:2000000000 !important}
   .vrm-fade{z-index:2000000001 !important}
@@ -1849,7 +1961,7 @@ window.VRM_img = function(url, size){
 
   if(loader && viaTrazo){
     loader.innerHTML="";
-    var w=makeWrap("La Cruz de Huanacaxtle"); w.classList.add("cl-done"); loader.appendChild(w);
+    var w=makeWrap("Vacation Rental México"); w.classList.add("cl-done"); loader.appendChild(w);
     var t0=performance.now();
     var iv=setInterval(function(){
       if(ready && performance.now()-t0>520){ clearInterval(iv); hide(); }
@@ -1870,7 +1982,7 @@ window.VRM_img = function(url, size){
     if(!ov){ ov=document.createElement("div"); ov.className="vrm-fade"; document.body.appendChild(ov); }
     ov.innerHTML=""; void ov.offsetWidth; ov.classList.add("on");
     var DUR=1150;
-    var w=makeWrap("La Cruz de Huanacaxtle"); ov.appendChild(w);
+    var w=makeWrap("Vacation Rental México"); ov.appendChild(w);
     w.style.setProperty("--cl-dur", DUR+"ms");
     w.style.setProperty("--cl-brand-delay", Math.round(DUR*0.82)+"ms");
     var navd=false, go=function(){ if(navd) return; navd=true; window.location.href=href; };
@@ -7538,7 +7650,119 @@ document.addEventListener('visibilitychange', () => {
     background: rgba(232, 228, 218, 0.18);
     border-color: rgba(232, 228, 218, 0.50);
   }
+</style>
+<script>
   /* (sello de calidad eliminado a peticion del usuario) */
 </script>
+<script>
+/* ══ VRM · carrusel del hero — suave y sin fricción en todo input ══════════
+   Mantiene el scroll nativo (mantequilla en táctil) y le suma: flechas de
+   navegación (desktop), arrastre con mouse/trackpad, teclado ← →, rueda
+   horizontal, y snap por índice con easing. Un solo listener con rAF. */
+(function(){
+  window.__vlIIFE=true;
+  window.__vlInit=null;
+  function init(){
+    window.__vlInitCalls=(window.__vlInitCalls||0)+1;
+    var track=document.getElementById('ppHeroTrack');
+    var hero=document.getElementById('ppHero');
+    if(!track||!hero||track.__vlReady) return;
+    if(!track.children.length){ return setTimeout(init,120); }  // esperar a que el JS pinte slides
+    track.__vlReady=true;
+
+    var N=function(){ return track.children.length; };
+    var W=function(){ return track.clientWidth||1; };
+    var idx=function(){ return Math.round(track.scrollLeft/W()); };
+    function go(i, smooth){
+      i=Math.max(0, Math.min(N()-1, i));
+      track.scrollTo({ left:i*W(), behavior: smooth===false?'auto':'smooth' });
+    }
+
+    /* ── flechas (desktop) ── */
+    function arrow(cls, d, path){
+      var el=document.createElement('button'); el.className='vl-hero-arrow '+cls;
+      el.type='button'; el.setAttribute('aria-label', cls==='prev'?'Anterior':'Siguiente');
+      el.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="'+path+'"/></svg>';
+      el.addEventListener('click', function(e){ e.stopPropagation(); go(idx()+d); });
+      hero.appendChild(el); return el;
+    }
+    arrow('prev', -1, 'M15 18l-6-6 6-6');
+    arrow('next',  1, 'M9 18l6-6-6-6');
+
+    /* ── arrastre con MOUSE (desktop) — patrón robusto con listeners en window.
+         El táctil NO entra aquí: usa el scroll nativo, que ya es perfecto. ── */
+    var down=false, moved=false, sx=0, sl=0;
+    track.addEventListener('mousedown', function(e){
+      if(e.button!==0) return;
+      down=true; moved=false; sx=e.clientX; sl=track.scrollLeft;
+      track.classList.add('vl-dragging');
+      e.preventDefault();                        // evita selección de texto/imagen
+    });
+    window.addEventListener('mousemove', function(e){
+      if(!down) return;
+      var dx=e.clientX-sx;
+      if(Math.abs(dx)>4) moved=true;
+      track.scrollLeft = sl - dx;                // sigue el cursor al instante (behavior:auto por .vl-dragging)
+    });
+    window.addEventListener('mouseup', function(){
+      if(!down) return; down=false;
+      track.classList.remove('vl-dragging');
+      go(idx());                                 // snap suave al más cercano al soltar
+      if(moved){ setTimeout(function(){ moved=false; }, 30); }
+    });
+    /* si el usuario arrastró, no dejar que el clic abra el lightbox/navegue */
+    track.addEventListener('click', function(e){ if(moved){ e.stopPropagation(); e.preventDefault(); } }, true);
+
+    /* ── rueda horizontal / trackpad de dos dedos ── */
+    var wheelLock=false;
+    hero.addEventListener('wheel', function(e){
+      var ax=Math.abs(e.deltaX), ay=Math.abs(e.deltaY);
+      if(ax>ay && ax>6){                          // gesto claramente horizontal
+        e.preventDefault();
+        if(wheelLock) return; wheelLock=true;
+        go(idx() + (e.deltaX>0?1:-1));
+        setTimeout(function(){ wheelLock=false; }, 320);
+      }
+    }, {passive:false});
+
+    /* ── teclado ← → cuando el hero está en foco/hover ── */
+    hero.setAttribute('tabindex','0');
+    var hover=false;
+    hero.addEventListener('mouseenter', function(){ hover=true; });
+    hero.addEventListener('mouseleave', function(){ hover=false; });
+    document.addEventListener('keydown', function(e){
+      if(!hover && document.activeElement!==hero) return;
+      if(e.key==='ArrowRight'){ e.preventDefault(); go(idx()+1); }
+      else if(e.key==='ArrowLeft'){ e.preventDefault(); go(idx()-1); }
+    });
+
+    /* click en dots → ir a esa foto */
+    var dots=document.getElementById('ppHeroDots');
+    if(dots){ dots.style.pointerEvents='auto'; dots.setAttribute('aria-hidden','false');
+      dots.addEventListener('click', function(e){
+        var d=e.target.closest('.pp-hero-dot'); if(!d) return;
+        var i=parseInt(d.getAttribute('data-dot-idx'),10); if(!isNaN(i)) go(i);
+      });
+    }
+
+    /* re-alinear al redimensionar (evita quedar entre fotos) */
+    var rz; window.addEventListener('resize', function(){
+      clearTimeout(rz); rz=setTimeout(function(){ go(idx(), false); }, 120);
+    });
+  }
+  window.__vlInit=init;
+  if(document.readyState!=='loading') setTimeout(init,80); else document.addEventListener('DOMContentLoaded', function(){ setTimeout(init,80); });
+
+  /* ── revelado suave de secciones al hacer scroll ── */
+  function reveals(){
+    var els=document.querySelectorAll('.pp-stats, .pp-photos-section, .pp-desc, .pp-section');
+    if(!('IntersectionObserver' in window)){ els.forEach(function(el){ el.classList.add('vl-in'); }); return; }
+    var io=new IntersectionObserver(function(en){ en.forEach(function(x){ if(x.isIntersecting){ x.target.classList.add('vl-in'); io.unobserve(x.target); } }); }, {threshold:.12, rootMargin:'0px 0px -8% 0px'});
+    els.forEach(function(el){ el.classList.add('vl-reveal'); io.observe(el); });
+  }
+  if(document.readyState!=='loading') setTimeout(reveals,120); else document.addEventListener('DOMContentLoaded', function(){ setTimeout(reveals,120); });
+})();
+</script>
+
 </body>
 </html>
