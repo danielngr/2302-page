@@ -390,12 +390,12 @@ async function loadAll(){
   const {data:depas}=await sb.from('propiedades_portal').select('*').eq('propietario_id',owner.id).eq('activa',true).order('nombre');
   const ids=depas.map(d=>d.id);
   // Primero qué periodos hay. Si nadie pidió uno por URL, se abre el último.
-  const {data:pers0}=await sb.from('cierres').select('periodo').in('propiedad_id',ids);
+  const {data:pers0}=await sb.from('cierres').select('periodo').in('propiedad_id',ids).eq('publicado',true);
   PERIODOS=[...new Set((pers0||[]).map(x=>x.periodo))].sort().reverse();
   if(!PERIODO_DE_URL && PERIODOS.length) PERIODO=PERIODOS[0];
   PER_Y=parseInt(PERIODO.slice(0,4)); PER_M=parseInt(PERIODO.slice(5,7))-1;
   calY=PER_Y; calM=PER_M;
-  const {data:cierres}=await sb.from('cierres').select('*').in('propiedad_id',ids).eq('periodo',PERIODO);
+  const {data:cierres}=await sb.from('cierres').select('*').in('propiedad_id',ids).eq('periodo',PERIODO).eq('publicado',true);
   const cids=cierres.map(c=>c.id);
   const {data:partidas}=cids.length?await sb.from('cierre_partidas').select('*').in('cierre_id',cids).order('orden'):{data:[]};
   const {data:estancias}=await sb.from('estancias').select('*').in('propiedad_id',ids).eq('periodo',PERIODO);
@@ -416,9 +416,9 @@ async function loadAll(){
   const RES=(reservas||[]).map(r=>({depa:r.propiedad_id,ci:r.check_in,co:r.check_out,src:r.source,tipo:r.tipo}));
   D={owner:owner.nombre,ownerId:owner.id,depas:dd,catmeta:CATMETA,reservas:RES,
      blocks:(bloqueos||[]).map(b=>({id:b.id,depa:b.propiedad_id,start:b.fecha_inicio,end:b.fecha_fin,note:b.nota,creado:b.creado_en})),
-     periodos:[],
+     periodos:[], publicadoEn:(cierres&&cierres.length?cierres[0].publicado_en:null),
      conf:(confs&&confs.length)?{when:fmtWhen(confs[0].confirmado_en),folio:confs[0].folio,sig:confs[0].firma_png}:null};
-  const {data:pers}=await sb.from('cierres').select('periodo').in('propiedad_id',ids);
+  const {data:pers}=await sb.from('cierres').select('periodo').in('propiedad_id',ids).eq('publicado',true);
   PERIODOS=[...new Set((pers||[]).map(x=>x.periodo))].sort().reverse();
 }
 const fmt=n=>'$'+Math.round(n).toLocaleString('en-US');
@@ -1282,9 +1282,13 @@ async function enter(){
   document.getElementById('perLbl').textContent=perLabel(PERIODO);
   buildPerMenu();
   {const _sp=document.getElementById('signPer'); if(_sp)_sp.textContent=perLabel(PERIODO);}
+  // La fecha de publicación deja de ser un cálculo y pasa a ser un dato:
+  // la que quedó guardada cuando se corrió publicar_cierre().
   const _m=parseInt(PERIODO.slice(5,7))-1;
-  const _sig=MESES[(_m+1)%12];
-  document.getElementById('hsubTxt').textContent='Tu cierre de '+MESES[_m]+' está listo. Publicado el 5 de '+_sig+' · 09:00.';
+  {const _pe=D.publicadoEn?new Date(D.publicadoEn):null;
+   document.getElementById('hsubTxt').textContent='Tu cierre de '+MESES[_m]+' está listo.'
+     +(_pe?' Publicado el '+_pe.getDate()+' de '+MESES[_pe.getMonth()]+' · '
+        +String(_pe.getHours()).padStart(2,'0')+':'+String(_pe.getMinutes()).padStart(2,'0')+'.':'');}
   buildSw();render();
 }
 async function logout(){await sb.auth.signOut();location.reload();}
