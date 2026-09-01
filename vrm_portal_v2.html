@@ -2947,10 +2947,11 @@
       <div class="cz-card">
         <div class="cz-kpis">
           <div class="cz-kpi"><small>Renglones</small><b id="czKRen">—</b></div>
-          <div class="cz-kpi"><small>Propiedades</small><b id="czKProp">—</b></div>
-          <div class="cz-kpi"><small>Depositado por Airbnb</small><b id="czKPag">—</b></div>
+          <div class="cz-kpi"><small>Propiedades Vallarta</small><b id="czKProp">—</b></div>
+          <div class="cz-kpi"><small>Depósito Vallarta</small><b id="czKPag">—</b></div>
           <div class="cz-kpi"><small>Días con tipo de cambio</small><b id="czKDias">—</b></div>
         </div>
+        <p class="cz-msg" id="czFuera" style="margin:14px 0 0;display:none"></p>
       </div>
 
       <!-- Bloqueante -->
@@ -15237,8 +15238,21 @@ function updateNotifBadge(){
     const a = ANALISIS;
     $('czKRen').textContent  = a.renglones.toLocaleString('es-MX');
     $('czKProp').textContent = a.resumen.filter(r => r.propiedad !== '«sin asignar»').length;
-    $('czKPag').textContent  = dinero(a.totalPagado);
+    $('czKPag').textContent  = dinero(a.totalDeposito != null ? a.totalDeposito : a.totalPagado);
     $('czKDias').textContent = a.dias;
+
+    // Lo que el crudo trae y este cierre no toca. Se dice en voz alta: si un mes
+    // desaparece un millón de pesos de la tabla, tiene que estar escrito por qué.
+    const fu = a.fuera;
+    $('czFuera').style.display = (fu && fu.propiedades) ? 'block' : 'none';
+    if (fu && fu.propiedades) {
+      $('czFuera').innerHTML =
+        `Este cierre es solo de Vallarta. El crudo trae además <b>${fu.propiedades} propiedades` +
+        ` de otras regiones</b> (${fu.regiones.join(', ')}) por ${dinero(fu.reservaciones)} en ` +
+        `reservaciones — no entran aquí porque no tienen código, comisión ni limpiezas en el ` +
+        `catálogo.<br>Airbnb depositó ${dinero(a.totalPagado)} a la cuenta completa, ` +
+        `impuestos y ajustes de todas las regiones incluidos.`;
+    }
 
     $('czTabla').innerHTML = a.resumen.map(r => `
       <tr>
