@@ -315,10 +315,10 @@ input[type=radio]:checked:after{content:'';position:absolute;inset:4px;border-ra
 <div id="app">
   <div class="top">
     <div class="brand"><div class="mini">V</div><div class="t">VRM · Conviva<b>Portal del propietario</b></div></div>
-    <button class="mes" id="perBtn" onclick="togglePer()">▦ <span id="perLbl">Junio 2026</span> <span style="opacity:.6;font-size:10px">▾</span></button>
+    <button class="mes" id="perBtn" onclick="togglePer()">▦ <span id="perLbl">—</span> <span style="opacity:.6;font-size:10px">▾</span></button>
     <div class="permenu" id="perMenu"></div>
   </div>
-  <h1 class="hello">Buenas tardes, <i>Anabel</i>.</h1>
+  <h1 class="hello">Buenas tardes.</h1>
   <div class="hsub"><span id="hsubTxt">Tu cierre está listo.</span></div>
   <div class="sw" id="sw"></div>
   <div class="hero">
@@ -351,7 +351,7 @@ input[type=radio]:checked:after{content:'';position:absolute;inset:4px;border-ra
 
   <div class="notice"><span class="ni">◈</span>
     <p><b>¿Algo no te cuadra?</b> Levantar una aclaración pausa el reloj de revisión mientras lo resolvemos contigo.
-    <br><a class="ask" href="https://wa.me/5215500000000?text=Hola%2C%20tengo%20una%20duda%20sobre%20mi%20cierre%20de%20junio" target="_blank">Levantar aclaración por WhatsApp →</a></p>
+    <br><a class="ask" href="https://wa.me/5215500000000?text=Hola%2C%20tengo%20una%20duda%20sobre%20mi%20cierre" target="_blank">Levantar aclaración por WhatsApp →</a></p>
   </div>
   <button class="logout" onclick="logout()">Cerrar sesión</button>
   
@@ -361,7 +361,7 @@ input[type=radio]:checked:after{content:'';position:absolute;inset:4px;border-ra
 <div class="sheet" id="sheet"><div class="grab"></div><div class="shead" id="shead"></div><div class="sbody" id="sbody"></div></div>
 <div class="sheet" id="blocksheet"><div class="grab"></div><div class="shead" id="bshead"></div><div class="sbody" id="bsbody"></div></div>
 <div class="sheet" id="signsheet"><div class="grab"></div>
-  <div class="shead"><div class="se">Confirmación del cierre · Junio 2026</div><h3>Firma de conformidad</h3></div>
+  <div class="shead"><div class="se">Confirmación del cierre · <span id="signPer">—</span></div><h3>Firma de conformidad</h3></div>
   <div class="sbody" id="signbody"></div>
 </div>
 
@@ -370,7 +370,12 @@ input[type=radio]:checked:after{content:'';position:absolute;inset:4px;border-ra
 const SUPA_URL='https://grsykedeppdwenpfxlfh.supabase.co';
 const SUPA_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdyc3lrZWRlcHBkd2VucGZ4bGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3MDU0NzAsImV4cCI6MjA4NzI4MTQ3MH0.1fjVfOMl8bERU2FiL7izZcv0Jckns5l-sEmRwlER71o';
 const sb=window.supabase?window.supabase.createClient(SUPA_URL,SUPA_ANON):null;
-const PERIODO=(new URLSearchParams(location.search).get('p')||'2026-06');
+// El periodo que se muestra sale de los cierres que existen, no de una fecha
+// escrita aquí. Agosto aparece solo en cuanto se siembren sus cierres; este
+// archivo no se vuelve a tocar cada mes.
+const _pURL=new URLSearchParams(location.search).get('p');
+const PERIODO_DE_URL=!!_pURL;
+let PERIODO=_pURL||'2026-06';   // provisional: loadAll lo ajusta al más reciente
 const CATMETA={gestion:{label:'Gestión',icon:'◈',desc:'Comisión y administración'},
  limpieza:{label:'Limpieza',icon:'❋',desc:'Limpiezas, lavandería y amenidades'},
  servicios:{label:'Servicios',icon:'◍',desc:'Luz, agua e internet'},
@@ -384,6 +389,12 @@ async function loadAll(){
   const owner=props[0];
   const {data:depas}=await sb.from('propiedades_portal').select('*').eq('propietario_id',owner.id).eq('activa',true).order('nombre');
   const ids=depas.map(d=>d.id);
+  // Primero qué periodos hay. Si nadie pidió uno por URL, se abre el último.
+  const {data:pers0}=await sb.from('cierres').select('periodo').in('propiedad_id',ids);
+  PERIODOS=[...new Set((pers0||[]).map(x=>x.periodo))].sort().reverse();
+  if(!PERIODO_DE_URL && PERIODOS.length) PERIODO=PERIODOS[0];
+  PER_Y=parseInt(PERIODO.slice(0,4)); PER_M=parseInt(PERIODO.slice(5,7))-1;
+  calY=PER_Y; calM=PER_M;
   const {data:cierres}=await sb.from('cierres').select('*').in('propiedad_id',ids).eq('periodo',PERIODO);
   const cids=cierres.map(c=>c.id);
   const {data:partidas}=cids.length?await sb.from('cierre_partidas').select('*').in('cierre_id',cids).order('orden'):{data:[]};
@@ -444,11 +455,11 @@ function render(){
   document.getElementById('heroDep').textContent=fmt2(A.dep);
   const pb=document.getElementById('pbar');
   const segs=[['Recibes',A.neto,'var(--patina)'],...Object.keys(A.cats).map(c=>[D.catmeta[c].label,A.cats[c],CATCOLORS[c]])];
-  pb.innerHTML=segs.map(([l,v,c])=>`<i style="background:${c};width:0" data-w="${(v/A.dep*100).toFixed(2)}"></i>`).join('');
+  pb.innerHTML=segs.map(([l,v,c])=>`<i style="background:${c};width:0" data-w="${(A.dep?v/A.dep*100:0).toFixed(2)}"></i>`).join('');
   requestAnimationFrame(()=>pb.querySelectorAll('i').forEach(i=>i.style.width=i.dataset.w+'%'));
   document.getElementById('pkey').innerHTML=
-    `<span><span class="sw2" style="background:var(--patina)"></span>Recibes ${(A.neto/A.dep*100).toFixed(0)}%</span>`+
-    Object.keys(A.cats).map(c=>`<span><span class="sw2" style="background:${CATCOLORS[c]}"></span>${D.catmeta[c].label} ${(A.cats[c]/A.dep*100).toFixed(0)}%</span>`).join('');
+    `<span><span class="sw2" style="background:var(--patina)"></span>Recibes ${(A.dep?A.neto/A.dep*100:0).toFixed(0)}%</span>`+
+    Object.keys(A.cats).map(c=>`<span><span class="sw2" style="background:${CATCOLORS[c]}"></span>${D.catmeta[c].label} ${(A.dep?A.cats[c]/A.dep*100:0).toFixed(0)}%</span>`).join('');
   const maxc=Math.max(...Object.values(A.cats));
   document.getElementById('cats').innerHTML=Object.keys(A.cats).map(c=>`
     <button class="cat" onclick="openCat('${c}')"><span class="chev">›</span>
@@ -488,9 +499,9 @@ function openSign(){
   const A=agg('all');
   document.getElementById('signbody').innerHTML=`
     <div class="signwrap">
-      <div class="sigsum"><div class="a">Recibes en total · Junio 2026<br><span style="color:var(--faint);font-size:11px">Marítima 9-S · Marítima 10-i · Albatros 301</span></div>
+      <div class="sigsum"><div class="a">Recibes en total · ${perLabel(PERIODO)}<br><span style="color:var(--faint);font-size:11px">${A.names.map(k=>D.depas[k].name).join(' · ')}</span></div>
         <div class="b mono">${fmt2(A.neto)}</div></div>
-      <div class="legal">Al firmar confirmo que revisé el estado de resultados de mis propiedades correspondiente a junio 2026, que estoy de acuerdo con los depósitos, retiros y el neto a recibir, y autorizo a VRM · Conviva Inmuebles a programar la dispersión correspondiente.</div>
+      <div class="legal">Al firmar confirmo que revisé el estado de resultados de mis propiedades correspondiente a ${perLabel(PERIODO).toLowerCase()}, que estoy de acuerdo con los depósitos, retiros y el neto a recibir, y autorizo a VRM · Conviva Inmuebles a programar la dispersión correspondiente.</div>
       <div class="padwrap"><canvas id="pad"></canvas><div class="padline"></div><div class="padx">Firma del propietario</div>
         <button class="padclear" onclick="clearPad()">borrar</button></div>
       <div class="signactions">
@@ -540,62 +551,427 @@ async function doConfirm(){
       </div></div>`;
 }
 /* -------- PDF ACTA -------- */
-function makePDF(){
-  const conf=getConf(); if(!conf) return;
-  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'pt',format:'a4'});
-  const W=595, M=64; let y=70;
-  const C=(t,yy,size,style,color)=>{doc.setFont('times',style||'normal');doc.setFontSize(size);doc.setTextColor(...(color||[26,20,10]));doc.text(t,W/2,yy,{align:'center'});};
-  // letterhead
-  doc.setDrawColor(140,115,51);doc.setLineWidth(1);doc.circle(W/2,y,17);doc.circle(W/2,y,13.5);
-  doc.setFont('times','bold');doc.setFontSize(15);doc.setTextColor(140,115,51);doc.text('V',W/2,y+5,{align:'center'});
-  y+=40; C('VRM · CONVIVA INMUEBLES',y,11,'bold',[90,74,33]); y+=14;
-  C('Administración de propiedades vacacionales · Puerto Vallarta',y,8.5,'normal',[120,110,90]); y+=18;
-  doc.setDrawColor(200,180,130);doc.setLineWidth(.7);doc.line(M,y,W-M,y); y+=30;
-  C('ACTA DE CONFORMIDAD',y,17,'bold'); y+=16;
-  C('Cierre mensual · Junio 2026',y,11,'italic',[90,80,60]); y+=12;
-  C('Folio '+conf.folio+'   ·   '+conf.when,y,9,'normal',[120,110,90]); y+=28;
-  const A=agg('all');
-  doc.setFont('times','normal');doc.setFontSize(10.5);doc.setTextColor(50,42,26);
-  const intro=doc.splitTextToSize('Por medio de la presente, la propietaria Anabel hace constar que revisó y aceptó el estado de resultados del período junio 2026 correspondiente a las propiedades administradas por VRM · Conviva Inmuebles que se detallan a continuación, manifestando su conformidad con los depósitos, retiros y el importe neto a recibir.',W-2*M);
-  doc.text(intro,M,y); y+=intro.length*13+16;
-  // table
-  const cols=[M, M+180, M+300, M+410, W-M];
-  doc.setFont('times','bold');doc.setFontSize(9);doc.setTextColor(90,74,33);
-  doc.text('PROPIEDAD',cols[0],y);doc.text('DEPÓSITO',cols[2],y,{align:'right'});doc.text('RETIROS',cols[3],y,{align:'right'});doc.text('NETO',cols[4],y,{align:'right'});
-  y+=6; doc.setDrawColor(200,180,130);doc.line(M,y,W-M,y); y+=15;
-  doc.setFont('times','normal');doc.setFontSize(10);doc.setTextColor(40,33,20);
-  Object.values(D.depas).forEach(d=>{
-    const ret=Object.values(d.cats).flat().reduce((a,[,v])=>a+v,0);
-    doc.text(d.name,cols[0],y);
-    doc.text(fmt2(d.dep),cols[2],y,{align:'right'});
-    doc.text('−'+fmt2(ret),cols[3],y,{align:'right'});
-    doc.setFont('times','bold');doc.text(fmt2(d.dep-ret),cols[4],y,{align:'right'});doc.setFont('times','normal');
-    y+=17;});
-  doc.setDrawColor(200,180,130);doc.line(M,y-6,W-M,y-6); y+=8;
-  doc.setFont('times','bold');doc.setFontSize(11.5);
-  doc.text('Total a recibir',cols[0],y); doc.text(fmt2(A.neto),cols[4],y,{align:'right'}); y+=24;
-  doc.setFont('times','italic');doc.setFontSize(9);doc.setTextColor(110,100,80);
-  const catline='Retiros del período: Gestión '+fmt2(A.cats.gestion)+' · Limpieza '+fmt2(A.cats.limpieza)+' · Servicios '+fmt2(A.cats.servicios)+' · Mantenimiento '+fmt2(A.cats.mantenimiento)+'.';
-  const cl=doc.splitTextToSize(catline,W-2*M); doc.text(cl,M,y); y+=cl.length*11+8;
-  doc.setFont('times','normal');doc.setFontSize(8.5);
-  const legal=doc.splitTextToSize('El detalle partida por partida de cada categoría, así como las estancias que integran el depósito, están disponibles de forma permanente en el Portal del Propietario. La presente acta se emite de manera electrónica y la firma aquí estampada corresponde al trazo registrado por la propietaria en el portal seguro de VRM.',W-2*M);
-  doc.text(legal,M,y); y+=legal.length*10+30;
-  // signatures
-  const sx1=M+20,sx2=W-M-160;
-  if(conf.sig){try{doc.addImage(conf.sig,'PNG',sx1,y-8,150,52);}catch(e){}}
-  doc.setDrawColor(120,105,70);doc.setLineWidth(.7);
-  doc.line(sx1,y+48,sx1+150,y+48); doc.line(sx2,y+48,sx2+150,y+48);
-  doc.setFontSize(8.5);doc.setTextColor(90,80,60);
-  doc.text('Anabel · Propietaria',sx1+75,y+60,{align:'center'});
-  doc.text('VRM · Conviva Inmuebles',sx2+75,y+60,{align:'center'});
-  doc.setDrawColor(140,115,51);doc.circle(sx2+75,y+18,15);doc.setFont('times','bold');doc.setFontSize(11);doc.setTextColor(140,115,51);doc.text('V',sx2+75,y+22,{align:'center'});
-  // footer
-  doc.setFont('times','normal');doc.setFontSize(7.5);doc.setTextColor(140,130,110);
-  doc.text('VRM · Conviva Inmuebles S.A. de C.V. · Puerto Vallarta, Jalisco · propietarios@vrm.mx',W/2,800,{align:'center'});
-  doc.save('VRM_Acta_Conformidad_Junio2026_'+conf.folio+'.pdf');
+/* ═══ ACTA DE CONFORMIDAD ═══════════════════════════════════════════
+   Encapsulada para que sus nombres no toquen los del portal. */
+const ACTA=(function(){
+/* ═══════════════════════════════════════════════════════════════════════════
+   acta.js — El acta de conformidad.
+
+   Es el único documento de todo el sistema que el propietario guarda, imprime
+   y eventualmente enseña. Tiene que verse como algo emitido por una casa seria,
+   no como un recibo de impresora.
+
+   Decisiones de diseño, para que no se deshagan sin querer:
+
+   · Tipografía con letter-spacing (charSpace). Times a secas se ve a máquina
+     de escribir; Times abierto se ve grabado. Es la diferencia más barata
+     entre "documento" y "papel".
+   · Párrafo justificado. Un bloque de texto con el margen derecho parejo
+     dice, sin decirlo, que alguien lo compuso.
+   · El importe con letra. Es lo que hace una factura mexicana y es lo que
+     vuelve el número irrefutable.
+   · Doble filete de marco. Un solo trazo es una tabla; dos trazos a distinta
+     grosor son un certificado.
+   · Segunda página con el detalle partida por partida. El lujo de verdad no
+     es el dorado: es que no falte nada.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+// ── Paleta ─────────────────────────────────────────────────────────────────
+const TINTA   = [28, 24, 16];
+const ORO     = [150, 120, 48];
+const ORO_CLA = [205, 186, 140];
+const GRIS    = [116, 108,  90];
+const TENUE   = [150, 143, 126];
+
+// ── Número con letra ───────────────────────────────────────────────────────
+const UNI = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO',
+  'NUEVE', 'DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISÉIS',
+  'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE', 'VEINTE'];
+const DEC = ['', '', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA',
+  'SETENTA', 'OCHENTA', 'NOVENTA'];
+const CEN = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS',
+  'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
+
+function centenas(n) {
+  if (n === 0) return '';
+  if (n === 100) return 'CIEN';
+  let t = '';
+  const c = Math.floor(n / 100), r = n % 100;
+  if (c) t += CEN[c];
+  if (r) {
+    if (t) t += ' ';
+    if (r <= 20) t += UNI[r];
+    else {
+      const d = Math.floor(r / 10), u = r % 10;
+      t += DEC[d] + (u ? (d === 2 ? 'I' : ' Y ') + UNI[u] : '');
+    }
+  }
+  return t;
+}
+
+/** 19003.66 → "DIECINUEVE MIL TRES PESOS 66/100 M.N." */
+function conLetra(monto) {
+  const neg = monto < 0;
+  monto = Math.abs(monto);
+  const ent = Math.floor(monto);
+  const cts = Math.round((monto - ent) * 100);
+  let t;
+  if (ent === 0) t = 'CERO';
+  else {
+    const mill = Math.floor(ent / 1e6);
+    const mil  = Math.floor((ent % 1e6) / 1000);
+    const res  = ent % 1000;
+    const p = [];
+    if (mill) p.push(mill === 1 ? 'UN MILLÓN' : centenas(mill) + ' MILLONES');
+    if (mil)  p.push(mil === 1 ? 'MIL' : centenas(mil) + ' MIL');
+    if (res)  p.push(centenas(res));
+    t = p.join(' ');
+  }
+  return (neg ? 'MENOS ' : '') + t + ' PESOS ' +
+         String(cts).padStart(2, '0') + '/100 M.N.';
+}
+
+// ── Utilidades de trazo ────────────────────────────────────────────────────
+const dinero = n => '$' + Number(n).toLocaleString('en-US',
+  { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function sello(doc, x, y, r) {
+  doc.setDrawColor(...ORO);
+  doc.setLineWidth(1.1); doc.circle(x, y, r);
+  doc.setLineWidth(0.4); doc.circle(x, y, r - 3.5);
+  doc.setFont('times', 'bold'); doc.setFontSize(r * 0.95);
+  doc.setTextColor(...ORO);
+  doc.text('V', x, y + r * 0.34, { align: 'center' });
+}
+
+/* jsPDF centra y alinea a la derecha midiendo el texto SIN contar el
+   letter-spacing. En cuanto se usa charSpace, todo lo centrado se recorre a la
+   derecha (n-1)·cs/2 y lo alineado a la derecha se sale del margen. Se veía en
+   el título: "ACTA DE CONFORMIDAD" quedaba 37 pt fuera de centro.
+   Por eso aquí se mide el ancho real y se dibuja siempre desde la izquierda. */
+function anchoCS(doc, t, cs) {
+  return doc.getTextWidth(t) + (t.length - 1) * (cs || 0);
+}
+
+function poner(doc, t, x, y, cs, align) {
+  const w = anchoCS(doc, t, cs);
+  const xx = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
+  doc.text(t, xx, y, { charSpace: cs || 0 });
+}
+
+function espaciado(doc, txt, x, y, size, style, color, cs, align) {
+  doc.setFont('times', style || 'normal');
+  doc.setFontSize(size);
+  doc.setTextColor(...(color || TINTA));
+  poner(doc, txt, x, y, cs || 0, align || 'center');
+}
+
+// ── El documento ───────────────────────────────────────────────────────────
+/**
+ * @param doc      instancia de jsPDF
+ * @param d        { owner, periodoLabel, folio, cuando, firmaPNG,
+ *                   depas:[{name, dep, cats:{cat:[[etiqueta,monto],…]}}] }
+ */
+function acta(doc, d) {
+  const W = 595.28, H = 841.89, M = 62;
+
+  const totalRet = p => Object.values(p.cats).flat().reduce((a, [, v]) => a + v, 0);
+  const neto = d.depas.reduce((a, p) => a + p.dep - totalRet(p), 0);
+  const dep  = d.depas.reduce((a, p) => a + p.dep, 0);
+  const ret  = d.depas.reduce((a, p) => a + totalRet(p), 0);
+
+  // ── Marco: dos filetes. Uno solo es una tabla; dos son un certificado.
+  const marco = (m1, m2, w1, w2) => {
+    doc.setDrawColor(...ORO_CLA);
+    doc.setLineWidth(w1); doc.rect(m1, m1, W - 2 * m1, H - 2 * m1);
+    doc.setLineWidth(w2); doc.rect(m2, m2, W - 2 * m2, H - 2 * m2);
+  };
+  marco(30, 34.5, 1.2, 0.4);
+
+  let y = 78;
+
+  // ── Membrete
+  sello(doc, W / 2, y, 19);
+  y += 42;
+  espaciado(doc, 'VRM · CONVIVA INMUEBLES', W / 2, y, 11.5, 'bold', ORO, 2.6);
+  y += 15;
+  espaciado(doc, 'ADMINISTRACIÓN DE PROPIEDADES VACACIONALES · PUERTO VALLARTA',
+            W / 2, y, 7, 'normal', TENUE, 1.5);
+
+  y += 26;
+  doc.setDrawColor(...ORO_CLA); doc.setLineWidth(0.8);
+  doc.line(M + 40, y, W - M - 40, y);
+  doc.setFillColor(...ORO); doc.circle(W / 2, y, 2, 'F');
+
+  // ── Título
+  y += 44;
+  espaciado(doc, 'ACTA DE CONFORMIDAD', W / 2, y, 20, 'bold', TINTA, 4.2);
+  y += 20;
+  espaciado(doc, d.periodoLabel.toUpperCase(), W / 2, y, 9.5, 'normal', ORO, 3.4);
+
+  // ── Folio, en máquina: es un registro, no una carta
+  y += 26;
+  doc.setFont('courier', 'normal'); doc.setFontSize(8);
+  doc.setTextColor(...GRIS);
+  poner(doc, `FOLIO ${d.folio}`, W / 2, y, 1, 'center');
+  y += 11;
+  doc.setFontSize(7.5); doc.setTextColor(...TENUE);
+  poner(doc, d.cuando.toUpperCase(), W / 2, y, 0.8, 'center');
+
+  // ── Declaratoria, justificada
+  y += 30;
+  doc.setFont('times', 'normal'); doc.setFontSize(10.5);
+  doc.setTextColor(...TINTA);
+  const intro =
+    `Por medio de la presente, ${d.owner} hace constar que revisó y aceptó el ` +
+    `estado de resultados correspondiente a ${d.periodoLabel.toLowerCase()}, ` +
+    `relativo a las propiedades administradas por VRM · Conviva Inmuebles que se ` +
+    `detallan a continuación, manifestando su conformidad con los depósitos ` +
+    `recibidos, los retiros aplicados y el importe neto a recibir.`;
+  const lin = doc.splitTextToSize(intro, W - 2 * M);
+  doc.text(lin, M, y, { align: 'justify', maxWidth: W - 2 * M, lineHeightFactor: 1.42 });
+  y += lin.length * 14.9 + 22;
+
+  // ── Tabla
+  const c = [M, W - M - 268, W - M - 134, W - M];
+  doc.setFont('times', 'bold'); doc.setFontSize(7.5);
+  doc.setTextColor(...ORO);
+  poner(doc, 'PROPIEDAD', c[0], y, 1.3, 'left');
+  poner(doc, 'DEPÓSITO',  c[1], y, 1.3, 'right');
+  poner(doc, 'RETIROS',   c[2], y, 1.3, 'right');
+  poner(doc, 'NETO',      c[3], y, 1.3, 'right');
+  y += 7;
+  doc.setDrawColor(...ORO_CLA); doc.setLineWidth(0.7); doc.line(M, y, W - M, y);
+  y += 17;
+
+  d.depas.forEach((p, i) => {
+    const r = totalRet(p);
+    doc.setFont('times', 'normal'); doc.setFontSize(10);
+    doc.setTextColor(...TINTA);
+    doc.text(p.name, c[0], y);
+    doc.setTextColor(...GRIS);
+    doc.text(dinero(p.dep), c[1], y, { align: 'right' });
+    doc.text('(' + dinero(r) + ')', c[2], y, { align: 'right' });
+    doc.setFont('times', 'bold'); doc.setTextColor(...TINTA);
+    doc.text(dinero(p.dep - r), c[3], y, { align: 'right' });
+    if (i < d.depas.length - 1) {
+      doc.setDrawColor(232, 226, 210); doc.setLineWidth(0.3);
+      doc.line(M, y + 6, W - M, y + 6);
+    }
+    y += 19.5;
+  });
+
+  // ── Total, sobre banda
+  y += 2;
+  doc.setFillColor(250, 246, 236);
+  doc.rect(M - 8, y - 12, W - 2 * M + 16, 27, 'F');
+  doc.setDrawColor(...ORO_CLA); doc.setLineWidth(0.7);
+  doc.line(M - 8, y - 12, W - M + 8, y - 12);
+  doc.line(M - 8, y + 15, W - M + 8, y + 15);
+  espaciado(doc, 'TOTAL A RECIBIR', c[0], y + 4, 9, 'bold', ORO, 2, 'left');
+  doc.setFont('times', 'bold'); doc.setFontSize(13); doc.setTextColor(...TINTA);
+  doc.text(dinero(neto), c[3], y + 5, { align: 'right' });
+  y += 34;
+
+  // ── Importe con letra
+  doc.setFont('times', 'italic'); doc.setFontSize(8.5);
+  doc.setTextColor(...GRIS);
+  const letra = doc.splitTextToSize('( ' + conLetra(neto) + ' )', W - 2 * M);
+  doc.text(letra, W / 2, y, { align: 'center' });
+  y += letra.length * 11 + 16;
+
+  // ── Composición de los retiros
+  doc.setFont('times', 'normal'); doc.setFontSize(8.5);
+  doc.setTextColor(...GRIS);
+  const cats = { gestion: 'Gestión', limpieza: 'Limpieza',
+                 servicios: 'Servicios', mantenimiento: 'Mantenimiento' };
+  const suma = {};
+  d.depas.forEach(p => Object.entries(p.cats).forEach(([k, v]) =>
+    suma[k] = (suma[k] || 0) + v.reduce((a, [, m]) => a + m, 0)));
+  const comp = Object.keys(cats).filter(k => suma[k])
+    .map(k => `${cats[k]} ${dinero(suma[k])}`).join('   ·   ');
+  doc.text('Depósito bruto ' + dinero(dep) + '   ·   Retiros ' + dinero(ret),
+           W / 2, y, { align: 'center' });
+  y += 12;
+  if (comp) { doc.setFontSize(8); doc.setTextColor(...TENUE);
+              doc.text(comp, W / 2, y, { align: 'center' }); y += 14; }
+
+  // ── Cláusula
+  y += 6;
+  doc.setFont('times', 'normal'); doc.setFontSize(7.8);
+  doc.setTextColor(...TENUE);
+  const legal = doc.splitTextToSize(
+    'El detalle partida por partida de cada categoría se acompaña en la hoja siguiente y ' +
+    'permanece disponible de forma permanente en el Portal del Propietario. La presente ' +
+    'acta se emite por medios electrónicos; la firma estampada corresponde al trazo ' +
+    'registrado por el titular en el portal seguro de VRM y su autenticidad puede ' +
+    'verificarse en cualquier momento mediante el folio indicado.', W - 2 * M);
+  doc.text(legal, M, y, { align: 'justify', maxWidth: W - 2 * M, lineHeightFactor: 1.5 });
+  y += legal.length * 11.7;
+
+  // ── Ornamento de cierre. Sin él, el blanco de esta zona parece un error.
+  const yo = H - 232;
+  doc.setDrawColor(...ORO_CLA); doc.setLineWidth(0.5);
+  doc.line(W / 2 - 74, yo, W / 2 - 8, yo);
+  doc.line(W / 2 + 8, yo, W / 2 + 74, yo);
+  doc.setFillColor(...ORO); doc.circle(W / 2, yo, 1.7, 'F');
+
+  // ── Firmas, ancladas abajo
+  const yf = H - 176;
+  const x1 = M + 26, x2 = W - M - 26 - 168, an = 168;
+  if (d.firmaPNG) { try { doc.addImage(d.firmaPNG, 'PNG', x1 + 6, yf - 6, 156, 54); } catch (e) {} }
+  sello(doc, x2 + an / 2, yf + 24, 21);
+  doc.setDrawColor(...ORO); doc.setLineWidth(0.6);
+  doc.line(x1, yf + 54, x1 + an, yf + 54);
+  doc.line(x2, yf + 54, x2 + an, yf + 54);
+  espaciado(doc, d.owner.toUpperCase(), x1 + an / 2, yf + 68, 8, 'bold', TINTA, 1.4);
+  espaciado(doc, 'TITULAR', x1 + an / 2, yf + 79, 6.5, 'normal', TENUE, 1.2);
+  espaciado(doc, 'VRM · CONVIVA INMUEBLES', x2 + an / 2, yf + 68, 8, 'bold', TINTA, 1.4);
+  espaciado(doc, 'LA ADMINISTRACIÓN', x2 + an / 2, yf + 79, 6.5, 'normal', TENUE, 1.2);
+
+  // ══ Hoja 2: el detalle ═══════════════════════════════════════════════════
+  doc.addPage();
+  marco(30, 34.5, 1.2, 0.4);
+  let y2 = 76;
+  espaciado(doc, 'DETALLE DE RETIROS', W / 2, y2, 13, 'bold', TINTA, 3.4);
+  y2 += 15;
+  espaciado(doc, d.periodoLabel.toUpperCase() + '  ·  FOLIO ' + d.folio,
+            W / 2, y2, 7, 'normal', TENUE, 1.6);
+  y2 += 12;
+  doc.setDrawColor(...ORO_CLA); doc.setLineWidth(0.6);
+  doc.line(M + 70, y2, W - M - 70, y2);
+  y2 += 30;
+
+  d.depas.forEach(p => {
+    const r = totalRet(p);
+    // Se mide el bloque antes de empezarlo: así se rompe solo cuando de
+    // verdad no cabe, y no se dejan tercios de hoja en blanco.
+    const alto = 26 + Object.keys(cats).reduce((a, k) => {
+      const it = (p.cats[k] || []).length;
+      return a + (it ? 12 + it * 15 + 5 : 0);
+    }, 0) + 34;
+    if (y2 + alto > H - 96) { doc.addPage(); marco(30, 34.5, 1.2, 0.4); y2 = 80; }
+    doc.setFillColor(250, 246, 236);
+    doc.rect(M - 6, y2 - 11, W - 2 * M + 12, 20, 'F');
+    espaciado(doc, p.name.toUpperCase(), M, y2 + 2, 9, 'bold', ORO, 1.8, 'left');
+    doc.setFont('times', 'normal'); doc.setFontSize(8);
+    doc.setTextColor(...GRIS);
+    doc.text('depósito ' + dinero(p.dep), W - M, y2 + 2, { align: 'right' });
+    y2 += 26;
+
+    let vacio = true;
+    Object.keys(cats).forEach(k => {
+      const items = (p.cats[k] || []);
+      if (!items.length) return;
+      vacio = false;
+      doc.setFont('times', 'italic'); doc.setFontSize(7.5);
+      doc.setTextColor(...TENUE);
+      poner(doc, cats[k].toUpperCase(), M + 8, y2, 1.1, 'left');
+      y2 += 12;
+      items.forEach(([et, mo]) => {
+        if (y2 > H - 120) { doc.addPage(); marco(30, 34.5, 1.2, 0.4); y2 = 80; }
+        doc.setFont('times', 'normal'); doc.setFontSize(9.5);
+        doc.setTextColor(...TINTA);
+        doc.text(et, M + 20, y2);
+        doc.setTextColor(...GRIS);
+        doc.text(dinero(mo), W - M, y2, { align: 'right' });
+        doc.setDrawColor(238, 233, 220); doc.setLineWidth(0.25);
+        doc.line(M + 20, y2 + 4.5, W - M, y2 + 4.5);
+        y2 += 15;
+      });
+      y2 += 5;
+    });
+    if (vacio) {
+      doc.setFont('times', 'italic'); doc.setFontSize(9);
+      doc.setTextColor(...TENUE);
+      doc.text('Sin retiros en el período.', M + 20, y2); y2 += 15;
+    }
+    doc.setFont('times', 'bold'); doc.setFontSize(9.5);
+    doc.setTextColor(...TINTA);
+    doc.text('Neto ' + p.name, M + 8, y2 + 4);
+    doc.text(dinero(p.dep - r), W - M, y2 + 4, { align: 'right' });
+    y2 += 30;
+  });
+
+  // ── Cierre del documento. Sin esto la última hoja se acaba a media página
+  //    y el acta parece que se quedó a medias.
+  if (y2 > H - 250) { doc.addPage(); marco(30, 34.5, 1.2, 0.4); y2 = 90; }
+  y2 += 16;
+  doc.setDrawColor(...ORO_CLA); doc.setLineWidth(0.8);
+  doc.line(M, y2, W - M, y2);
+  y2 += 26;
+  espaciado(doc, 'RESUMEN DEL PERÍODO', M, y2, 9, 'bold', ORO, 2, 'left');
+  y2 += 22;
+
+  const fila = (et, mo, fuerte) => {
+    doc.setFont('times', fuerte ? 'bold' : 'normal');
+    doc.setFontSize(fuerte ? 11 : 9.5);
+    doc.setTextColor(...(fuerte ? TINTA : GRIS));
+    doc.text(et, M + 8, y2);
+    doc.text(mo, W - M, y2, { align: 'right' });
+    if (!fuerte) {
+      doc.setDrawColor(238, 233, 220); doc.setLineWidth(0.25);
+      doc.line(M + 8, y2 + 4.5, W - M, y2 + 4.5);
+    }
+    y2 += fuerte ? 20 : 15.5;
+  };
+  fila('Depósito recibido de las plataformas', dinero(dep));
+  Object.keys(cats).filter(k => suma[k])
+        .forEach(k => fila(cats[k], '(' + dinero(suma[k]) + ')'));
+  y2 += 4;
+  doc.setDrawColor(...ORO_CLA); doc.setLineWidth(0.6);
+  doc.line(M + 8, y2 - 8, W - M, y2 - 8);
+  y2 += 6;
+  fila('TOTAL A RECIBIR', dinero(neto), true);
+  y2 += 6;
+  doc.setFont('times', 'italic'); doc.setFontSize(8.5);
+  doc.setTextColor(...GRIS);
+  doc.text('( ' + conLetra(neto) + ' )', W - M, y2, { align: 'right' });
+  y2 += 34;
+
+  doc.setDrawColor(...ORO_CLA); doc.setLineWidth(0.5);
+  doc.line(W / 2 - 74, y2, W / 2 - 8, y2);
+  doc.line(W / 2 + 8, y2, W / 2 + 74, y2);
+  doc.setFillColor(...ORO); doc.circle(W / 2, y2, 1.7, 'F');
+  y2 += 20;
+  doc.setFont('courier', 'normal'); doc.setFontSize(7.5);
+  doc.setTextColor(...TENUE);
+  poner(doc, 'DOCUMENTO EMITIDO ELECTRÓNICAMENTE  ·  FOLIO ' + d.folio,
+        W / 2, y2, 0.8, 'center');
+
+  const total = doc.getNumberOfPages();
+  for (let i = 2; i <= total; i++) { doc.setPage(i); pie(doc, W, H, i, total); }
+  doc.setPage(1); pie(doc, W, H, 1, total);
+  return doc;
+}
+
+function pie(doc, W, H, n, total) {
+  doc.setFont('times', 'normal'); doc.setFontSize(6.8);
+  doc.setTextColor(...TENUE);
+  poner(doc, 'VRM · CONVIVA INMUEBLES S.A. DE C.V.   ·   PUERTO VALLARTA, JALISCO   ·   PROPIETARIOS@VRM.MX',
+        W / 2, H - 46, 0.9, 'center');
+  if (total) doc.text(`${n} / ${total}`, W / 2, H - 36, { align: 'center' });
 }
 
 
+
+return {acta, conLetra};
+})();
+
+function makePDF(){
+  const conf=getConf(); if(!conf) return;
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'pt',format:'a4'});
+  ACTA.acta(doc,{
+    owner:        D.owner,
+    periodoLabel: perLabel(PERIODO),
+    folio:        conf.folio,
+    cuando:       conf.when,
+    firmaPNG:     conf.sig,
+    depas: Object.values(D.depas).map(p=>({name:p.name, dep:p.dep, cats:p.cats})),
+  });
+  doc.save('VRM_Acta_Conformidad_'+PERIODO+'_'+conf.folio+'.pdf');
+}
 
 /* ====== SELECTOR DE PERIODO ====== */
 let PERIODOS=[];   // se llena desde Supabase con los cierres disponibles
@@ -619,7 +995,7 @@ async function switchPeriodo(p){
 
 /* ====== MES NAVEGABLE ====== */
 const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-const PER_Y=parseInt(PERIODO.slice(0,4)), PER_M=parseInt(PERIODO.slice(5,7))-1;
+let PER_Y=parseInt(PERIODO.slice(0,4)), PER_M=parseInt(PERIODO.slice(5,7))-1;
 let calY=PER_Y, calM=PER_M;                       // mes visible en el calendario
 const pad2=n=>String(n).padStart(2,'0');
 const iso=(y,m,d)=>`${y}-${pad2(m+1)}-${pad2(d)}`;
@@ -877,7 +1253,7 @@ function openCat(c){
   const A=agg();
   const rows=A.items[c].map(([l,v,short,color])=>`<div class="li"><div><div class="ll">${l}</div>${view==='all'?`<div class="ls"><span style="color:${color}">●</span> ${short}</div>`:''}</div><div class="lv">−${fmt2(v)}</div></div>`).join('')
     +`<div class="li tot"><div class="ll">Total ${D.catmeta[c].label.toLowerCase()}</div><div class="lv">−${fmt2(A.cats[c])}</div></div>`;
-  openSheet(D.catmeta[c].label,view==='all'?'Portafolio · Junio 2026':D.depas[view].name+' · Junio 2026',`−${fmt2(A.cats[c])}`,rows);
+  openSheet(D.catmeta[c].label,view==='all'?('Portafolio · '+perLabel(PERIODO)):D.depas[view].name+(' · '+perLabel(PERIODO)),`−${fmt2(A.cats[c])}`,rows);
 }
 function openDep(){
   const A=agg();
@@ -885,8 +1261,8 @@ function openDep(){
     <div class="li"><div><div class="ll">Retención ISR</div><div class="ls">Airbnb lo entera al SAT por ti</div></div><div class="lv">−${fmt2(A.isr)}</div></div>
     <div class="li tot"><div class="ll">Depósito del mes</div><div class="lv">${fmt2(A.dep)}</div></div>
     <div style="margin-top:18px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint)">Estancias que lo generaron</div>`;
-  rows+=[...A.stays].sort((a,b)=>a.start.localeCompare(b.start)).map(s=>`<div class="li"><div><div class="ll">${s.guest}</div><div class="ls"><span style="color:${s.color}">●</span> ${D.depas[s.depa].name} · llegó ${parseInt(s.start.slice(8))} de ${({'05':'mayo','06':'junio','07':'julio'})[s.start.slice(5,7)]||'junio'}</div></div><div class="lv" style="color:var(--muted)">${s.n} noches</div></div>`).join('');
-  openSheet('Tu depósito',view==='all'?'Portafolio · Junio 2026':D.depas[view].name+' · Junio 2026',fmt2(A.dep),rows);
+  rows+=[...A.stays].sort((a,b)=>a.start.localeCompare(b.start)).map(s=>`<div class="li"><div><div class="ll">${s.guest}</div><div class="ls"><span style="color:${s.color}">●</span> ${D.depas[s.depa].name} · llegó ${parseInt(s.start.slice(8))} de ${(MESES.reduce((o,m,i)=>(o[String(i+1).padStart(2,'0')]=m,o),{}))[s.start.slice(5,7)]||'junio'}</div></div><div class="lv" style="color:var(--muted)">${s.n} noches</div></div>`).join('');
+  openSheet('Tu depósito',view==='all'?('Portafolio · '+perLabel(PERIODO)):D.depas[view].name+(' · '+perLabel(PERIODO)),fmt2(A.dep),rows);
 }
 /* -------- auth (Supabase) -------- */
 async function login(){
@@ -905,6 +1281,7 @@ async function enter(){
   document.querySelector('.hello').innerHTML='Buenas tardes, <i>'+D.owner+'</i>.';
   document.getElementById('perLbl').textContent=perLabel(PERIODO);
   buildPerMenu();
+  {const _sp=document.getElementById('signPer'); if(_sp)_sp.textContent=perLabel(PERIODO);}
   const _m=parseInt(PERIODO.slice(5,7))-1;
   const _sig=MESES[(_m+1)%12];
   document.getElementById('hsubTxt').textContent='Tu cierre de '+MESES[_m]+' está listo. Publicado el 5 de '+_sig+' · 09:00.';
