@@ -1680,8 +1680,8 @@ body::after{ content:''; position:fixed; inset:0; z-index:-1; opacity:.5; pointe
 @media (hover:hover) and (min-width:720px){ .vl-hero-arrow{ display:flex; } }
 .pp-hero-track{ cursor:grab; scroll-behavior:smooth; }
 .pp-hero-track.vl-dragging{ cursor:grabbing; scroll-behavior:auto; }
-.pp-hero-track{ scroll-snap-type:x proximity !important; }
-.pp-hero-slide{ scroll-snap-stop:normal !important; }
+.pp-hero-track{ scroll-snap-type:x mandatory !important; }
+.pp-hero-slide{ scroll-snap-stop:always !important; scroll-snap-align:center !important; }
 .pp-hero-dot.active{ background:var(--vl-gold) !important; }
 
 /* ─── STATS con hairlines de oro ─── */
@@ -7712,23 +7712,29 @@ document.addEventListener('visibilitychange', () => {
 
     /* ── arrastre con MOUSE (desktop) — patrón robusto con listeners en window.
          El táctil NO entra aquí: usa el scroll nativo, que ya es perfecto. ── */
-    var down=false, moved=false, sx=0, sl=0;
+    var down=false, moved=false, sx=0, sl=0, startIdx=0;
     track.addEventListener('mousedown', function(e){
       if(e.button!==0) return;
-      down=true; moved=false; sx=e.clientX; sl=track.scrollLeft;
+      down=true; moved=false; sx=e.clientX; sl=track.scrollLeft; startIdx=idx();
       track.classList.add('vl-dragging');
-      e.preventDefault();                        // evita selección de texto/imagen
+      e.preventDefault();
     });
     window.addEventListener('mousemove', function(e){
       if(!down) return;
       var dx=e.clientX-sx;
       if(Math.abs(dx)>4) moved=true;
-      track.scrollLeft = sl - dx;                // sigue el cursor al instante (behavior:auto por .vl-dragging)
+      track.scrollLeft = sl - dx;
     });
     window.addEventListener('mouseup', function(){
       if(!down) return; down=false;
       track.classList.remove('vl-dragging');
-      go(idx());                                 // snap suave al más cercano al soltar
+      // ★ de LUJO: al soltar, avanza como mucho UNA foto desde donde empezó y
+      //   frena ahí — nunca vuela de largo aunque hayas arrastrado mucho.
+      var dx = track.scrollLeft - sl;
+      var target = startIdx;
+      if(dx >  W()*0.12) target = startIdx + 1;   // arrastró ~12% del ancho a la izq → siguiente
+      else if(dx < -W()*0.12) target = startIdx - 1;
+      go(target);
       if(moved){ setTimeout(function(){ moved=false; }, 30); }
     });
     /* si el usuario arrastró, no dejar que el clic abra el lightbox/navegue */
