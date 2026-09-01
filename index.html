@@ -10479,7 +10479,7 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 </script>
 
 <script>
-window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){ location.href=e.data.vrmDrumNav; } });
+window.addEventListener("message",function(e){ if(e&&e.data&&e.data.vrmDrumNav){ if(window.VRM_navigate){ window.VRM_navigate(e.data.vrmDrumNav); } else { location.href=e.data.vrmDrumNav; } } });
 /* Scroll reenviado desde el drum (el iframe atrapaba la rueda vertical) → lo aplicamos con Lenis */
 window.addEventListener("message", function(e){
   if(!e || !e.data || typeof e.data.vrmDrumWheel !== 'number') return;
@@ -10513,7 +10513,7 @@ window.addEventListener("message", function(e){
   window.addEventListener('message', function(e){
     if(!e || !e.data) return;
     if (e.data.vrmDrumOpen && e.data.vrmDrumOpen.href) { fadeNavigate(e.data.vrmDrumOpen.href); return; }
-    if (e.data.vrmDrumNav) { fadeNavigate(e.data.vrmDrumNav); return; }
+    /* vrmDrumNav lo maneja el listener de arriba (enruta por VRM_navigate) */
   });
   // Links viejos tipo index.html?id=XXX → redirige a la página real de la propiedad
   (function(){
