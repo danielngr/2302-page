@@ -4407,6 +4407,24 @@
   "sameAs": ["https://instagram.com/vrm.mx"]
 }
 </script>
+<style id="vrmNavGlass">
+  /* NAV liquid-glass: transparente sobre el hero, esmerilado al scrollear
+     → las palabras del nav nunca chocan con el contenido que pasa debajo */
+  .nav{ transition: background .45s ease, backdrop-filter .45s ease,
+        padding .45s ease, border-color .45s ease, box-shadow .45s ease;
+        border-bottom:1px solid transparent; will-change:background; }
+  .nav.is-glass{
+    background: linear-gradient(180deg, rgba(9,17,32,.74) 0%, rgba(9,17,32,.44) 100%);
+    -webkit-backdrop-filter: blur(20px) saturate(1.35);
+    backdrop-filter: blur(20px) saturate(1.35);
+    border-bottom-color: rgba(184,150,104,.20);
+    padding-top:16px; padding-bottom:16px;
+    box-shadow: 0 10px 34px rgba(0,0,0,.30);
+  }
+  /* el nav en sí no bloquea clics; solo sus hijos son interactivos */
+  .nav.is-glass .nav-brand, .nav.is-glass .nav-link, .nav.is-glass .lang-switch{ pointer-events:auto; }
+  @media (prefers-reduced-motion:reduce){ .nav{ transition:none; } }
+</style>
 </head>
 <body>
 
@@ -10563,5 +10581,21 @@ window.addEventListener("message", function(e){
   .final{position:relative;overflow:hidden}
   .final>*{position:relative;z-index:2}
 </style>
+<script>
+/* NAV liquid-glass — esmerila apenas se empieza a scrollear */
+(function(){
+  var nav=document.querySelector('.nav'); if(!nav) return;
+  var on=false;
+  function upd(){
+    var ly = (window.__lenis && typeof window.__lenis.animatedScroll==='number') ? window.__lenis.animatedScroll : 0;
+    var y = Math.max(window.scrollY||window.pageYOffset||0, ly);
+    var want = y > 24;
+    if(want!==on){ on=want; nav.classList.toggle('is-glass', on); }
+  }
+  window.addEventListener('scroll', upd, {passive:true});
+  try{ if(window.__lenis && window.__lenis.on) window.__lenis.on('scroll', upd); }catch(_){}
+  upd();
+})();
+</script>
 </body>
 </html>
