@@ -1658,13 +1658,13 @@ body::after{ content:''; position:fixed; inset:0; z-index:-1; opacity:.5; pointe
 @keyframes vlKen{ from{ transform:scale(1.045); } to{ transform:scale(1.12); } }
 /* velo más cinematográfico: claro arriba, denso abajo para el título */
 .pp-hero-gradient{ background:linear-gradient(180deg,
-   rgba(10,20,40,.5) 0%, transparent 24%, transparent 44%,
-   rgba(7,12,22,.42) 66%, rgba(7,12,22,.94) 100%) !important; }
+   rgba(10,20,40,.42) 0%, transparent 20%, transparent 50%,
+   rgba(7,12,22,.30) 68%, rgba(7,12,22,.82) 88%, rgba(7,12,22,.97) 100%) !important; }
 .pp-hero-bottom{ bottom:34px !important; left:clamp(20px,5vw,52px) !important; right:clamp(20px,5vw,52px) !important; }
 .pp-hero-zone-bottom{ color:var(--vl-gold) !important; letter-spacing:.24em !important; font-size:11.5px !important; }
-.pp-hero-title{ font-size:clamp(42px,8.5vw,88px) !important; line-height:.94 !important;
-  letter-spacing:-.012em !important; margin-bottom:18px !important; font-weight:300 !important; }
-.pp-hero-title em{ display:block; font-size:.6em; margin-top:4px; }
+.pp-hero-title{ font-size:clamp(42px,5.4vw,60px) !important; line-height:.98 !important;
+  letter-spacing:-.01em !important; margin-bottom:14px !important; font-weight:300 !important; }
+.pp-hero-title em{ display:block; font-size:.58em; margin-top:2px; }
 .pp-hero-price{ display:flex; align-items:baseline; gap:8px; }
 .pp-hero-price-amount{ font-family:var(--pp-serif) !important; font-style:italic; font-size:34px !important; color:var(--vl-gold) !important; }
 .pp-hero-price-label,.pp-hero-price-unit{ letter-spacing:.16em !important; text-transform:uppercase; font-size:11px !important; color:var(--pp-sand,#C5BBA8) !important; }
@@ -1680,7 +1680,8 @@ body::after{ content:''; position:fixed; inset:0; z-index:-1; opacity:.5; pointe
 @media (hover:hover) and (min-width:720px){ .vl-hero-arrow{ display:flex; } }
 .pp-hero-track{ cursor:grab; scroll-behavior:smooth; }
 .pp-hero-track.vl-dragging{ cursor:grabbing; scroll-behavior:auto; }
-.pp-hero-slide{ scroll-snap-stop:normal !important; } /* fluidez multi-swipe */
+.pp-hero-track{ scroll-snap-type:x proximity !important; }
+.pp-hero-slide{ scroll-snap-stop:normal !important; }
 .pp-hero-dot.active{ background:var(--vl-gold) !important; }
 
 /* ─── STATS con hairlines de oro ─── */
@@ -1747,11 +1748,10 @@ body::after{ content:''; position:fixed; inset:0; z-index:-1; opacity:.5; pointe
 }
 /* ─── FIX móvil: las barritas del carrusel chocaban con "All homes".
        Las centro arriba: libran el back (izq) y el rating (der). ─── */
-/* barritas SIEMPRE debajo del botón "All homes" → nunca chocan */
-.pp-hero-dots{ top:auto !important; bottom:auto !important; left:20px !important; right:auto !important;
-  transform:none !important; display:flex !important; gap:6px !important; }
-@media (max-width:719px){ .pp-hero-dots{ top:60px !important; } }
-@media (min-width:720px){ .pp-hero-dots{ top:22px !important; left:24px !important; } }
+/* barritas al fondo-derecha del hero → libran "All homes" (arriba-izq) y el título (abajo-izq) */
+.pp-hero-dots{ top:auto !important; bottom:26px !important; right:26px !important; left:auto !important;
+  transform:none !important; display:flex !important; gap:6px !important; z-index:5; }
+@media (max-width:719px){ .pp-hero-dots{ bottom:auto !important; top:62px !important; right:auto !important; left:20px !important; } }
 /* el back "All homes" con su propio respiro y una píldora sutil para legibilidad sobre foto */
 .topbar-back{ z-index:6; }
 
@@ -7734,15 +7734,21 @@ document.addEventListener('visibilitychange', () => {
     /* si el usuario arrastró, no dejar que el clic abra el lightbox/navegue */
     track.addEventListener('click', function(e){ if(moved){ e.stopPropagation(); e.preventDefault(); } }, true);
 
-    /* ── rueda horizontal / trackpad de dos dedos ── */
+    /* ── trackpad de dos dedos: NO se intercepta. El scroll horizontal nativo
+         del track (overflow-x:auto) ya es perfectamente suave en Mac; antes lo
+         secuestrábamos con saltos discretos → recorría de 2 en 2 y se sentía
+         cortado. Solo convertimos la rueda VERTICAL de un mouse (sin deltaX) en
+         avance horizontal, sin tocar el trackpad. ──*/
     var wheelLock=false;
     hero.addEventListener('wheel', function(e){
-      var ax=Math.abs(e.deltaX), ay=Math.abs(e.deltaY);
-      if(ax>ay && ax>6){                          // gesto claramente horizontal
+      // trackpad horizontal trae deltaX → lo dejamos pasar (scroll nativo suave)
+      if(Math.abs(e.deltaX) > 0.5) return;
+      // rueda de mouse: solo deltaY, sin deltaX → un paso por “tramo” de scroll
+      if(Math.abs(e.deltaY) > 8){
         e.preventDefault();
         if(wheelLock) return; wheelLock=true;
-        go(idx() + (e.deltaX>0?1:-1));
-        setTimeout(function(){ wheelLock=false; }, 320);
+        go(idx() + (e.deltaY>0?1:-1));
+        setTimeout(function(){ wheelLock=false; }, 380);
       }
     }, {passive:false});
 
