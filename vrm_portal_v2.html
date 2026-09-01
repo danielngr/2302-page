@@ -5916,6 +5916,13 @@
         const btn = document.querySelector(`[onclick*="enviarGoogleForm('${depto}'"]`);
         if(btn) { btn.disabled=true; btn.innerHTML='<i class="ph-bold ph-spinner"></i> Cargando...'; }
 
+        // Safari bloquea window.open si se llama DESPUÉS de un await: para
+        // entonces ya perdió el gesto del clic y lo trata como popup. Por eso
+        // la pestaña se abre YA, vacía, y una vez que tenemos los datos del
+        // huésped se le pone la URL. Es el mismo truco que usa Frakcio.
+        let _win = null;
+        try { _win = window.open('', '_blank'); } catch(e) {}
+
         try {
             // Buscar datos del huésped.
             // NO filtramos por maritima_enviado: el botón "Reenviar a Maritima"
@@ -5929,27 +5936,37 @@
             const reg = regData[0];
 
             if(!reg) {
+                if(_win && !_win.closed) _win.close();   // no dejar la pestaña en blanco
                 toast("⚠️ No se encontró registro para " + depto);
                 if(btn) { btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-paper-plane-tilt"></i> Enviar form'; }
                 return;
             }
 
-            // 1. Construir URL pre-llenada y abrir en nueva pestaña
+            // 1. Construir la URL pre-llenada y mandarla a la pestaña que ya abrimos
             const prefillUrl = _maritimaBuildPrefillUrl(reg, depto, fechaISO);
-            window.open(prefillUrl, '_blank');
+            let _abrio = false;
+            if(_win && !_win.closed){
+                try{ _win.location.href = prefillUrl; _abrio = true; }catch(e){}
+            }
+            if(!_abrio){
+                // El navegador bloqueó la pestaña: no dejamos al usuario sin salida,
+                // el modal le da el enlace para abrirlo a mano.
+                try{ if(window.open(prefillUrl, '_blank')) _abrio = true; }catch(e){}
+            }
 
             // 2. Mostrar modal de confirmación
-            _maritimaShowConfirmModal(reg, depto);
+            _maritimaShowConfirmModal(reg, depto, prefillUrl, _abrio);
 
             if(btn) { btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-paper-plane-tilt"></i> Enviar form'; }
         } catch(e) {
+            if(_win && !_win.closed) _win.close();
             toast("❌ Error: " + e.message);
             if(btn) { btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-paper-plane-tilt"></i> Enviar form'; }
         }
     }
 
     // Modal: el usuario confirma manualmente que envió el form en Google
-    function _maritimaShowConfirmModal(reg, depto) {
+    function _maritimaShowConfirmModal(reg, depto, prefillUrl, abrio) {
         const existing = document.getElementById('maritimaConfirmModal');
         if(existing) existing.remove();
 
@@ -5963,8 +5980,12 @@
                     <h3 style="margin:0;font-size:17px;color:#1f2937">Marítima Playa — ${depto}</h3>
                 </div>
                 <p style="margin:0 0 12px;color:#374151;line-height:1.5;font-size:14px">
-                    Se abrió el form pre-llenado en una nueva pestaña con los datos de <b>${reg.nombre||'(sin nombre)'}</b>.
+                    ${abrio === false
+                      ? `El navegador <b>bloqueó</b> la pestaña. Ábrelo desde aquí:`
+                      : `Se abrió el form pre-llenado en una nueva pestaña con los datos de <b>${reg.nombre||'(sin nombre)'}</b>.`}
                 </p>
+                ${prefillUrl ? `<p style="margin:0 0 14px"><a href="${prefillUrl}" target="_blank" rel="noopener"
+                    style="color:#d97706;font-weight:600;font-size:13.5px;text-decoration:underline">Abrir el formulario de ${depto}</a></p>` : ''}
                 <ol style="margin:0 0 18px;padding-left:20px;color:#4b5563;line-height:1.7;font-size:13.5px">
                     <li>Revisa que los datos estén correctos</li>
                     <li>Selecciona <b>"Administrador"</b> en la página 1</li>
