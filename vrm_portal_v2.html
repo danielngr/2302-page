@@ -583,6 +583,13 @@
         .sd-tg.trn{background:rgba(224,122,62,.16);color:var(--accent-terracota)}
         .sd-tg.arr{background:rgba(245,192,112,.15);color:var(--accent-gold)}
         .sd-tg.sue{background:rgba(230,57,70,.15);color:#ff8b91}
+        /* El tipo de limpieza cambia lo que se le cobra al propietario y lo que
+           se le paga a la chica. Sin etiqueta, un refresh se ve idéntico a una
+           salida completa y nadie lo cacha hasta el cierre. */
+        .sd-tg.tip{border:1px solid transparent;font-weight:600}
+        .sd-tg.tip-ref{background:rgba(74,164,255,.16);color:#4AA4FF;border-color:rgba(74,164,255,.35)}
+        .sd-tg.tip-mid{background:rgba(255,176,74,.16);color:#FFB04A;border-color:rgba(255,176,74,.35)}
+        .sd-tg.tip-pro{background:rgba(178,132,255,.16);color:#b284ff;border-color:rgba(178,132,255,.35)}
         .sd-ch{font-size:11.5px;color:var(--text-secondary);white-space:nowrap;
             overflow:hidden;text-overflow:ellipsis;text-align:left}
         /* La chica es un botón: se cambia sin salir de la fila. */
@@ -7837,8 +7844,23 @@
         const esc = t => String(t||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
         // Etiquetas de contexto: por qué este depa se limpia hoy
+        // Un refresh cuesta la mitad y una profunda cuesta vez y media. En esta
+        // lista se veían las tres igual, así que la única forma de enterarte era
+        // el cierre — cuando ya se le cobró al propietario. Va primero de todas
+        // las etiquetas justo por eso: es la que mueve dinero.
+        const TIPOS={
+            refresh : ['tip-ref','◐ REFRESH',  'Media limpieza: se le cobra la mitad al propietario.'],
+            midstay : ['tip-mid','◑ MIDSTAY',  'Limpieza a mitad de estancia: se le cobra la mitad al propietario.'],
+            profunda: ['tip-pro','◉ PROFUNDA', 'Limpieza profunda: se le cobra vez y media al propietario.'],
+        };
+        const tagTipo=x=>{
+            const k=String((x.l&&x.l.tipo)||'completa').toLowerCase();
+            const v=TIPOS[k];
+            return v ? `<span class="sd-tg tip ${v[0]}" title="${v[2]}">${v[1]}</span>` : '';
+        };
+
         const tags=(x,tipo)=>{
-            const t=[];
+            const t=[tagTipo(x)].filter(Boolean);
             if(tipo==='curso'){
                 const hi=hora(x.l&&x.l.hora_inicio);
                 t.push(`<span class="sd-tg cur">LLEGÓ ${hi||'—'}</span>`);
@@ -15336,7 +15358,7 @@ function updateNotifBadge(){
       const r = await llamar({ accion: 'confirmar', csv: CSV, periodo, huella: ANALISIS.huella });
       $('czResultado').innerHTML =
         `<p class="cz-msg cz-ok">${r.sembrados.length} ${r.sembrados.length === 1 ? 'propiedad sembrada' : 'propiedades sembradas'} en ${r.periodo}.</p>` +
-        r.sembrados.map(s => `<div class="cz-falta"><div class="t">${s.nombre}</div>
+        r.sembrados.map(s => `<div class="cz-falta"><div class="t">${s.propiedad}</div>
             <span class="m">${dinero(s.deposito)}</span>
             <span style="color:var(--text-tertiary);font-size:12px">${s.actualizado ? 'actualizada' : 'nueva'}</span></div>`).join('') +
         (r.sinPortal.length
