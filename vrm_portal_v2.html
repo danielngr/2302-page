@@ -394,6 +394,12 @@
         .nv-ic{ font-size:12px; line-height:1; text-align:center; }
         .nv-dep{ font-family:var(--font-mono); font-size:12px; color:var(--text-primary);
                  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        /* La raya que separa reservas de bloqueos en Registros. */
+        .reg-sep{ display:flex; flex-direction:column; gap:2px; padding:14px 18px 8px;
+            margin-top:6px; border-top:1px solid var(--border, rgba(255,255,255,.08)) }
+        .reg-sep-t{ font-family:var(--font-mono); font-size:10px; letter-spacing:.12em;
+            color:#999; text-transform:uppercase }
+        .reg-sep-d{ font-size:11px; line-height:1.45; color:var(--text-tertiary) }
         .nv-tag{ font-family:var(--font-mono); font-size:8.5px; letter-spacing:.1em;
                  padding:2px 6px; border-radius:5px; background:rgba(255,255,255,.07);
                  color:var(--text-tertiary); }
@@ -582,6 +588,13 @@
         .sd-tg.blk{background:rgba(150,150,150,.16);color:#b6b6b6}
         .sd-tg.trn{background:rgba(224,122,62,.16);color:var(--accent-terracota)}
         .sd-tg.arr{background:rgba(245,192,112,.15);color:var(--accent-gold)}
+        /* El grupo de "podrían" va visualmente más callado que el de "nadie avisó":
+           es una sugerencia del calendario, no una tarea confirmada. */
+        .sd-deducidas{opacity:.82}
+        .sd-deducidas .sd-gt{color:var(--text-tertiary)}
+        .sd-nota{padding:8px 14px 10px;font-size:11px;line-height:1.5;
+            color:var(--text-tertiary);border-left:2px solid rgba(150,150,150,.25);
+            margin:0 14px 6px}
         .sd-tg.sue{background:rgba(230,57,70,.15);color:#ff8b91}
         /* El tipo de limpieza cambia lo que se le cobra al propietario y lo que
            se le paga a la chica. Sin etiqueta, un refresh se ve idéntico a una
@@ -4823,7 +4836,7 @@
                        : i===1  ? `MAÑANA — ${dia.getDate()} ${MESES_L[dia.getMonth()]}`
                        : `${dia.getDate()} ${MESES_L[dia.getMonth()]}`;
 
-            const ents = (window._sheetRows||[]).filter((r,ri)=>{
+            let ents = (window._sheetRows||[]).filter((r,ri)=>{
                 if(ri===0) return false;
                 const f=(r[0]||'').trim().replace(/"/g,'');
                 const d=(r[2]||'').trim().replace(/"/g,'');
@@ -4831,6 +4844,39 @@
                 if(q && !d.toLowerCase().includes(q)) return false;
                 return f===fs;
             });
+
+            // ── UN DEPA, UN RENGLÓN ────────────────────────────────────────────
+            // El dedupe de arriba usa `unit_id|check_in|check_out`, o sea que solo
+            // colapsa filas con las MISMAS fechas exactas. Y el problema real es
+            // otro: para el mismo día llegan una reserva (1→3 sep) y un bloqueo que
+            // la tapa (1→5 sep). Fechas distintas, así que las dos sobreviven y el
+            // depa sale dos veces. Es lo que pasaba con Querencia y Mascota.
+            //
+            // Aquí se colapsa por DEPA + DÍA, que es lo que se está mirando en
+            // pantalla. Si para ese día hay reserva y bloqueo, gana la reserva:
+            // el bloqueo es lo que Airbnb publica cuando no sabe decir otra cosa,
+            // la reserva es un hecho. Entre dos reservas gana Airbnb sobre
+            // Hostfully, igual que en Housekeeping.
+            const _prefFila=r=>{
+                const o=(r[8]||'').replace(/"/g,'').trim();
+                if(o==='Bloqueo') return 0;
+                if(o==='Airbnb')  return 3;
+                if(o==='Hostfully') return 2;
+                return 1;
+            };
+            const _keyDepa=r=>(r[2]||'').toString().toUpperCase()
+                .normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Z0-9]/g,'');
+            const _mejor={};
+            ents.forEach(r=>{
+                const k=_keyDepa(r);
+                if(!_mejor[k] || _prefFila(r)>_prefFila(_mejor[k])) _mejor[k]=r;
+            });
+            // Reservas arriba, bloqueos abajo. La división la pide el ojo: no es lo
+            // mismo "hoy llega gente" que "hoy Airbnb cerró estas fechas y no sé por qué".
+            ents = Object.values(_mejor).sort((a,b)=>
+                _prefFila(b)-_prefFila(a) ||
+                (a[2]||'').localeCompare((b[2]||''),'es'));
+
             if(!ents.length && tabActual!=='historial') continue;
             totalEntradas += ents.length;
 
@@ -4850,10 +4896,20 @@
                 return cand.find(x=>regEstaHecho(x)) || cand[0];
             }
 
-            let rowsH="", pend=0;
+            let rowsH="", pend=0, _sepBlk=false;
             ents.forEach(row=>{
                 const depto=(row[2]||'').trim().replace(/"/g,'');
                 const _o=(row[8]||'').replace(/"/g,'').trim(), _c=(row[9]||'').replace(/"/g,'').trim(), _h=(row[10]||'').replace(/"/g,'').trim();
+                // La raya que parte la lista en dos. Va una sola vez, justo antes del
+                // primer bloqueo, porque `ents` ya viene ordenado con reservas arriba.
+                if(_o==='Bloqueo' && !_sepBlk){
+                    _sepBlk=true;
+                    const _nb=ents.filter(x=>(x[8]||'').replace(/"/g,'').trim()==='Bloqueo').length;
+                    rowsH+=`<div class="reg-sep">
+                        <span class="reg-sep-t">🔒 Bloqueos · ${_nb}</span>
+                        <span class="reg-sep-d">Airbnb cerró estas fechas. Puede ser una reserva que aún no publica, mantenimiento, o el dueño. No asumas que entra gente.</span>
+                    </div>`;
+                }
                 const _ciISO=(row[5]||'').trim(), _coISO=(row[6]||'').trim();
                 const _fResv=(_ciISO&&_coISO)?`${fmtFecha(_ciISO)} → ${fmtFecha(_coISO)}`:'';
                 const reg=matchReg(depto);
@@ -7778,7 +7834,14 @@
                 ent: !!r.in,
                 arr: !!r.arr,                 // viene arrastrada de un día anterior
                 suelta: !!r.suelta,           // limpieza sin reserva que la explique
-                urge: !!(r.alertaOn || (r.arr && r.in))
+                urge: !!(r.alertaOn || (r.arr && r.in)),
+                // ¿HOY salió un huésped de verdad, según el iCal?
+                // `r.out` también se llena con salidas DEDUCIDAS (fin de bloqueo,
+                // hueco entre reservas, arrastre de días anteriores). Esas son
+                // interpretación nuestra del calendario, no un hecho. Mezclarlas
+                // con las salidas reales es lo que infla "nadie ha avisado" hasta
+                // volverlo ruido: la lista pide trabajo que quizá no existe.
+                real: !!(r.out && !r.finBlk && !r.arr && !r.suelta)
             };
             const est = hk2EstadoLimp(r.l);
             if(est==='terminada')   g.bot.push(item);
@@ -7888,7 +7951,12 @@
                 return `<button class="sd-btn cerrar" title="Avisó que llegó pero no que terminó. Cierra la limpieza para que se le pague."
                     onclick="event.stopPropagation();hk2CerrarEnCurso(${lid},'${esc(x.dep)}','${fiso}')">✓ Terminó</button>`;
             }
-            if(hi&&hf)          return `<span class="sd-hr bot">${hi} → ${hf}</span>`;
+            // "13:10 → 13:10" no es real y confunde: dice que llegó y terminó en el
+            // mismo minuto. Pasa cuando la chica solo avisó al terminar — el bot
+            // rellena hora_inicio con la hora de fin para no dejarla vacía. Cuando
+            // las dos horas son iguales, lo honesto es decir solo lo que se sabe.
+            if(hi&&hf&&hi!==hf) return `<span class="sd-hr bot">${hi} → ${hf}</span>`;
+            if(hi&&hf)          return `<span class="sd-hr bot">terminó ${hf}</span>`;
             if(hf)              return `<span class="sd-hr bot">terminó ${hf}</span>`;
             // Llegó con el bot pero se cerró desde el portal: se dice tal cual,
             // no se inventa una hora de fin que nadie registró.
@@ -7956,7 +8024,24 @@
                       let n=0; for(let i=0;i<7;i++){ const it=hk2ISO(hk2AddD(hk2Data.hoy,i)); n+=hk2SalidasDe(it).total; }
                       return n ? ` Esta semana hay <b>${n}</b> en otros días — tócalos en la tira de arriba.` : ' Tampoco en el resto de la semana.';
                    })()}</div>`
-                : grupo(`⏳ Nadie ha avisado`,'pend',g.falta,filaFalta,'Todas confirmadas 🎉')}
+                : (()=>{
+                    // Dos listas, no una. Arriba lo que consta; abajo lo que dedujimos.
+                    const ciertas  = g.falta.filter(x=>x.real);
+                    const deducidas= g.falta.filter(x=>!x.real);
+                    return grupo(`⏳ Nadie ha avisado`,'pend',ciertas,filaFalta,'Todas confirmadas 🎉')
+                      + (deducidas.length ? `
+                        <section class="sd-grp pend sd-deducidas">
+                          <header class="sd-gh">
+                            <span class="sd-gt">🤔 Podrían necesitar limpieza</span>
+                            <span class="sd-gn">${deducidas.length}</span>
+                          </header>
+                          <div class="sd-nota">Aquí no salió nadie hoy. Salen porque el
+                            calendario lo sugiere — un bloqueo que termina, un hueco entre
+                            reservas, o una salida vieja que nunca se marcó limpia. Puede
+                            que ya estén listos. Revísalos, no los trabajes a ciegas.</div>
+                          ${deducidas.map(filaFalta).join('')}
+                        </section>` : '');
+                  })()}
             ${g.total&&g.curso.length?grupo(`🧹 Adentro ahora — avisó que llegó`,'cur',g.curso,x=>filaHecha(x,'curso'),''):''}
             ${g.total?grupo(`✅ Avisó que terminó`,'ok',g.bot,x=>filaHecha(x,'bot'),'Todavía nadie avisa que terminó'):''}
             ${g.total&&g.manual.length?grupo(`✋ Cerradas desde el portal`,'man',g.manual,x=>filaHecha(x,'manual'),''):''}
@@ -8056,7 +8141,10 @@
                     ${stats.alerta?`<span class="hk2-stat alerta">⚠️ <b>${stats.alerta}</b> ¿llega sin limpiar?</span>`:`<span class="hk2-stat">⚡ <b>${stats.turn}</b> turnovers</span>`}
                     ${stats.sin?`<span class="hk2-stat warn">⚠ <b>${stats.sin}</b> sin asignar</span>`:`<span class="hk2-stat" style="color:var(--status-green);border-color:rgba(52,211,153,.3)">✓ todo asignado</span>`}
                     ${(() => { const g = hk2SalidasDe(fSel); const hechas = g.bot.length + g.manual.length;
-                        const falta = g.falta.length;
+                        // El reloj de arriba solo se prende por salidas REALES sin
+                        // confirmar. Si se prendiera también con las deducidas estaría
+                        // encendido casi siempre y dejaría de significar algo.
+                        const falta = g.falta.filter(x=>x.real).length;
                         return `<span class="hk2-stat done${falta?' falta':''}" onclick="hk2ToggleHechas()" title="Quién ya registró su limpieza en el bot y quién falta">${falta?'⏳':'🤖'} <b>${hechas}/${g.total}</b> registradas ${hk2VerHechas?'▴':'▾'}</span>`; })()}
                 </div>
             </div>`;
