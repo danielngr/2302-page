@@ -599,6 +599,64 @@
             color:var(--text-tertiary);border-left:2px solid rgba(150,150,150,.25);
             margin:0 14px 6px}
         .sd-tg.sue{background:rgba(230,57,70,.15);color:#ff8b91}
+        /* ══ SEMÁFORO: el color dice UNA cosa — cómo está el depa ══ */
+        .sd-sem{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:14px}
+        .sd-t{padding:13px 14px;border-radius:11px;border:1px solid var(--border,rgba(255,255,255,.09));
+            display:flex;flex-direction:column;gap:2px}
+        .sd-t .n{font-family:var(--font-mono);font-size:27px;font-weight:700;line-height:1;
+            font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+        .sd-t .e{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;
+            text-transform:uppercase;font-weight:700}
+        .sd-t .h{font-size:11.5px;color:var(--text-tertiary)}
+        .sd-t.s{border-color:rgba(255,93,77,.42);background:rgba(255,93,77,.11)}
+        .sd-t.l{border-color:rgba(245,169,59,.42);background:rgba(245,169,59,.11)}
+        .sd-t.k{border-color:rgba(63,201,138,.42);background:rgba(63,201,138,.10)}
+        .sd-t.s .n,.sd-t.s .e{color:#FF5D4D}
+        .sd-t.l .n,.sd-t.l .e{color:#F5A93B}
+        .sd-t.k .n,.sd-t.k .e{color:#3FC98A}
+
+        .sd-banda{padding:0 14px 6px}
+        .sd-bh{display:flex;align-items:baseline;gap:9px;margin:16px 0 4px}
+        .sd-bh .t{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.13em;
+            text-transform:uppercase;font-weight:700;color:var(--text-primary)}
+        .sd-bh .n{font-family:var(--font-mono);font-size:11.5px;color:var(--text-tertiary)}
+        .sd-bh .por{margin-left:auto;font-size:11.5px;color:var(--text-tertiary)}
+        .sd-lista{border-top:1px solid rgba(255,255,255,.14)}
+
+        .sd-fila{display:grid;grid-template-columns:6px 118px minmax(0,1fr) auto;
+            gap:0 13px;align-items:center;padding:13px 4px 13px 0;
+            border-bottom:1px solid var(--border,rgba(255,255,255,.07))}
+        .sd-rail{width:6px;align-self:stretch;min-height:36px;border-radius:99px}
+        .sd-fila.s .sd-rail{background:#FF5D4D}
+        .sd-fila.l .sd-rail{background:#F5A93B}
+        .sd-fila.k .sd-rail{background:#3FC98A}
+        .sd-est{display:flex;align-items:center;gap:7px;font-family:var(--font-mono);
+            font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+        .sd-foco{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+        .sd-fila.s .sd-est{color:#FF5D4D} .sd-fila.s .sd-foco{background:#FF5D4D}
+        .sd-fila.l .sd-est{color:#F5A93B} .sd-fila.l .sd-foco{background:#F5A93B;
+            box-shadow:0 0 0 4px rgba(245,169,59,.22)}
+        .sd-fila.k .sd-est{color:#3FC98A} .sd-fila.k .sd-foco{background:#3FC98A}
+        .sd-mid{min-width:0;display:flex;flex-direction:column;gap:3px}
+        .sd-dep{font-family:var(--font-mono);font-size:14.5px;font-weight:700;
+            overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .sd-sub{font-size:12.5px;color:var(--text-secondary);display:flex;gap:8px;
+            flex-wrap:wrap;align-items:center}
+        .sd-sub b{font-weight:700;color:var(--text-primary)}
+        .sd-chip{font-family:var(--font-mono);font-size:9px;letter-spacing:.08em;
+            text-transform:uppercase;padding:2px 6px;border-radius:5px;font-weight:600;
+            border:1px solid rgba(255,255,255,.16);color:var(--text-secondary)}
+        .sd-der{display:flex;align-items:center;gap:11px;justify-self:end}
+        .sd-btn.urge{background:#FF5D4D;border-color:#FF5D4D;color:#140F0D;font-weight:700}
+        .sd-btn.urge:hover{filter:brightness(1.12)}
+        .sd-ch.vacia{color:#FF5D4D;font-weight:700}
+        @media (max-width:700px){
+            .sd-sem{grid-template-columns:1fr;gap:7px}
+            .sd-t{flex-direction:row;align-items:baseline;gap:9px}
+            .sd-fila{grid-template-columns:6px minmax(0,1fr);gap:0 11px}
+            .sd-est{grid-column:2;margin-bottom:3px}
+            .sd-der{grid-column:2;justify-self:start;margin-top:7px}
+        }
         /* El tipo de limpieza cambia lo que se le cobra al propietario y lo que
            se le paga a la chica. Sin etiqueta, un refresh se ve idéntico a una
            salida completa y nadie lo cacha hasta el cierre. */
@@ -7556,7 +7614,7 @@
             const pref=x=>hk2EsBloqueo(x)?0:(x.source==='airbnb'?3:(x.source==='hostfully'?2:1));
             const best={};
             bookings.forEach(b=>{ const k=`${b.unit_id}|${b.check_in}|${b.check_out}`; if(!best[k]||pref(b)>pref(best[k])) best[k]=b; });
-            hk2Data={hoy,hoyReal,d0,bookings:Object.values(best),limp,staff,nodisp,at:new Date(),truncado};
+            hk2Data={hoy,hoyReal,hoyReal_iso:hk2ISO(hoyReal),d0,bookings:Object.values(best),limp,staff,nodisp,at:new Date(),truncado};
             hk2ElegirDiaConTrabajo();
             hk2Err=0;
             hk2Render();
@@ -7595,22 +7653,36 @@
         const salSig=new Set(reales.filter(b=>b.check_out===fSig).map(b=>hk2Depto(b.unit_id)));
         // Cruce por nombre NORMALIZADO (tolera "G-13" vs "G13", dobles espacios, acentos)
         // y ante duplicados prefiere el registro más avanzado (terminada > con chica > vacío).
-        const lDe=(dep,desde)=>{
-            const up=hk2Norm(dep);
-            const own=hk2MejorLimp(D.limp.filter(l=>l.fecha===fiso && hk2Norm(l.depto_codigo)===up));
-            if(own) return {l:own,sig:false};
-            // Fila con "fin de bloqueo": la limpieza pudo hacerse cualquier día del hueco
-            // (ej. el mismo día que salió el huésped anterior). Cuenta igual.
-            if(desde){
-                const prev=hk2MejorLimp(D.limp.filter(l=>hk2Norm(l.depto_codigo)===up && l.fecha>=desde && l.fecha<fiso));
-                if(prev) return {l:prev,sig:false};
-            }
-            if(!salSig.has(dep)){
-                const nx=hk2MejorLimp(D.limp.filter(l=>l.fecha===fSig && hk2Norm(l.depto_codigo)===up));
-                if(nx) return {l:nx,sig:true};
-            }
-            return {l:null,sig:false};
-        };
+        // Un día FUTURO no puede tener trabajo hecho. Mirando mañana, colgar la
+        // limpieza de hoy en la fila de mañana hace que la pantalla afirme que
+        // tres chicas ya avisaron que llegaron — a un día que todavía no pasa.
+        //
+        // Colgar una limpieza de otro día es correcto viendo hoy o el pasado
+        // (salió el 31, el depa quedó bloqueado hasta el 1, la limpieza del 31
+        // es la que vale). Hacia adelante no: ahí la fila existe para PLANEAR,
+        // no para reportar. Y no se pierde nada por apagarlo — quien decide si
+        // la fila aparece o no es `yaLimpio`, que lee las limpiezas directo y
+        // sigue igual. Lo único que cambia es que un día futuro se ve vacío,
+        // que es la verdad.
+        // ── UNA LIMPIEZA SALE EN SU DÍA. NI ANTES NI DESPUÉS. ──────────────
+        // Antes esta función buscaba en tres lados: el día que ves, los días
+        // anteriores del hueco, y el día siguiente. La intención era buena
+        // —no volver a pedir algo que ya se hizo— pero el precio fue que la
+        // misma limpieza salía en varios días, y ninguno era el suyo:
+        //
+        //   · la del 31 de agosto aparecía el 1 de septiembre
+        //   · viendo mañana salían tres chicas "que ya llegaron" hoy
+        //   · el conteo del día contaba trabajo de otro día
+        //
+        // Si la chica dijo que lo limpió el miércoles, sale el miércoles.
+        // Punto. Lo que se pierde no se pierde: quien decide si la fila
+        // aparece o no es `yaLimpio`, que lee las limpiezas por su cuenta y
+        // sigue igual. Esto solo decide QUÉ limpieza se cuelga de la fila.
+        const lDe=(dep)=>({
+            l: hk2MejorLimp(D.limp.filter(l =>
+                   l.fecha === fiso && hk2Norm(l.depto_codigo) === hk2Norm(dep))),
+            sig: false
+        });
         // ── Helpers: ¿el depa quedó sucio y sigue sin limpiarse? ────────────────────
         // Solo una SALIDA REAL de huésped ensucia. Un bloqueo no ensucia por sí mismo.
         const ultSalidaHasta=(dep,fecha)=>{
@@ -7838,6 +7910,7 @@
                 blk: !!r.blk,                 // el depa queda cerrado (bloqueo del iCal)
                 turn:!!(r.in && r.out),       // sale uno y entra otro el mismo día
                 ent: !!r.in,
+                r,                            // la fila completa: de ahí sale la banda
                 fechaL: (r.l && r.l.fecha) || null,   // de qué día es REALMENTE la limpieza
                 arr: !!r.arr,                 // viene arrastrada de un día anterior
                 suelta: !!r.suelta,           // limpieza sin reserva que la explique
@@ -7876,6 +7949,17 @@
     // marcaron a mano, y cuáles siguen sin confirmar. Los bloqueos van
     // marcados con candado porque el iCal no distingue solo.
     // ══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════
+    // SALIDAS DEL DÍA — semáforo del depa, ordenado por quién llega primero
+    //
+    // Dos ejes, y cada uno con su lenguaje para que no compitan:
+    //
+    //   EL COLOR dice cómo está el depa       sucio · limpiándose · limpio
+    //   EL ORDEN dice qué tan urgente es      lo decide cuándo llega el huésped
+    //
+    // Antes el color decía las dos cosas a la vez y rojo significaba dos cosas
+    // distintas en el mismo renglón. Ahora el color significa una sola.
+    // ══════════════════════════════════════════════════════════════════
     function hk2RenderHechas(fiso){
         const cont=document.getElementById('hk2-hechas'); if(!cont) return;
         if(!hk2VerHechas){
@@ -7886,10 +7970,6 @@
         }
         const g=hk2SalidasDe(fiso);
         const nom={}; (hk2Data.staff||[]).forEach(s=>nom[String(s.id)]=s.nombre);
-        // OJO: en la base hora_inicio/hora_fin vienen como TIMESTAMP completo
-        // ('2026-08-30T11:42:00+00'), no como 'HH:MM:SS'. Cortar los primeros
-        // 5 caracteres daba "2026-" en pantalla. Se aceptan los dos formatos y
-        // el timestamp se pasa a hora de México, igual que el resto del portal.
         const hora=h=>{
             if(!h) return '';
             const t=String(h).trim();
@@ -7907,168 +7987,135 @@
                 {timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit',hour12:false});
         };
         const chicaDe=l=>(l&&nom[String(l.staff_id)])||'';
-        const money=n=>'$'+(Math.round((n||0)*100)/100).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
-        const hechas=g.bot.concat(g.manual);   // 'adentro ahora' NO cuenta: todavía no termina
-        const total=hechas.reduce((a,x)=>a+(parseFloat(x.l&&x.l.tarifa_aplicada)||0),0);
-        const pct = g.total ? Math.round(hechas.length/g.total*100) : 100;
         const esc = t => String(t||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+        const money=n=>'$'+(Math.round((n||0)*100)/100).toLocaleString('es-MX',{maximumFractionDigits:0});
 
-        // Etiquetas de contexto: por qué este depa se limpia hoy
-        // Un refresh cuesta la mitad y una profunda cuesta vez y media. En esta
-        // lista se veían las tres igual, así que la única forma de enterarte era
-        // el cierre — cuando ya se le cobró al propietario. Va primero de todas
-        // las etiquetas justo por eso: es la que mueve dinero.
-        const TIPOS={
-            refresh : ['tip-ref','◐ REFRESH',  'Media limpieza: se le cobra la mitad al propietario.'],
-            midstay : ['tip-mid','◑ MIDSTAY',  'Limpieza a mitad de estancia: se le cobra la mitad al propietario.'],
-            profunda: ['tip-pro','◉ PROFUNDA', 'Limpieza profunda: se le cobra vez y media al propietario.'],
+        // ── El semáforo ────────────────────────────────────────────────
+        // Traduce lo que avisó la chica a cómo está el depa. Es la misma
+        // información, dicha desde el lado que importa: no «quién mandó un
+        // mensaje» sino «puedo meter un huésped ahí».
+        const SEM={
+            sucio  :{cls:'s', txt:'Sucio'},
+            lavando:{cls:'l', txt:'Limpiándose'},
+            limpio :{cls:'k', txt:'Limpio'},
         };
-        const tagTipo=x=>{
-            const k=String((x.l&&x.l.tipo)||'completa').toLowerCase();
-            const v=TIPOS[k];
-            return v ? `<span class="sd-tg tip ${v[0]}" title="${v[2]}">${v[1]}</span>` : '';
-        };
-
-        const tags=(x,tipo)=>{
-            const t=[tagTipo(x)].filter(Boolean);
-            // ── DE QUÉ DÍA ES ESTA LIMPIEZA ────────────────────────────────
-            // Una fila del día X puede traer colgada una limpieza de otro día,
-            // y es a propósito: si el huésped salió el 31 y el depa quedó
-            // bloqueado hasta el 1, la limpieza del 31 es la que vale y la
-            // fila del 1 no debe pedir que se vuelva a limpiar.
-            //
-            // Lo que faltaba era decirlo. Sin esta etiqueta, la pantalla del
-            // 1 de septiembre afirma que Rebe limpió Tules 19-1301 ese día
-            // cuando lo limpió el 31 — y quien lo lee ya no sabe qué creerle
-            // al resto. La nómina nunca se equivocó (esa lee `limpiezas.fecha`
-            // directo), pero la pantalla sí mentía.
-            if(x.l && x.l.fecha && x.l.fecha !== fiso){
-                const antes = x.l.fecha < fiso;
-                t.push(`<span class="sd-tg otro" title="Esta limpieza está registrada el ${hk2FmtLargo(x.l.fecha)}, no el ${hk2FmtLargo(fiso)}. Se muestra aquí porque es la que deja este depa listo.">${antes?'↩︎':'↪'} ${hk2FmtCorto(x.l.fecha)}</span>`);
-            }
-            if(tipo==='curso'){
-                const hi=hora(x.l&&x.l.hora_inicio);
-                t.push(`<span class="sd-tg cur">LLEGÓ ${hi||'—'}</span>`);
-            }
-            if(x.blk)    t.push('<span class="sd-tg blk">🔒 BLOQUEO</span>');
-            if(x.turn)   t.push('<span class="sd-tg trn">⚡ ENTRA HOY</span>');
-            else if(x.ent) t.push('<span class="sd-tg trn">↓ ENTRADA</span>');
-            if(x.arr)    t.push(`<span class="sd-tg arr" title="Salió hace ${x.dias} día(s) y nadie ha registrado la limpieza. Sigue apareciendo hasta que se marque.">SALIÓ HACE ${x.dias}D</span>`);
-            if(x.suelta) t.push('<span class="sd-tg sue">SIN RESERVA</span>');
-            return t.join('');
+        const semDe=x=>{
+            const e=hk2EstadoLimp(x.l);
+            if(e==='curso') return 'lavando';
+            if(e==='terminada'||e==='manual') return 'limpio';
+            return 'sucio';
         };
 
-        // El sello de la derecha dice EXACTAMENTE qué avisó la chica:
-        //   "9:40 → 11:42" = avisó que llegó y que terminó
-        //   "terminó 11:42" = solo avisó al terminar
-        //   "llegó 10:15"   = avisó que llegó, todavía no termina
-        //   "a mano"        = nunca pasó por el bot
-        const sello=(x,tipo)=>{
-            const hi=hora(x.l&&x.l.hora_inicio), hf=hora(x.l&&x.l.hora_fin);
-            if(tipo==='manual') return `<span class="sd-hr man">a mano</span>`;
-            // En curso: la columna la ocupa el botón de cerrarla, y la hora de
-            // llegada se muestra como etiqueta para no perderla.
-            if(tipo==='curso'){
-                const lid=x.l&&x.l.id ? `'${x.l.id}'` : 'null';
-                return `<button class="sd-btn cerrar" title="Avisó que llegó pero no que terminó. Cierra la limpieza para que se le pague."
-                    onclick="event.stopPropagation();hk2CerrarEnCurso(${lid},'${esc(x.dep)}','${fiso}')">✓ Terminó</button>`;
-            }
-            // "13:10 → 13:10" no es real y confunde: dice que llegó y terminó en el
-            // mismo minuto. Pasa cuando la chica solo avisó al terminar — el bot
-            // rellena hora_inicio con la hora de fin para no dejarla vacía. Cuando
-            // las dos horas son iguales, lo honesto es decir solo lo que se sabe.
-            if(hi&&hf&&hi!==hf) return `<span class="sd-hr bot">${hi} → ${hf}</span>`;
-            if(hi&&hf)          return `<span class="sd-hr bot">terminó ${hf}</span>`;
-            if(hf)              return `<span class="sd-hr bot">terminó ${hf}</span>`;
-            // Llegó con el bot pero se cerró desde el portal: se dice tal cual,
-            // no se inventa una hora de fin que nadie registró.
-            if(hi)              return `<span class="sd-hr man">llegó ${hi} · cerrada</span>`;
-            return `<span class="sd-hr bot">✓</span>`;
+        // ── Las bandas: cuándo llega el próximo huésped ────────────────
+        // Este es el orden que pidió Daniel, y sale todo de `bookings`:
+        //   1. entra hoy            → hay reloj
+        //   2. entra con fecha      → hay margen conocido
+        //   3. calendario abierto   → puede caer una reserva hoy mismo
+        //   4. bloqueado            → nadie puede entrar, puede esperar
+        const bandaDe=x=>{
+            const r=x.r||{};
+            if(r.in)  return 0;
+            if(r.blk) return 3;
+            if(r.gap) return 1;
+            return 2;
         };
-        const filaHecha=(x,tipo)=>{
-            const icon = tipo==='curso' ? '<span class="sd-chk cur">◐</span>' : '<span class="sd-chk">✓</span>';
-            return `<div class="sd-row ${tipo==='curso'?'curso':'done'}">
-                ${icon}
-                <span class="sd-dep">${x.dep}</span>
-                <span class="sd-tags">${tags(x,tipo)}</span>
-                ${celdaChica(x, tipo==='curso')}
-                ${tipo==='curso'?celdaAviso(x):'<span class="sd-av off">·</span>'}
-                ${sello(x,tipo)}
+        const BANDAS=[
+            {t:'Entra huésped hoy',  por:'hay hora de llegada'},
+            {t:'Entran pronto',      por:'reserva confirmada, con fecha'},
+            {t:'Se puede vender',    por:'calendario abierto: puede caer hoy'},
+            {t:'Nadie puede entrar', por:'bloqueado · puede esperar'},
+        ];
+
+        const todas=[...g.falta,...g.curso,...g.bot,...g.manual];
+        const cuenta={sucio:0,lavando:0,limpio:0};
+        todas.forEach(x=>cuenta[semDe(x)]++);
+
+        // ── Por qué esta fila está en esta banda, en palabras ──────────
+        const motivo=x=>{
+            const r=x.r||{};
+            if(r.in && r.out) return 'Sale y entra hoy';
+            if(r.in)          return 'Entra huésped hoy';
+            if(r.blk)         return r.blk.check_out
+                                ? `Bloqueado hasta el <b>${hk2FmtCorto(r.blk.check_out)}</b>` : 'Bloqueado';
+            if(r.gap)         return `Entra el <b>${hk2FmtCorto(r.gap.next)}</b>`;
+            if(r.arr)         return `Sin limpiar desde el <b>${hk2FmtCorto(r.arr.ultSal)}</b>`;
+            if(r.suelta)      return 'Limpieza sin reserva que la explique';
+            return 'Salió hoy · sin reserva a la vista';
+        };
+
+        // Etiquetas que sí cambian dinero o decisiones. Todo lo demás se fue.
+        const TIPOS={refresh:'◐ Refresh', midstay:'◑ Midstay', profunda:'◉ Profunda'};
+        const chips=x=>{
+            const c=[];
+            const tp=String((x.l&&x.l.tipo)||'completa').toLowerCase();
+            if(TIPOS[tp]) c.push(`<span class="sd-chip">${TIPOS[tp]}</span>`);
+            if(hk2EstadoLimp(x.l)==='manual') c.push('<span class="sd-chip">✋ A mano</span>');
+            if(x.suelta) c.push('<span class="sd-chip">Sin reserva</span>');
+            return c.join('');
+        };
+
+        const derecha=(x,sem)=>{
+            const l=x.l, hi=hora(l&&l.hora_inicio), hf=hora(l&&l.hora_fin);
+            const ch=chicaDe(l);
+            const lid=l&&l.id ? `'${l.id}'` : 'null';
+            if(sem==='lavando'){
+                return `<span class="sd-ch">${ch||'—'}</span>
+                    <button class="sd-btn ok" onclick="event.stopPropagation();hk2CerrarEnCurso(${lid},'${esc(x.dep)}','${fiso}')"
+                        title="Avisó que llegó pero no que terminó">✓ Terminó</button>`;
+            }
+            if(sem==='limpio'){
+                const t = (hi&&hf&&hi!==hf) ? `${hi} → ${hf}` : hf ? `terminó ${hf}` : hi ? `llegó ${hi}` : '—';
+                return `<span class="sd-ch">${ch||'—'}</span><span class="sd-hr">${t}</span>`;
+            }
+            // sucio: o se le asigna chica, o se marca limpia
+            if(ch) return `<button class="sd-ch sd-chsel" onclick="event.stopPropagation();hk2MenuChica(event,'${esc(x.dep)}','${fiso}',${lid})">${ch} <span class="cv">▾</span></button>
+                <button class="sd-btn" onclick="event.stopPropagation();hk2MarcarDesdeTablero(event,${lid},'${esc(x.dep)}','${fiso}')">Marcar limpia</button>`;
+            return `<span class="sd-ch vacia">sin asignar</span>
+                <button class="sd-btn urge" onclick="event.stopPropagation();hk2MenuChica(event,'${esc(x.dep)}','${fiso}',${lid})">Asignar</button>`;
+        };
+
+        const fila=x=>{
+            const sem=semDe(x), S=SEM[sem];
+            return `<div class="sd-fila ${S.cls}">
+                <span class="sd-rail"></span>
+                <span class="sd-est"><span class="sd-foco"></span>${S.txt}</span>
+                <span class="sd-mid">
+                    <span class="sd-dep">${x.dep}</span>
+                    <span class="sd-sub">${chips(x)}${motivo(x)}</span>
+                </span>
+                <span class="sd-der">${derecha(x,sem)}</span>
             </div>`;
         };
 
-        // La chica se cambia desde la propia fila. Antes esto vivía en la tabla
-        // de tarjetas de abajo; al retirarla, la asignación se mudó aquí.
-        const celdaChica=(x,editable)=>{
-            const ch=chicaDe(x.l);
-            const lid=x.l&&x.l.id ? `'${x.l.id}'` : 'null';
-            if(!editable) return `<span class="sd-ch">${ch||'<i class="sd-nn">sin chica</i>'}</span>`;
-            return `<button class="sd-ch sd-chsel${ch?'':' vacia'}"
-                onclick="event.stopPropagation();hk2MenuChica(event,'${esc(x.dep)}','${fiso}',${lid})"
-                title="Cambiar quién la limpia">${ch||'asignar'} <span class="cv">▾</span></button>`;
-        };
-        // Palomita de "ya le avisé". Solo tiene sentido si hay chica asignada.
-        const celdaAviso=x=>{
-            const l=x.l;
-            if(!l||!l.id||!l.staff_id) return `<span class="sd-av off">·</span>`;
-            const on=!!l.avisada;
-            return `<button class="sd-av${on?' on':''}"
-                onclick="event.stopPropagation();hk2Avisada('${l.id}',${on})"
-                title="${on?'Ya le avisaste':'Marcar que ya le avisaste'}">📣</button>`;
-        };
-        const filaFalta=x=>{
-            const lid=x.l&&x.l.id ? `'${x.l.id}'` : 'null';
-            return `<div class="sd-row pend${x.urge?' urge':''}">
-                <span class="sd-chk pend">○</span>
-                <span class="sd-dep">${x.dep}</span>
-                <span class="sd-tags">${tags(x,'falta')}</span>
-                ${celdaChica(x,true)}
-                ${celdaAviso(x)}
-                <button class="sd-btn" onclick="event.stopPropagation();hk2MarcarDesdeTablero(event,${lid},'${esc(x.dep)}','${fiso}')">Marcar limpia</button>
-            </div>`;
-        };
-
-        const grupo=(titulo,cls,items,render,vacio)=>`
-            <section class="sd-grp ${cls}">
-              <header class="sd-gh"><span class="sd-gt">${titulo}</span><span class="sd-gn">${items.length}</span></header>
-              ${items.length ? items.map(render).join('') : `<div class="sd-vacio">${vacio}</div>`}
-            </section>`;
+        // Dentro de cada banda: primero lo sucio, luego lo que se está
+        // limpiando, al final lo hecho. Lo que falta siempre arriba.
+        const peso={sucio:0,lavando:1,limpio:2};
+        const porBanda=[[],[],[],[]];
+        todas.forEach(x=>porBanda[bandaDe(x)].push(x));
+        porBanda.forEach(b=>b.sort((a,c)=>peso[semDe(a)]-peso[semDe(c)]||a.dep.localeCompare(c.dep)));
 
         cont.innerHTML=`<div class="sd-box">
             <div class="sd-head">
               <div class="sd-h1">Salidas de ${hk2FmtCorto(fiso)}</div>
-              <div class="sd-h2"><b>${hechas.length}</b> de <b>${g.total}</b> confirmadas${total?` · ${money(total)} de nómina`:''}</div>
               <span class="sd-x" onclick="hk2ToggleHechas()" title="Cerrar">✕</span>
             </div>
-            <div class="sd-bar"><div class="sd-fill${pct===100?' full':''}" style="width:${pct}%"></div></div>
             ${g.total===0
-                ? `<div class="sd-nada">Sin salidas ni entradas este día.${(()=>{
-                      let n=0; for(let i=0;i<7;i++){ const it=hk2ISO(hk2AddD(hk2Data.hoy,i)); n+=hk2SalidasDe(it).total; }
-                      return n ? ` Esta semana hay <b>${n}</b> en otros días — tócalos en la tira de arriba.` : ' Tampoco en el resto de la semana.';
-                   })()}</div>`
-                : (()=>{
-                    // Dos listas, no una. Arriba lo que consta; abajo lo que dedujimos.
-                    const ciertas  = g.falta.filter(x=>x.real);
-                    const deducidas= g.falta.filter(x=>!x.real);
-                    return grupo(`⏳ Nadie ha avisado`,'pend',ciertas,filaFalta,'Todas confirmadas 🎉')
-                      + (deducidas.length ? `
-                        <section class="sd-grp pend sd-deducidas">
-                          <header class="sd-gh">
-                            <span class="sd-gt">🤔 Podrían necesitar limpieza</span>
-                            <span class="sd-gn">${deducidas.length}</span>
-                          </header>
-                          <div class="sd-nota">Aquí no salió nadie hoy. Salen porque el
-                            calendario lo sugiere — un bloqueo que termina, un hueco entre
-                            reservas, o una salida vieja que nunca se marcó limpia. Puede
-                            que ya estén listos. Revísalos, no los trabajes a ciegas.</div>
-                          ${deducidas.map(filaFalta).join('')}
-                        </section>` : '');
-                  })()}
-            ${g.total&&g.curso.length?grupo(`🧹 Adentro ahora — avisó que llegó`,'cur',g.curso,x=>filaHecha(x,'curso'),''):''}
-            ${g.total?grupo(`✅ Avisó que terminó`,'ok',g.bot,x=>filaHecha(x,'bot'),'Todavía nadie avisa que terminó'):''}
-            ${g.total&&g.manual.length?grupo(`✋ Cerradas desde el portal`,'man',g.manual,x=>filaHecha(x,'manual'),''):''}
+              ? `<div class="sd-nada">Sin salidas ni entradas este día.</div>`
+              : `<div class="sd-sem">
+                  <div class="sd-t s"><span class="n">${cuenta.sucio}</span><span class="e">Sucios</span><span class="h">nadie ha llegado</span></div>
+                  <div class="sd-t l"><span class="n">${cuenta.lavando}</span><span class="e">Limpiándose</span><span class="h">la chica está adentro</span></div>
+                  <div class="sd-t k"><span class="n">${cuenta.limpio}</span><span class="e">Limpios</span><span class="h">avisaron que terminaron</span></div>
+                </div>
+                ${porBanda.map((items,i)=>items.length ? `
+                  <section class="sd-banda">
+                    <div class="sd-bh"><span class="t">${BANDAS[i].t}</span>
+                      <span class="n">${items.length}</span>
+                      <span class="por">${BANDAS[i].por}</span></div>
+                    <div class="sd-lista">${items.map(fila).join('')}</div>
+                  </section>` : '').join('')}`}
           </div>`;
     }
+
 
     // Elegir o cambiar la chica desde la fila del tablero.
     function hk2MenuChica(ev, dep, fiso, limpId){
