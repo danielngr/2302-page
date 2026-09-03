@@ -7809,7 +7809,15 @@
         // Modelo infalible: si un depa tuvo salida y nadie registró limpieza, la tarea
         // sigue viva TODOS los días siguientes (hasta 10). No depende de interpretar
         // bloqueos ni estancia mínima: solo de "salió y no consta que se limpiara".
+        // Y solo hacia atrás o hasta hoy. Un depa que quedó sucio el 2 y sigue
+        // así reaparece el 3, el 4, el 5… hasta que alguien lo marque, y eso
+        // está bien mientras el día ya pasó: es una falla real que no se puede
+        // esconder. Pero arrastrarlo a días FUTUROS lo mete en la lista del
+        // sábado sin que el sábado tenga nada que ver — y ahí sí parece que el
+        // portal copia notas de un día a otro. En el futuro, una fila aparece
+        // por lo que pasa ESE día: un bloqueo que termina, un huésped que llega.
         const arrastre={};
+        if(fiso <= D.hoyReal_iso){
         [...new Set(D.bookings.map(b=>hk2Depto(b.unit_id)))].forEach(dep=>{
             if(sal[dep]||blk[dep]||finBlk[dep]) return;   // ya tiene fila propia hoy
             const ultSal=ultSalidaHasta(dep,fiso);
@@ -7821,6 +7829,7 @@
                 .map(b=>b.check_in).sort()[0]||null;
             arrastre[dep]={ultSal,prox,dias};
         });
+        }
 
         // ── LIMPIEZAS SUELTAS: existen en la base pero ninguna reserva las explica ──
         // Pasa cuando el iCal no trajo la reserva (Airbnb a veces no la exporta) o
@@ -8031,16 +8040,24 @@
         todas.forEach(x=>cuenta[semDe(x)]++);
 
         // ── Por qué esta fila está en esta banda, en palabras ──────────
+        // «Hoy» solo se puede decir cuando estás parado en hoy. Viendo el
+        // sábado 6, un renglón que dice «sale y entra hoy» se lee como si
+        // hablara de este momento, y entonces parece que la nota del día se
+        // está copiando a los demás. El dato siempre estuvo bien —ese depa sí
+        // sale y entra el 6— lo que estaba mal era la palabra.
+        const HOY = hk2Data.hoyReal_iso;
+        const dia = fiso===HOY ? 'hoy' : `el <b>${hk2FmtCorto(fiso)}</b>`;
+        const salio = fiso > HOY ? 'Sale' : 'Salió';
         const motivo=x=>{
             const r=x.r||{};
-            if(r.in && r.out) return 'Sale y entra hoy';
-            if(r.in)          return 'Entra huésped hoy';
+            if(r.in && r.out) return `Sale y entra ${dia}`;
+            if(r.in)          return `Entra huésped ${dia}`;
             if(r.blk)         return r.blk.check_out
                                 ? `Bloqueado hasta el <b>${hk2FmtCorto(r.blk.check_out)}</b>` : 'Bloqueado';
-            if(r.gap)         return `Entra el <b>${hk2FmtCorto(r.gap.next)}</b>`;
+            if(r.gap)         return `${salio} ${dia} · entra el <b>${hk2FmtCorto(r.gap.next)}</b>`;
             if(r.arr)         return `Sin limpiar desde el <b>${hk2FmtCorto(r.arr.ultSal)}</b>`;
             if(r.suelta)      return 'Limpieza sin reserva que la explique';
-            return 'Salió hoy · sin reserva a la vista';
+            return `${salio} ${dia} · sin reserva a la vista`;
         };
 
         // Etiquetas que sí cambian dinero o decisiones. Todo lo demás se fue.
