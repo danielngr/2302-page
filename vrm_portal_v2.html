@@ -588,6 +588,9 @@
         .sd-tg.blk{background:rgba(150,150,150,.16);color:#b6b6b6}
         .sd-tg.trn{background:rgba(224,122,62,.16);color:var(--accent-terracota)}
         .sd-tg.arr{background:rgba(245,192,112,.15);color:var(--accent-gold)}
+        /* Limpieza registrada en OTRO día que el que estás viendo. */
+        .sd-tg.otro{background:rgba(108,184,255,.14);color:#8ac4ff;
+            border:1px solid rgba(108,184,255,.3);font-weight:600}
         /* El grupo de "podrían" va visualmente más callado que el de "nadie avisó":
            es una sugerencia del calendario, no una tarea confirmada. */
         .sd-deducidas{opacity:.82}
@@ -934,6 +937,9 @@
         }
 
         /* ── Nómina ── */
+        .nom-arr{font-family:var(--font-mono);font-size:10px;letter-spacing:.03em;
+            color:var(--accent-gold,#f5c070);margin-top:2px}
+        .nom-arr b{color:var(--accent-gold,#f5c070)}
         .nom-header-bar {
             display: flex; align-items: center; justify-content: space-between;
             padding: 20px 28px; border-bottom: 1px solid rgba(255,255,255,.06);
@@ -7832,6 +7838,7 @@
                 blk: !!r.blk,                 // el depa queda cerrado (bloqueo del iCal)
                 turn:!!(r.in && r.out),       // sale uno y entra otro el mismo día
                 ent: !!r.in,
+                fechaL: (r.l && r.l.fecha) || null,   // de qué día es REALMENTE la limpieza
                 arr: !!r.arr,                 // viene arrastrada de un día anterior
                 suelta: !!r.suelta,           // limpieza sin reserva que la explique
                 urge: !!(r.alertaOn || (r.arr && r.in)),
@@ -7924,6 +7931,21 @@
 
         const tags=(x,tipo)=>{
             const t=[tagTipo(x)].filter(Boolean);
+            // ── DE QUÉ DÍA ES ESTA LIMPIEZA ────────────────────────────────
+            // Una fila del día X puede traer colgada una limpieza de otro día,
+            // y es a propósito: si el huésped salió el 31 y el depa quedó
+            // bloqueado hasta el 1, la limpieza del 31 es la que vale y la
+            // fila del 1 no debe pedir que se vuelva a limpiar.
+            //
+            // Lo que faltaba era decirlo. Sin esta etiqueta, la pantalla del
+            // 1 de septiembre afirma que Rebe limpió Tules 19-1301 ese día
+            // cuando lo limpió el 31 — y quien lo lee ya no sabe qué creerle
+            // al resto. La nómina nunca se equivocó (esa lee `limpiezas.fecha`
+            // directo), pero la pantalla sí mentía.
+            if(x.l && x.l.fecha && x.l.fecha !== fiso){
+                const antes = x.l.fecha < fiso;
+                t.push(`<span class="sd-tg otro" title="Esta limpieza está registrada el ${hk2FmtLargo(x.l.fecha)}, no el ${hk2FmtLargo(fiso)}. Se muestra aquí porque es la que deja este depa listo.">${antes?'↩︎':'↪'} ${hk2FmtCorto(x.l.fecha)}</span>`);
+            }
             if(tipo==='curso'){
                 const hi=hora(x.l&&x.l.hora_inicio);
                 t.push(`<span class="sd-tg cur">LLEGÓ ${hi||'—'}</span>`);
@@ -9527,7 +9549,10 @@
             fetch(`${SUPABASE_URL}/rest/v1/staff_limpieza?activo=eq.true&select=*`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
             }),
-            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=in.(terminada,pagada)&fecha=gte.${viernesISO}&fecha=lte.${juevesISO}&select=*&order=fecha.desc`, {
+            // Se pide desde 12 semanas atrás y no solo la semana: lo de atrás es
+            // el arrastre de las excluidas. Se separa en cuanto llega, para que
+            // todo lo demás siga viendo únicamente la semana en curso.
+            fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=in.(terminada,pagada)&fecha=gte.${_arrDesdeISO(viernesISO)}&fecha=lte.${juevesISO}&select=*&order=fecha.desc&limit=5000`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             }),
             fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=in.(pendiente,pagado)&fecha=gte.${viernesISO}&fecha=lte.${juevesISO}&select=*`, {
@@ -9536,8 +9561,13 @@
             fetch(`${SUPABASE_URL}/rest/v1/dispersion_extras?semana_inicio=eq.${viernesISO}&select=*`, {
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
             }),
-            fetch(`${SUPABASE_URL}/rest/v1/nomina_exclusiones?semana_inicio=eq.${viernesISO}&select=staff_id`, {
-                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+            // Se piden TODAS las exclusiones diferidas abiertas, no solo las de
+            // esta semana: las de semanas pasadas son el arrastre y tienen que
+            // volver a sumar. Las de motivo 'quincenal' quedan fuera a propósito
+            // — a esas cuatro se les paga en su propio panel y acumularlas aquí
+            // sería pagarles dos veces.
+            fetch(`${SUPABASE_URL}/rest/v1/nomina_exclusiones?motivo=eq.diferida&liquidada_en=is.null&select=staff_id,semana_inicio`, {
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"}
             }),
             // Catálogo de depas con precio — sirve de aviso temprano: si una
             // limpieza trae un nombre que no está aquí, es un depa nuevo o una
@@ -9550,11 +9580,21 @@
         await nomCargarTarjetas(viernesISO);   // tarjetas temporales de esta semana
 
         const staff = await resStaff.json();
-        const limpiezas = await resLimp.json();
+        const limpiezasTodas = await resLimp.json();
+        // La semana en curso. Todo lo de abajo trabaja con esto, igual que antes.
+        const limpiezas = limpiezasTodas.filter(l => l.fecha >= viernesISO && l.fecha <= juevesISO);
         const ajustes = await resAjustes.json();
         const extras = resExtras.ok ? await resExtras.json() : [];
         const excl = (resExcl && resExcl.ok) ? await resExcl.json() : [];
-        const excluidas = new Set(excl.map(e => String(e.staff_id)));
+        // Excluida de ESTA semana (no se le paga hoy)…
+        const excluidas = new Set(excl.filter(e => e.semana_inicio === viernesISO).map(e => String(e.staff_id)));
+        // …y las semanas ANTERIORES que se le pospusieron y siguen sin pagarse.
+        const arrastrePorChica = {};
+        excl.filter(e => e.semana_inicio < viernesISO).forEach(e => {
+            (arrastrePorChica[String(e.staff_id)] ||= []).push(e.semana_inicio);
+        });
+        const _finSem = iso => { const d=new Date(iso+'T12:00:00'); d.setDate(d.getDate()+6);
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
         // ── Aviso temprano de depas desconocidos ────────────────────────
         // Cualquier depto_codigo que no exista en `deptos` no tiene precio y
@@ -9589,7 +9629,15 @@
 
         // Las 4 quincenales (contrato) NO van en la nómina semanal: tienen su panel aparte.
         const html = staff.filter(s => !QUINCENAL_SET.has(s.id)).map(s => {
-            const misLimp = limpiezas.filter(l => l.staff_id===s.id);
+            const misLimpSem = limpiezas.filter(l => l.staff_id===s.id);
+            // Arrastre: sus limpiezas de las semanas que se le pospusieron y
+            // nadie ha pagado. Se suman a lo de hoy como si fueran de esta
+            // semana — es exactamente lo que se le va a depositar.
+            const misSemanas = arrastrePorChica[String(s.id)] || [];
+            const misLimpArr = misSemanas.flatMap(ini =>
+                limpiezasTodas.filter(l => l.staff_id===s.id && l.fecha>=ini && l.fecha<=_finSem(ini)));
+            const totalArr = misLimpArr.reduce((acc,l) => acc+(parseFloat(l.tarifa_aplicada)||0), 0);
+            const misLimp = misLimpSem.concat(misLimpArr);
             const misAjustes = ajustes.filter(a => a.staff_id===s.id);
             const totalLimp = misLimp.reduce((acc,l) => acc+(parseFloat(l.tarifa_aplicada)||0), 0);
             const totalAjust = misAjustes.reduce((acc,a) => acc+(parseFloat(a.monto)||0), 0);
@@ -9622,6 +9670,7 @@
                     <div style="flex:1">
                         <div class="nom-name">${s.nombre}${excluida?' <span style="font-size:9px;background:rgba(230,57,70,.18);color:var(--status-red);border:1px solid rgba(230,57,70,.35);border-radius:100px;padding:1px 7px;font-family:var(--font-mono);letter-spacing:.5px;vertical-align:middle">EXCLUIDA</span>':''}</div>
                         <div class="nom-count">${s.es_fijo ? ('FIJO · $'+(parseFloat(s.monto_fijo)||0).toFixed(0)+(misAjustes.length?' · '+misAjustes.length+' ajuste'+(misAjustes.length!==1?'s':''):'')) : (misLimp.length+' limpieza'+(misLimp.length!==1?'s':'')+' · '+misAjustes.length+' ajuste'+(misAjustes.length!==1?'s':''))}</div>
+                        ${misSemanas.length ? `<div class="nom-arr" title="${misSemanas.sort().map(w=>'semana del '+w).join(' · ')}">↩︎ trae <b>$${totalArr.toFixed(0)}</b> de ${misSemanas.length} semana${misSemanas.length!==1?'s':''} que le pospusiste</div>` : ''}
                     </div>
                     <div class="nom-total" style="${excluida?'text-decoration:line-through;color:var(--text-tertiary)':''}">$${total.toFixed(0)}</div>
                     <i class="ph ph-caret-down nom-chevron"></i>
@@ -9697,6 +9746,13 @@
         if(typeof cargarQuincenal === 'function') cargarQuincenal();
     }
 
+    // Hasta 12 semanas atrás para el arrastre. Es un tope a propósito: si algo
+    // se quedó sin pagar tres meses, ya no lo arregla la nómina automática.
+    function _arrDesdeISO(viernesISO){
+        const d=new Date(viernesISO+'T12:00:00'); d.setDate(d.getDate()-7*12);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
     // Inserta (idempotente) a las 4 quincenales en nomina_exclusiones para la semana dada,
     // así el Excel semanal del servidor las omite. Se llama en cada carga de nómina.
     async function _ensureExclQuincenal(viernesISO){
@@ -9704,7 +9760,7 @@
             await fetch(`${SUPABASE_URL}/rest/v1/nomina_exclusiones?on_conflict=semana_inicio,staff_id`, {
                 method:"POST", keepalive:true,
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"resolution=ignore-duplicates,return=minimal"},
-                body: JSON.stringify(QUINCENAL_IDS.map(id => ({ semana_inicio: viernesISO, staff_id: id })))
+                body: JSON.stringify(QUINCENAL_IDS.map(id => ({ semana_inicio: viernesISO, staff_id: id, motivo: 'quincenal' })))
             });
         }catch(e){ /* silencioso: el filtro de la vista ya las oculta */ }
     }
@@ -10124,9 +10180,12 @@
                 await fetch(`${SUPABASE_URL}/rest/v1/nomina_exclusiones?on_conflict=semana_inicio,staff_id`, {
                     method:"POST",
                     headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"resolution=ignore-duplicates,return=minimal"},
-                    body:JSON.stringify({semana_inicio:viernesISO, staff_id:staffId})
+                    // 'diferida' = se le pospone el pago y ACUMULA. Distinto de
+                    // 'quincenal', que es el de las 4 de contrato y no acumula
+                    // porque cobran en su propio panel.
+                    body:JSON.stringify({semana_inicio:viernesISO, staff_id:staffId, motivo:'diferida'})
                 });
-                toast('✓ Excluida del Excel de esta semana');
+                toast('✓ Pospuesta — se le junta para la próxima');
             }
         } catch(e){ alert('No se pudo actualizar la exclusión: '+(e.message||e)); }
         cargarNomina();
@@ -10296,7 +10355,25 @@
         const labelSem = `${fmtD(semPasada.viernes)} — ${fmtD(semPasada.jueves)}`;
 
         // Las 4 quincenales NO se liquidan en semanal (se pagan por quincena)
-        const _qExcl = `&staff_id=not.in.(${QUINCENAL_IDS.join(',')})`;
+        // …y tampoco las que EXCLUISTE de esta semana. Esto último faltaba, y
+        // era grave: a la excluida no se le pagaba —correcto, no va en el
+        // archivo del banco— pero sus limpiezas quedaban marcadas 'pagada' de
+        // todos modos. Se perdía el dinero y además el rastro de que se debía.
+        let _exclSem = [];
+        try{
+            const _re = await fetch(
+                `${SUPABASE_URL}/rest/v1/nomina_exclusiones?semana_inicio=eq.${viernesISO}&motivo=eq.diferida&select=staff_id`,
+                { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"} });
+            if(!_re.ok) throw new Error('HTTP '+_re.status);
+            _exclSem = (await _re.json()).map(x=>String(x.staff_id));
+        }catch(e){
+            // Si no se puede saber a quién excluiste, NO se liquida. Marcar de
+            // más es irreversible; volver a darle al botón no lo es.
+            toast('❌ No pude leer las exclusiones de la semana. No liquidé nada.');
+            return;
+        }
+        const _noPagar = [...new Set([...QUINCENAL_IDS, ..._exclSem])];
+        const _qExcl = `&staff_id=not.in.(${_noPagar.join(',')})`;
 
         // Contar limpiezas a liquidar
         const resCount = await fetch(
@@ -10324,6 +10401,35 @@
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
             body:JSON.stringify({estatus:"pagada"})
         });
+
+        // ── Cerrar el arrastre de quien SÍ cobró ──────────────────────────
+        // Su pago de hoy incluye las semanas que se le pospusieron, así que
+        // esas semanas se marcan pagadas y dejan de sumarse. Se hace semana
+        // por semana y no de un jalón, porque el rango de cada exclusión es
+        // suyo: marcar por fecha suelta arrastraría limpiezas de otras chicas
+        // que nunca estuvieron excluidas.
+        try{
+            const _ra = await fetch(
+                `${SUPABASE_URL}/rest/v1/nomina_exclusiones?motivo=eq.diferida&liquidada_en=is.null&semana_inicio=lt.${viernesISO}&select=staff_id,semana_inicio`,
+                { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"} });
+            const _abiertas = _ra.ok ? await _ra.json() : [];
+            const _fin = iso => { const d=new Date(iso+'T12:00:00'); d.setDate(d.getDate()+6);
+                return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+            for(const x of _abiertas){
+                if(_noPagar.includes(String(x.staff_id))) continue;   // sigue excluida: se le vuelve a posponer
+                const sid = encodeURIComponent(x.staff_id), fin = _fin(x.semana_inicio);
+                await fetch(`${SUPABASE_URL}/rest/v1/limpiezas?estatus=eq.terminada&staff_id=eq.${sid}&fecha=gte.${x.semana_inicio}&fecha=lte.${fin}`, {
+                    method:"PATCH", keepalive:true,
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                    body:JSON.stringify({estatus:"pagada"})
+                });
+                await fetch(`${SUPABASE_URL}/rest/v1/nomina_exclusiones?staff_id=eq.${sid}&semana_inicio=eq.${x.semana_inicio}`, {
+                    method:"PATCH", keepalive:true,
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                    body:JSON.stringify({liquidada_en: viernesISO})
+                });
+            }
+        }catch(e){ console.error('arrastre', e); }
 
         // Ajustes — todos los pendientes (no tienen fecha de semana)
         await fetch(`${SUPABASE_URL}/rest/v1/nomina_ajustes?estatus=eq.pendiente`, {
