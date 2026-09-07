@@ -468,7 +468,13 @@ const fmt2=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFract
 const CATCOLORS={gestion:'#B08432',limpieza:'#B0704A',servicios:'#5C7CA8',mantenimiento:'#8A7359'};
 let view='all';
 function agg(v){
-  const ks=(v||view)==='all'?Object.keys(D.depas):[(v||view)];
+  // Cinturón además del tirante: `enter()` ya valida `view`, pero `agg` la
+  // recibe también por parámetro desde media docena de lugares. Una llave
+  // que no exista se descarta en vez de tumbar la pantalla completa; si no
+  // queda ninguna, se cae a 'all', que siempre es válido.
+  const _k=(v||view);
+  const ks=_k==='all'?Object.keys(D.depas)
+                     :([_k].filter(k=>D.depas[k]).length?[_k]:Object.keys(D.depas));
   const out={dep:0,bruto:0,isr:0,cats:{gestion:0,limpieza:0,servicios:0,mantenimiento:0},items:{gestion:[],limpieza:[],servicios:[],mantenimiento:[]},stays:[],detalle:[],names:ks};
   ks.forEach(k=>{const d=D.depas[k];out.dep+=d.dep;out.bruto+=d.bruto;out.isr+=d.isr;
     for(const c in d.cats){d.cats[c].forEach(([l,val])=>{out.cats[c]+=val;out.items[c].push([l,val,d.short,d.color]);});}
@@ -1099,7 +1105,7 @@ function occupiedSet(depa){
   return s;
 }
 function startBlockFlow(){
-  if(view!=='all'){enterSel(view);return;}
+  if(view!=='all'&&D.depas[view]){enterSel(view);return;}
   document.getElementById('bshead').innerHTML=`<div class="se">Bloquear fechas</div><h3>¿En cuál propiedad?</h3>`;
   document.getElementById('bsbody').innerHTML=`<div class="pickdepa">`+
     Object.keys(D.depas).map(k=>`<button onclick="enterSel('${k}')">
@@ -1300,7 +1306,7 @@ function renderCal(A){
     `<span><b>${nochesMes}</b> noches</span>`+
     `<span><b>${Math.round(nochesMes/cap*100)}%</b> ocupación</span>`+
     (bd?`<span><b>${bd}</b> bloqueados</span>`:'');
-  document.getElementById('calsub').textContent=(view==='all'?'Tus '+A.names.length+' propiedades':D.depas[view].name)+(usaReales?' · todas las plataformas':' · Airbnb');
+  document.getElementById('calsub').textContent=((view==='all'||!D.depas[view])?'Tus '+A.names.length+' propiedades':D.depas[view].name)+(usaReales?' · todas las plataformas':' · Airbnb');
   const leyenda=A.names.map(k=>`<span><span class="sw2" style="background:${D.depas[k].color}"></span>${D.depas[k].name}</span>`).join('');
   const extras=(unaProp?`<span><span class="sw2" style="background:transparent;border:1px solid var(--champ)"></span>Noche libre</span>`:'')+
     (usaReales?`<span><span class="sw2" style="background:#DCD5C4"></span>No disponible</span>`:'')+
@@ -1322,7 +1328,7 @@ function openCat(c){
   const A=agg();
   const rows=A.items[c].map(([l,v,short,color])=>`<div class="li"><div><div class="ll">${l}</div>${view==='all'?`<div class="ls"><span style="color:${color}">●</span> ${short}</div>`:''}</div><div class="lv">−${fmt2(v)}</div></div>`).join('')
     +`<div class="li tot"><div class="ll">Total ${D.catmeta[c].label.toLowerCase()}</div><div class="lv">−${fmt2(A.cats[c])}</div></div>`;
-  openSheet(D.catmeta[c].label,view==='all'?('Portafolio · '+perLabel(PERIODO)):D.depas[view].name+(' · '+perLabel(PERIODO)),`−${fmt2(A.cats[c])}`,rows);
+  openSheet(D.catmeta[c].label,(view==='all'||!D.depas[view])?('Portafolio · '+perLabel(PERIODO)):D.depas[view].name+(' · '+perLabel(PERIODO)),`−${fmt2(A.cats[c])}`,rows);
 }
 function openDep(){
   const A=agg();
@@ -1396,7 +1402,7 @@ function openDep(){
       : `<div class="li"><div class="ls">Sin estancias registradas en este periodo.</div></div>`;
   }
 
-  openSheet('Tu depósito',view==='all'?('Portafolio · '+perLabel(PERIODO)):D.depas[view].name+(' · '+perLabel(PERIODO)),fmt2(A.dep),rows);
+  openSheet('Tu depósito',(view==='all'||!D.depas[view])?('Portafolio · '+perLabel(PERIODO)):D.depas[view].name+(' · '+perLabel(PERIODO)),fmt2(A.dep),rows);
 }
 /* -------- auth (Supabase) -------- */
 async function login(){
@@ -1444,6 +1450,14 @@ async function enter(){
   // Y sin meses publicados, el selector de mes no tiene nada que ofrecer.
   {const _pw=document.getElementById('perLbl');
    if(_pw&&_pw.parentElement) _pw.parentElement.style.display = _sinNada ? 'none' : '';}
+  // `view` dice qué pestaña está abierta: 'all' o el id de una propiedad. Es
+  // global y sobrevive al cambio de propietario, así que al pasar de Gemayel
+  // a Mauricio se quedaba apuntando a Aria 906 — que no es de Mauricio.
+  // `D.depas[view]` salía undefined y `agg()` tronaba en `d.dep`.
+  //
+  // Se valida aquí, en `enter()`, y no en `cambiarPropietario`, porque enter()
+  // es por donde pasan los dos caminos: el login y el cambio de dueño.
+  if(view!=='all' && !D.depas[view]) view='all';
   buildSw();render();
 }
 async function cambiarPropietario(id){
