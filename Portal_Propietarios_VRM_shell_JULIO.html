@@ -389,6 +389,7 @@ const CATMETA={gestion:{label:'Gestión',icon:'◈',desc:'Comisión y administra
 let D=null;
 let PROPS=[];        // los propietarios que ESTE usuario puede ver
 let PROP_SEL=null;   // cuál está viendo ahora
+let PERIODO_LIBRE=false;  // al cambiar de dueño, el periodo se recalcula
 async function loadAll(){
   const {data:{user}}=await sb.auth.getUser(); if(!user)throw new Error('Sin sesión.');
   // Se pide SIN filtro de user_id, y no es un descuido.
@@ -417,7 +418,7 @@ async function loadAll(){
   // Primero qué periodos hay. Si nadie pidió uno por URL, se abre el último.
   const {data:pers0}=await sb.from('cierres').select('periodo').in('propiedad_id',ids).eq('publicado',true);
   PERIODOS=[...new Set((pers0||[]).map(x=>x.periodo))].sort().reverse();
-  if(!PERIODO_DE_URL && PERIODOS.length) PERIODO=PERIODOS[0];
+  if((!PERIODO_DE_URL || PERIODO_LIBRE) && PERIODOS.length) PERIODO=PERIODOS[0];
   PER_Y=parseInt(PERIODO.slice(0,4)); PER_M=parseInt(PERIODO.slice(5,7))-1;
   calY=PER_Y; calM=PER_M;
   const {data:cierres}=await sb.from('cierres').select('*').in('propiedad_id',ids).eq('periodo',PERIODO).eq('publicado',true);
@@ -1332,11 +1333,19 @@ async function enter(){
   buildSw();render();
 }
 async function cambiarPropietario(id){
-  PROP_SEL=id;
-  PERIODO_DE_URL_OFF();      // al cambiar de dueño, el periodo se recalcula
-  try{ await loadAll(); }catch(e){ alert(e.message); }
+  PROP_SEL = id;
+  // `loadAll` solo trae los datos; quien pinta la pantalla completa —el
+  // saludo, el selector, el mes, el calendario, las partidas— es `enter`.
+  // Llamando solo a loadAll el desplegable cambiaba pero abajo seguía el
+  // dueño anterior, que es peor que no tener selector: dice un nombre y
+  // enseña los números de otro.
+  //
+  // Y se libera el periodo: cada dueño tiene sus propios meses publicados,
+  // así que al cambiar hay que recalcular cuál mostrar en vez de arrastrar
+  // el del anterior, que puede no existir para este.
+  PERIODO_LIBRE = true;
+  try{ await enter(); }catch(e){ alert(e.message); }
 }
-function PERIODO_DE_URL_OFF(){ try{ PERIODOS=[]; }catch(e){} }
 
 async function logout(){await sb.auth.signOut();location.reload();}
 ['u','p'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')login();}));
