@@ -424,6 +424,12 @@ async function loadAll(){
   const {data:cierres}=await sb.from('cierres').select('*').in('propiedad_id',ids).eq('periodo',PERIODO).eq('publicado',true);
   const cids=cierres.map(c=>c.id);
   const {data:partidas}=cids.length?await sb.from('cierre_partidas').select('*').in('cierre_id',cids).order('orden'):{data:[]};
+  // El detalle por reserva del cierre — el que sale del crudo de Airbnb y
+  // por lo tanto SUMA exacto el bruto y el ISR. En try/catch porque los
+  // cierres viejos no lo tienen y el portal debe seguir abriendo igual.
+  let detalle=[];
+  try{ if(cids.length){ const r=await sb.from('cierre_reservas').select('*')
+        .in('cierre_id',cids).order('check_in'); detalle=r.data||[]; } }catch(_){ detalle=[]; }
   const {data:estancias}=await sb.from('estancias').select('*').in('propiedad_id',ids).eq('periodo',PERIODO);
   const {data:bloqueos}=await sb.from('bloqueos').select('*').in('propiedad_id',ids).order('fecha_inicio');
   // reservas reales (iCal · todas las plataformas · pasadas recientes y futuras)
@@ -436,7 +442,8 @@ async function loadAll(){
     if(c)(partidas||[]).filter(x=>x.cierre_id===c.id).forEach(x=>cats[x.categoria].push([x.etiqueta,Number(x.monto)]));
     dd[p.id]={name:p.nombre,short:p.corto,color:p.color,
       bruto:c?Number(c.bruto):0,isr:c?Number(c.isr):0,dep:c?Number(c.deposito):0,pct:c?Number(c.pct_comision):0,
-      cats,stays:(estancias||[]).filter(s=>s.propiedad_id===p.id).map(s=>[s.fecha_inicio,s.noches,s.huesped])};
+      cats,stays:(estancias||[]).filter(s=>s.propiedad_id===p.id).map(s=>[s.fecha_inicio,s.noches,s.huesped]),
+      detalle:c?(detalle||[]).filter(x=>x.cierre_id===c.id):[]};
   });
   const fmtWhen=t=>new Date(t).toLocaleDateString('es-MX',{day:'numeric',month:'short'})+' · '+new Date(t).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   const RES=(reservas||[]).map(r=>({depa:r.propiedad_id,ci:r.check_in,co:r.check_out,src:r.source,tipo:r.tipo}));
@@ -453,10 +460,11 @@ const CATCOLORS={gestion:'#B08432',limpieza:'#B0704A',servicios:'#5C7CA8',manten
 let view='all';
 function agg(v){
   const ks=(v||view)==='all'?Object.keys(D.depas):[(v||view)];
-  const out={dep:0,bruto:0,isr:0,cats:{gestion:0,limpieza:0,servicios:0,mantenimiento:0},items:{gestion:[],limpieza:[],servicios:[],mantenimiento:[]},stays:[],names:ks};
+  const out={dep:0,bruto:0,isr:0,cats:{gestion:0,limpieza:0,servicios:0,mantenimiento:0},items:{gestion:[],limpieza:[],servicios:[],mantenimiento:[]},stays:[],detalle:[],names:ks};
   ks.forEach(k=>{const d=D.depas[k];out.dep+=d.dep;out.bruto+=d.bruto;out.isr+=d.isr;
     for(const c in d.cats){d.cats[c].forEach(([l,val])=>{out.cats[c]+=val;out.items[c].push([l,val,d.short,d.color]);});}
     d.stays.forEach(s=>out.stays.push({start:s[0],n:s[1],guest:s[2],depa:k,color:d.color,short:d.short}));});
+  ks.forEach(k=>{(D.depas[k].detalle||[]).forEach(x=>out.detalle.push({...x,depa:k}));});
   out.reservas=(D.reservas||[]).filter(r=>ks.includes(r.depa));
   out.ret=Object.values(out.cats).reduce((a,b)=>a+b,0);out.neto=out.dep-out.ret;return out;
 }
@@ -1314,22 +1322,51 @@ function openDep(){
   // después. Filtrar por «empieza en el mes» escondería al huésped que llegó
   // el 30 de julio y se fue el 4 de agosto, cuyas noches sí son de agosto.
   const delMes=r=>r.ci && r.co && r.ci.slice(0,7)<=mes && r.co.slice(0,7)>=mes;
-  const est=(A.reservas||[]).filter(r=>esReserva(r)&&delMes(r))
-        .sort((a,b)=>a.ci.localeCompare(b.ci));
-
   const dm=iso=>parseInt(iso.slice(8))+' '+MESES[parseInt(iso.slice(5,7))-1].slice(0,3);
 
-  rows+=`<div style="margin-top:18px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint)">Estancias que lo generaron${est.length?' · '+est.length:''}</div>`;
-  rows+= est.length
-    ? est.map(r=>{
-        const d=D.depas[r.depa]||{};
-        const n=noches(r.ci,r.co);
-        return `<div class="li"><div>
-            <div class="ll">${dm(r.ci)} → ${dm(r.co)}</div>
-            <div class="ls"><span style="color:${d.color||'#888'}">●</span> ${d.name||'—'}</div>
-          </div><div class="lv" style="color:var(--muted)">${n} noche${n!==1?'s':''}</div></div>`;
-      }).join('')
-    : `<div class="li"><div class="ls">Sin estancias registradas en este periodo.</div></div>`;
+  // Hay dos fuentes posibles y NO son equivalentes:
+  //
+  //   `A.detalle`  sale del crudo de Airbnb. Trae el dinero de cada reserva
+  //                y su ISR, y su suma ES el bruto del cierre.
+  //   `A.reservas` sale del iCal. Solo sabe fechas. Sirve mientras un cierre
+  //                viejo no tenga detalle, pero no cuadra con el total:
+  //                Airbnb paga al día siguiente del check-in, así que una
+  //                estancia que empieza el 30 se cobra el mes que entra.
+  //
+  // Se prefiere el crudo siempre que exista.
+  const det=(A.detalle||[]).slice().sort((a,b)=>String(a.check_in).localeCompare(String(b.check_in)));
+  rows+=`<div style="margin-top:18px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint)">Estancias que lo generaron${det.length?' · '+det.length:''}</div>`;
+
+  if(det.length){
+    rows+=det.map(r=>{
+      const d=D.depas[r.depa]||{};
+      const n=Number(r.noches)||0;
+      return `<div class="li"><div>
+          <div class="ll">${r.check_in?dm(r.check_in):'—'}${r.check_out?' → '+dm(r.check_out):''}${n?' · '+n+' noche'+(n!==1?'s':''):''}</div>
+          <div class="ls"><span style="color:${d.color||'#888'}">●</span> ${d.name||'—'}${Number(r.isr)?' · ISR −'+fmt2(Number(r.isr)):''}</div>
+        </div><div class="lv">${fmt2(Number(r.bruto))}</div></div>`;
+    }).join('');
+    // La comprobación a la vista: que la suma de arriba sea el bruto.
+    const sb_=det.reduce((s,r)=>s+Number(r.bruto||0),0);
+    const si_=det.reduce((s,r)=>s+Number(r.isr||0),0);
+    rows+=`<div class="li tot"><div><div class="ll">Suma de las estancias</div>
+        <div class="ls">ISR −${fmt2(si_)}</div></div><div class="lv">${fmt2(sb_)}</div></div>`;
+  } else {
+    // Sin detalle del crudo: se enseñan las fechas del iCal, diciendo que
+    // son solo fechas. Callarlo sería peor que no mostrarlas.
+    const est=(A.reservas||[]).filter(r=>esReserva(r)&&delMes(r))
+          .sort((a,b)=>a.ci.localeCompare(b.ci));
+    rows+= est.length
+      ? `<div class="li"><div class="ls">Este cierre es anterior al desglose por reserva. Se muestran las fechas del calendario; los importes están en el total de arriba.</div></div>`
+        + est.map(r=>{
+            const d=D.depas[r.depa]||{}; const n=noches(r.ci,r.co);
+            return `<div class="li"><div>
+                <div class="ll">${dm(r.ci)} → ${dm(r.co)}</div>
+                <div class="ls"><span style="color:${d.color||'#888'}">●</span> ${d.name||'—'}</div>
+              </div><div class="lv" style="color:var(--muted)">${n} noche${n!==1?'s':''}</div></div>`;
+          }).join('')
+      : `<div class="li"><div class="ls">Sin estancias registradas en este periodo.</div></div>`;
+  }
 
   openSheet('Tu depósito',view==='all'?('Portafolio · '+perLabel(PERIODO)):D.depas[view].name+(' · '+perLabel(PERIODO)),fmt2(A.dep),rows);
 }
