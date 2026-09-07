@@ -5519,6 +5519,19 @@
         // gesto del clic, que es lo que Safari exige para permitirlas.
         const _codAir = _codAirDe(depto, fechaISO);
 
+        // ── LA PESTAÑA SE APARTA AQUÍ, DENTRO DEL CLIC ────────────────────
+        // `window.open` DESPUÉS de un `await` ya no cuenta como acción del
+        // usuario: el navegador consume la activación en el await y bloquea
+        // el popup sin decir nada — ni error, ni aviso, nada. El chat de
+        // Airbnb simplemente deja de abrir y parece que el botón se rompió.
+        // Safari apretó esta regla y por eso funcionaba antes y ya no.
+        //
+        // La salida es apartar la pestaña vacía ahora, mientras el clic
+        // todavía vale, y mandarla a la URL cuando el portapapeles ya quedó.
+        // Así no hay que elegir entre copiar el link y abrir el chat.
+        let _tab = null;
+        if(_codAir){ try{ _tab = window.open('about:blank','_blank'); }catch(e){} }
+
         // ── Copiado del link del QR (a prueba de Safari) ─────────────────────────
         // Safari NO deja copiar tras un await. Lanzamos ComunidadFeliz YA (en el gesto)
         // y registramos el copiado con ClipboardItem + promesa. CF se llama UNA sola vez.
@@ -5536,8 +5549,17 @@
                 _copiado = true;
             }catch(e){ console.warn('[VRM] no se pudo copiar:', e && e.message); }
         }
-        // Ya con el portapapeles resuelto, abrimos el chat.
-        if(_codAir){ try{ window.open('https://www.airbnb.com/hosting/reservations/details/'+_codAir, '_blank'); }catch(e){} }
+        // Ya con el portapapeles resuelto, mandamos la pestaña apartada al chat.
+        if(_codAir){
+            const _u='https://www.airbnb.com/hosting/reservations/details/'+_codAir;
+            try{ if(_tab && !_tab.closed) _tab.location.href=_u; else window.open(_u,'_blank'); }catch(e){}
+        }else{
+            // Antes esto no hacía nada y en silencio. Si no hay código de
+            // Airbnb el chat no puede abrir, y hay que decirlo: casi siempre
+            // es que esa reserva entró por Hostfully y no trae código.
+            console.warn('[VRM] sin código de Airbnb para', depto, fechaISO);
+            toast('El chat de Airbnb no abrió: esta reserva no trae código');
+        }
         if(!_copiado) toast('⚠️ No se copió solo — usa "Copiar link" del recuadro');
 
         try {
@@ -6352,6 +6374,19 @@
         // primero abrimos la pestaña, Safari le quita el foco al portal y el
         // copiado falla en silencio — el chat abre pero el link no se copia.
         const _codAir = esFrakcioReal(depto) ? _codAirDe(depto, fechaISO) : '';
+        // ── LA PESTAÑA SE APARTA AQUÍ, DENTRO DEL CLIC ────────────────────
+        // `window.open` DESPUÉS de un `await` ya no cuenta como acción del
+        // usuario: el navegador consume la activación en el await y bloquea
+        // el popup sin decir nada — ni error, ni aviso, nada. El chat de
+        // Airbnb simplemente deja de abrir y parece que el botón se rompió.
+        // Safari apretó esta regla y por eso funcionaba antes y ya no.
+        //
+        // La salida es apartar la pestaña vacía ahora, mientras el clic
+        // todavía vale, y mandarla a la URL cuando el portapapeles ya quedó.
+        // Así no hay que elegir entre copiar el link y abrir el chat.
+        let _tab = null;
+        if(_codAir){ try{ _tab = window.open('about:blank','_blank'); }catch(e){} }
+
 
         // ── Copiado del link del QR (a prueba de Safari) ──────────────────────────────
         // Safari NO deja copiar tras un await (pierde el permiso del clic). Solución: lanzamos
@@ -6378,8 +6413,17 @@
                 }catch(e){ console.warn('[VRM] no se pudo copiar:', e && e.message); }
             }
         }
-        // Ya con el portapapeles resuelto, abrimos el chat.
-        if(_codAir){ try{ window.open('https://www.airbnb.com/hosting/reservations/details/'+_codAir, '_blank'); }catch(e){} }
+        // Ya con el portapapeles resuelto, mandamos la pestaña apartada al chat.
+        if(_codAir){
+            const _u='https://www.airbnb.com/hosting/reservations/details/'+_codAir;
+            try{ if(_tab && !_tab.closed) _tab.location.href=_u; else window.open(_u,'_blank'); }catch(e){}
+        }else{
+            // Antes esto no hacía nada y en silencio. Si no hay código de
+            // Airbnb el chat no puede abrir, y hay que decirlo: casi siempre
+            // es que esa reserva entró por Hostfully y no trae código.
+            console.warn('[VRM] sin código de Airbnb para', depto, fechaISO);
+            toast('El chat de Airbnb no abrió: esta reserva no trae código');
+        }
         if(esFrakcioReal(depto) && !_copiado) toast('⚠️ No se copió solo — usa "Copiar link QR" del recuadro');
 
         try {
