@@ -142,6 +142,13 @@ button{font-family:inherit;background:none;border:0;color:inherit;cursor:pointer
 .li .ll{font-size:14px;color:var(--ivory)}
 .li .ls{font-size:11px;color:var(--faint);margin-top:2px}
 .li .lv{font-family:'JetBrains Mono';font-size:14.5px;flex:none}
+/* el desglose con fechas, debajo de cada renglón */
+.li .lmain{flex:1;min-width:0}
+.subs{margin-top:8px;border-left:2px solid var(--soft);padding-left:10px;display:grid;gap:5px}
+.sub{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:11.5px;color:var(--faint)}
+.sub .sf{flex:none;font-variant-numeric:tabular-nums;opacity:.8}
+.sub .sc{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub .sv{font-family:'JetBrains Mono';font-size:11px;flex:none}
 .li.tot{border-top:1px solid var(--line);margin-top:4px}
 .li.tot .ll{font-family:'Fraunces';font-weight:600}
 .li.tot .lv{color:var(--champ-hi);font-weight:600;font-size:17px}
@@ -435,6 +442,13 @@ async function loadAll(){
   let detalle=[];
   try{ if(cids.length){ const r=await sb.from('cierre_reservas').select('*')
         .in('cierre_id',cids).order('check_in'); detalle=r.data||[]; } }catch(_){ detalle=[]; }
+  // El desglose con fechas de cada partida: qué días se limpió, cuándo se
+  // pagó cada recibo, qué día se dejó cada artículo. En try/catch por lo
+  // mismo que `cierre_reservas`: los cierres viejos no lo tienen y el portal
+  // tiene que abrir igual, solo que sin desglose.
+  let pdet=[];
+  try{ if(cids.length){ const r=await sb.from('cierre_partida_detalle').select('*')
+        .in('cierre_id',cids).order('fecha'); pdet=r.data||[]; } }catch(_){ pdet=[]; }
   const {data:estancias}=await sb.from('estancias').select('*').in('propiedad_id',ids).eq('periodo',PERIODO);
   const {data:bloqueos}=await sb.from('bloqueos').select('*').in('propiedad_id',ids).order('fecha_inicio');
   // reservas reales (iCal · todas las plataformas · pasadas recientes y futuras)
@@ -444,7 +458,11 @@ async function loadAll(){
   depas.forEach(p=>{
     const c=(cierres||[]).find(x=>x.propiedad_id===p.id);
     const cats={gestion:[],limpieza:[],servicios:[],mantenimiento:[]};
-    if(c)(partidas||[]).filter(x=>x.cierre_id===c.id).forEach(x=>cats[x.categoria].push([x.etiqueta,Number(x.monto)]));
+    // Cada partida se lleva su propio desglose colgado: [etiqueta, monto, renglones].
+    if(c)(partidas||[]).filter(x=>x.cierre_id===c.id).forEach(x=>cats[x.categoria].push([
+      x.etiqueta, Number(x.monto),
+      (pdet||[]).filter(y=>y.cierre_id===c.id && y.categoria===x.categoria && y.etiqueta===x.etiqueta)
+    ]));
     dd[p.id]={name:p.nombre,short:p.corto,color:p.color,
       bruto:c?Number(c.bruto):0,isr:c?Number(c.isr):0,dep:c?Number(c.deposito):0,pct:c?Number(c.pct_comision):0,
       cats,stays:(estancias||[]).filter(s=>s.propiedad_id===p.id).map(s=>[s.fecha_inicio,s.noches,s.huesped]),
@@ -477,7 +495,7 @@ function agg(v){
                      :([_k].filter(k=>D.depas[k]).length?[_k]:Object.keys(D.depas));
   const out={dep:0,bruto:0,isr:0,cats:{gestion:0,limpieza:0,servicios:0,mantenimiento:0},items:{gestion:[],limpieza:[],servicios:[],mantenimiento:[]},stays:[],detalle:[],names:ks};
   ks.forEach(k=>{const d=D.depas[k];out.dep+=d.dep;out.bruto+=d.bruto;out.isr+=d.isr;
-    for(const c in d.cats){d.cats[c].forEach(([l,val])=>{out.cats[c]+=val;out.items[c].push([l,val,d.short,d.color]);});}
+    for(const c in d.cats){d.cats[c].forEach(([l,val,det])=>{out.cats[c]+=val;out.items[c].push([l,val,d.short,d.color,det||[]]);});}
     d.stays.forEach(s=>out.stays.push({start:s[0],n:s[1],guest:s[2],depa:k,color:d.color,short:d.short}));});
   ks.forEach(k=>{(D.depas[k].detalle||[]).forEach(x=>out.detalle.push({...x,depa:k}));});
   out.reservas=(D.reservas||[]).filter(r=>ks.includes(r.depa));
@@ -1324,9 +1342,24 @@ function openSheet(title,eyebrow,total,rows){
 function closeAll(){['sheet','signsheet','blocksheet'].forEach(id=>document.getElementById(id).classList.remove('on'));
   document.getElementById('ovl').classList.remove('on');document.body.style.overflow='';}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAll();});
+// «12 limpiezas · $11,750» no le dice a nadie qué días se limpió. El
+// desglose sale de `cierre_partida_detalle`, que se congela con el cierre:
+// lo que el propietario ve hoy es lo mismo que verá cuando lo firme.
+const fdia=s=>{ if(!s)return''; const d=new Date(s+'T12:00:00');
+  return d.getDate()+' '+MESES[d.getMonth()].slice(0,3); };
+const subFilas=det=>{
+  if(!det||!det.length) return '';
+  return `<div class="subs">`+det.map(x=>{
+    const q=Number(x.cantidad);
+    const cant=(q&&q!==1)?` ×${q%1?q:q.toFixed(0)}`:'';
+    return `<div class="sub"><span class="sf">${fdia(x.fecha)}</span>`
+         + `<span class="sc">${(x.concepto||'')}${cant}</span>`
+         + `<span class="sv">−${fmt2(Number(x.monto))}</span></div>`;
+  }).join('')+`</div>`;
+};
 function openCat(c){
   const A=agg();
-  const rows=A.items[c].map(([l,v,short,color])=>`<div class="li"><div><div class="ll">${l}</div>${view==='all'?`<div class="ls"><span style="color:${color}">●</span> ${short}</div>`:''}</div><div class="lv">−${fmt2(v)}</div></div>`).join('')
+  const rows=A.items[c].map(([l,v,short,color,det])=>`<div class="li"><div class="lmain"><div class="ll">${l}</div>${view==='all'?`<div class="ls"><span style="color:${color}">●</span> ${short}</div>`:''}${subFilas(det)}</div><div class="lv">−${fmt2(v)}</div></div>`).join('')
     +`<div class="li tot"><div class="ll">Total ${D.catmeta[c].label.toLowerCase()}</div><div class="lv">−${fmt2(A.cats[c])}</div></div>`;
   openSheet(D.catmeta[c].label,(view==='all'||!D.depas[view])?('Portafolio · '+perLabel(PERIODO)):D.depas[view].name+(' · '+perLabel(PERIODO)),`−${fmt2(A.cats[c])}`,rows);
 }
