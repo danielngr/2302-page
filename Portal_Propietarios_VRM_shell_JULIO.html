@@ -145,6 +145,12 @@ button{font-family:inherit;background:none;border:0;color:inherit;cursor:pointer
 .li.tot{border-top:1px solid var(--line);margin-top:4px}
 .li.tot .ll{font-family:'Fraunces';font-weight:600}
 .li.tot .lv{color:var(--champ-hi);font-weight:600;font-size:17px}
+/* Selector de propietario. Solo aparece cuando el usuario tiene acceso a
+   más de uno — un dueño normal nunca lo ve. */
+.hello select{font:inherit;font-size:.72em;margin-left:.6em;padding:2px 8px;
+  border-radius:8px;border:1px solid rgba(128,128,128,.4);
+  background:transparent;color:inherit;cursor:pointer;vertical-align:middle}
+.hello select:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 /* firma */
 .signwrap{padding:6px 0 4px}
 .sigsum{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px}
@@ -381,12 +387,31 @@ const CATMETA={gestion:{label:'Gestión',icon:'◈',desc:'Comisión y administra
  servicios:{label:'Servicios',icon:'◍',desc:'Luz, agua e internet'},
  mantenimiento:{label:'Mantenimiento',icon:'⚒',desc:'Reparaciones y extraordinarios'}};
 let D=null;
+let PROPS=[];        // los propietarios que ESTE usuario puede ver
+let PROP_SEL=null;   // cuál está viendo ahora
 async function loadAll(){
   const {data:{user}}=await sb.auth.getUser(); if(!user)throw new Error('Sin sesión.');
-  const {data:props,error:e1}=await sb.from('propietarios').select('*').limit(1);
+  // Se pide SIN filtro de user_id, y no es un descuido.
+  //
+  // Antes había aquí un `.eq('user_id', user.id)` como segundo candado. Dejó
+  // de servir el día que un propietario puede tener dos accesos: el segundo
+  // correo vive en `propietario_usuarios`, no en `propietarios.user_id`, así
+  // que ese filtro le devolvía cero renglones y le decía «tu usuario no está
+  // vinculado» a alguien que sí lo estaba.
+  //
+  // Quien decide qué llega aquí es RLS, con `mis_propietarios()`. La base
+  // devuelve exactamente los propietarios a los que este usuario tiene
+  // acceso: uno para un dueño normal, varios para quien lleva las cuentas de
+  // varios. Y por eso el selector de abajo es seguro — no elige entre todos,
+  // elige entre lo que la base ya decidió mostrarle.
+  const {data:props,error:e1}=await sb.from('propietarios')
+        .select('*').order('nombre');
   if(e1)throw new Error(e1.message);
   if(!props||!props.length)throw new Error('Tu usuario no está vinculado a un propietario.');
-  const owner=props[0];
+  PROPS=props;
+  // Si ya habías elegido uno, se respeta; si no, el primero.
+  const owner = props.find(x=>x.id===PROP_SEL) || props[0];
+  PROP_SEL = owner.id;
   const {data:depas}=await sb.from('propiedades_portal').select('*').eq('propietario_id',owner.id).eq('activa',true).order('nombre');
   const ids=depas.map(d=>d.id);
   // Primero qué periodos hay. Si nadie pidió uno por URL, se abre el último.
@@ -491,7 +516,7 @@ function renderState(){
   }else{
     el.innerHTML=`<div class="se">Estado de tu cierre</div>${steps('pay')}
       <div class="confirmed-line"><div class="ok">✓</div>
-        <div class="tt">Cierre confirmado con tu firma<small>${conf.when} · Folio ${conf.folio} · Acta enviada a tu correo</small></div>
+        <div class="tt">Cierre confirmado con tu firma<small>${conf.when} · Folio ${conf.folio}</small></div>
         <button class="doclink" onclick="makePDF()">Ver acta (PDF)</button></div>`;
   }
 }
@@ -534,7 +559,14 @@ async function doConfirm(){
   const sig=pad.toDataURL('image/png');
   const now=new Date();
   const when=now.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+' · '+now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-  const folio='VRM-2026-06-ANB-'+String(Math.floor(100+Math.random()*900));
+  // El folio identifica ESTE documento. Venía clavado: 'VRM-2026-06-ANB'
+  // para todos los propietarios y todos los meses, así que el acta de
+  // septiembre de cualquier dueño decía junio y decía Anabel. En un papel
+  // que sirve para reclamar, un folio que no distingue no sirve de nada.
+  const _ini = (D.owner||'XX').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+                 .toUpperCase().replace(/[^A-Z ]/g,'').split(/\s+/)
+                 .filter(Boolean).map(w=>w[0]).join('').slice(0,3).padEnd(2,'X');
+  const folio=`VRM-${PERIODO}-${_ini}-`+String(Math.floor(100+Math.random()*900));
   const A=agg('all');
   const btn=document.getElementById('signGo'); btn.disabled=true; btn.textContent='Firmando…';
   const {error}=await sb.from('confirmaciones').insert({propietario_id:D.ownerId,periodo:PERIODO,folio,firma_png:sig,neto_confirmado:A.neto});
@@ -544,7 +576,7 @@ async function doConfirm(){
     <div class="success"><div class="seal">V</div>
       <h4>Cierre confirmado</h4>
       <div class="when mono">${when} · Folio ${folio}</div>
-      <p>Enviamos tu <b>acta de conformidad</b> a tu correo con el detalle completo de la operación.<br>Tu dispersión de <b>${fmt2(A.neto)}</b> ha quedado programada.</p>
+      <p>Tu <b>acta de conformidad</b> está lista para descargar aquí abajo.<br>Tu dispersión de <b>${fmt2(A.neto)}</b> ha quedado programada.</p>
       <div class="signactions" style="max-width:380px;margin:0 auto">
         <button class="btn-ghost" onclick="closeAll();renderState()">Listo</button>
         <button class="btn-main" onclick="makePDF()">Ver acta (PDF)</button>
@@ -1278,7 +1310,15 @@ async function enter(){
   try{await loadAll();}catch(e){document.getElementById('gerr').textContent=e.message;try{await sb.auth.signOut();}catch(_){ }return;}
   document.getElementById('gate').style.display='none';
   document.getElementById('app').style.display='block';
-  document.querySelector('.hello').innerHTML='Buenas tardes, <i>'+D.owner+'</i>.';
+  // El selector solo existe si hay más de uno que elegir. Un propietario
+  // normal nunca lo ve — para él la base devuelve un solo renglón y la
+  // pantalla queda exactamente igual que antes.
+  const _sel = PROPS.length>1
+    ? ' <select id="propSel" onchange="cambiarPropietario(this.value)" title="Cambiar de propietario">'
+      + PROPS.map(p=>`<option value="${p.id}"${p.id===PROP_SEL?' selected':''}>${p.nombre}</option>`).join('')
+      + '</select>'
+    : '';
+  document.querySelector('.hello').innerHTML='Buenas tardes, <i>'+D.owner+'</i>.'+_sel;
   document.getElementById('perLbl').textContent=perLabel(PERIODO);
   buildPerMenu();
   {const _sp=document.getElementById('signPer'); if(_sp)_sp.textContent=perLabel(PERIODO);}
@@ -1291,6 +1331,13 @@ async function enter(){
         +String(_pe.getHours()).padStart(2,'0')+':'+String(_pe.getMinutes()).padStart(2,'0')+'.':'');}
   buildSw();render();
 }
+async function cambiarPropietario(id){
+  PROP_SEL=id;
+  PERIODO_DE_URL_OFF();      // al cambiar de dueño, el periodo se recalcula
+  try{ await loadAll(); }catch(e){ alert(e.message); }
+}
+function PERIODO_DE_URL_OFF(){ try{ PERIODOS=[]; }catch(e){} }
+
 async function logout(){await sb.auth.signOut();location.reload();}
 ['u','p'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')login();}));
 (async()=>{if(sb&&!SUPA_ANON.includes('PEGA_AQUI')){const {data:{session}}=await sb.auth.getSession();if(session)await enter();}})();
