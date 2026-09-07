@@ -416,12 +416,17 @@ async function loadAll(){
   const {data:depas}=await sb.from('propiedades_portal').select('*').eq('propietario_id',owner.id).eq('activa',true).order('nombre');
   const ids=depas.map(d=>d.id);
   // Primero qué periodos hay. Si nadie pidió uno por URL, se abre el último.
-  const {data:pers0}=await sb.from('cierres').select('periodo').in('propiedad_id',ids).eq('publicado',true);
+  // Ya no va `.eq('publicado', true)`. El filtro vive en RLS, que es donde
+  // no se puede editar desde el navegador: la política `c_sel` entrega solo
+  // lo publicado, salvo a las cuentas de `usuarios_internos`. Un filtro en
+  // el cliente parecía un candado y no lo era — cualquiera con la sesión y
+  // la llave anon podía pedir la tabla sin él.
+  const {data:pers0}=await sb.from('cierres').select('periodo,publicado').in('propiedad_id',ids);
   PERIODOS=[...new Set((pers0||[]).map(x=>x.periodo))].sort().reverse();
   if((!PERIODO_DE_URL || PERIODO_LIBRE) && PERIODOS.length) PERIODO=PERIODOS[0];
   PER_Y=parseInt(PERIODO.slice(0,4)); PER_M=parseInt(PERIODO.slice(5,7))-1;
   calY=PER_Y; calM=PER_M;
-  const {data:cierres}=await sb.from('cierres').select('*').in('propiedad_id',ids).eq('periodo',PERIODO).eq('publicado',true);
+  const {data:cierres}=await sb.from('cierres').select('*').in('propiedad_id',ids).eq('periodo',PERIODO);
   const cids=cierres.map(c=>c.id);
   const {data:partidas}=cids.length?await sb.from('cierre_partidas').select('*').in('cierre_id',cids).order('orden'):{data:[]};
   // El detalle por reserva del cierre — el que sale del crudo de Airbnb y
@@ -450,8 +455,12 @@ async function loadAll(){
   D={owner:owner.nombre,ownerId:owner.id,depas:dd,catmeta:CATMETA,reservas:RES,
      blocks:(bloqueos||[]).map(b=>({id:b.id,depa:b.propiedad_id,start:b.fecha_inicio,end:b.fecha_fin,note:b.nota,creado:b.creado_en})),
      periodos:[], publicadoEn:(cierres&&cierres.length?cierres[0].publicado_en:null),
+     // Un mes es «en curso» mientras algún cierre suyo siga sin publicar.
+     // Basta uno: si de quince propiedades falta una, el neto que se ve
+     // arriba todavía no es el neto final, y firmarlo sería firmar otra cosa.
+     enCurso:(cierres||[]).some(c=>!c.publicado),
      conf:(confs&&confs.length)?{when:fmtWhen(confs[0].confirmado_en),folio:confs[0].folio,sig:confs[0].firma_png}:null};
-  const {data:pers}=await sb.from('cierres').select('periodo').in('propiedad_id',ids).eq('publicado',true);
+  const {data:pers}=await sb.from('cierres').select('periodo').in('propiedad_id',ids);
   PERIODOS=[...new Set((pers||[]).map(x=>x.periodo))].sort().reverse();
 }
 const fmt=n=>'$'+Math.round(n).toLocaleString('en-US');
@@ -516,6 +525,25 @@ function renderState(){
      <div class="step ${stage==='rev'?'':'done'}"><div class="nd">${stage==='rev'?'3':'✓'}</div><div class="sl">Confirmado</div><div class="sd">${conf?conf.when:'—'}</div></div>
      <div class="step ${stage==='pay'?'now':''}"><div class="nd">4</div><div class="sl">Dispersión</div><div class="sd">${stage==='pay'?'programada':'—'}</div></div>
    </div>`;
+  // Mes en curso: los gastos ya están, los ingresos de Airbnb no llegan
+  // hasta principios del mes siguiente. Se enseña, pero no se firma — y no
+  // se pintan los pasos, porque «Publicado ✓ · Revisión» sobre un mes a
+  // medias dice justo lo contrario de lo que pasa.
+  //
+  // El botón apagado es cortesía; el candado de verdad está en la política
+  // `conf_ins`, que rechaza cualquier firma de un periodo sin cierres
+  // publicados. Un botón se enciende desde la consola del navegador.
+  if(D.enCurso){
+    el.innerHTML=`<div class="se">Estado de tu cierre</div>
+      <div class="confirmed-line" style="background:#FBF6EC;border-color:#E4D6B8">
+        <div class="ok" style="background:#B08432">⏳</div>
+        <div class="tt">Mes en curso
+          <small>Vas viendo los gastos conforme pasan. Los ingresos de Airbnb
+          se cargan a principios del mes siguiente, así que el neto todavía
+          no es el definitivo y aún no se puede firmar.</small></div>
+      </div>`;
+    return;
+  }
   if(!conf){
     el.innerHTML=`<div class="se">Estado de tu cierre</div>${steps('rev')}
       <div class="confirmbar">
@@ -1408,6 +1436,8 @@ async function enter(){
   {const _pe=D.publicadoEn?new Date(D.publicadoEn):null;
    document.getElementById('hsubTxt').textContent = _sinNada
      ? 'Todavía no tienes un cierre publicado. En cuanto se publique tu primer mes lo vas a ver aquí.'
+     : D.enCurso
+     ? MESES[_m]+' va en curso. Los gastos se actualizan solos; los ingresos entran a principios del mes que sigue.'
      : 'Tu cierre de '+MESES[_m]+' está listo.'
        +(_pe?' Publicado el '+_pe.getDate()+' de '+MESES[_pe.getMonth()]+' · '
           +String(_pe.getHours()).padStart(2,'0')+':'+String(_pe.getMinutes()).padStart(2,'0')+'.':'');}
