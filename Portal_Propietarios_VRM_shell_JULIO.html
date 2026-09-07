@@ -1399,10 +1399,21 @@ async function enter(){
   // La fecha de publicación deja de ser un cálculo y pasa a ser un dato:
   // la que quedó guardada cuando se corrió publicar_cierre().
   const _m=parseInt(PERIODO.slice(5,7))-1;
+  // Un propietario recién dado de alta no tiene ningún cierre publicado. Sin
+  // esto, la pantalla le mostraba $0.00 en todo con el encabezado de un mes
+  // que ni siquiera es suyo — y quien ve ceros en su estado de cuenta no
+  // piensa «todavía no lo publican», piensa que algo se rompió o que no le
+  // van a pagar. Vale más decirlo.
+  const _sinNada = !PERIODOS || PERIODOS.length===0;
   {const _pe=D.publicadoEn?new Date(D.publicadoEn):null;
-   document.getElementById('hsubTxt').textContent='Tu cierre de '+MESES[_m]+' está listo.'
-     +(_pe?' Publicado el '+_pe.getDate()+' de '+MESES[_pe.getMonth()]+' · '
-        +String(_pe.getHours()).padStart(2,'0')+':'+String(_pe.getMinutes()).padStart(2,'0')+'.':'');}
+   document.getElementById('hsubTxt').textContent = _sinNada
+     ? 'Todavía no tienes un cierre publicado. En cuanto se publique tu primer mes lo vas a ver aquí.'
+     : 'Tu cierre de '+MESES[_m]+' está listo.'
+       +(_pe?' Publicado el '+_pe.getDate()+' de '+MESES[_pe.getMonth()]+' · '
+          +String(_pe.getHours()).padStart(2,'0')+':'+String(_pe.getMinutes()).padStart(2,'0')+'.':'');}
+  // Y sin meses publicados, el selector de mes no tiene nada que ofrecer.
+  {const _pw=document.getElementById('perLbl');
+   if(_pw&&_pw.parentElement) _pw.parentElement.style.display = _sinNada ? 'none' : '';}
   buildSw();render();
 }
 async function cambiarPropietario(id){
