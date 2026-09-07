@@ -1292,9 +1292,45 @@ function openDep(){
   const A=agg();
   let rows=`<div class="li"><div class="ll">Reservaciones (bruto)</div><div class="lv">${fmt2(A.bruto)}</div></div>
     <div class="li"><div><div class="ll">Retención ISR</div><div class="ls">Airbnb lo entera al SAT por ti</div></div><div class="lv">−${fmt2(A.isr)}</div></div>
-    <div class="li tot"><div class="ll">Depósito del mes</div><div class="lv">${fmt2(A.dep)}</div></div>
-    <div style="margin-top:18px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint)">Estancias que lo generaron</div>`;
-  rows+=[...A.stays].sort((a,b)=>a.start.localeCompare(b.start)).map(s=>`<div class="li"><div><div class="ll">${s.guest}</div><div class="ls"><span style="color:${s.color}">●</span> ${D.depas[s.depa].name} · llegó ${parseInt(s.start.slice(8))} de ${(MESES.reduce((o,m,i)=>(o[String(i+1).padStart(2,'0')]=m,o),{}))[s.start.slice(5,7)]||'junio'}</div></div><div class="lv" style="color:var(--muted)">${s.n} noches</div></div>`).join('');
+    <div class="li tot"><div class="ll">Depósito del mes</div><div class="lv">${fmt2(A.dep)}</div></div>`;
+
+  // ── Las estancias del mes ──────────────────────────────────────────────
+  // Antes esto salía de la tabla `estancias`, que se llenó a mano para la
+  // demo de junio y nadie volvió a tocar: está vacía, así que el desglose
+  // no aparecía nunca. Ahora sale de las reservas reales, las que ya trae
+  // el portal del iCal para pintar el calendario.
+  //
+  // Y sin el nombre del huésped. El propietario no necesita saber quién
+  // durmió en su depa; necesita saber cuántas noches se ocupó y cuándo.
+  // Es dato de un tercero y no aporta nada a su estado de cuenta.
+  const noches=(a,b)=>Math.max(1,Math.round(
+      (new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000));
+  const mes=PERIODO;                    // 'YYYY-MM'
+  const esReserva=r=>{
+      const t=String(r.tipo||'').toLowerCase();
+      return t!=='bloqueo';             // si no viene `tipo`, se asume reserva
+  };
+  // Una estancia entra si TOCA el mes, aunque haya empezado antes o termine
+  // después. Filtrar por «empieza en el mes» escondería al huésped que llegó
+  // el 30 de julio y se fue el 4 de agosto, cuyas noches sí son de agosto.
+  const delMes=r=>r.ci && r.co && r.ci.slice(0,7)<=mes && r.co.slice(0,7)>=mes;
+  const est=(A.reservas||[]).filter(r=>esReserva(r)&&delMes(r))
+        .sort((a,b)=>a.ci.localeCompare(b.ci));
+
+  const dm=iso=>parseInt(iso.slice(8))+' '+MESES[parseInt(iso.slice(5,7))-1].slice(0,3);
+
+  rows+=`<div style="margin-top:18px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint)">Estancias que lo generaron${est.length?' · '+est.length:''}</div>`;
+  rows+= est.length
+    ? est.map(r=>{
+        const d=D.depas[r.depa]||{};
+        const n=noches(r.ci,r.co);
+        return `<div class="li"><div>
+            <div class="ll">${dm(r.ci)} → ${dm(r.co)}</div>
+            <div class="ls"><span style="color:${d.color||'#888'}">●</span> ${d.name||'—'}</div>
+          </div><div class="lv" style="color:var(--muted)">${n} noche${n!==1?'s':''}</div></div>`;
+      }).join('')
+    : `<div class="li"><div class="ls">Sin estancias registradas en este periodo.</div></div>`;
+
   openSheet('Tu depósito',view==='all'?('Portafolio · '+perLabel(PERIODO)):D.depas[view].name+(' · '+perLabel(PERIODO)),fmt2(A.dep),rows);
 }
 /* -------- auth (Supabase) -------- */
