@@ -425,14 +425,36 @@ async function loadAll(){
   PROP_SEL = owner.id;
   const {data:depas}=await sb.from('propiedades_portal').select('*').eq('propietario_id',owner.id).eq('activa',true).order('nombre');
   const ids=depas.map(d=>d.id);
+
+  // ── Las consultas van EN PARALELO, en tres tandas ────────────────────
+  //
+  // Antes iban once, una tras otra, cada una esperando a que volviera la
+  // anterior. Desde Italia son unos 200 ms de ida y vuelta por consulta:
+  // más de dos segundos de puro esperar cada vez que cambiabas de mes o de
+  // propietario. Ninguna de las once tardaba; el problema era la fila.
+  //
+  // Solo hay tres cosas que de verdad dependen de otra: hay que saber el
+  // propietario para pedir sus depas, los depas para pedir sus cierres, y
+  // los cierres para pedir sus partidas. Lo demás puede salir junto.
+  //
+  // Y los cierres se piden COMPLETOS, de todos los meses, en vez de una
+  // consulta para los periodos y otra para el mes elegido. Son unas decenas
+  // de renglones por propietario; filtrar en memoria sale gratis y ahorra
+  // un viaje — además de que cambiar de mes ya no vuelve a pedir nada.
   // Primero qué periodos hay. Si nadie pidió uno por URL, se abre el último.
   // Ya no va `.eq('publicado', true)`. El filtro vive en RLS, que es donde
   // no se puede editar desde el navegador: la política `c_sel` entrega solo
   // lo publicado, salvo a las cuentas de `usuarios_internos`. Un filtro en
   // el cliente parecía un candado y no lo era — cualquiera con la sesión y
   // la llave anon podía pedir la tabla sin él.
-  const {data:pers0}=await sb.from('cierres').select('periodo,publicado').in('propiedad_id',ids);
-  PERIODOS=[...new Set((pers0||[]).map(x=>x.periodo))].sort().reverse();
+  const seguro=p=>p.then(r=>r&&r.data?r.data:[]).catch(()=>[]);
+  const [todosCierres,bloqueos,reservas]=await Promise.all([
+    seguro(sb.from('cierres').select('*').in('propiedad_id',ids)),
+    seguro(sb.from('bloqueos').select('*').in('propiedad_id',ids).order('fecha_inicio')),
+    // iCal · todas las plataformas · pasadas recientes y futuras
+    seguro(sb.from('portal_reservas').select('*').in('propiedad_id',ids).order('check_in')),
+  ]);
+  PERIODOS=[...new Set(todosCierres.map(x=>x.periodo))].sort().reverse();
   if((!PERIODO_FIJO || PERIODO_LIBRE) && PERIODOS.length) PERIODO=PERIODOS[0];
   // Y si el mes elegido no existe para ESTE propietario —un ?p viejo en la
   // URL, o un dueño que no tiene ese mes— se cae al más reciente que sí
@@ -440,27 +462,20 @@ async function loadAll(){
   if(PERIODOS.length && !PERIODOS.includes(PERIODO)) PERIODO=PERIODOS[0];
   PER_Y=parseInt(PERIODO.slice(0,4)); PER_M=parseInt(PERIODO.slice(5,7))-1;
   calY=PER_Y; calM=PER_M;
-  const {data:cierres}=await sb.from('cierres').select('*').in('propiedad_id',ids).eq('periodo',PERIODO);
+  // Los del mes elegido salen de lo que ya se trajo: cero viajes.
+  const cierres=todosCierres.filter(c=>c.periodo===PERIODO);
   const cids=cierres.map(c=>c.id);
-  const {data:partidas}=cids.length?await sb.from('cierre_partidas').select('*').in('cierre_id',cids).order('orden'):{data:[]};
-  // El detalle por reserva del cierre — el que sale del crudo de Airbnb y
-  // por lo tanto SUMA exacto el bruto y el ISR. En try/catch porque los
-  // cierres viejos no lo tienen y el portal debe seguir abriendo igual.
-  let detalle=[];
-  try{ if(cids.length){ const r=await sb.from('cierre_reservas').select('*')
-        .in('cierre_id',cids).order('check_in'); detalle=r.data||[]; } }catch(_){ detalle=[]; }
-  // El desglose con fechas de cada partida: qué días se limpió, cuándo se
-  // pagó cada recibo, qué día se dejó cada artículo. En try/catch por lo
-  // mismo que `cierre_reservas`: los cierres viejos no lo tienen y el portal
-  // tiene que abrir igual, solo que sin desglose.
-  let pdet=[];
-  try{ if(cids.length){ const r=await sb.from('cierre_partida_detalle').select('*')
-        .in('cierre_id',cids).order('fecha'); pdet=r.data||[]; } }catch(_){ pdet=[]; }
-  const {data:estancias}=await sb.from('estancias').select('*').in('propiedad_id',ids).eq('periodo',PERIODO);
-  const {data:bloqueos}=await sb.from('bloqueos').select('*').in('propiedad_id',ids).order('fecha_inicio');
-  // reservas reales (iCal · todas las plataformas · pasadas recientes y futuras)
-  let reservas=[];try{const r=await sb.from('portal_reservas').select('*').in('propiedad_id',ids).order('check_in');reservas=r.data||[];}catch(_){reservas=[];}
-  const {data:confs}=await sb.from('confirmaciones').select('*').eq('propietario_id',owner.id).eq('periodo',PERIODO);
+
+  // Última tanda. `cierre_reservas` y `cierre_partida_detalle` van con
+  // `seguro()` porque los cierres viejos no las tienen: si truenan, el
+  // portal abre igual, nada más sin desglose.
+  const [partidas,detalle,pdet,estancias,confs]=await Promise.all([
+    cids.length?seguro(sb.from('cierre_partidas').select('*').in('cierre_id',cids).order('orden')):[],
+    cids.length?seguro(sb.from('cierre_reservas').select('*').in('cierre_id',cids).order('check_in')):[],
+    cids.length?seguro(sb.from('cierre_partida_detalle').select('*').in('cierre_id',cids).order('fecha')):[],
+    seguro(sb.from('estancias').select('*').in('propiedad_id',ids).eq('periodo',PERIODO)),
+    seguro(sb.from('confirmaciones').select('*').eq('propietario_id',owner.id).eq('periodo',PERIODO)),
+  ]);
   const dd={};
   depas.forEach(p=>{
     const c=(cierres||[]).find(x=>x.propiedad_id===p.id);
@@ -485,8 +500,9 @@ async function loadAll(){
      // arriba todavía no es el neto final, y firmarlo sería firmar otra cosa.
      enCurso:(cierres||[]).some(c=>!c.publicado),
      conf:(confs&&confs.length)?{when:fmtWhen(confs[0].confirmado_en),folio:confs[0].folio,sig:confs[0].firma_png}:null};
-  const {data:pers}=await sb.from('cierres').select('periodo').in('propiedad_id',ids);
-  PERIODOS=[...new Set((pers||[]).map(x=>x.periodo))].sort().reverse();
+  // Aquí había una segunda consulta idéntica a la de arriba para volver a
+  // armar PERIODOS. Sobra: `todosCierres` ya los tiene y no ha cambiado
+  // nada en el camino.
 }
 const fmt=n=>'$'+Math.round(n).toLocaleString('en-US');
 const fmt2=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -515,9 +531,16 @@ function buildSw(){
 }
 function setView(v){view=v;buildSw();render();}
 let raf;
+// La cuenta ascendente es bonita la primera vez que abres tu estado de
+// cuenta. Repetirla cada vez que cambias de mes no: son 750 ms viendo el
+// número escalar desde cero cuando lo que querías era compararlo con el
+// mes anterior. Se anima al entrar; después el número cambia y ya.
+let YA_ANIMO=false;
 function countTo(el,target){
   cancelAnimationFrame(raf);
-  if(matchMedia('(prefers-reduced-motion: reduce)').matches){el.innerHTML=fmt(target);return;}
+  if(YA_ANIMO || matchMedia('(prefers-reduced-motion: reduce)').matches){
+    el.innerHTML=fmt(target);return;}
+  YA_ANIMO=true;
   const t0=performance.now(),dur=750;
   function step(t){const p=Math.min((t-t0)/dur,1);const e=1-Math.pow(1-p,3);
     el.innerHTML=fmt(target*e);if(p<1)raf=requestAnimationFrame(step);}
