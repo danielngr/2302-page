@@ -387,7 +387,10 @@ const sb=window.supabase?window.supabase.createClient(SUPA_URL,SUPA_ANON):null;
 // escrita aquí. Agosto aparece solo en cuanto se siembren sus cierres; este
 // archivo no se vuelve a tocar cada mes.
 const _pURL=new URLSearchParams(location.search).get('p');
-const PERIODO_DE_URL=!!_pURL;
+// `let` y no `const`: antes solo decía «venía en la URL». Ahora significa
+// «alguien eligió este mes a propósito», y eso también pasa cuando se elige
+// del menú, sin recargar. Ver `switchPeriodo`.
+let PERIODO_FIJO=!!_pURL;
 let PERIODO=_pURL||'2026-06';   // provisional: loadAll lo ajusta al más reciente
 const CATMETA={gestion:{label:'Gestión',icon:'◈',desc:'Comisión y administración'},
  limpieza:{label:'Limpieza',icon:'❋',desc:'Limpiezas, lavandería y amenidades'},
@@ -430,7 +433,11 @@ async function loadAll(){
   // la llave anon podía pedir la tabla sin él.
   const {data:pers0}=await sb.from('cierres').select('periodo,publicado').in('propiedad_id',ids);
   PERIODOS=[...new Set((pers0||[]).map(x=>x.periodo))].sort().reverse();
-  if((!PERIODO_DE_URL || PERIODO_LIBRE) && PERIODOS.length) PERIODO=PERIODOS[0];
+  if((!PERIODO_FIJO || PERIODO_LIBRE) && PERIODOS.length) PERIODO=PERIODOS[0];
+  // Y si el mes elegido no existe para ESTE propietario —un ?p viejo en la
+  // URL, o un dueño que no tiene ese mes— se cae al más reciente que sí
+  // tenga. Antes se quedaba con el mes ajeno y pintaba puros ceros.
+  if(PERIODOS.length && !PERIODOS.includes(PERIODO)) PERIODO=PERIODOS[0];
   PER_Y=parseInt(PERIODO.slice(0,4)); PER_M=parseInt(PERIODO.slice(5,7))-1;
   calY=PER_Y; calM=PER_M;
   const {data:cierres}=await sb.from('cierres').select('*').in('propiedad_id',ids).eq('periodo',PERIODO);
@@ -1083,7 +1090,19 @@ document.addEventListener('click',e=>{
 async function switchPeriodo(p){
   document.getElementById('perMenu').classList.remove('on');
   if(p===PERIODO)return;
-  location.search='?p='+p;   // recarga con el periodo elegido
+  // Antes esto hacía `location.search='?p='+p`, o sea recargar la página
+  // entera: el parpadeo de salirse y volver, otra ronda de autenticación, y
+  // —lo peor— PROP_SEL se perdía y regresabas al primer propietario de la
+  // lista sin darte cuenta.
+  //
+  // Ahora se cambia el estado y se repinta con `enter()`, igual que al
+  // cambiar de dueño. La URL se actualiza con replaceState para que el
+  // enlace se pueda seguir copiando, pero sin navegar.
+  PERIODO = p;
+  PERIODO_FIJO = true;    // lo elegiste: no lo recalcules
+  PERIODO_LIBRE = false;  // y no lo liberes al recargar los datos
+  try{ history.replaceState(null,'','?p='+p); }catch(_){}
+  try{ await enter(); }catch(e){ alert(e.message); }
 }
 
 /* ====== MES NAVEGABLE ====== */
