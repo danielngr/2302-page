@@ -1412,37 +1412,19 @@ function openDep(){
     <div class="li tot"><div class="ll">Depósito del mes</div><div class="lv">${fmt2(A.dep)}</div></div>`;
 
   // ── Las estancias del mes ──────────────────────────────────────────────
-  // Antes esto salía de la tabla `estancias`, que se llenó a mano para la
-  // demo de junio y nadie volvió a tocar: está vacía, así que el desglose
-  // no aparecía nunca. Ahora sale de las reservas reales, las que ya trae
-  // el portal del iCal para pintar el calendario.
+  // UNA sola fuente: `A.detalle`, que sale del crudo de Airbnb. Trae el
+  // dinero de cada reserva y su ISR, y su suma ES el bruto del cierre —
+  // porque son el mismo renglón. Cuadra por construcción.
+  //
+  // El iCal ya no se usa aquí. Sabe fechas y nada más, y no cuadra con el
+  // total, así que enseñarlo cuando falta el crudo daba dos listas
+  // distintas para el mismo mes sin forma de saber cuál mirar.
   //
   // Y sin el nombre del huésped. El propietario no necesita saber quién
   // durmió en su depa; necesita saber cuántas noches se ocupó y cuándo.
   // Es dato de un tercero y no aporta nada a su estado de cuenta.
-  const noches=(a,b)=>Math.max(1,Math.round(
-      (new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000));
-  const mes=PERIODO;                    // 'YYYY-MM'
-  const esReserva=r=>{
-      const t=String(r.tipo||'').toLowerCase();
-      return t!=='bloqueo';             // si no viene `tipo`, se asume reserva
-  };
-  // Una estancia entra si TOCA el mes, aunque haya empezado antes o termine
-  // después. Filtrar por «empieza en el mes» escondería al huésped que llegó
-  // el 30 de julio y se fue el 4 de agosto, cuyas noches sí son de agosto.
-  const delMes=r=>r.ci && r.co && r.ci.slice(0,7)<=mes && r.co.slice(0,7)>=mes;
   const dm=iso=>parseInt(iso.slice(8))+' '+MESES[parseInt(iso.slice(5,7))-1].slice(0,3);
 
-  // Hay dos fuentes posibles y NO son equivalentes:
-  //
-  //   `A.detalle`  sale del crudo de Airbnb. Trae el dinero de cada reserva
-  //                y su ISR, y su suma ES el bruto del cierre.
-  //   `A.reservas` sale del iCal. Solo sabe fechas. Sirve mientras un cierre
-  //                viejo no tenga detalle, pero no cuadra con el total:
-  //                Airbnb paga al día siguiente del check-in, así que una
-  //                estancia que empieza el 30 se cobra el mes que entra.
-  //
-  // Se prefiere el crudo siempre que exista.
   const det=(A.detalle||[]).slice().sort((a,b)=>String(a.check_in).localeCompare(String(b.check_in)));
   rows+=`<div style="margin-top:18px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint)">Estancias que lo generaron${det.length?' · '+det.length:''}</div>`;
 
@@ -1461,20 +1443,23 @@ function openDep(){
     rows+=`<div class="li tot"><div><div class="ll">Suma de las estancias</div>
         <div class="ls">ISR −${fmt2(si_)}</div></div><div class="lv">${fmt2(sb_)}</div></div>`;
   } else {
-    // Sin detalle del crudo: se enseñan las fechas del iCal, diciendo que
-    // son solo fechas. Callarlo sería peor que no mostrarlas.
-    const est=(A.reservas||[]).filter(r=>esReserva(r)&&delMes(r))
-          .sort((a,b)=>a.ci.localeCompare(b.ci));
-    rows+= est.length
-      ? `<div class="li"><div class="ls">Este cierre es anterior al desglose por reserva. Se muestran las fechas del calendario; los importes están en el total de arriba.</div></div>`
-        + est.map(r=>{
-            const d=D.depas[r.depa]||{}; const n=noches(r.ci,r.co);
-            return `<div class="li"><div>
-                <div class="ll">${dm(r.ci)} → ${dm(r.co)}</div>
-                <div class="ls"><span style="color:${d.color||'#888'}">●</span> ${d.name||'—'}</div>
-              </div><div class="lv" style="color:var(--muted)">${n} noche${n!==1?'s':''}</div></div>`;
-          }).join('')
-      : `<div class="li"><div class="ls">Sin estancias registradas en este periodo.</div></div>`;
+    // Aquí ANTES se caía al iCal y se enseñaban las fechas del calendario.
+    // Se quitó a propósito, y la razón vale la pena dejarla escrita:
+    //
+    // El iCal sabe fechas y nada más — no tiene dinero. Y no cuadra con el
+    // total: Airbnb paga al día siguiente del check-in, así que una estancia
+    // que empieza el 30 de septiembre se cobra en octubre. En agosto fueron
+    // once reservaciones en esa frontera. Que el desfase diera cero ese mes
+    // fue suerte del calendario, no diseño.
+    //
+    // O sea que la lista del iCal podía tener MÁS o MENOS estancias que las
+    // que produjeron el depósito de arriba, y el propietario no tenía cómo
+    // saber cuál mirar. Dos listas que no cuadran confunden más que una sola
+    // que falta.
+    //
+    // Un cierre viejo sin detalle ahora lo dice y ya. Se arregla volviendo a
+    // correr el motor con el crudo de ese mes, no pintando otra cosa.
+    rows+=`<div class="li"><div class="ls">Este cierre es anterior al desglose por reserva. El total de arriba es correcto; el detalle por estancia no está disponible para este mes.</div></div>`;
   }
 
   openSheet('Tu depósito',(view==='all'||!D.depas[view])?('Portafolio · '+perLabel(PERIODO)):D.depas[view].name+(' · '+perLabel(PERIODO)),fmt2(A.dep),rows);
