@@ -400,8 +400,34 @@ let D=null;
 let PROPS=[];        // los propietarios que ESTE usuario puede ver
 let PROP_SEL=null;   // cuál está viendo ahora
 let PERIODO_LIBRE=false;  // al cambiar de dueño, el periodo se recalcula
+
+/* ── Que una espera no pueda ser eterna ──────────────────────────────────
+ * Hoy el portal se quedó en «Entrando…» para siempre. Sin consola no había
+ * forma de saber cuál de las once consultas no volvía: todas se esperan con
+ * `await` y un `await` que nunca resuelve no deja rastro. No hay error, no
+ * hay log, no hay nada — solo una pantalla congelada.
+ *
+ * `paso()` escribe en qué va, así que la propia pantalla dice dónde se
+ * atoró. `conTiempo()` le pone un límite: pasados los segundos, la promesa
+ * se rechaza con un mensaje que nombra el paso, y `enter()` lo enseña.
+ *
+ * El límite es generoso a propósito. No está para cortar una consulta lenta
+ * —desde Italia todo tarda— sino para que una que NUNCA va a volver deje de
+ * verse igual que una que está tardando.
+ */
+const PASO_EL=()=>document.getElementById('gerr');
+function paso(txt){ const e=PASO_EL(); if(e && e.textContent.startsWith('Entrando')) e.textContent='Entrando… '+txt; }
+function conTiempo(promesa, etiqueta, ms=15000){
+  return Promise.race([
+    Promise.resolve(promesa),
+    new Promise((_,rechaza)=>setTimeout(()=>rechaza(
+      new Error(`Se quedó esperando: ${etiqueta}. No respondió en ${ms/1000}s.`)), ms))
+  ]);
+}
+
 async function loadAll(){
-  const {data:{user}}=await sb.auth.getUser(); if(!user)throw new Error('Sin sesión.');
+  paso('verificando sesión');
+  const {data:{user}}=await conTiempo(sb.auth.getUser(),'verificar la sesión'); if(!user)throw new Error('Sin sesión.');
   // Se pide SIN filtro de user_id, y no es un descuido.
   //
   // Antes había aquí un `.eq('user_id', user.id)` como segundo candado. Dejó
@@ -415,15 +441,18 @@ async function loadAll(){
   // acceso: uno para un dueño normal, varios para quien lleva las cuentas de
   // varios. Y por eso el selector de abajo es seguro — no elige entre todos,
   // elige entre lo que la base ya decidió mostrarle.
-  const {data:props,error:e1}=await sb.from('propietarios')
-        .select('*').order('nombre');
+  paso('leyendo propietarios');
+  const {data:props,error:e1}=await conTiempo(sb.from('propietarios')
+        .select('*').order('nombre'),'leer los propietarios');
   if(e1)throw new Error(e1.message);
   if(!props||!props.length)throw new Error('Tu usuario no está vinculado a un propietario.');
   PROPS=props;
   // Si ya habías elegido uno, se respeta; si no, el primero.
   const owner = props.find(x=>x.id===PROP_SEL) || props[0];
   PROP_SEL = owner.id;
-  const {data:depas}=await sb.from('propiedades_portal').select('*').eq('propietario_id',owner.id).eq('activa',true).order('nombre');
+  paso('leyendo propiedades');
+  const {data:depas}=await conTiempo(sb.from('propiedades_portal').select('*').eq('propietario_id',owner.id).eq('activa',true).order('nombre'),'leer las propiedades');
+  if(!depas) throw new Error('No pude leer las propiedades de '+owner.nombre+'.');
   const ids=depas.map(d=>d.id);
 
   // ── Las consultas van EN PARALELO, en tres tandas ────────────────────
@@ -448,12 +477,13 @@ async function loadAll(){
   // el cliente parecía un candado y no lo era — cualquiera con la sesión y
   // la llave anon podía pedir la tabla sin él.
   const seguro=p=>p.then(r=>r&&r.data?r.data:[]).catch(()=>[]);
-  const [todosCierres,bloqueos,reservas]=await Promise.all([
+  paso('leyendo cierres');
+  const [todosCierres,bloqueos,reservas]=await conTiempo(Promise.all([
     seguro(sb.from('cierres').select('*').in('propiedad_id',ids)),
     seguro(sb.from('bloqueos').select('*').in('propiedad_id',ids).order('fecha_inicio')),
     // iCal · todas las plataformas · pasadas recientes y futuras
     seguro(sb.from('portal_reservas').select('*').in('propiedad_id',ids).order('check_in')),
-  ]);
+  ]),'leer cierres, bloqueos y reservas');
   PERIODOS=[...new Set(todosCierres.map(x=>x.periodo))].sort().reverse();
   if((!PERIODO_FIJO || PERIODO_LIBRE) && PERIODOS.length) PERIODO=PERIODOS[0];
   // Y si el mes elegido no existe para ESTE propietario —un ?p viejo en la
@@ -469,13 +499,14 @@ async function loadAll(){
   // Última tanda. `cierre_reservas` y `cierre_partida_detalle` van con
   // `seguro()` porque los cierres viejos no las tienen: si truenan, el
   // portal abre igual, nada más sin desglose.
-  const [partidas,detalle,pdet,estancias,confs]=await Promise.all([
+  paso('leyendo el desglose');
+  const [partidas,detalle,pdet,estancias,confs]=await conTiempo(Promise.all([
     cids.length?seguro(sb.from('cierre_partidas').select('*').in('cierre_id',cids).order('orden')):[],
     cids.length?seguro(sb.from('cierre_reservas').select('*').in('cierre_id',cids).order('check_in')):[],
     cids.length?seguro(sb.from('cierre_partida_detalle').select('*').in('cierre_id',cids).order('fecha')):[],
     seguro(sb.from('estancias').select('*').in('propiedad_id',ids).eq('periodo',PERIODO)),
     seguro(sb.from('confirmaciones').select('*').eq('propietario_id',owner.id).eq('periodo',PERIODO)),
-  ]);
+  ]),'leer el desglose del mes');
   const dd={};
   depas.forEach(p=>{
     const c=(cierres||[]).find(x=>x.propiedad_id===p.id);
