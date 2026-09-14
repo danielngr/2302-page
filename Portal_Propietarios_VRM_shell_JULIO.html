@@ -1166,7 +1166,21 @@ let calY=PER_Y, calM=PER_M;                       // mes visible en el calendari
 const pad2=n=>String(n).padStart(2,'0');
 const iso=(y,m,d)=>`${y}-${pad2(m+1)}-${pad2(d)}`;
 const daysIn=(y,m)=>new Date(y,m+1,0).getDate();
-const addDays=(isoStr,n)=>{const d=new Date(isoStr+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);};
+// TODO EN UTC, y no es un detalle de estilo.
+// La versión anterior era:
+//   new Date(iso+'T00:00:00')  →  se interpreta en hora LOCAL
+//   d.toISOString()            →  se devuelve en UTC
+// Al este de Greenwich esas dos cosas no son el mismo día: la medianoche
+// del 13 en Roma son las 22:00 del 12 en UTC. Sumarle un día y volver a
+// convertir devolvía OTRA VEZ '2026-09-13' — el mismo texto.
+//
+// Y todos los bucles del portal son `while(d < fin){ d = addDays(d,1) }`.
+// Con addDays devolviendo siempre lo mismo, ninguno termina NUNCA. La
+// página se congelaba entera: sin errores, sin consola, sin teclado.
+//
+// Funcionaba desde México (UTC−6) y dejó de funcionar al volver a Italia
+// (UTC+2). El código no cambió; cambió el huso horario de quien lo abría.
+const addDays=(isoStr,n)=>{const d=new Date(isoStr+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 function shiftMonth(delta){
   calM+=delta; if(calM>11){calM=0;calY++;} if(calM<0){calM=11;calY--;}
   if(selMode.active){selMode.start=null;selMode.end=null;}
