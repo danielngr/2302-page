@@ -5624,8 +5624,13 @@
                 _copiado = true;
             }catch(e){ console.warn('[VRM] no se pudo copiar:', e && e.message); }
         }
-        // Ya con el portapapeles resuelto, abrimos el chat.
-        if(_codAir){ try{ window.open('https://www.airbnb.com/hosting/reservations/details/'+_codAir, '_blank'); }catch(e){} }
+        // El chat de Airbnb NO se abre aquí. Mismo motivo que en `marcarQR`:
+        // abrir otra pestaña ahora le quita el foco al portal y Safari cancela
+        // la escritura del portapapeles, que todavía está esperando a
+        // ComunidadFeliz. Y `window.open` es además la forma que iOS no le pasa
+        // a la app. El botón vive en el recuadro del QR.
+        window._qrCodAir = _codAir || '';
+        window._qrCopiado = _copiado;
         if(!_copiado) toast('⚠️ No se copió solo — usa "Copiar link" del recuadro');
 
         try {
@@ -5795,7 +5800,26 @@
             }
         );
 
-        const result = await postRes.json();
+        // ── Frakcio no siempre contesta JSON ───────────────────────────────────
+        // Cuando su servidor truena devuelve la página roja de Laravel, que es
+        // HTML. Antes esto era `await postRes.json()` a secas y el parseo
+        // fallaba con el mensaje de Safari «The string did not match the
+        // expected pattern» — un texto que no menciona a Frakcio, ni el 500, ni
+        // nada útil. Dos horas buscando un error nuestro que no existía.
+        //
+        // Ahora el cuerpo se lee como texto y se intenta interpretar. Si no es
+        // JSON, el error dice de quién es y con qué código respondió.
+        const _cuerpo = await postRes.text();
+        let result;
+        try {
+            result = JSON.parse(_cuerpo);
+        } catch(_) {
+            // El primer renglón del HTML de Laravel suele traer la excepción.
+            const pista = _cuerpo.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
+            throw new Error(`Frakcio respondió con un error (HTTP ${postRes.status}), no con datos.`
+                            + (pista ? `\n${pista}` : '')
+                            + `\nEsto es de su servidor, no del portal.`);
+        }
         console.log('[Frakcio POST response]', JSON.stringify(result));
         let reservationId = null;
 
@@ -6411,6 +6435,14 @@
         }catch(e){ return ''; }
     }
     async function marcarQR(depto, fechaISO) {
+        // ── De dónde vino el error ─────────────────────────────────────────────
+        // El catch de abajo enseñaba solo `e.message`, y Safari dice cosas como
+        // «The string did not match the expected pattern» sin decir de qué
+        // string habla. Este contador se va moviendo por los pasos; cuando algo
+        // truena, el toast dice EN CUÁL. Sin esto hay que adivinar entre el
+        // selector, Frakcio, el portapapeles y dos fetch distintos.
+        let _paso = 'inicio';
+        window._qrUltimoPaso = () => _paso;
         const btn = document.querySelector(`[onclick*="marcarQR('${depto}'"]`);
         if(btn) { btn.disabled=true; btn.innerHTML='<i class="ph-bold ph-spinner"></i> Enviando...'; }
 
@@ -6418,6 +6450,7 @@
         // navigator.clipboard.write exige que el documento tenga el foco; si
         // primero abrimos la pestaña, Safari le quita el foco al portal y el
         // copiado falla en silencio — el chat abre pero el link no se copia.
+        _paso = 'buscar código Airbnb';
         const _codAir = esFrakcioReal(depto) ? _codAirDe(depto, fechaISO) : '';
 
         // ── Copiado del link del QR (a prueba de Safari) ──────────────────────────────
@@ -6432,6 +6465,7 @@
                 return (d===dep||d.startsWith(dep+' ')||dep.startsWith(d+' '));
             });
             const _fSal = _regSal ? (_regSal.fecha_salida||fechaISO) : fechaISO;
+            _paso = 'llamar a Frakcio';
             _frakPromise = enviarFrakcio(depto, fechaISO, _fSal);   // se lanza dentro del gesto del clic
             const _urlPromise = _frakPromise.then(r => {
                 if(typeof r === 'string' && r.startsWith('http')) return r;
@@ -6445,12 +6479,32 @@
                 }catch(e){ console.warn('[VRM] no se pudo copiar:', e && e.message); }
             }
         }
-        // Ya con el portapapeles resuelto, abrimos el chat.
-        if(_codAir){ try{ window.open('https://www.airbnb.com/hosting/reservations/details/'+_codAir, '_blank'); }catch(e){} }
+        // ── AIRBNB NO SE ABRE SOLO. Y NO ES UN CAPRICHO ───────────────────────
+        // Antes aquí iba `window.open(...)` y causaba LOS DOS problemas a la vez:
+        //
+        //   1. El portapapeles se cancelaba. El copiado de Safari es una PROMESA
+        //      que todavía no ha resuelto en este punto —está esperando a
+        //      Frakcio—, y abrir otra pestaña le quita el foco al portal. Safari
+        //      descarta una escritura pendiente cuando el documento pierde el
+        //      foco. Por eso copiaba "en algunos sí y en otros no": dependía de
+        //      si Frakcio contestaba antes o después de que se abriera la
+        //      pestaña. Una carrera, no un fallo fijo.
+        //
+        //   2. Abría Safari en vez de la app. iOS entrega un Universal Link a su
+        //      aplicación cuando el usuario NAVEGA por un enlace. `window.open`
+        //      con `_blank` desde JavaScript no cuenta: abre pestaña y ya.
+        //
+        // Ahora el link del chat vive en el recuadro del QR, como un botón. Eso
+        // le da al copiado todo el tiempo del mundo con el foco puesto, y
+        // convierte la apertura en un clic de verdad — que es la única forma en
+        // que iOS considera pasársela a la app de Airbnb.
+        window._qrCodAir = _codAir || '';
+        window._qrCopiado = _copiado;   // el recuadro no vuelve a intentar si ya se copió
         if(esFrakcioReal(depto) && !_copiado) toast('⚠️ No se copió solo — usa "Copiar link QR" del recuadro');
 
         try {
             // Reutiliza la promesa ya lanzada (no llama Frakcio otra vez)
+            _paso = 'esperar la respuesta de Frakcio';
             let qrUrl = null;
             let qrSplit = null;
             if(esFrakcioReal(depto) && _frakPromise) {
@@ -6463,6 +6517,7 @@
             }
 
             // Marcar en frakcio_qr (para todos)
+            _paso = 'marcar el QR en la base';
             const existing = (frakcioQR||[]).find(x =>
                 x.depto.toUpperCase()===depto.toUpperCase() && x.fecha===fechaISO
             );
@@ -6487,6 +6542,7 @@
             renderTodo();
 
             // Si tenemos URL del QR, mostrar modal para copiar
+            _paso = 'mostrar el recuadro del QR';
             if(qrSplit) {
                 mostrarModalQRSplit(depto, qrSplit.urls);
             } else if(qrUrl) {
@@ -6498,7 +6554,10 @@
             }
 
         } catch(e) {
-            toast("❌ Error: " + e.message);
+            // El nombre del error importa tanto como el mensaje: un TypeError y un
+            // SyntaxError con el mismo texto vienen de sitios distintos.
+            console.error("[VRM] marcarQR murió en:", _paso, e);
+            toast(`❌ Falló al ${_paso}\n${e.name}: ${e.message}`);
             if(btn) { btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-qr-code"></i> QR pendiente'; }
         }
     }
@@ -6520,8 +6579,9 @@
             <div style="background:#121212;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:32px;width:400px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,0.8);">
                 <div style="font-size:36px;margin-bottom:12px;">📄</div>
                 <h3 style="font-family:var(--font-display);font-size:18px;font-weight:600;color:#fff;margin-bottom:6px;">QR listo — ${depto}</h3>
-                <p style="font-size:13px;color:var(--text-tertiary);margin-bottom:24px;">El link ya se copió \u2014 pégalo en el chat de Airbnb (se abrió en otra pestaña)</p>
+                <p style="font-size:13px;color:var(--text-tertiary);margin-bottom:24px;">El link ya se copió \u2014 abre el chat y pégalo</p>
                 <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:20px;font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);text-align:left;">📎 ${urlCorta}</div>
+                ${_btnChatAirbnb()}
                 <button id="modal-qr-copy-btn" onclick="copiarQRUrl()"
                     style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent-terracota),#ff9858);color:#fff;font-size:15px;font-family:var(--font-display);font-weight:600;cursor:pointer;margin-bottom:10px;">
                     <i class="ph-bold ph-copy"></i> Copiar link QR
@@ -6534,8 +6594,47 @@
         `;
         document.body.appendChild(modal);
         modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
-        // Auto-copiar el link al mostrar (best-effort) para pegarlo directo en el chat ya abierto.
+        // Si el truco de Safari (ClipboardItem con promesa) YA copió dentro del
+        // gesto del clic, no se vuelve a intentar: el segundo intento corre
+        // después de un await, casi siempre falla, y dejaba el botón sin marcar
+        // aunque el link sí estuviera en el portapapeles.
+        if(window._qrCopiado){
+            const cb=document.getElementById('modal-qr-copy-btn');
+            if(cb){ cb.innerHTML='<i class="ph-bold ph-check"></i> \u00a1Link copiado! P\u00e9galo en el chat'; cb.style.background='rgba(34,211,125,0.2)'; cb.style.border='1px solid rgba(34,211,125,0.4)'; cb.style.color='#22D37D'; }
+        } else
         copiarTexto(url).then(ok=>{ const cb=document.getElementById('modal-qr-copy-btn'); if(ok&&cb){ cb.innerHTML='<i class="ph-bold ph-check"></i> \u00a1Link copiado! Pégalo en el chat'; cb.style.background='rgba(34,211,125,0.2)'; cb.style.border='1px solid rgba(34,211,125,0.4)'; cb.style.color='#22D37D'; } });
+    }
+
+    // ── Abrir el chat de Airbnb ────────────────────────────────────────────────
+    // Un ancla de verdad, creada y pulsada. NO `window.open`.
+    //
+    // iOS decide entregarle una URL a su app mirando CÓMO se pidió: una
+    // navegación por enlace sí, `window.open(url,'_blank')` no. La diferencia no
+    // se documenta en ningún error — simplemente abre Safari y parece que el
+    // Universal Link no existiera.
+    //
+    // `rel="noopener"` va porque sin él la pestaña nueva conserva una
+    // referencia a la nuestra.
+    function abrirChatAirbnb(){
+        const cod = window._qrCodAir;
+        if(!cod){ toast('No tengo el código de reserva de Airbnb para este depa'); return; }
+        const a = document.createElement('a');
+        a.href = 'https://www.airbnb.com/hosting/reservations/details/' + cod;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(()=>a.remove(), 0);
+    }
+
+    // El bloque del botón, solo cuando hay código de reserva. Se arma aparte
+    // para que los dos recuadros (normal y split) usen exactamente el mismo.
+    function _btnChatAirbnb(){
+        if(!window._qrCodAir) return '';
+        return `<button onclick="abrirChatAirbnb()"
+            style="width:100%;padding:13px;border-radius:12px;border:1px solid rgba(255,90,95,0.45);background:rgba(255,90,95,0.12);color:#FF5A5F;font-size:14px;font-family:var(--font-display);font-weight:600;cursor:pointer;margin-bottom:10px;">
+            <i class="ph-bold ph-chat-circle"></i> Abrir chat de Airbnb
+        </button>`;
     }
 
     function copiarQRUrl() {
@@ -6590,6 +6689,7 @@
                     <p style="font-size:12px;color:var(--text-tertiary);">Grupo dividido por l\u00edmite de Frakcio (6 por QR). M\u00e1ndale ambos al hu\u00e9sped.</p>
                 </div>
                 ${qrBlocks}
+                ${_btnChatAirbnb()}
                 <button onclick="document.getElementById('modal-qr').remove()"
                     style="width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:none;color:var(--text-tertiary);font-size:13px;cursor:pointer;margin-top:8px;">
                     Cerrar
@@ -6624,16 +6724,32 @@
                 return true;
             }
         } catch(e) { /* cae al fallback */ }
+        // ── Respaldo para iOS ─────────────────────────────────────────────────
+        // El truco clásico del <textarea> con .select() NO funciona en Safari de
+        // iPhone: ignora la selección de un campo que no sea editable por el
+        // usuario, así que `execCommand('copy')` copia el vacío y devuelve true.
+        // Miente, que es lo peor que puede hacer un respaldo — el botón se pone
+        // verde y el portapapeles queda igual.
+        //
+        // Lo que sí obedece iOS es una selección de RANGO sobre un elemento
+        // contenteditable. Y el `readOnly` + `contentEditable` juntos evitan que
+        // salte el teclado en pantalla al enfocarlo.
         try {
-            const ta = document.createElement('textarea');
-            ta.value = texto;
-            ta.style.position = 'fixed';
-            ta.style.top = '-9999px';
-            ta.style.opacity = '0';
-            document.body.appendChild(ta);
-            ta.focus(); ta.select();
+            const el = document.createElement('div');
+            el.textContent = texto;
+            el.contentEditable = 'true';
+            el.style.cssText = 'position:fixed;top:0;left:0;opacity:0;white-space:pre;user-select:text;-webkit-user-select:text;';
+            document.body.appendChild(el);
+
+            const rango = document.createRange();
+            rango.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(rango);
+
             const ok = document.execCommand('copy');
-            document.body.removeChild(ta);
+            sel.removeAllRanges();
+            document.body.removeChild(el);
             return ok;
         } catch(e) { return false; }
     }
