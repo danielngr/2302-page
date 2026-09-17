@@ -34,6 +34,34 @@ button{font-family:inherit;background:none;border:0;color:inherit;cursor:pointer
 .enter:active{transform:scale(.985)}
 .gerr{color:#C0503C;font-size:12.5px;margin-top:12px;min-height:18px}
 .gfoot{color:var(--faint);font-size:11px;margin-top:30px}
+/* ── El sello, cargando ───────────────────────────────────────────────────
+   No es un spinner pegado encima: es el propio escudo de VRM el que gira.
+   Dos arcos, uno champán que acelera y frena como si tomara impulso, y otro
+   más tenue en sentido contrario y a otra velocidad. Al no compartir
+   período, el dibujo nunca se repite igual — por eso no se siente como un
+   GIF en bucle.                                                          */
+.arc{position:absolute;inset:-7px;opacity:0;pointer-events:none;
+     transition:opacity .5s ease;overflow:visible}
+.gate-loading .arc{opacity:1}
+.arc circle{fill:none;stroke-linecap:round;transform-origin:50% 50%}
+.arc .a1{stroke:var(--champ);stroke-width:1.6;stroke-dasharray:38 212;
+         animation:giro 1.6s cubic-bezier(.65,0,.35,1) infinite}
+.arc .a2{stroke:var(--champ-dim);stroke-width:1;stroke-dasharray:8 242;opacity:.55;
+         animation:giro 3.1s linear infinite reverse}
+@keyframes giro{to{transform:rotate(360deg)}}
+.gate-loading .crest{animation:latido 2.4s ease-in-out infinite}
+@keyframes latido{0%,100%{opacity:1}50%{opacity:.6}}
+.enter:disabled{opacity:.42;box-shadow:none;cursor:default}
+.glento{color:var(--faint);font-size:12px;margin-top:10px;min-height:16px;
+        opacity:0;transition:opacity .6s ease}
+.glento.on{opacity:1}
+/* Con movimiento reducido el archivo apaga TODAS las animaciones, así que
+   el escudo se quedaría quieto y sin señal de vida. Para esos usuarios el
+   aviso es de texto, y en gris — nunca en rojo, porque no es un error. */
+@media(prefers-reduced-motion:reduce){
+  .gate-loading .arc{opacity:1}
+  .gate-loading .glento{opacity:1}
+}
 .glink{display:block;width:100%;margin-top:14px;color:var(--muted);font-size:12.5px;
        text-decoration:underline;text-underline-offset:3px;transition:color .2s}
 .glink:hover{color:var(--champ)}
@@ -321,13 +349,19 @@ input[type=radio]:checked:after{content:'';position:absolute;inset:4px;border-ra
 <body>
 <div id="gate">
   <div class="gcard">
-    <div class="crest">V</div>
+    <div class="crest">V
+      <svg class="arc" viewBox="0 0 92 92" aria-hidden="true">
+        <circle class="a2" cx="46" cy="46" r="40"></circle>
+        <circle class="a1" cx="46" cy="46" r="40"></circle>
+      </svg>
+    </div>
     <h1>Portal del propietario</h1>
     <div class="sub">VRM · Conviva Inmuebles</div>
     <div class="field"><label>Correo</label><input id="u" type="email" autocomplete="username" placeholder="tu@correo.com"></div>
     <div class="field"><label>Contraseña</label><input id="p" type="password" autocomplete="current-password" placeholder="••••••••"></div>
     <button class="enter" onclick="login()">Entrar</button>
     <div class="gerr" id="gerr"></div>
+    <div class="glento" id="glento"></div>
     <div class="gok"  id="gok"></div>
     <button class="glink" onclick="olvide()">¿Olvidaste tu contraseña?</button>
     <div class="gfoot">Acceso privado de propietarios · VRM</div>
@@ -451,8 +485,37 @@ let PERIODO_LIBRE=false;  // al cambiar de dueño, el periodo se recalcula
  * —desde Italia todo tarda— sino para que una que NUNCA va a volver deje de
  * verse igual que una que está tardando.
  */
-const PASO_EL=()=>document.getElementById('gerr');
-function paso(txt){ const e=PASO_EL(); if(e && e.textContent.startsWith('Entrando')) e.textContent='Entrando… '+txt; }
+/* El paso ya no se pinta en la pantalla: se RECUERDA. Escribirlo en rojo,
+ * uno tras otro, hacía que una entrada normal pareciera una cadena de
+ * errores — y quien lo lee es un propietario, no quien depura.
+ *
+ * El valor de diagnóstico no se pierde: `conTiempo` ya nombra el paso en su
+ * mensaje, y si truena cualquier otra cosa, `enter()` le pega al final «(al
+ * leer los cierres)». O sea que el dato aparece justo cuando sirve —cuando
+ * algo falló— y no antes.                                                */
+let PASO_ACTUAL='';
+function paso(txt){ PASO_ACTUAL=txt; }
+
+/* ── El escudo girando ───────────────────────────────────────────────────
+ * Los siete segundos no son para avisar de un error: son para que una
+ * espera larga deje de sentirse como una pantalla colgada. Antes de eso no
+ * se dice nada, porque una entrada normal tarda dos o tres.              */
+let _lentoTimer=null;
+function cargando(on){
+  const g = document.getElementById('gate');
+  const b = document.querySelector('#gate .enter');
+  const l = document.getElementById('glento');
+  if(g) g.classList.toggle('gate-loading', !!on);
+  if(b){ b.disabled = !!on; b.textContent = on ? 'Entrando' : 'Entrar'; }
+  clearTimeout(_lentoTimer);
+  if(l){ l.classList.remove('on'); }
+  if(on && l){
+    _lentoTimer = setTimeout(()=>{
+      l.textContent='Sigue cargando. La conexión va lenta.';
+      l.classList.add('on');
+    }, 7000);
+  } else if(l){ l.textContent=''; }
+}
 function conTiempo(promesa, etiqueta, ms=15000){
   return Promise.race([
     Promise.resolve(promesa),
@@ -1550,13 +1613,27 @@ async function login(){
   const u=document.getElementById('u').value.trim(),p=document.getElementById('p').value;
   const err=document.getElementById('gerr');
   if(!sb||SUPA_ANON.includes('PEGA_AQUI')){err.textContent='Configura la anon key de Supabase en el archivo.';return;}
-  err.textContent='Entrando…';
+  err.textContent=''; document.getElementById('gok').textContent='';
+  cargando(true);
   const {error}=await sb.auth.signInWithPassword({email:u,password:p});
-  if(error){err.textContent='Correo o contraseña incorrectos.';return;}
+  if(error){ cargando(false); err.textContent='Correo o contraseña incorrectos.'; return; }
   await enter();
 }
 async function enter(){
-  try{await loadAll();}catch(e){document.getElementById('gerr').textContent=e.message;try{await sb.auth.signOut();}catch(_){ }return;}
+  cargando(true);
+  try{ await loadAll(); }
+  catch(e){
+    cargando(false);
+    // Si veníamos de la pantalla de contraseña nueva, la de entrada estaba
+    // escondida: sin esto el aviso se escribiría donde nadie lo ve.
+    const g=document.getElementById('gate'); if(g) g.style.display='';
+    const r=document.getElementById('recuperar'); if(r) r.classList.remove('on');
+    document.getElementById('gerr').textContent =
+      e.message + (PASO_ACTUAL ? ' (al '+PASO_ACTUAL+')' : '');
+    try{ await sb.auth.signOut(); }catch(_){ }
+    return;
+  }
+  cargando(false);
   document.getElementById('gate').style.display='none';
   document.getElementById('app').style.display='block';
   // El selector solo existe si hay más de uno que elegir. Un propietario
