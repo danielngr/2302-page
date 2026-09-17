@@ -57,8 +57,12 @@
 
   /* ── PIN ── */
   .gate{max-width:440px;margin:14vh auto 0;text-align:center;padding:0 16px}
-  .gate .brand{margin-bottom:22px}
-  .gate h1{font-family:var(--serif);font-weight:300;font-size:36px;margin:0 0 8px;letter-spacing:-.01em}
+  .gate .brand{margin-bottom:10px}
+  /* lienzo de la ballena: mismo modelo 3D del sitio, girando despacio sobre el navy */
+  #gateWhale{display:block;width:min(300px,72vw);height:min(190px,46vw);margin:2px auto 2px;opacity:0;transition:opacity 1.1s cubic-bezier(.22,.61,.36,1)}
+  #gateWhale.on{opacity:1}
+  @media (prefers-reduced-motion:reduce){ #gateWhale{transition:none} }
+  .gate h1{font-family:var(--serif);font-weight:300;font-size:36px;margin:0 0 18px;letter-spacing:-.01em}
   .gate p{color:var(--text-2);font-size:14px;line-height:1.65;margin:0 0 24px}
   .gate form{display:flex;gap:8px}
   .gate input{flex:1;min-width:0;background:var(--surface-2);border:1px solid var(--hair-2);border-radius:999px;color:var(--text);font-size:16px;padding:14px 18px;letter-spacing:.12em;outline:none;transition:border-color .2s}
@@ -185,8 +189,8 @@
 
 <section id="gate" class="gate">
   <div class="brand">VRM<small>Vacation Rental México</small></div>
+  <canvas id="gateWhale" aria-hidden="true"></canvas>
   <h1>Tráfico del sitio</h1>
-  <p>De dónde llegan las visitas, cuándo, y cuántas terminan en reserva.<br>El PIN se comprueba en el servidor; aquí no se guarda nada.</p>
   <form id="pinForm" autocomplete="off">
     <input id="pin" type="password" placeholder="PIN" aria-label="PIN" required autocomplete="off">
     <button type="submit">Entrar</button>
@@ -323,6 +327,102 @@
 </div>
 <div id="tip" role="status" aria-live="polite"></div>
 <div class="toast" id="toast"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+/* ═══ La ballena de VRM en la pantalla del PIN ═══
+   El mismo ballena_opt.glb del sitio (176 KB, meshopt), con el material de
+   cristal iridiscente. Nada de esto bloquea el acceso: si no hay WebGL, si el
+   navegador no soporta módulos o si el modelo no carga, el lienzo se queda
+   invisible y la pantalla funciona igual. Se detiene sola al entrar al tablero
+   y cuando la pestaña no está visible, para no gastar batería. */
+try {
+  const canvas = document.getElementById('gateWhale');
+  const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const [THREE, { GLTFLoader }, { MeshoptDecoder }, { RoomEnvironment }] = await Promise.all([
+    import('three'),
+    import('three/addons/loaders/GLTFLoader.js'),
+    import('three/addons/libs/meshopt_decoder.module.js'),
+    import('three/addons/environments/RoomEnvironment.js')
+  ]);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.setClearColor(0x000000, 0);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.9;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  const escena = new THREE.Scene();
+  const camara = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+  camara.position.set(0, 0.2, 5.6); camara.lookAt(0, 0, 0);
+
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  escena.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+  const key = new THREE.DirectionalLight(0x9fd0ff, 1.6); key.position.set(3, 4, 5); escena.add(key);
+  const rim = new THREE.DirectionalLight(0xc8a87c, 1.4); rim.position.set(-4, 2, -3); escena.add(rim);
+  escena.add(new THREE.AmbientLight(0x1a3a66, 0.35));
+
+  const material = new THREE.MeshPhysicalMaterial({
+    color: 0x5a96d0, transmission: 0.30, thickness: 1.2, ior: 1.7,
+    attenuationColor: new THREE.Color(0x3070a8), attenuationDistance: 0.7,
+    iridescence: 0.7, iridescenceIOR: 1.4, iridescenceThicknessRange: [300, 700],
+    clearcoat: 1.0, clearcoatRoughness: 0.0, metalness: 0.30, roughness: 0.05,
+    envMapIntensity: 1.1, side: THREE.DoubleSide, flatShading: true
+  });
+
+  function medir(){
+    const r = canvas.getBoundingClientRect();
+    if (!r.width) return;
+    renderer.setSize(r.width, r.height, false);
+    camara.aspect = r.width / r.height; camara.updateProjectionMatrix();
+  }
+
+  const cargador = new GLTFLoader(); cargador.setMeshoptDecoder(MeshoptDecoder);
+  cargador.load('ballena_opt.glb', (gltf) => {
+    const modelo = gltf.scene;
+    modelo.traverse(c => { if (c.isMesh) { c.geometry = c.geometry.toNonIndexed(); c.geometry.computeVertexNormals(); c.material = material; c.frustumCulled = false; } });
+    escena.add(modelo);
+    let mezclador = null, duracion = 5;
+    if (gltf.animations.length) { mezclador = new THREE.AnimationMixer(modelo); mezclador.clipAction(gltf.animations[0]).play(); duracion = gltf.animations[0].duration || 5; mezclador.setTime(0); }
+    modelo.updateMatrixWorld(true);
+    // encuadre por la caja REAL de la malla animada (los huesos la mueven lejos del reposo)
+    const caja = new THREE.Box3();
+    modelo.traverse(c => { if (c.isSkinnedMesh) { c.computeBoundingBox(); caja.union(c.boundingBox.clone().applyMatrix4(c.matrixWorld)); } else if (c.isMesh) caja.expandByObject(c); });
+    const tam = caja.getSize(new THREE.Vector3()), centro = caja.getCenter(new THREE.Vector3());
+    const pivote = new THREE.Group(); escena.add(pivote); pivote.add(modelo);
+    modelo.position.sub(centro);
+    pivote.scale.setScalar(4.1 / Math.max(tam.x, tam.y, tam.z));
+    pivote.rotation.y = -0.55; pivote.rotation.z = 0.12;
+
+    medir(); canvas.classList.add('on');
+    const reloj = new THREE.Clock();
+    let lazo = null;
+    function cuadro(){
+      lazo = requestAnimationFrame(cuadro);
+      const t = reloj.getElapsedTime();
+      if (mezclador) mezclador.setTime(t % duracion);
+      const fase = (t % duracion) / duracion * Math.PI * 2;
+      pivote.position.y = Math.sin(fase) * 0.06;
+      pivote.rotation.y = -0.55 + Math.sin(fase) * 0.05;
+      renderer.render(escena, camara);
+    }
+    function arrancar(){ if (!lazo && !document.hidden && !document.getElementById('gate').classList.contains('hidden')) { reloj.getDelta(); cuadro(); } }
+    function parar(){ if (lazo) { cancelAnimationFrame(lazo); lazo = null; } }
+    if (quieto) { renderer.render(escena, camara); }          // sin movimiento: un solo cuadro
+    else arrancar();
+    document.addEventListener('visibilitychange', () => document.hidden ? parar() : (quieto ? renderer.render(escena, camara) : arrancar()));
+    addEventListener('resize', () => { medir(); if (quieto || !lazo) renderer.render(escena, camara); });
+    // al entrar al tablero, se apaga
+    new MutationObserver(() => { if (document.getElementById('gate').classList.contains('hidden')) parar(); else if (!quieto) arrancar(); })
+      .observe(document.getElementById('gate'), { attributes:true, attributeFilter:['class'] });
+  }, undefined, () => { /* si no carga, el lienzo se queda invisible */ });
+} catch (e) { /* sin WebGL o sin módulos: la pantalla del PIN funciona igual */ }
+</script>
 
 <script>
 (function(){
