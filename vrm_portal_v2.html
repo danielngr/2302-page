@@ -752,6 +752,14 @@
         .btn i { font-size: 16px; }
         .btn-outline-red    { border: 1px solid var(--status-red-border); color: var(--status-red); background: var(--status-red-bg); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
         .btn-outline-red:hover { background: rgba(255,92,92,.15); border-color: rgba(255,92,92,.4); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255,92,92,.15); }
+        /* `btn-ghost` se usaba en tres lugares del portal sin estar definida
+           nunca: sin reglas, el navegador pintaba el botón blanco sólido por
+           omisión. Las flechas de semana de Nómina llevaban así desde siempre. */
+        .btn-ghost { border: 1px solid rgba(255,255,255,.10); color: var(--text-secondary);
+                     background: rgba(255,255,255,.03); }
+        .btn-ghost:hover { border-color: rgba(255,255,255,.28); color: var(--text-primary);
+                           background: rgba(255,255,255,.07); }
+        .btn-ghost:disabled { opacity:.3; cursor:default; }
         .btn-outline-white  { border: 1px solid rgba(255,255,255,.15); color: var(--text-primary); background: transparent; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
         .btn-outline-white:hover { border-color: rgba(255,255,255,.4); background: rgba(255,255,255,.08); transform: translateY(-2px); }
         .btn-outline-blue   { border: 1px solid var(--status-blue-border); color: var(--status-blue); background: var(--status-blue-bg); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
@@ -2428,6 +2436,36 @@
     margin-top:20px;font-size:11px;color:var(--text-tertiary);
     font-family:var(--font-mono);letter-spacing:1px;
   }
+
+/* ── Mantenimiento ────────────────────────────────────────────────────── */
+/* El grid se adapta solo: cuatro tarjetas en escritorio, dos en tablet y
+   una en teléfono. Estaba fijo en cuatro columnas y en el celular las
+   cifras salían cortadas — justo donde Rodrigo lo va a abrir. */
+.mt-stats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(168px,1fr))}
+.mt-b{font-size:12px;padding:7px 13px;white-space:nowrap}
+.mt-chip{display:inline-block;font-family:var(--font-mono);font-size:11px;
+         padding:3px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.12)}
+.mt-vacio{padding:40px 20px;text-align:center;color:var(--text-tertiary);
+          font-family:var(--font-mono);font-size:12.5px}
+.mt-error{padding:34px 20px;text-align:center;color:var(--status-red);font-size:13px}
+#mod-mantenimiento.active{overflow-y:auto}
+#mt-lista input[type=number]::-webkit-outer-spin-button,
+#mt-lista input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+#mt-lista input[type=number]{-moz-appearance:textfield}
+@media(max-width:640px){
+  .mt-b{padding:8px 13px}
+  /* Al apilar, `flex:1 1 260px` deja de significar 260px de ANCHO y pasa a
+     significar 260px de ALTO: el eje principal cambia con la dirección. En el
+     teléfono eso abría un hueco vacío del tamaño de media pantalla entre la
+     descripción y el monto. Por eso aquí las dos columnas pierden su base. */
+  #mt-lista .glass-card > div:first-child{flex-direction:column;gap:10px}
+  #mt-lista .glass-card > div:first-child > div{flex:0 0 auto !important;
+      min-width:0 !important;text-align:left !important;width:100%}
+  /* El monto y las acciones, en renglones completos y tocables */
+  #mt-lista .glass-card > div:last-child{gap:8px}
+  #mt-lista .glass-card > div:last-child > div{margin-left:0 !important;width:100%}
+  #mt-lista input[type=number]{flex:1}
+}
 </style>
 
 
@@ -2823,6 +2861,10 @@
                 <div class="nav-item" onclick="goTo('aircover',this)">
                     <i class="ph ph-shield-check"></i>
                     Aircover
+                </div>
+                <div class="nav-item" onclick="goTo('mantenimiento',this)">
+                    <i class="ph ph-wrench"></i>
+                    Mantenimiento
                 </div>
                 <div class="nav-item" onclick="goTo('bot',this)">
                     <i class="ph ph-robot"></i>
@@ -3970,6 +4012,39 @@
             </div>
 
             <!-- MÓDULO: BOT -->
+            <!-- ══ MANTENIMIENTO ══════════════════════════════════════════
+                 Lo que Rodrigo decide: de lo que costó una tarea, cuánto se
+                 le cobra al propietario. La app de Lovable guardaba solo el
+                 costo; esa decisión vivía fuera del sistema. -->
+            <div class="module" id="mod-mantenimiento" style="gap:18px;display:none">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div>
+                        <h1 style="font-family:var(--font-display);font-size:22px;margin:0">Mantenimiento</h1>
+                        <div style="font-size:12px;color:var(--text-tertiary);margin-top:3px">
+                            De lo que costó cada tarea, cuánto se le cobra al propietario
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <button class="btn btn-ghost mt-b" onclick="mtMes(-1)"><i class="ph ph-caret-left"></i></button>
+                        <span id="mt-periodo" style="font-family:var(--font-display);font-size:14px;min-width:132px;text-align:center;text-transform:capitalize">—</span>
+                        <button class="btn btn-ghost mt-b" id="mt-sig" onclick="mtMes(1)"><i class="ph ph-caret-right"></i></button>
+                        <button class="btn btn-ghost mt-b" onclick="mtCargar()" title="Recargar"><i class="ph ph-arrows-clockwise"></i></button>
+                    </div>
+                </div>
+
+                <div id="mt-stats" class="mt-stats"></div>
+                <div id="mt-avance" style="display:none"></div>
+
+                <div style="display:flex;align-items:center;justify-content:flex-end">
+                    <label style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none">
+                        <input type="checkbox" id="mt-ver-decididas" onchange="mtPintar()" style="accent-color:var(--accent-terracota)">
+                        Ver también las ya decididas
+                    </label>
+                </div>
+
+                <div id="mt-lista"><div class="mt-vacio">Cargando…</div></div>
+            </div>
+
             <div class="module" id="mod-bot" style="gap:20px">
                 <!-- Header reconciliación -->
                 <div class="glass-panel" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:18px 20px;border-radius:var(--radius-lg);margin-top:16px">
@@ -4107,6 +4182,30 @@
     ];
     const QUINCENAL_SET = new Set(QUINCENAL_IDS);
     // Helper: fecha actual en zona horaria de México (donde están los deptos)
+    // ── FECHAS: por qué no se usa toISOString() para sacar el día ──────────
+    //
+    // `toISOString()` convierte a UTC. Un Date construido con aritmética
+    // local —`new Date()`, `setDate(+7)`, o el truco de `toLocaleString` con
+    // zona de México— guarda la fecha que uno quiere en sus campos LOCALES.
+    // Pasarlo por UTC la mueve otra vez, y el día cambia:
+    //
+    //     Italia (UTC+2)  de 00:00 a 02:00  → devuelve AYER
+    //     México (UTC−6)  de 18:00 a 24:00  → devuelve MAÑANA
+    //
+    // Peor: `getMXDate()` ya calculaba bien la fecha de Vallarta y luego
+    // `toISOString()` la deshacía. El trabajo estaba hecho y se tiraba.
+    //
+    // `isoCal` no convierte nada: lee los campos que el Date ya muestra.
+    // Es la misma forma que ya se usaba bien en un solo lugar del archivo
+    // (el `hoyMX` de la línea 9241); ahora se usa en todos.
+    const isoCal = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+    // El "hoy" del negocio es el de Vallarta, no el de quien abre el portal.
+    // Daniel trabaja desde Italia: a las 2 de la mañana allá, en Vallarta
+    // siguen siendo las 6 de la tarde del día ANTERIOR. Una limpieza que se
+    // registre en ese rato pertenece al día de Vallarta.
+    const hoyVta = () => isoCal(new Date(new Date().toLocaleString("en-US", {timeZone: "America/Mexico_City"})));
+
     function getMXDate(offsetDias = 0) {
         const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Mexico_City"}));
         d.setHours(0,0,0,0);
@@ -4188,6 +4287,7 @@
         if(sb) { sb.classList.remove('open'); }
         if(ov) { ov.style.display = 'none'; }
         if(mod === 'housekeeping') hk2Cargar();
+        if(mod === 'mantenimiento') { document.getElementById('mod-mantenimiento').style.display='flex'; mtCargar(); }
         if(mod === 'bot') setTimeout(cargarReconciliacion, 50);
         if(mod === 'nomina') cargarNomina();
         if(mod === 'reportes') {
@@ -4375,9 +4475,9 @@
             // Solo últimos 60 días en carga inicial — mucho más rápido
             const hoy = new Date();
             const hace60 = new Date(hoy); hace60.setDate(hoy.getDate()-60);
-            const desde = hace60.toISOString().split('T')[0];
+            const desde = isoCal(hace60);
             const prox30 = new Date(hoy); prox30.setDate(hoy.getDate()+30);
-            const hasta = prox30.toISOString().split('T')[0];
+            const hasta = isoCal(prox30);
 
             // Fetch en paralelo: registros recientes + QR + sheet
             const [resReg, resCheckins, resQR] = await Promise.all([
@@ -4483,7 +4583,7 @@
         for(let i = rango[0]; i <= rango[1]; i++) {
             const d = getMXDate(i);
             fechasRango.add(`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`);
-            fechasISORange.add(d.toISOString().split("T")[0]);
+            fechasISORange.add(isoCal(d));
         }
 
         let checkins = 0, checkouts = 0, pendientes = 0;
@@ -4716,7 +4816,7 @@
 
         const hoy = new Date();
         const hace30 = new Date(); hace30.setDate(hoy.getDate()-30);
-        const hace30S = hace30.toISOString().split("T")[0];
+        const hace30S = isoCal(hace30);
 
         const recientes = lista.filter(r => !r.fecha_entrada||r.fecha_entrada>=hace30S);
         const antiguos  = lista.filter(r =>  r.fecha_entrada&&r.fecha_entrada<hace30S);
@@ -5383,7 +5483,7 @@
 
         const hoy=new Date(), hace30=new Date();
         hace30.setDate(hoy.getDate()-30);
-        const hace30S=hace30.toISOString().split("T")[0];
+        const hace30S=isoCal(hace30);
         const recientes=lista.filter(r=>!r.fecha_entrada||r.fecha_entrada>=hace30S);
         const antiguos =lista.filter(r=> r.fecha_entrada&&r.fecha_entrada<hace30S);
         const sortDesc=arr=>[...arr].sort((a,b)=>{const fa=a.fecha_entrada||"",fb=b.fecha_entrada||"";return fb!==fa?fb.localeCompare(fa):(a.depto||"").localeCompare(b.depto||"");});
@@ -7540,7 +7640,7 @@
         // Calcular primer y último día del mes
         const [y, m] = mes.iso.split('-').map(Number);
         const primerDia = `${mes.iso}-01`;
-        const ultimoDia = new Date(y, m, 0).toISOString().split('T')[0];
+        const ultimoDia = isoCal(new Date(y, m, 0));
 
         const res = await fetch(
             `${SUPABASE_URL}/rest/v1/limpiezas?estatus=in.(terminada,pagada)&fecha=gte.${primerDia}&fecha=lte.${ultimoDia}&select=depto_codigo,tipo&limit=5000`,
@@ -8718,7 +8818,7 @@
             const hoyMX = new Date(new Date().toLocaleString("en-US",{timeZone:"America/Mexico_City"}));
             const desde = new Date(hoyMX); desde.setDate(desde.getDate()-2);
             const hasta = new Date(hoyMX); hasta.setDate(hasta.getDate()+7);
-            const iso = d => d.toISOString().split("T")[0];
+            const iso = d => isoCal(d);
             const desdeISO = iso(desde), hastaISO = iso(hasta);
 
             // Traer reservas cuyo check_in O check_out caiga en la ventana
@@ -9098,6 +9198,258 @@
     // ══════════════════════════════════════════════════════
     // CONTROL DE REGISTROS (reconciliación últimos 7 días)
     // ══════════════════════════════════════════════════════
+
+    // ══ MANTENIMIENTO ═════════════════════════════════════════════════════
+    //
+    // Una tarea tiene dos números que NO son el mismo: lo que COSTÓ y lo que
+    // se le COBRA al propietario. La app de Lovable guardaba solo el primero;
+    // el segundo vivía en la cabeza de Rodrigo y se aplicaba al cerrar el mes.
+    //
+    // Esta pantalla es ese momento, hecho visible. La regla de fondo: lo no
+    // decidido NO se cobra. Si se salta una tarea, el dueño no recibe el
+    // cargo y el cierre avisa que falta. Al revés —cobrar por omisión— un
+    // propietario pagaría algo que nadie aprobó, y eso no se descubre hasta
+    // que reclama.
+    let mtOffset = 0, mtDatos = [], mtResumen = null;
+
+    // Todo lo que venga de la base pasa por aquí antes de entrar al HTML.
+    // Las descripciones las escriben personas: un «<» en «muro < 2m» rompía
+    // el renglón entero, y un texto con etiquetas podría inyectar marcado.
+    const mtEsc = v => String(v ?? '').replace(/[&<>"']/g,
+        c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    function mtPeriodo(off) {
+        // Meses contados sobre la fecha de Vallarta, no la de quien mira.
+        const h = new Date(new Date().toLocaleString("en-US", {timeZone:"America/Mexico_City"}));
+        const d = new Date(h.getFullYear(), h.getMonth() + (off ?? mtOffset), 1);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    }
+    const MT_MESES = ['enero','febrero','marzo','abril','mayo','junio','julio',
+                      'agosto','septiembre','octubre','noviembre','diciembre'];
+    function mtEtiqueta(per) {
+        const [a,m] = per.split('-').map(Number);
+        return `${MT_MESES[m-1]} ${a}`;
+    }
+    // Hacia adelante no se puede pasar del mes en curso: no hay mantenimiento
+    // en el futuro, y un mes vacío se ve igual que uno sin registrar.
+    function mtMes(n) { mtOffset = Math.min(0, mtOffset + n); mtCargar(); }
+
+    const mtH = json => {
+        const h = {"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Cache-Control":"no-cache"};
+        if (json) { h["Content-Type"]="application/json"; h["Prefer"]="return=minimal"; }
+        return h;
+    };
+    const mtPesos = n => '$' + (Number(n)||0).toLocaleString('en-US',
+        {minimumFractionDigits:2, maximumFractionDigits:2});
+    const mtPesosCorto = n => '$' + Math.round(Number(n)||0).toLocaleString('en-US');
+
+    async function mtCargar() {
+        const per = mtPeriodo();
+        const lbl = document.getElementById('mt-periodo');
+        if (lbl) lbl.textContent = mtEtiqueta(per);
+        const btnSig = document.getElementById('mt-sig');
+        if (btnSig) { btnSig.disabled = mtOffset >= 0; btnSig.style.opacity = mtOffset >= 0 ? .3 : 1; }
+        const cont = document.getElementById('mt-lista');
+        if (cont) cont.innerHTML = '<div class="mt-vacio">Cargando…</div>';
+        try {
+            const [rt, rr] = await Promise.all([
+                fetch(`${SUPABASE_URL}/rest/v1/mant_tareas?periodo=eq.${per}&select=*&order=depto_codigo.asc,fecha.asc`, {headers:mtH()}),
+                fetch(`${SUPABASE_URL}/rest/v1/v_mant_resumen?periodo=eq.${per}&select=*`, {headers:mtH()})
+            ]);
+            // Si los datos base fallan NO se pinta una lista vacía. Una lista
+            // vacía por error de red se ve idéntica a «no hubo trabajo este
+            // mes», y sobre eso alguien cerraría el mes tranquilo.
+            if (!rt.ok) throw new Error('No pude leer las tareas (HTTP ' + rt.status + ')');
+            mtDatos = await rt.json();
+            mtResumen = rr.ok ? (await rr.json())[0] : null;
+            mtPintar();
+        } catch (e) {
+            if (cont) cont.innerHTML = `<div class="mt-error">
+                <i class="ph ph-warning-circle" style="font-size:26px;display:block;margin-bottom:9px"></i>
+                ${mtEsc(e.message)}
+                <div style="font-size:11px;opacity:.75;margin-top:6px">No se muestra nada para no dar información falsa.</div>
+                <button class="btn btn-ghost" style="margin-top:14px" onclick="mtCargar()">Reintentar</button></div>`;
+        }
+    }
+
+    function mtPintar() {
+        const verTodas = document.getElementById('mt-ver-decididas')?.checked;
+        // Las internas de VRM y las de propiedades que ya no se manejan no se
+        // deciden: no hay dueño a quien cobrarle. Nunca entran a la lista.
+        const propias = mtDatos.filter(t => t.depto_codigo);
+        const pend    = propias.filter(t => t.cobrable === null);
+        const lista   = verTodas ? propias : pend;
+
+        // ── Los cuatro números del mes ────────────────────────────────────
+        const r = mtResumen || {};
+        const faltaMonto = pend.reduce((a,x) => a + Number(x.costo||0), 0);
+        const card = (titulo, valor, pie, color) => `
+            <div class="stat-card glass-card" style="min-width:0">
+                <div class="stat-header"><span class="stat-title">${titulo}</span></div>
+                <div class="stat-value" style="font-size:19px;white-space:nowrap${color?';color:'+color:''}">${valor}</div>
+                <div style="font-size:11px;color:var(--text-tertiary);margin-top:3px">${pie||'&nbsp;'}</div>
+            </div>`;
+        document.getElementById('mt-stats').innerHTML =
+            card('Costo del mes', mtPesosCorto(r.costo_real), `${propias.length} de propiedades`) +
+            card('Por decidir', pend.length ? String(pend.length) : '✓',
+                 pend.length ? mtPesosCorto(faltaMonto) + ' en juego' : 'nada pendiente',
+                 pend.length ? 'var(--status-yellow)' : 'var(--status-green)') +
+            card('Se le cobra al dueño', mtPesosCorto(r.se_cobra), 'ya decidido', 'var(--status-green)') +
+            card('Lo absorbe VRM', mtPesosCorto(r.absorbido), 'de propiedades');
+
+        // ── Avance, para que se vea el final del túnel ────────────────────
+        const barra = document.getElementById('mt-avance');
+        if (propias.length) {
+            const hechas = propias.length - pend.length;
+            barra.style.display = 'block';
+            barra.innerHTML = `
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-tertiary);margin-bottom:6px">
+                    <span>${hechas} de ${propias.length} decididas</span>
+                    <span>${Math.round(hechas/propias.length*100)}%</span>
+                </div>
+                <div style="height:4px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden">
+                    <div style="height:100%;width:${hechas/propias.length*100}%;border-radius:4px;
+                                background:linear-gradient(90deg,var(--accent-terracota),#ff9858);
+                                transition:width .35s ease"></div>
+                </div>`;
+        } else barra.style.display = 'none';
+
+        const cont = document.getElementById('mt-lista');
+        if (!lista.length) {
+            cont.innerHTML = `<div class="mt-vacio" style="color:var(--status-green);padding:52px 20px">
+                <i class="ph ph-check-circle" style="font-size:32px;display:block;margin-bottom:12px"></i>
+                ${propias.length ? 'Todo decidido en ' + mtEtiqueta(mtPeriodo())
+                                 : 'Sin tareas de propiedades en ' + mtEtiqueta(mtPeriodo())}</div>`;
+            return;
+        }
+
+        // Agrupadas por propiedad. Rodrigo no revisa «la tarea del 14»: revisa
+        // «lo de Aria 1001». Verlas juntas deja comparar el gasto del mes de
+        // esa propiedad antes de decidir cada una.
+        const grupos = {};
+        lista.forEach(t => (grupos[t.depto_codigo] ||= []).push(t));
+        cont.innerHTML = Object.keys(grupos).sort().map(dep => {
+            const ts = grupos[dep];
+            const total = ts.reduce((a,x) => a + Number(x.costo||0), 0);
+            return `
+            <div style="margin-bottom:26px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;
+                          padding:0 3px 9px;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:12px">
+                <span style="font-family:var(--font-display);font-size:15px;font-weight:600;letter-spacing:.01em">${mtEsc(dep)}</span>
+                <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-tertiary)">
+                    ${ts.length} ${ts.length===1?'tarea':'tareas'} · ${mtPesosCorto(total)}</span>
+              </div>
+              ${ts.map(mtFila).join('')}
+            </div>`;
+        }).join('');
+    }
+
+    function mtFila(t) {
+        const dec = t.cobrable !== null;
+        const franja = !dec ? 'var(--status-yellow)'
+                       : (t.cobrable ? 'var(--status-green)' : 'rgba(255,255,255,.14)');
+        const estado = !dec ? ''
+            : (t.cobrable
+                ? `<span class="mt-chip" style="color:var(--status-green);border-color:rgba(34,211,125,.35);background:rgba(34,211,125,.1)">se cobra ${mtPesos(t.monto_cobrado)}</span>`
+                : `<span class="mt-chip" style="color:var(--text-tertiary)">no se cobra</span>`);
+        const mats = t.materiales_detalle
+            ? `<div style="font-size:11px;color:var(--text-tertiary);margin-top:7px;line-height:1.55;
+                           padding-left:10px;border-left:2px solid rgba(255,255,255,.08)">${mtEsc(t.materiales_detalle).slice(0,300)}</div>`
+            : '';
+        return `
+        <div class="glass-card" id="mt-row-${t.id}" style="padding:14px 16px 13px;margin-bottom:9px;
+             border-left:3px solid ${franja};${dec?'opacity:.55':''};transition:opacity .2s">
+          <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start">
+            <div style="min-width:200px;flex:1 1 260px">
+              <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono);letter-spacing:.04em">
+                ${(t.fecha||'').slice(8,10)}/${(t.fecha||'').slice(5,7)}${t.quien?' · '+mtEsc(t.quien):''}
+              </div>
+              <div style="font-size:14px;font-weight:600;margin:4px 0 2px">${mtEsc(t.actividad)}</div>
+              <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.55">${mtEsc(t.descripcion).slice(0,400)}</div>
+              ${mats}
+            </div>
+            <div style="text-align:right;flex:0 0 auto">
+              <div style="font-family:var(--font-mono);font-size:18px;font-weight:700;letter-spacing:-.01em">${mtPesos(t.costo)}</div>
+              <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:2px">
+                obra ${mtPesosCorto(t.mano_obra)} · mat ${mtPesosCorto(t.materiales)}
+              </div>
+              <div style="margin-top:7px">${estado}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:7px;margin-top:13px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-outline-green mt-b" onclick="mtDecidir('${t.id}', true, ${Number(t.costo)||0})">Cobrar todo</button>
+            <button class="btn btn-outline-white mt-b" onclick="mtDecidir('${t.id}', false, null)">No cobrar</button>
+            <div style="display:flex;gap:6px;align-items:center;margin-left:auto">
+              <input id="mt-otro-${t.id}" type="number" step="0.01" min="0" placeholder="otro monto"
+                     onkeydown="if(event.key==='Enter')mtDecidir('${t.id}', true, null)"
+                     style="width:112px;padding:6px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.12);
+                            background:rgba(255,255,255,.04);color:var(--text-primary);font-size:12px;
+                            font-family:var(--font-mono);text-align:right">
+              <button class="btn btn-outline-green mt-b" onclick="mtDecidir('${t.id}', true, null)">Cobrar</button>
+            </div>
+            ${dec ? `<button class="btn btn-ghost mt-b"
+                     onclick="mtDecidir('${t.id}', null, null)" title="Dejarla otra vez sin decidir">Deshacer</button>` : ''}
+          </div>
+        </div>`;
+    }
+
+    async function mtDecidir(id, cobrable, monto) {
+        const t = mtDatos.find(x => x.id === id);
+        const inp = document.getElementById('mt-otro-'+id);
+
+        // «Cobrar» sin monto escrito no hace nada: guardar cobrable sin
+        // cantidad dejaría un cargo de cero que PARECE decidido, y ése no lo
+        // atrapa nadie después.
+        if (cobrable === true && monto === null) {
+            const v = parseFloat(inp?.value);
+            if (!(v >= 0)) {
+                if (inp) { inp.style.borderColor = 'var(--status-red)'; inp.focus();
+                           setTimeout(()=>inp.style.borderColor='rgba(255,255,255,.12)', 1400); }
+                toast('Escribe el monto primero');
+                return;
+            }
+            monto = v;
+        }
+
+        // Cobrar más de lo que costó puede ser correcto —a veces hay margen—
+        // pero un dedazo aquí se va directo al estado de cuenta de un dueño.
+        // Se confirma en la misma fila, sin diálogo del navegador: un
+        // `confirm()` congela la página y en móvil se ve como un error.
+        if (cobrable === true && t && monto > Number(t.costo) && !mtOk.has(id)) {
+            mtOk.add(id);
+            const fila = document.getElementById('mt-row-'+id);
+            if (fila) {
+                const av = document.createElement('div');
+                av.style.cssText = 'margin-top:10px;padding:9px 12px;border-radius:9px;font-size:12px;'
+                    + 'background:rgba(255,184,0,.1);border:1px solid rgba(255,184,0,.3);color:var(--status-yellow)';
+                av.innerHTML = `Vas a cobrar <b>${mtPesos(monto)}</b> por algo que costó `
+                    + `<b>${mtPesos(t.costo)}</b>. Vuelve a darle a «Cobrar» si es correcto.`;
+                fila.appendChild(av);
+                setTimeout(() => { av.remove(); mtOk.delete(id); }, 8000);
+            }
+            return;
+        }
+        mtOk.delete(id);
+
+        const cuerpo = cobrable === null
+            ? {cobrable:null, monto_cobrado:null, decidido_por:null, decidido_en:null}
+            : {cobrable, monto_cobrado: cobrable ? monto : null,
+               decidido_por: 'portal', decidido_en: new Date().toISOString()};
+        try {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/mant_tareas?id=eq.${id}`,
+                {method:'PATCH', headers:mtH(true), body:JSON.stringify(cuerpo)});
+            if (!res.ok) throw new Error((await res.text()).slice(0,160));
+            if (t) Object.assign(t, cuerpo);
+            // El resumen se vuelve a pedir en vez de sumarlo aquí: la vista es
+            // la que suma, y hacerlo también del lado del navegador crearía
+            // una segunda verdad que tarde o temprano se separa de la primera.
+            const rr = await fetch(`${SUPABASE_URL}/rest/v1/v_mant_resumen?periodo=eq.${mtPeriodo()}&select=*`, {headers:mtH()});
+            if (rr.ok) mtResumen = (await rr.json())[0] || mtResumen;
+            mtPintar();
+        } catch (e) { toast('⚠️ ' + e.message); }
+    }
+    const mtOk = new Set();   // filas donde ya se avisó del sobreprecio
+
     async function cargarReconciliacion() {
         await vrmBaseLista;   // asegura que ya sabemos a qué servidor pedir
         const desde = getMXISO(-6);   // hoy y 6 días atrás = 7 días
@@ -9131,6 +9483,8 @@
             return;
         }
 
+        window._recStaff = staff;      // lo usa recRegistrarFallido
+        recDeptosDatalist();
         const nombreStaff = {};
         staff.forEach(s => { nombreStaff[s.id] = s.nombre; });
         const nom = (id) => nombreStaff[id] || '— sin chica —';
@@ -9185,9 +9539,79 @@
                         <div style="font-size:13px;color:var(--text-secondary);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${(f.texto_original||'').replace(/</g,'&lt;')}"</div>
                         <div style="font-size:11px;color:var(--text-tertiary)">${f.nombre_staff||'?'} · ${fmtF(f.fecha)}</div>
                     </div>
-                    <button class="btn btn-ghost" onclick="recResolverFallido('${f.id}')" title="Marcar como resuelto" style="flex:0 0 auto;font-size:11px;padding:7px 12px;white-space:nowrap"><i class="ph ph-check"></i> Resuelto</button>
+                    <div style="display:flex;gap:6px;align-items:center;flex:0 0 auto">
+                        <input list="rec-deptos" id="rec-dep-${f.id}" placeholder="¿de qué depa?"
+                               style="width:150px;padding:6px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--text-primary);font-size:12px">
+                        <button class="btn btn-ghost" onclick="recRegistrarFallido('${f.id}','${(f.nombre_staff||'').replace(/'/g,'')}','${f.fecha}')" title="Registrar la limpieza y pagarla en nómina" style="font-size:11px;padding:7px 12px;white-space:nowrap"><i class="ph ph-check"></i> Registrar limpieza</button>
+                        <button class="btn btn-ghost" onclick="recResolverFallido('${f.id}')" title="No era una limpieza" style="font-size:11px;padding:7px 10px;white-space:nowrap;opacity:.6">Descartar</button>
+                    </div>
                 </div>`).join('')
             : '<div style="color:var(--status-green);font-family:var(--font-mono);font-size:12px"><i class="ph ph-check"></i> Nada pendiente ✓</div>';
+    }
+
+    // ── Un mensaje no entendido SÍ es trabajo hecho ────────────────────────
+    //
+    // El único botón que había era «Resuelto», y no resolvía nada: escondía
+    // el renglón. La chica había limpiado, el bot no entendió el nombre del
+    // depa, y al ocultarlo esa limpieza dejaba de existir — no se le paga a
+    // ella en la nómina y no se le cobra al propietario. Las dos pérdidas,
+    // en silencio, detrás de un botón que decía «resuelto».
+    //
+    // Ahora son dos acciones, porque son dos cosas distintas:
+    //   Registrar limpieza → sí trabajó: se crea con su tarifa y entra a nómina
+    //   Descartar          → no era una limpieza (un audio, un «buenos días»)
+    async function recDeptosDatalist() {
+        if (document.getElementById('rec-deptos')) return;
+        try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/deptos?select=codigo&order=codigo`,
+                { headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`} });
+            const d = await r.json();
+            const dl = document.createElement('datalist');
+            dl.id = 'rec-deptos';
+            dl.innerHTML = (d||[]).map(x=>`<option value="${x.codigo}">`).join('');
+            document.body.appendChild(dl);
+        } catch(e) { console.warn('[rec] no pude traer deptos:', e); }
+    }
+
+    async function recRegistrarFallido(id, nombreStaff, fecha) {
+        const inp = document.getElementById('rec-dep-'+id);
+        const dep = ((inp && inp.value) || '').trim().toUpperCase();
+        if (!dep) { toast('Escribe de qué depa fue'); if(inp) inp.focus(); return; }
+
+        // La chica se busca por el nombre que el bot YA había reconocido (la
+        // encontró por su teléfono). Si no cuadra, no se inventa: registrar
+        // con la chica equivocada le paga a una y se lo quita a la otra.
+        const chica = (window._recStaff||[]).find(x =>
+            (x.nombre||'').trim().toUpperCase() === (nombreStaff||'').trim().toUpperCase());
+        if (!chica) { toast('No reconozco a «'+nombreStaff+'» en staff_limpieza'); return; }
+
+        try {
+            const tarifa = await getTarifa(dep, 'completa');
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/limpiezas`, {
+                method:"POST",
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,
+                         "Content-Type":"application/json","Prefer":"return=minimal"},
+                body:JSON.stringify({depto_codigo:dep, staff_id:chica.id, fecha:fecha,
+                                     estatus:'terminada', tipo:'completa',
+                                     tarifa_aplicada:tarifa})
+            });
+            if (!res.ok) {
+                const t = await res.text();
+                // UNIQUE (depto_codigo, fecha, staff_id): si ya existe no es
+                // error, es que alguien ya la registró. Se dice y se cierra.
+                if (t.includes('23505') || t.includes('duplicate')) {
+                    toast('Esa limpieza ya estaba registrada');
+                } else {
+                    toast('⚠️ No se pudo registrar: ' + t.slice(0,120));
+                    return;
+                }
+            } else {
+                toast(`✓ ${dep} · ${chica.nombre} · $${Math.round(tarifa)} — entra a nómina`);
+            }
+            await recResolverFallido(id);
+        } catch(e) {
+            toast('⚠️ ' + (e.message || e));
+        }
     }
 
     // Marca un mensaje no entendido como resuelto (no lo borra, solo lo oculta del panel)
@@ -10112,7 +10536,7 @@
     function quinAjuste(staffId, nombre){
         const q = quincenaPorOffset(quinOffset);
         // El panel suma con  fecha > windowStart  y  fecha <= fin
-        const minISO = (()=>{ const d=new Date(q.windowStartISO+'T12:00:00'); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0]; })();
+        const minISO = (()=>{ const d=new Date(q.windowStartISO+'T12:00:00'); d.setDate(d.getDate()+1); return isoCal(d); })();
         const maxISO = q.finISO;
         const hoyISO = getMXISO(0);
         const defISO = hoyISO < minISO ? minISO : (hoyISO > maxISO ? maxISO : hoyISO);
@@ -10373,7 +10797,7 @@
 
     function nomAjuste(staffId, nombre) {
         const sem = dispGetSemana(nomOffset);
-        const hoyISO = new Date().toISOString().split('T')[0];
+        const hoyISO = hoyVta();
         let defISO = hoyISO;
         if(hoyISO < sem.viernesISO) defISO = sem.viernesISO;   // antes de la semana → primer día
         if(hoyISO > sem.juevesISO)  defISO = sem.juevesISO;    // después → último día
@@ -10609,7 +11033,7 @@
             const day = d.getDay(); // 0=dom,5=vie
             const diasDesdeViernes = (day - 5 + 7) % 7;
             d.setDate(d.getDate() - diasDesdeViernes);
-            return d.toISOString().split('T')[0];
+            return isoCal(d);
         }
 
         const grupos = {};
@@ -10823,7 +11247,7 @@
 function renderSuperhost(){
   const today=new Date();
   const cutoff=new Date(today);cutoff.setFullYear(cutoff.getFullYear()-1);
-  const cutStr=cutoff.toISOString().split('T')[0];
+  const cutStr=isoCal(cutoff);
   const r12=DATA.filter(r=>r.fecha&&r.general&&r.fecha>=cutStr);
   const generals=r12.map(r=>r.general);
   const n=generals.length;
@@ -10898,7 +11322,7 @@ function runSim(){
   const count=parseInt(document.getElementById('simCount').value)||0;
   const star=parseInt(document.getElementById('simStars').value)||5;
   const today=new Date();const cutoff=new Date(today);cutoff.setFullYear(cutoff.getFullYear()-1);
-  const cutStr=cutoff.toISOString().split('T')[0];
+  const cutStr=isoCal(cutoff);
   const r12=DATA.filter(r=>r.fecha&&r.general&&r.fecha>=cutStr);
   const s=r12.reduce((a,r)=>a+r.general,0);
   const n=r12.length;
@@ -11017,7 +11441,7 @@ const VRM_SCRAPER_JS = `(async () => {
     var arr=await rc.json();
     if(Array.isArray(arr)&&arr.length&&arr[0].fecha){
       var d=new Date(arr[0].fecha+'T00:00:00'); d.setDate(d.getDate()-BUFFER_DIAS);
-      corte=d.toISOString().slice(0,10);
+      corte=isoCal(d);
     }
   }catch(e){ console.warn('No pude leer ultima fecha de Supabase, jalo todo 2026:',e); }
   console.log('%c🔎 VRM: jalando reviews desde '+corte,'font-size:14px;font-weight:bold;color:#C8A96E');
@@ -11142,7 +11566,7 @@ async function actualizarReviews() {
     // Calcular última fecha en DATA
     const fechas = DATA.map(r => r.fecha).filter(Boolean).sort();
     const ultima = fechas[fechas.length - 1] || '2026-04-06';
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = hoyVta();
     const diasDiff = Math.ceil((new Date(hoy) - new Date(ultima)) / (1000*60*60*24));
     const diasScrape = diasDiff + 2; // buffer
 
@@ -12215,9 +12639,9 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
     }
 
     function acNuevoCaso() {
-        const hoy = new Date().toISOString().split('T')[0];
+        const hoy = hoyVta();
         const lim = new Date(); lim.setDate(lim.getDate()+14);
-        const limStr = lim.toISOString().split('T')[0];
+        const limStr = isoCal(lim);
         const deptoOpts = DEPTOS_AC.map(d => `<option>${d}</option>`).join('');
 
         const overlay = document.createElement('div');
@@ -12294,8 +12718,8 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
 
         // Auto-calcular fecha límite cuando cambia fecha reclamo
         document.getElementById('ac-new-reclamo').addEventListener('change', function() {
-            const d = new Date(this.value); d.setDate(d.getDate()+14);
-            document.getElementById('ac-new-limite').value = d.toISOString().split('T')[0];
+            const d = new Date(this.value+'T00:00:00'); d.setDate(d.getDate()+14);
+            document.getElementById('ac-new-limite').value = isoCal(d);
         });
     }
 
@@ -12333,7 +12757,7 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
             await fetch(`${SUPABASE_URL}/rest/v1/aircover_casos?id=eq.${id}`, {
                 method:"PATCH", keepalive:true,
                 headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-                body: JSON.stringify({ estatus:'perdido', fecha_resolucion: new Date().toISOString().split('T')[0] })
+                body: JSON.stringify({ estatus:'perdido', fecha_resolucion: hoyVta() })
             });
             toast("Caso marcado como perdido");
             acCargar();
@@ -12373,7 +12797,7 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
         await fetch(`${SUPABASE_URL}/rest/v1/aircover_casos?id=eq.${id}`, {
             method:"PATCH", keepalive:true,
             headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-            body: JSON.stringify({ estatus:'ganado', fecha_resolucion: new Date().toISOString().split('T')[0], monto_recuperado: monto })
+            body: JSON.stringify({ estatus:'ganado', fecha_resolucion: hoyVta(), monto_recuperado: monto })
         });
         document.querySelector('.modal-overlay')?.remove();
         toast("✓ ¡Caso ganado! $" + (monto||0).toFixed(0) + " recuperados");
@@ -12432,7 +12856,7 @@ function renderAllTable(){const rows=filtered.sort((a,b)=>(b.fecha||'').localeCo
             fecha_limite: document.getElementById('ac-edit-limite').value || null,
         };
         if(datos.estatus === 'ganado' || datos.estatus === 'perdido') {
-            datos.fecha_resolucion = new Date().toISOString().split('T')[0];
+            datos.fecha_resolucion = hoyVta();
         }
         await fetch(`${SUPABASE_URL}/rest/v1/aircover_casos?id=eq.${id}`, {
             method:"PATCH", keepalive:true,
@@ -13463,7 +13887,7 @@ function updateNotifBadge(){
 
         try {
             // Traer limpiezas con video de los últimos 90 días
-            const desde = new Date(Date.now() - 90*24*60*60*1000).toISOString().slice(0, 10);
+            const desde = isoCal(new Date(Date.now() - 90*24*60*60*1000));
             const res = await fetch(
                 `${SUPABASE_URL}/rest/v1/limpiezas?fecha=gte.${desde}&video_url=not.is.null&select=id,fecha,depto_codigo,staff_id,hora_inicio,hora_fin,video_url,tipo,estatus&order=fecha.desc,hora_fin.desc`,
                 { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
@@ -13673,8 +14097,8 @@ function updateNotifBadge(){
 
         // Traer limpiezas con hora_inicio y hora_fin de los últimos 30 días
         const hace30 = new Date(); hace30.setDate(hace30.getDate()-30);
-        const desde = hace30.toISOString().split('T')[0];
-        const hoy = new Date().toISOString().split('T')[0];
+        const desde = isoCal(hace30);
+        const hoy = hoyVta();
 
         const [limp, enProceso] = await Promise.all([
             // Terminadas (con ambas horas para calcular duración)
@@ -13869,8 +14293,8 @@ function updateNotifBadge(){
         return {
             viernes,
             jueves,
-            viernesISO: viernes.toISOString().split('T')[0],
-            juevesISO:  jueves.toISOString().split('T')[0],
+            viernesISO: isoCal(viernes),
+            juevesISO:  isoCal(jueves),
             esActual: offset === 0
         };
     }
@@ -14940,7 +15364,7 @@ function updateNotifBadge(){
             const dayDate = new Date(start);
             dayDate.setDate(dayDate.getDate() + i);
             const isToday = dayDate.getTime() === today.getTime();
-            const dayStr = dayDate.toISOString().split('T')[0];
+            const dayStr = isoCal(dayDate);
             
             const events = solicitudesData.filter(s => {
                 if(s.status === 'rechazada' || s.status === 'cancelada') return false;
@@ -15024,7 +15448,7 @@ function updateNotifBadge(){
     function srvUpdateStats(){
         const pendientes = solicitudesData.filter(s => s.status === 'pendiente_revision').length;
         const confirmadas = solicitudesData.filter(s => s.status === 'confirmada' || s.status === 'pago_solicitado' || s.status === 'pagada').length;
-        const hoy = new Date().toISOString().split('T')[0];
+        const hoy = hoyVta();
         const today = solicitudesData.filter(s => s.fecha_servicio === hoy && s.status !== 'rechazada').length;
         
         const elP = document.getElementById('srv-stat-pendientes');
