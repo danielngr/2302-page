@@ -34,6 +34,13 @@ button{font-family:inherit;background:none;border:0;color:inherit;cursor:pointer
 .enter:active{transform:scale(.985)}
 .gerr{color:#C0503C;font-size:12.5px;margin-top:12px;min-height:18px}
 .gfoot{color:var(--faint);font-size:11px;margin-top:30px}
+.glink{display:block;width:100%;margin-top:14px;color:var(--muted);font-size:12.5px;
+       text-decoration:underline;text-underline-offset:3px;transition:color .2s}
+.glink:hover{color:var(--champ)}
+.gok{color:var(--champ);font-size:12.5px;margin-top:12px;line-height:1.55;min-height:18px}
+#recuperar{position:fixed;inset:0;display:none;place-items:center;background:var(--ink);z-index:101;padding:24px;
+ background-image:radial-gradient(120% 90% at 50% 110%,rgba(227,196,140,.09),transparent 60%)}
+#recuperar.on{display:grid}
 #app{display:none;max-width:760px;margin:0 auto;padding:0 20px calc(48px + env(safe-area-inset-bottom))}
 .top{position:relative;display:flex;align-items:center;justify-content:space-between;padding:20px 0 6px;position:sticky;top:0;background:linear-gradient(var(--ink) 78%,transparent);z-index:10}
 .brand{display:flex;align-items:center;gap:10px}
@@ -321,7 +328,28 @@ input[type=radio]:checked:after{content:'';position:absolute;inset:4px;border-ra
     <div class="field"><label>Contraseña</label><input id="p" type="password" autocomplete="current-password" placeholder="••••••••"></div>
     <button class="enter" onclick="login()">Entrar</button>
     <div class="gerr" id="gerr"></div>
+    <div class="gok"  id="gok"></div>
+    <button class="glink" onclick="olvide()">¿Olvidaste tu contraseña?</button>
     <div class="gfoot">Acceso privado de propietarios · VRM</div>
+  </div>
+</div>
+
+<!-- ══ CONTRASEÑA NUEVA ══════════════════════════════════════════════════
+     Sale sola cuando el propietario vuelve por el enlace del correo. No
+     tiene forma de abrirse sin ese enlace: sin el token de recuperación,
+     `updateUser` lo rechaza del lado de Supabase. -->
+<div id="recuperar">
+  <div class="gcard">
+    <div class="crest">V</div>
+    <h1>Tu contraseña nueva</h1>
+    <div class="sub">Escríbela dos veces y listo</div>
+    <div class="field"><label>Contraseña nueva</label>
+      <input id="np1" type="password" autocomplete="new-password" placeholder="••••••••"></div>
+    <div class="field"><label>Otra vez</label>
+      <input id="np2" type="password" autocomplete="new-password" placeholder="••••••••"></div>
+    <button class="enter" onclick="guardarPass()">Guardar y entrar</button>
+    <div class="gerr" id="rerr"></div>
+    <div class="gfoot">El enlace del correo caduca al usarse · VRM</div>
   </div>
 </div>
 
@@ -382,6 +410,14 @@ input[type=radio]:checked:after{content:'';position:absolute;inset:4px;border-ra
 /* ================= SUPABASE ================= */
 const SUPA_URL='https://grsykedeppdwenpfxlfh.supabase.co';
 const SUPA_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdyc3lrZWRlcHBkd2VucGZ4bGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3MDU0NzAsImV4cCI6MjA4NzI4MTQ3MH0.1fjVfOMl8bERU2FiL7izZcv0Jckns5l-sEmRwlER71o';
+// ── ¿Venimos del enlace de «olvidé mi contraseña»? ──────────────────────
+// Se mira AQUÍ, antes de crear el cliente, y no más abajo: la librería de
+// Supabase lee el `#access_token` del enlace, crea la sesión y LIMPIA la
+// dirección. Si preguntáramos después, el `type=recovery` ya no estaría y
+// el portal entraría directo al estado de cuenta sin pedir contraseña
+// nueva — que es justo lo que no queremos.
+const RECUPERANDO = /[#&?]type=recovery/.test(location.hash + location.search);
+
 const sb=window.supabase?window.supabase.createClient(SUPA_URL,SUPA_ANON):null;
 // El periodo que se muestra sale de los cierres que existen, no de una fecha
 // escrita aquí. Agosto aparece solo en cuanto se siembren sus cierres; este
@@ -1581,7 +1617,91 @@ async function cambiarPropietario(id){
 }
 
 async function logout(){await sb.auth.signOut();location.reload();}
+
+/* ── Olvidé mi contraseña ──────────────────────────────────────────────────
+   NO se le dice al visitante si ese correo tiene cuenta o no. La respuesta
+   es la misma siempre: «si existe, te llega».
+
+   Parece un detalle de redacción y no lo es. Un formulario que contesta
+   «ese correo no está registrado» se convierte en una lista de clientes:
+   cualquiera puede ir probando correos y averiguar quiénes son propietarios
+   de VRM. Con la respuesta neutra no se puede.
+
+   El `redirectTo` apunta a esta misma página. Tiene que estar permitido en
+   Supabase → Authentication → URL Configuration → Redirect URLs, o el
+   correo llega pero el enlace manda a otro lado.                          */
+async function olvide(){
+  const u   = document.getElementById('u').value.trim();
+  const err = document.getElementById('gerr');
+  const ok  = document.getElementById('gok');
+  err.textContent=''; ok.textContent='';
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(u)){
+    err.textContent='Escribe tu correo arriba y vuelve a darle.';
+    document.getElementById('u').focus(); return;
+  }
+  if(!sb){ err.textContent='No hay conexión con el servidor.'; return; }
+  ok.textContent='Enviando…';
+  const {error} = await sb.auth.resetPasswordForEmail(u,{
+    redirectTo: location.origin + location.pathname
+  });
+  if(error){
+    ok.textContent='';
+    // El límite de correos de Supabase se agota rápido y el mensaje de la
+    // librería viene en inglés y en jerga. Aquí se dice qué hacer.
+    err.textContent = /rate|limit/i.test(error.message||'')
+      ? 'Ya se mandaron varios correos en poco rato. Espera unos minutos y vuelve a intentar.'
+      : 'No se pudo enviar el correo. Intenta más tarde.';
+    return;
+  }
+  ok.innerHTML='Si ese correo tiene cuenta, en un momento te llega un enlace.<br>'
+             + 'Revisa también la carpeta de spam.';
+}
+
+/* ── La contraseña nueva ───────────────────────────────────────────────────
+   `updateUser` funciona porque el enlace del correo ya dejó una sesión de
+   recuperación abierta. Sin esa sesión Supabase lo rechaza, así que esta
+   pantalla no sirve de nada si alguien la abre por su cuenta.             */
+async function guardarPass(){
+  const a = document.getElementById('np1').value;
+  const b = document.getElementById('np2').value;
+  const err = document.getElementById('rerr');
+  if(a.length < 8){ err.textContent='Que tenga al menos 8 caracteres.'; return; }
+  if(a !== b){ err.textContent='Las dos no son iguales.'; return; }
+  err.textContent='Guardando…';
+  const {error} = await sb.auth.updateUser({password:a});
+  if(error){
+    err.textContent = /expired|invalid/i.test(error.message||'')
+      ? 'El enlace ya caducó. Pide otro desde «¿Olvidaste tu contraseña?».'
+      : error.message;
+    return;
+  }
+  // Se borra el `#access_token` de la dirección: si no, recargar vuelve a
+  // abrir esta pantalla, y el token se queda en el historial del navegador.
+  try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){}
+  document.getElementById('recuperar').classList.remove('on');
+  await enter();
+}
+
+function mostrarRecuperar(){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('recuperar').classList.add('on');
+  const c = document.getElementById('np1'); if(c) c.focus();
+}
+
 ['u','p'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')login();}));
-(async()=>{if(sb&&!SUPA_ANON.includes('PEGA_AQUI')){const {data:{session}}=await sb.auth.getSession();if(session)await enter();}})();
+['np1','np2'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')guardarPass();}));
+
+// Por si la librería termina de leer el enlace después de este arranque.
+if(sb) sb.auth.onAuthStateChange((ev)=>{ if(ev==='PASSWORD_RECOVERY') mostrarRecuperar(); });
+
+(async()=>{
+  if(!sb || SUPA_ANON.includes('PEGA_AQUI')) return;
+  // El orden importa: primero la recuperación. Con el enlace del correo ya
+  // hay sesión válida, así que preguntar por la sesión primero entraría
+  // derecho al portal y nunca pediría la contraseña nueva.
+  if(RECUPERANDO){ mostrarRecuperar(); return; }
+  const {data:{session}} = await sb.auth.getSession();
+  if(session) await enter();
+})();
 </script>
 </body></html>
