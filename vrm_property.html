@@ -1394,12 +1394,12 @@ to{opacity:1;transform:translateY(0)}
 .sum-guests{padding:22px 0;border-bottom:1px solid var(--rule-mist);display:flex;justify-content:space-between;align-items:center}
 .sum-guests-l{display:flex;flex-direction:column;gap:4px}
 .sum-guests-label{font-size:14px;color:var(--mist);font-weight:500}
-.sum-guests-sub{font-size:12px;color:var(--sand)}
+.sum-guests-sub{font-size:12px;color:rgba(200,168,124,.85)}
 .sum-guests-stepper{display:flex;align-items:center;gap:8px}
 .stepper-btn{width:40px;height:40px;border:1px solid var(--rule-mist-strong);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--mist);transition:all .2s var(--ease);font-size:20px;line-height:1}
 .stepper-btn:hover{background:var(--mist);color:var(--abyss);border-color:var(--mist)}
 .stepper-btn:disabled{opacity:.3;cursor:not-allowed}
-.stepper-val{min-width:32px;text-align:center;font-family:var(--font-display);font-weight:500;font-size:22px;font-variant-numeric:tabular-nums;color:var(--mist)}
+.stepper-val{min-width:36px;text-align:center;font-family:var(--font-display);font-weight:500;font-size:26px;font-variant-numeric:tabular-nums;color:var(--mist)}
 .sum-breakdown{padding-top:22px;display:flex;flex-direction:column;gap:12px}
 .promo-input-wrap{margin-top:16px;padding-top:16px;border-top:.5px solid rgba(232,228,218,.1);display:flex;gap:8px;align-items:stretch}
 .promo-input{flex:1;background:rgba(232,228,218,.04);border:.5px solid rgba(232,228,218,.18);color:var(--pp-paper,#e8e4da);padding:10px 14px;border-radius:6px;font-size:13px;font-family:Satoshi,system-ui,sans-serif;letter-spacing:.5px;text-transform:uppercase;outline:0;transition:border-color .2s,background .2s}
@@ -1626,7 +1626,7 @@ Change dates
 <div class="sum-guests">
 <div class="sum-guests-l">
 <span class="sum-guests-label">Guests</span>
-<span class="sum-guests-sub" id="sumGuestsSub">Up to 4 — infants included</span>
+<span class="sum-guests-sub" id="sumGuestsSub">Count everyone, babies included · max 4</span>
 </div>
 <div class="sum-guests-stepper">
 <button class="stepper-btn" id="guestsMinus" aria-label="Quitar huésped">−</button>
@@ -1891,7 +1891,7 @@ feedback.textContent="Select your dates first, then apply the code";feedback.cla
 renderAll()}function removePromoCode(){state.promoCode=null;const input=document.getElementById("promoCodeInput");const feedback=document.getElementById("promoFeedback");const btn=document.getElementById("promoApplyBtn");if(input){input.value="";input.disabled=false}if(feedback){feedback.textContent="";feedback.className="promo-feedback"}if(btn)btn.textContent="Apply";renderAll()}
 document.addEventListener("DOMContentLoaded",()=>{const btn=document.getElementById("promoApplyBtn");const input=document.getElementById("promoCodeInput");if(btn){btn.addEventListener("click",()=>{if(state.promoCode&&state.promoCode.valid){removePromoCode()}else{applyPromoCode()}})}if(input){input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();applyPromoCode()}})}})
 ;function renderAll(){renderCalendar();document.getElementById("sumCheckin").textContent=state.checkIn?formatDateLong(state.checkIn):"—";document.getElementById("sumCheckout").textContent=state.checkOut?formatDateLong(state.checkOut):"—";document.getElementById("guestsVal").textContent=state.guests;document.getElementById("guestsMinus").disabled=state.guests<=1
-;document.getElementById("guestsPlus").disabled=state.guests>=MAX_GUESTS;const guestsSub=document.getElementById("sumGuestsSub");if(guestsSub){guestsSub.textContent=`Up to ${MAX_GUESTS} — infants included`}const n=nights();const avgRate=n>0?Math.round(subtotal()/n):NIGHTLY
+;document.getElementById("guestsPlus").disabled=state.guests>=MAX_GUESTS;const guestsSub=document.getElementById("sumGuestsSub");if(guestsSub){guestsSub.textContent=`Count everyone, babies included · max ${MAX_GUESTS}`}const n=nights();const avgRate=n>0?Math.round(subtotal()/n):NIGHTLY
 ;document.getElementById("sumNightlyDesc").textContent=fmtConv(avgRate).replace(/ [A-Z]{3}$/,"")+" × "+n+" night"+(n!==1?"s":"");document.getElementById("sumSubtotal").textContent=fmtConv(subtotal());const disc=calculateDiscount();const sumDiscountLine=document.getElementById("sumDiscountLine");if(sumDiscountLine){if(disc.amount>0){sumDiscountLine.style.display="flex"
 ;document.getElementById("sumDiscountDesc").textContent=disc.label+" (-"+disc.pct+"%)";document.getElementById("sumDiscount").textContent="−"+fmtConv(disc.amount)}else{sumDiscountLine.style.display="none"}}const promoFeedback=document.getElementById("promoFeedback");if(promoFeedback&&promoFeedback.classList.contains("is-error")){}else if(promoFeedback&&!state.promoCode){
 const autoPromos=getActivePromotions();if(autoPromos.length>0){promoFeedback.textContent=`✓ ${autoPromos[0].label} (-${autoPromos[0].pct}%) applied automatically`;promoFeedback.className="promo-feedback is-info"}else{promoFeedback.textContent="";promoFeedback.className="promo-feedback"}}document.getElementById("sumTax").textContent=fmtConv(tax())
