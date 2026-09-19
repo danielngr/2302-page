@@ -90,6 +90,7 @@
 <meta name="apple-mobile-web-app-title" content="VRM">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="mapa/mapa.css">
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -457,10 +458,38 @@ if(/^America\/(Toronto|Vancouver|Edmonton|Winnipeg|Regina|Halifax|St_Johns|Montr
 ;enviados[k]=1}if(evento==="reserva"&&extra&&extra.codigo){try{if(ss&&ss.getItem("vrm_r_"+extra.codigo))return;ss&&ss.setItem("vrm_r_"+extra.codigo,"1")}catch(e){}}var b={sesion:sid,evento:evento,pagina:PAG,referente:ref.slice(0,120),pais:pais(),idioma:lang,dispositivo:dev};for(var u in utm)b[u]=utm[u];if(extra)for(var x in extra)if(extra[x]!=null)b[x]=String(extra[x]).slice(0,20);fetch(ENDPOINT,{
 method:"POST",keepalive:true,headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify(b)}).catch(function(){})}catch(e){}}window.__vrmRastro=enviar;var _u=q.get("id")||"";enviar("ficha",{unidad:_u});if(q.get("reserva")==="ok"&&q.get("codigo")){window.__vrmRetorno=true;enviar("reserva",{unidad:_u,codigo:q.get("codigo")})}
 }catch(e){}})()</script>
+<style id="vrmAccesibilidad">:where(a,button,input,select,textarea,summary,[tabindex]):focus-visible{outline:2px solid var(--gold-bright,#E8C88A);outline-offset:3px;border-radius:4px}
+@media (prefers-color-scheme:light){
+.is-light :where(a,button):focus-visible{outline-color:#0a1428}
+}
+.conf-pass-label,.loader-meta,.moneda-req,.ph-price-unit,.pp-dates-bar-check,.pp-hero-zone,.pp-host-cta,.pp-map-overlay-cta,.pp-photo-tile-label,.pp-reviews-link,.pp-stat-label,.pp-sticky-reserve-sub,.topbar-share-label{font-size:11px!important;letter-spacing:.18em}
+.pp-dates-bar-edit,.pp-host-cta,.pp-reviews-link,.topbar-share{position:relative}
+.pp-dates-bar-edit::after,.pp-host-cta::after,.pp-reviews-link::after,.topbar-share::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);min-width:44px;min-height:44px;width:100%;height:100%}</style>
+<style id="vrmMovimiento">:root{--vrm-curva:cubic-bezier(.16,1,.3,1);--vrm-dur:.82s}
+.vrm-m{display:block}
+.vrm-m__linea{display:block;overflow:hidden}
+.vrm-m__in{display:block;transform:translate3d(0,110%,0);opacity:0;transition:transform var(--vrm-dur) var(--vrm-curva),opacity calc(var(--vrm-dur) * .7) linear;transition-delay:var(--vrm-d,0ms);will-change:transform}
+.vrm-m.is-in .vrm-m__in{transform:translate3d(0,0,0);opacity:1}
+.vrm-m.is-done .vrm-m__in{will-change:auto}
+[data-sube]{opacity:0;transform:translate3d(0,18px,0);transition:opacity var(--vrm-dur) var(--vrm-curva),transform var(--vrm-dur) var(--vrm-curva);transition-delay:var(--vrm-d,0ms)}
+[data-sube].is-in{opacity:1;transform:none}
+[data-traza]{transform:scaleX(0);transform-origin:left center;transition:transform 1.1s var(--vrm-curva);transition-delay:var(--vrm-d,0ms)}
+[data-traza].is-in{transform:scaleX(1)}
+@media (prefers-reduced-motion:reduce){
+.vrm-m__in,[data-sube],[data-traza]{transform:none!important;opacity:1!important;transition:none!important}
+}</style>
+<script id="vrmMovimientoJS">(function(){"use strict";var quieto=false;try{quieto=matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){}function partirEnLineas(el){if(el.dataset.vrmPartido==="1")return;var texto=el.textContent.replace(/\s+/g," ").trim();if(!texto)return;var frag=document.createDocumentFragment(),spans=[];texto.split(" ").forEach(function(w,i){var s=document.createElement("span")
+;s.textContent=(i?" ":"")+w;frag.appendChild(s);spans.push(s)});var original=el.innerHTML;el.dataset.vrmOriginal=original;el.innerHTML="";el.appendChild(frag);var lineas=[],actual=null,topPrevio=null;spans.forEach(function(s){var t=Math.round(s.getBoundingClientRect().top);if(topPrevio===null||Math.abs(t-topPrevio)>3){actual=[];lineas.push(actual);topPrevio=t}actual.push(s.textContent)})
+;el.innerHTML="";el.classList.add("vrm-m");lineas.forEach(function(palabras,i){var caja=document.createElement("span");caja.className="vrm-m__linea";var dentro=document.createElement("span");dentro.className="vrm-m__in";dentro.textContent=palabras.join("").trim();dentro.style.setProperty("--vrm-d",i*70+"ms");caja.appendChild(dentro);el.appendChild(caja)});el.dataset.vrmPartido="1"}
+var mirador="IntersectionObserver"in window?new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;e.target.classList.add("is-in");mirador.unobserve(e.target);setTimeout(function(){e.target.classList.add("is-done")},1400)})},{threshold:.2,rootMargin:"0px 0px -8% 0px"}):null;function arrancar(){if(quieto||!mirador){
+document.querySelectorAll("[data-lineas],[data-sube],[data-traza]").forEach(function(el){el.classList.add("is-in")});return}document.querySelectorAll("[data-lineas]").forEach(function(el){partirEnLineas(el);mirador.observe(el)});document.querySelectorAll("[data-escalona]").forEach(function(p){Array.prototype.forEach.call(p.children,function(h,i){
+if(!h.hasAttribute("data-sube"))h.setAttribute("data-sube","");h.style.setProperty("--vrm-d",i*90+"ms")})});document.querySelectorAll("[data-sube],[data-traza]").forEach(function(el){mirador.observe(el)})}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",arrancar);else arrancar();var t;addEventListener("resize",function(){clearTimeout(t);t=setTimeout(function(){
+document.querySelectorAll('[data-lineas][data-vrm-partido="1"]').forEach(function(el){if(!el.classList.contains("is-in"))return;var txt=el.textContent;el.dataset.vrmPartido="";el.textContent=txt;partirEnLineas(el);el.classList.add("is-in");el.querySelectorAll(".vrm-m__in").forEach(function(n){n.style.transition="none"})})},220)},{passive:true})})()</script>
 </head>
 <body>
 <script>window.VRM_imgFallback=function(url,size){try{if(/^[a-z0-9]+-\d{2}$/i.test(String(url||"")))return"";var m=/^https:\/\/i\.imgur\.com\/([A-Za-z0-9]{7})\.(?:jpe?g|png)$/.exec(String(url||""));return m?"https://i.imgur.com/"+m[1]+(size||"h")+".jpg":url}catch(e){return url}};window.VRM_img=function(url,size){try{
-if(/^[a-z0-9]+-\d{2}$/i.test(String(url||"")))return"img/"+url+"-"+(size==="l"?1200:2400)+".webp";var m=/^https:\/\/i\.imgur\.com\/([A-Za-z0-9]{7})\.(?:jpe?g|png)$/.exec(String(url||""));if(!m)return url;var w=size==="l"?1200:2400;return"img/"+m[1]+"-"+w+".webp"}catch(e){return url}};window.VRM_imgAbs=function(url,size){var u=VRM_img(url,size);return/^https?:/.test(u)?u:"https://vrmstays.com/"+u}</script>
+if(/^[a-z0-9]+-\d{2}$/i.test(String(url||"")))return"img/"+url+"-"+(size==="l"?1200:2400)+".webp";var m=/^https:\/\/i\.imgur\.com\/([A-Za-z0-9]{7})\.(?:jpe?g|png)$/.exec(String(url||""));if(!m)return url;var w=size==="l"?1200:2400;return"img/"+m[1]+"-"+w+".webp"}catch(e){return url}};window.VRM_tamanoFoto=function(){try{var w=Math.max(document.documentElement.clientWidth||0,window.innerWidth||0)
+;var dpr=Math.min(window.devicePixelRatio||1,2);return w*dpr>1300?"h":"l"}catch(e){return"l"}};window.VRM_imgAbs=function(url,size){var u=VRM_img(url,size);return/^https?:/.test(u)?u:"https://vrmstays.com/"+u}</script>
 <div class="vrm-transition" id="vrm-transition" aria-hidden="true">
 <div class="vrm-transition-inner">
 <div class="vrm-transition-logo">vrm</div>
@@ -563,11 +592,11 @@ var CENTER="M88.4 319.2L88.0 317.5L88.0 315.6L88.4 313.5L89.1 311.1L90.0 308.6L9
 ;var reduced=false;try{reduced=matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){}var viaTrazo=false;try{viaTrazo=sessionStorage.getItem("vrmTrazoNav")==="1";sessionStorage.removeItem("vrmTrazoNav")}catch(e){}function figure(){var mid="cl"+Math.random().toString(36).slice(2);var fig=document.createElement("div");fig.className="cl-fig"
 ;fig.innerHTML='<svg viewBox="'+VB+'">'+'<defs><mask id="'+mid+'" maskUnits="userSpaceOnUse" x="-40" y="-60" width="480" height="450">'+'<rect x="-40" y="-60" width="480" height="450" fill="#000"/>'+'<path class="cl-rev cl-mask-stroke" d="'+CENTER+'" pathLength="1" stroke-width="17"/>'+"</mask></defs>"+'<path class="cl-ink" d="'+INK+'" mask="url(#'+mid+')"/>'+'<circle class="cl-dot" r="4.2" cx="0" cy="0"/>'+"</svg>"
 ;return fig}function makeWrap(meta){var wrap=document.createElement("div");wrap.className="cl-wrap";wrap.appendChild(figure());var br=document.createElement("div");br.className="cl-brand";br.innerHTML='<div class="cl-mk">VRM</div><div class="cl-mt">'+meta+"</div>";wrap.appendChild(br);return wrap}var loader=document.getElementById("loader");var ready=false,hidden=false;function hide(){
-if(hidden||!loader)return;hidden=true;loader.classList.add("gone");loader.classList.add("fade-out");setTimeout(function(){var l=document.getElementById("loader");if(l)l.remove()},850)}window.__vrmLoaderReady=function(){ready=true};setTimeout(function(){ready=true},9e3);if(loader&&viaTrazo){loader.innerHTML="";var w=makeWrap("Vacation Rental México");w.classList.add("cl-done");loader.appendChild(w)
-;var t0=performance.now();var iv=setInterval(function(){if(ready&&performance.now()-t0>520){clearInterval(iv);hide()}},70)}else if(loader){var t0b=performance.now();var iv2=setInterval(function(){if(ready&&performance.now()-t0b>0){clearInterval(iv2);hide()}},80)}window.__vrmTrazoNavigate=function(href){if(!href)return;if(reduced){try{sessionStorage.setItem("vrmTrazoNav","1")}catch(e){}
-window.location.href=href;return}try{sessionStorage.setItem("vrmTrazoNav","1")}catch(e){}var ov=document.querySelector(".vrm-fade");if(!ov){ov=document.createElement("div");ov.className="vrm-fade";document.body.appendChild(ov)}ov.innerHTML="";void ov.offsetWidth;ov.classList.add("on");var DUR=1150;var w=makeWrap("Vacation Rental México");ov.appendChild(w);w.style.setProperty("--cl-dur",DUR+"ms")
-;w.style.setProperty("--cl-brand-delay",Math.round(DUR*.82)+"ms");var navd=false,go=function(){if(navd)return;navd=true;window.location.href=href};setTimeout(function(){window.__vrmPauseWhale=true;w.classList.add("cl-go");setTimeout(go,DUR+140)},270);setTimeout(go,DUR+900)};var TRAZO_INTERNAS=/(^|\/)(index|vrm_property)\.html(\?|#|$)/i;document.addEventListener("click",function(ev){
-if(ev.defaultPrevented)return;if(ev.metaKey||ev.ctrlKey||ev.shiftKey||ev.altKey||ev.button)return;var a=ev.target.closest&&ev.target.closest("a[href]");if(!a)return;if(a.target&&a.target!=="_self")return;if(a.hasAttribute("download"))return;if(a.origin&&a.origin!==location.origin)return;var href=a.getAttribute("href");if(!href)return
+if(hidden||!loader)return;hidden=true;loader.classList.add("gone");loader.classList.add("fade-out");setTimeout(function(){var l=document.getElementById("loader");if(l)l.remove()},850)}window.__vrmLoaderReady=function(){ready=true};setTimeout(function(){ready=true},2500);if(loader&&viaTrazo){loader.innerHTML="";var w=makeWrap("Vacation Rental México");w.classList.add("cl-done")
+;loader.appendChild(w);var t0=performance.now();var iv=setInterval(function(){if(ready&&performance.now()-t0>520){clearInterval(iv);hide()}},70)}else if(loader){var t0b=performance.now();var iv2=setInterval(function(){if(ready&&performance.now()-t0b>0){clearInterval(iv2);hide()}},80)}window.__vrmTrazoNavigate=function(href){if(!href)return;if(reduced){try{sessionStorage.setItem("vrmTrazoNav","1")
+}catch(e){}window.location.href=href;return}try{sessionStorage.setItem("vrmTrazoNav","1")}catch(e){}var ov=document.querySelector(".vrm-fade");if(!ov){ov=document.createElement("div");ov.className="vrm-fade";document.body.appendChild(ov)}ov.innerHTML="";void ov.offsetWidth;ov.classList.add("on");var DUR=1150;var w=makeWrap("Vacation Rental México");ov.appendChild(w)
+;w.style.setProperty("--cl-dur",DUR+"ms");w.style.setProperty("--cl-brand-delay",Math.round(DUR*.82)+"ms");var navd=false,go=function(){if(navd)return;navd=true;window.location.href=href};setTimeout(function(){window.__vrmPauseWhale=true;w.classList.add("cl-go");setTimeout(go,DUR+140)},270);setTimeout(go,DUR+900)};var TRAZO_INTERNAS=/(^|\/)(index|vrm_property)\.html(\?|#|$)/i
+;document.addEventListener("click",function(ev){if(ev.defaultPrevented)return;if(ev.metaKey||ev.ctrlKey||ev.shiftKey||ev.altKey||ev.button)return;var a=ev.target.closest&&ev.target.closest("a[href]");if(!a)return;if(a.target&&a.target!=="_self")return;if(a.hasAttribute("download"))return;if(a.origin&&a.origin!==location.origin)return;var href=a.getAttribute("href");if(!href)return
 ;var esTopbar=a.classList.contains("topbar-back")||a.classList.contains("topbar-brand");if(!esTopbar&&!TRAZO_INTERNAS.test(href))return;ev.preventDefault();window.__vrmTrazoNavigate(href)},true)})()</script>
 <canvas class="whale-canvas" id="whale-canvas" aria-hidden="true"></canvas>
 <div class="whale-shade" aria-hidden="true"></div>
@@ -756,24 +785,6 @@ to{opacity:1;transform:translateX(0)}
 .pp-host-sub{font-size:11.5px;color:var(--pp-paper-mute)}
 .pp-host-cta{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--pp-gold);text-decoration:none;padding:7px 12px;border:.5px solid rgba(212,165,116,.45);border-radius:100px;flex-shrink:0;font-weight:500;transition:background .2s,border-color .2s}
 .pp-host-cta:hover{background:rgba(212,165,116,.1);border-color:rgba(212,165,116,.75)}
-.pp-map-preview{border-radius:8px;overflow:hidden;height:180px;position:relative;border:.5px solid var(--pp-rule-strong);cursor:pointer}
-.pp-map-leaflet{position:absolute;inset:0;background:#1a3654}
-.pp-map-leaflet.leaflet-container{background:#1a3654!important;font-family:var(--pp-sans)!important}
-.pp-map-pin-marker{width:32px;height:32px;margin-left:-16px;margin-top:-32px;display:flex;align-items:flex-start;justify-content:center}
-.pp-map-pin-marker svg{width:32px;height:32px;filter:drop-shadow(0 2px 4px rgba(0, 0, 0, .6))}
-.pp-map-pin-pulse{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;background:rgba(212,165,116,.25);animation:ppPulse 2s ease-out infinite;pointer-events:none;z-index:1000}
-@keyframes ppPulse{
-0%{transform:translate(-50%,-50%) scale(.6);opacity:.85}
-100%{transform:translate(-50%,-50%) scale(2.2);opacity:0}
-}
-.pp-map-overlay{position:absolute;bottom:0;left:0;right:0;padding:10px 14px;background:linear-gradient(180deg,transparent,rgba(10,20,40,.92));display:flex;justify-content:space-between;align-items:center;z-index:1001;pointer-events:none}
-.pp-map-overlay-text{font-size:11.5px;color:var(--pp-paper);font-weight:500}
-.pp-map-overlay-cta{font-size:9.5px;color:var(--pp-gold);letter-spacing:1.2px;text-transform:uppercase}
-.pp-map-leaflet .leaflet-control-attribution,.pp-map-leaflet .leaflet-control-container{display:none!important}
-.pp-map-nearby{margin-top:14px;display:flex;flex-direction:column;gap:8px}
-.pp-nearby-item{display:flex;align-items:center;gap:10px}
-.pp-nearby-dot{width:4px;height:4px;border-radius:50%;background:var(--pp-gold);flex-shrink:0}
-.pp-nearby-text{font-size:12px;color:var(--pp-paper-soft)}
 .pp-reviews-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
 .pp-reviews-score{display:flex;align-items:center;gap:6px}
 .pp-reviews-score-star{width:14px;height:14px;background:var(--pp-gold);display:inline-block;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
@@ -815,9 +826,9 @@ body:has(.pp-dates-bar:not([hidden])) .pp-content-end{height:calc(140px + env(sa
 <div class="pp-hero-gradient" aria-hidden="true"></div>
 <div class="pp-hero-topbar">
 <span class="pp-hero-zone" id="ppHeroZone">La Cruz · Riviera Nayarit</span>
-<div class="pp-hero-rating" id="ppHeroRating">
+<div class="pp-hero-rating" id="ppHeroRating" hidden>
 <span class="pp-hero-rating-star" aria-hidden="true"></span>
-<span id="ppHeroRatingText">4.91 · 38</span>
+<span id="ppHeroRatingText"></span>
 </div>
 </div>
 <div class="pp-hero-counter" id="ppHeroCounter">
@@ -870,7 +881,7 @@ Vallarta Gardens<br><em>Manta</em>
 <span class="pp-section-eyebrow" style="margin-bottom:0">Photos</span>
 <span class="pp-photos-count" id="ppPhotosCount">8 photos</span>
 </div>
-<div class="pp-photos-grid" id="ppPhotosGrid">
+<div class="pp-photos-grid" id="ppPhotosGrid" data-escalona>
 </div>
 </section>
 <div class="pp-lightbox" id="ppLightbox" hidden>
@@ -882,10 +893,10 @@ Vallarta Gardens<br><em>Manta</em>
 <div class="pp-lightbox-label" id="ppLightboxLabel">Living room</div>
 </div>
 <section class="pp-desc">
-<p id="ppDesc">Tercer piso con vista directa al mar. Terraza amplia, amenities del resort Vallarta Gardens — alberca infinity, spa, restaurante. Cinco minutos caminando al puerto de La Cruz.</p>
+<p id="ppDesc" data-lineas>Tercer piso con vista directa al mar. Terraza amplia, amenities del resort Vallarta Gardens — alberca infinity, spa, restaurante. Cinco minutos caminando al puerto de La Cruz.</p>
 </section>
 <section class="pp-section">
-<div class="pp-section-eyebrow">Amenities</div>
+<div class="pp-section-eyebrow" data-lineas>Amenities</div>
 <div class="pp-amenities">
 <div class="pp-amenity">
 <span class="pp-amenity-icon">
@@ -926,7 +937,7 @@ Ocean view
 </div>
 </section>
 <section class="pp-section">
-<div class="pp-section-eyebrow">Your host</div>
+<div class="pp-section-eyebrow" data-lineas>Your host</div>
 <div class="pp-host">
 <div class="pp-host-avatar">R</div>
 <div class="pp-host-info">
@@ -936,43 +947,163 @@ Ocean view
 <a href="https://wa.me/523331299854?text=Hi%20Rodrigo!%20I'm%20interested%20in%20a%20VRM%20property" class="pp-host-cta" target="_blank" rel="noopener">Message</a>
 </div>
 </section>
-<section class="pp-section">
-<div class="pp-section-eyebrow">Location</div>
-<div class="pp-map-preview" id="ppMapPreview">
-<div class="pp-map-leaflet" id="ppMapLeaflet"></div>
-<div class="pp-map-overlay">
-<span class="pp-map-overlay-text" id="ppMapZone">La Cruz de Huanacaxtle</span>
-<span class="pp-map-overlay-cta">Tap to explore →</span>
+<section class="pp-section" id="mapa">
+<div class="pp-section-eyebrow" data-lineas>Location</div>
+<div class="mp" id="mp" data-mapa="mapa/" data-complejo="gardens" data-casa="20.753272,-105.371372">
+<div class="mp-conmutador" role="tablist" aria-label="Dos lecturas del mapa">
+<button class="mp-tab" type="button" role="tab" aria-selected="true" aria-controls="mpPanelCerca" data-vista="cerca">Qué hay alrededor</button>
+<button class="mp-tab" type="button" role="tab" aria-selected="false" aria-controls="mpPanelCasas" data-vista="casas" tabindex="-1">Las otras casas</button>
+</div>
+<div class="mp-marco">
+<div class="mp-lienzo" id="mpLienzo">
+<div class="mp-plano" id="mpBase">
+<img class="mp-relieve" id="mpRelieve" data-src="bahia.webp" decoding="async" width="1200" height="760" alt="Bahía de Banderas vista desde arriba: la Sierra Madre cayendo al mar, con la mancha de Puerto Vallarta al fondo y la casa marcada en La Cruz de Huanacaxtle.">
+<noscript><img class="mp-relieve" src="mapa/bahia.webp" width="1200" height="760" alt="Bahía de Banderas vista desde arriba, con la casa marcada en La Cruz de Huanacaxtle."></noscript>
+<div class="mp-agua" aria-hidden="true">
+<div class="mp-giro mp-giro--a"><div class="mp-onda mp-onda--a"></div></div>
+<div class="mp-giro mp-giro--b"><div class="mp-onda mp-onda--b"></div></div>
+</div>
+<div class="mp-sombras" id="mpSombras" aria-hidden="true"></div>
+<canvas class="mp-ballenas" id="mpBallenas" width="2400" height="1520" aria-hidden="true"></canvas>
+</div>
+<div class="mp-nubes" id="mpNubes" aria-hidden="true"></div>
+<div class="mp-plano mp-plano--rot" id="mpRot">
+<svg class="mp-capa" id="mpCapa" viewBox="0 0 1200 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mapa de Bahía de Banderas con la casa en La Cruz de Huanacaxtle y los nueve lugares de alrededor.">
+<path class="mp-ruta" d="M115.7,767.6 C127.8,754.6 212.9,668.7 237.2,637.9 C261.5,607.1 337.4,491.9 358.6,459.5 C379.9,427.1 431.5,337.8 449.7,313.5 C467.9,289.2 522.6,231.6 540.8,216.2 C559.0,200.8 616.7,167.2 631.9,159.4 C647.1,151.6 686.5,140.4 692.6,138.3"/>
+<text class="mp-ruta-t" x="300" y="470" transform="rotate(-40 300 470)">PASO DE LAS JOROBADAS · DIC — MAR</text>
+<text class="mp-agua-n" x="360" y="300" transform="rotate(-11 360 300)">OCÉANO PACÍFICO</text>
+<text class="mp-agua-n mp-agua-n--b" x="700" y="392">BAHÍA DE BANDERAS</text>
+<path class="mp-camino" id="mpCamino" d=""/>
+<path class="mp-panga" id="mpPanga" d=""/>
+<g class="mp-lugares" id="mpLugares">
+<g class="mp-lug" data-k="marina" tabindex="0" role="button" aria-label="Marina La Cruz, a 646 m en línea recta de la casa, 5 min a pie"><circle class="mp-tocar" cx="724.5" cy="140.8" r="27"/><line class="mp-hilo" x1="717.7" y1="134.3" x2="724.5" y2="140.8"/><circle class="mp-pin" cx="724.5" cy="140.8" r="3"/><text class="mp-nombre" x="732.5" y="172.8" text-anchor="start">Marina La Cruz</text></g>
+<g class="mp-lug" data-k="buce" tabindex="0" role="button" aria-label="Bucerías, a 3.7 km en línea recta de la casa"><circle class="mp-tocar" cx="771.6" cy="133.5" r="27"/><line class="mp-hilo" x1="717.7" y1="134.3" x2="771.6" y2="133.5"/><circle class="mp-pin" cx="771.6" cy="133.5" r="3"/><text class="mp-nombre" x="779.6" y="119.5" text-anchor="start">Bucerías</text></g>
+<g class="mp-lug" data-k="mita" tabindex="0" role="button" aria-label="Punta de Mita, a 14.1 km en línea recta de la casa"><circle class="mp-tocar" cx="516.5" cy="89.7" r="27"/><line class="mp-hilo" x1="717.7" y1="134.3" x2="516.5" y2="89.7"/><circle class="mp-pin" cx="516.5" cy="89.7" r="3"/><text class="mp-nombre" x="510.5" y="73.7" text-anchor="middle">Punta de Mita</text></g>
+<g class="mp-lug" data-k="nuevo" tabindex="0" role="button" aria-label="Nuevo Vallarta, a 10.8 km en línea recta de la casa"><circle class="mp-tocar" cx="852.0" cy="216.2" r="27"/><line class="mp-hilo" x1="717.7" y1="134.3" x2="852.0" y2="216.2"/><circle class="mp-pin" cx="852.0" cy="216.2" r="3"/><text class="mp-nombre" x="866.0" y="221.2" text-anchor="start">Nuevo Vallarta</text></g>
+<g class="mp-lug" data-k="pvr" tabindex="0" role="button" aria-label="Aeropuerto PVR, a 15.6 km en línea recta de la casa, 35 min en coche"><circle class="mp-tocar" cx="914.3" cy="248.6" r="27"/><line class="mp-hilo" x1="717.7" y1="134.3" x2="914.3" y2="248.6"/><circle class="mp-pin" cx="914.3" cy="248.6" r="3"/><text class="mp-nombre" x="903.3" y="272.6" text-anchor="end">Aeropuerto PVR</text></g>
+<g class="mp-lug" data-k="pv" tabindex="0" role="button" aria-label="Puerto Vallarta, a 22.2 km en línea recta de la casa"><circle class="mp-tocar" cx="947.7" cy="362.2" r="27"/><line class="mp-hilo" x1="717.7" y1="134.3" x2="947.7" y2="362.2"/><circle class="mp-pin" cx="947.7" cy="362.2" r="3"/><text class="mp-nombre" x="963.7" y="368.2" text-anchor="start">Puerto Vallarta</text></g>
+<g class="mp-lug" data-k="boca" tabindex="0" role="button" aria-label="Boca de Tomatlán, a 28.9 km en línea recta de la casa"><circle class="mp-tocar" cx="829.2" cy="540.6" r="27"/><line class="mp-hilo" x1="717.7" y1="134.3" x2="829.2" y2="540.6"/><circle class="mp-pin" cx="829.2" cy="540.6" r="3"/><text class="mp-nombre" x="841.2" y="560.6" text-anchor="start">Boca de Tomatlán</text></g>
+<g class="mp-lug" data-k="yelapa" tabindex="0" role="button" aria-label="Yelapa, a 29.1 km en línea recta de la casa"><circle class="mp-tocar" cx="719.9" cy="558.4" r="27"/><line class="mp-hilo" x1="717.7" y1="134.3" x2="719.9" y2="558.4"/><circle class="mp-pin" cx="719.9" cy="558.4" r="3"/><text class="mp-nombre" x="719.9" y="580.4" text-anchor="middle">Yelapa</text></g>
+<g class="mp-lug" data-k="cabo" tabindex="0" role="button" aria-label="Cabo Corrientes, a 46.8 km en línea recta de la casa"><circle class="mp-tocar" cx="328.2" cy="694.6" r="27"/><line class="mp-hilo" x1="717.7" y1="134.3" x2="328.2" y2="694.6"/><circle class="mp-pin" cx="328.2" cy="694.6" r="3"/><text class="mp-nombre" x="328.2" y="718.6" text-anchor="middle">Cabo Corrientes</text></g>
+</g>
+<g class="mp-casas" id="mpCasas"></g>
+<g class="mp-rosa" transform="translate(140,168)" aria-hidden="true">
+<circle r="34"/><circle r="23"/>
+<path class="mp-n" d="M0,-40 L6,-7 L0,0 L-6,-7 Z"/><path d="M0,40 L6,7 L0,0 L-6,7 Z"/>
+<path d="M40,0 L7,6 L0,0 L7,-6 Z"/><path d="M-40,0 L-7,6 L0,0 L-7,-6 Z"/>
+<text class="mp-rosa-t" x="0" y="-47" text-anchor="middle">N</text>
+</g>
+<g class="mp-escala" transform="translate(92,672)" aria-hidden="true">
+<line x1="0" y1="0" x2="72.8" y2="0"/><line x1="0" y1="-4" x2="0" y2="4"/>
+<line x1="72.8" y1="-4" x2="72.8" y2="4"/><line x1="36.4" y1="-3" x2="36.4" y2="3"/>
+<text class="mp-escala-t" x="80.8" y="4">5 km</text>
+<line x1="0" y1="18" x2="134.9" y2="18"/><line x1="0" y1="14" x2="0" y2="22"/>
+<line x1="134.9" y1="14" x2="134.9" y2="22"/>
+<text class="mp-escala-t" x="142.9" y="22">5 M</text>
+</g>
+<g class="mp-casa" aria-hidden="true">
+<circle class="mp-casa-anillo" cx="717.7" cy="134.3" r="9"/>
+<circle cx="717.7" cy="134.3" r="4.6" fill="#E8C88A"/>
+<line x1="717.7" y1="122" x2="717.7" y2="104" stroke="rgba(232,200,138,.75)" stroke-width="1"/>
+<text class="mp-casa-t" x="717.7" y="94" text-anchor="middle">La Cruz de Huanacaxtle</text>
+</g>
+<text class="mp-nota" x="1180" y="742" text-anchor="end">RELIEVE CALCULADO · SENTINEL-2 CLOUDLESS (EOX, CC BY 4.0) · EXAGERACIÓN ×2.9</text>
+</svg>
+</div>
+<div class="mp-nubes mp-nubes--alto" id="mpNubesAlto" aria-hidden="true"></div>
+<p class="mp-pie3">Relieve medido · exageración vertical ×3 · relieve bajo ×3.6 · islotes ×2.4 · piel Sentinel-2 cloudless (EOX, CC BY 4.0)</p>
+<button class="mp-interruptor" id="mpBallenasBtn" type="button" aria-pressed="false" hidden>
+<span class="mp-punto"></span>Ballenas
+</button>
+<div class="mp-zoom">
+<button id="mpMenos" type="button" aria-label="Alejar">−</button>
+<button id="mpMas" type="button" aria-label="Acercar">+</button>
 </div>
 </div>
-<div class="pp-map-nearby">
-<div class="pp-nearby-item">
-<span class="pp-nearby-dot"></span>
-<span class="pp-nearby-text">Marina La Cruz · 5 min walk</span>
-</div>
-<div class="pp-nearby-item">
-<span class="pp-nearby-dot"></span>
-<span class="pp-nearby-text">Sunday Farmers Market · 5 min walk</span>
-</div>
-<div class="pp-nearby-item">
-<span class="pp-nearby-dot"></span>
-<span class="pp-nearby-text">Puerto Vallarta Airport · 35 min drive</span>
+<div class="mp-lectura">
+<span>
+<b class="mp-que" id="mpQue">Marina La Cruz</b>
+<span class="mp-cuanto" id="mpCuanto">646 m en línea recta · 5 min a pie</span>
+</span>
+<a class="mp-ir" id="mpIr" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&amp;origin=20.753272,-105.371372&amp;destination=20.7465,-105.3790">Cómo llegar →</a>
 </div>
 </div>
-</section>
-<section class="pp-section">
-<div class="pp-reviews-header">
-<div class="pp-reviews-score">
-<span class="pp-reviews-score-star" aria-hidden="true"></span>
-<span class="pp-reviews-score-num">4.91</span>
-<span class="pp-reviews-score-count">· 38 stays</span>
-</div>
-<a href="#reviews" class="pp-reviews-link">See all →</a>
-</div>
-<p class="pp-review-quote">
-Rodrigo and his team made everything effortless. The apartment was exactly as described. We've already booked again for next March.
+<div class="mp-guia">
+<div class="mp-panel" id="mpPanelCerca" data-vista="cerca" role="tabpanel">
+<ul class="mp-lista">
+<li class="mp-fila"><b>Marina La Cruz</b><span>5 min a pie · 646 m</span></li>
+<li class="mp-fila"><b>Bucerías</b><span>7 min en coche · 5.7 km</span></li>
+<li class="mp-fila"><b>Aeropuerto PVR</b><span>25 min en coche · 20.1 km</span></li>
+<li class="mp-fila"><b>Punta de Mita</b><span>14 min en coche · 14.8 km</span></li>
+<li class="mp-fila"><b>Nuevo Vallarta</b><span>20 min en coche · 16.1 km</span></li>
+<li class="mp-fila"><b>Sayulita</b><span>21 min en coche · 19.2 km</span></li>
+<li class="mp-fila"><b>Puerto Vallarta</b><span>36 min en coche · 31.9 km</span></li>
+<li class="mp-fila"><b>San Pancho</b><span>25 min en coche · 21.5 km</span></li>
+<li class="mp-fila"><b>Boca de Tomatlán</b><span>56 min en coche · 52.2 km</span></li>
+<li class="mp-fila mp-fila--nota"><b>Yelapa</b><span>Sin carretera · panga desde Boca</span></li>
+<li class="mp-fila"><b>Cabo Corrientes</b><span>2 h 52 min en coche · 135 km</span></li>
+</ul>
+<p class="mp-pie">
+Los tiempos son de carretera real, calculados sobre OpenStreetMap, no en línea recta. <b>A Yelapa no llega carretera</b>: se maneja a Boca de Tomatlán y se sigue en panga, veinte minutos por mar. Y la línea punteada del mapa es el paso de las jorobadas: de 6 756 avistamientos verificados en esta bahía desde 1980, <b>98 % caen entre diciembre y marzo</b>.
 </p>
-<div class="pp-review-meta">Sarah M. · February 2026</div>
+</div>
+<div class="mp-panel" id="mpPanelCasas" data-vista="casas" role="tabpanel">
+<div class="mp-zonas">
+<a class="mp-zona mp-zona--aqui" data-c="gardens" href="/#properties">
+<span class="mp-zona-n">Vallarta Gardens</span>
+<span class="mp-zona-z">La Cruz de Huanacaxtle</span>
+<p class="mp-zona-q">Puerto pesquero con marina, mercado de productores los domingos y la mejor cocina de la costa norte. Resort con alberca infinity y spa.</p>
+<span class="mp-zona-d">7 casas · desde 200 USD · 35 min del aeropuerto</span>
+</a>
+<a class="mp-zona" data-c="maritima" href="/#properties">
+<span class="mp-zona-n">Marítima</span>
+<span class="mp-zona-z">Nuevo Vallarta · Flamingos</span>
+<p class="mp-zona-q">Frente al campo de golf, cinco minutos del aeropuerto y diez del Malecón. Es la zona de quien viene por poco tiempo o con hospital cerca.</p>
+<span class="mp-zona-d">2 casas · 5 min del aeropuerto</span>
+</a>
+<a class="mp-zona" data-c="bolongo" href="/#properties">
+<span class="mp-zona-n">Bolongo</span>
+<span class="mp-zona-z">Punta de Mita</span>
+<p class="mp-zona-q">La punta de la bahía: playa privada, club de playa y el surf de Sayulita a media hora. Lo más lejos del ruido y del aeropuerto.</p>
+<span class="mp-zona-d">1 casa · 55 min del aeropuerto</span>
+</a>
+</div>
+<p class="mp-pie">
+Las siete casas de <b>Vallarta Gardens</b> están en el mismo complejo de La Cruz, así que en el mapa caen todas en el mismo punto: lo que cambia entre ellas es el piso, la vista y el tamaño, no la zona.
+</p>
+<ul class="mp-unidades">
+<li><a class="mp-unidad" data-id="2005" href="/p/golfina.html">
+<span class="mp-unidad-n">Golfina</span>
+<span class="mp-unidad-d">4 huéspedes · 2 rec. · Jardín tropical</span>
+</a></li>
+<li><a class="mp-unidad" data-id="2302" href="/p/manta.html">
+<span class="mp-unidad-n">Manta</span>
+<span class="mp-unidad-d">6 huéspedes · 2 rec. · Vista al mar</span>
+</a></li>
+<li><a class="mp-unidad" data-id="2403" href="/p/delfin.html">
+<span class="mp-unidad-n">Delfín</span>
+<span class="mp-unidad-d">6 huéspedes · 2 rec. · Vista al mar</span>
+</a></li>
+<li><a class="mp-unidad" data-id="2701" href="/p/carey.html">
+<span class="mp-unidad-n">Carey</span>
+<span class="mp-unidad-d">6 huéspedes · 2 rec. · Vista al mar</span>
+</a></li>
+<li><a class="mp-unidad" data-id="2801" href="/p/coral.html">
+<span class="mp-unidad-n">Coral</span>
+<span class="mp-unidad-d">6 huéspedes · 2 rec. · Vista al mar</span>
+</a></li>
+<li><a class="mp-unidad" data-id="2905" href="/p/caracola.html">
+<span class="mp-unidad-n">Caracola</span>
+<span class="mp-unidad-d">2 huéspedes · 1 rec. · Vista al mar</span>
+</a></li>
+<li><a class="mp-unidad" data-id="3004" href="/p/marlin.html">
+<span class="mp-unidad-n">Marlín</span>
+<span class="mp-unidad-d">6 huéspedes · 2 rec. · Vista panorámica</span>
+</a></li>
+</ul>
+</div>
+</div>
+</div>
 </section>
 <div class="pp-content-end"></div>
 <div class="pp-dates-bar" id="ppDatesBar" hidden>
@@ -994,35 +1125,35 @@ Rodrigo and his team made everything effortless. The apartment was exactly as de
 </div>
 <script>(function(){function renderPremiumHero(){const unit=window.VRM_UNIT;if(!unit){console.warn("[pp] No VRM_UNIT disponible");return}function setText(id,value){const el=document.getElementById(id);if(el&&value!==undefined&&value!==null)el.textContent=value}const track=document.getElementById("ppHeroTrack");let imageList=[];if(track&&unit.images){const labels={living:"Living",kitchen:"Kitchen",
 bedroom1:"Bedroom 1",bedroom2:"Bedroom 2",bedroom3:"Bedroom 3",bedroom4:"Bedroom 4",bathroom1:"Bathroom",bathroom2:"Bathroom 2",terrace:"Terrace",pool:"Pool",view:"View",dining:"Dining",lounge:"Lounge"};const seen=new Set;if(unit.coverImage){imageList.push({url:unit.coverImage,label:"Cover"});seen.add(unit.coverImage)}Object.entries(unit.images).forEach(([key,url])=>{if(!seen.has(url)){
-imageList.push({url:url,label:labels[key]||key});seen.add(url)}});track.innerHTML="";const _pend=[];imageList.forEach((img,idx)=>{const slide=document.createElement("div");slide.className="pp-hero-slide";const _u=VRM_img(img.url,"h");slide.dataset.fallback=VRM_imgFallback(img.url,"h");if(idx===0)slide.style.backgroundImage=`url('${_u}')`;else{slide.dataset.src=_u;_pend.push(slide)}
-slide.setAttribute("data-photo-idx",idx);track.appendChild(slide)});window._ppLoadSlide=function(el){if(!el||!el.dataset.src)return;const u=el.dataset.src;delete el.dataset.src;const im=new Image;im.decoding="async";const done=()=>{el.style.backgroundImage=`url('${u}')`};const fail=()=>{const fb=el.dataset.fallback;el.style.backgroundImage=`url('${fb||u}')`};if(im.decode){im.src=u
-;im.decode().then(done,fail)}else{im.onload=done;im.onerror=fail;im.src=u}};(function _drain(){const nxt=_pend.shift();if(!nxt)return;const idle=window.requestIdleCallback||(f=>setTimeout(f,60));idle(()=>{window._ppLoadSlide(nxt);_drain()},{timeout:1200})})();track.addEventListener("scroll",()=>{const i=Math.round(track.scrollLeft/Math.max(1,track.clientWidth))
-;for(let k=i;k<=i+1&&k<track.children.length;k++)window._ppLoadSlide(track.children[k])},{passive:true});const dotsContainer=document.getElementById("ppHeroDots");if(dotsContainer){dotsContainer.innerHTML="";imageList.forEach((_,idx)=>{const dot=document.createElement("div");dot.className="pp-hero-dot"+(idx===0?" active":"");dot.setAttribute("data-dot-idx",idx);dotsContainer.appendChild(dot)})}
-const counterTotal=document.getElementById("ppHeroCounterTotal");if(counterTotal)counterTotal.textContent=imageList.length;const counterCurrent=document.getElementById("ppHeroCounterCurrent");const hint=document.getElementById("ppHeroHint");let hintHidden=false;try{if(sessionStorage.getItem("vrm_pp_hint_seen")==="1"){if(hint)hint.classList.add("is-hidden");hintHidden=true}}catch(_){}
-track.addEventListener("scroll",()=>{const idx=Math.round(track.scrollLeft/track.clientWidth);const oneIndexed=idx+1;if(counterCurrent)counterCurrent.textContent=Math.min(oneIndexed,imageList.length);const dots=dotsContainer?dotsContainer.querySelectorAll(".pp-hero-dot"):[];dots.forEach((d,i)=>d.classList.toggle("active",i===idx));if(!hintHidden&&idx>0&&hint){hint.classList.add("is-hidden")
-;hintHidden=true;try{sessionStorage.setItem("vrm_pp_hint_seen","1")}catch(_){}}},{passive:true})}const RESORT_GALLERY=[["ga-16","Beach Club"],["ga-57","Resort Pool"],["ga-23","Lazy River"],["ga-69","Restaurant"],["ga-61","Cabanas"],["ga-98","La Cruz"]];const _seenFull=new Set(imageList.map(x=>x.url));const _full=imageList.slice();[].concat(unit.gallery||[],RESORT_GALLERY).forEach(([id,label])=>{
-if(!_seenFull.has(id)){_full.push({url:id,label:label});_seenFull.add(id)}});window._ppImageList=_full;const locShort=(unit.location||"").replace(/Vallarta · /,"").replace(/Nuevo Vallarta · /,"");setText("ppHeroZone",locShort.toUpperCase());setText("ppHeroZoneBottom",locShort.toUpperCase());const titleEl=document.getElementById("ppHeroTitle");if(titleEl&&unit.name){
-const _e=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");if(unit.complejo){titleEl.innerHTML=`${_e(unit.complejo)}<br><em>${_e(unit.name)}</em>`}else{const parts=unit.name.split(" ");if(parts.length>=2){const lastWord=parts.pop();const rest=parts.join(" ");titleEl.innerHTML=`${_e(rest)}<br><em>${_e(lastWord)}</em>`}else{titleEl.textContent=unit.name}}}
-if(unit.priceUSD){setText("ppHeroPriceAmount",`$${unit.priceUSD}`)}const rating=unit.rating||null;const reviewCount=unit.reviewCount||null;const _badge=document.getElementById("ppHeroRating");if(rating&&reviewCount){setText("ppHeroRatingText",`${rating} · ${reviewCount}`)}else if(_badge){_badge.style.display="none"}setText("ppStatGuests",unit.guests)
-;setText("ppStatBeds",(unit.bedrooms||[]).length||2);setText("ppStatBaths",unit.bathrooms);setText("ppStatSqm",unit.sqm);const descEl=document.getElementById("ppDesc");if(descEl&&unit.description){let txt=unit.description;if(txt.length>180){const cut=txt.substring(0,180).lastIndexOf(".");txt=cut>80?txt.substring(0,cut+1):txt.substring(0,180)+"..."}descEl.textContent=txt}
-setText("ppMapZone",unit.location||"");if(rating&&reviewCount){document.querySelectorAll(".pp-reviews-score-num").forEach(el=>el.textContent=rating);document.querySelectorAll(".pp-reviews-score-count").forEach(el=>el.textContent=`· ${reviewCount} stays`)}console.log("[pp] Premium hero rendered for",unit.name)}if(document.readyState==="loading"){
-document.addEventListener("DOMContentLoaded",renderPremiumHero)}else{renderPremiumHero()}function buildPhotoGrid(){const grid=document.getElementById("ppPhotosGrid");const countEl=document.getElementById("ppPhotosCount");const imageList=window._ppImageList||[];if(!grid||imageList.length===0)return;grid.innerHTML="";imageList.forEach((img,idx)=>{const tile=document.createElement("button")
-;tile.type="button";tile.className="pp-photo-tile";tile.dataset.src=VRM_img(img.url,"l");tile.setAttribute("data-photo-idx",idx);tile.setAttribute("aria-label",`View photo ${idx+1}: ${img.label}`);const shade=document.createElement("div");shade.className="pp-photo-tile-shade";tile.appendChild(shade);const label=document.createElement("div");label.className="pp-photo-tile-label"
-;label.textContent=img.label;tile.appendChild(label);tile.addEventListener("click",()=>openLightbox(idx));grid.appendChild(tile)});if("IntersectionObserver"in window){const io=new IntersectionObserver(es=>{es.forEach(e=>{if(!e.isIntersecting)return;const t=e.target;io.unobserve(t);if(t.dataset.src){t.style.backgroundImage=`url('${t.dataset.src}')`;delete t.dataset.src}})},{rootMargin:"200px 0px"})
-;grid.querySelectorAll(".pp-photo-tile").forEach(t=>io.observe(t))}else{grid.querySelectorAll(".pp-photo-tile").forEach(t=>{if(t.dataset.src){t.style.backgroundImage=`url('${t.dataset.src}')`;delete t.dataset.src}})}if(countEl)countEl.textContent=`${imageList.length} photos`}let lightboxIdx=0;function openLightbox(idx){const list=window._ppImageList||[];if(list.length===0)return;lightboxIdx=idx
-;updateLightbox();document.getElementById("ppLightbox").hidden=false;document.body.style.overflow="hidden"}function closeLightbox(){document.getElementById("ppLightbox").hidden=true;document.body.style.overflow=""}function updateLightbox(){const list=window._ppImageList||[];if(list.length===0)return;const img=list[lightboxIdx]
-;document.getElementById("ppLightboxImg").style.backgroundImage=`url('${VRM_img(img.url,"h")}')`;document.getElementById("ppLightboxCounter").textContent=`${lightboxIdx+1} / ${list.length}`;document.getElementById("ppLightboxLabel").textContent=img.label}document.getElementById("ppLightboxClose").addEventListener("click",closeLightbox)
-;document.getElementById("ppLightboxPrev").addEventListener("click",()=>{const list=window._ppImageList||[];lightboxIdx=(lightboxIdx-1+list.length)%list.length;updateLightbox()});document.getElementById("ppLightboxNext").addEventListener("click",()=>{const list=window._ppImageList||[];lightboxIdx=(lightboxIdx+1)%list.length;updateLightbox()})
-;document.getElementById("ppLightbox").addEventListener("click",e=>{if(e.target.id==="ppLightbox"||e.target.id==="ppLightboxImg"){closeLightbox()}});document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLightbox();if(e.key==="ArrowLeft"&&!document.getElementById("ppLightbox").hidden){document.getElementById("ppLightboxPrev").click()}
-if(e.key==="ArrowRight"&&!document.getElementById("ppLightbox").hidden){document.getElementById("ppLightboxNext").click()}});if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",buildPhotoGrid)}else{setTimeout(buildPhotoGrid,100)}const mapPreview=document.getElementById("ppMapPreview");if(mapPreview){mapPreview.addEventListener("click",e=>{const unit=window.VRM_UNIT
-;let url="https://maps.google.com/?q=La+Cruz+de+Huanacaxtle+Nayarit";if(unit&&unit.coords){url=`https://maps.google.com/?q=${unit.coords.lat},${unit.coords.lng}`}else if(unit&&unit.location){url=`https://maps.google.com/?q=${encodeURIComponent(unit.location+" Mexico")}`}window.open(url,"_blank","noopener")})}function showDatesChip(){const bar=document.getElementById("ppDatesBar")
-;const barText=document.getElementById("ppDatesBarText");const stickySub=document.getElementById("ppStickySub");if(!bar||!barText)return;const pre=window.VRM_PRELOAD_BOOKING||{};if(!pre.checkin||!pre.checkout){bar.hidden=true;return}const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];function fmt(ymd){const[y,m,d]=ymd.split("-").map(Number)
-;return`${months[m-1]} ${d}`}const ci=fmt(pre.checkin);const co=fmt(pre.checkout);const start=new Date(pre.checkin);const end=new Date(pre.checkout);const nights=Math.round((end-start)/(1e3*60*60*24));barText.textContent=`${ci} — ${co} · ${nights} night${nights>1?"s":""}`;bar.hidden=false;if(stickySub){const guests=pre.guests||window.VRM_UNIT&&window.VRM_UNIT.guests||""
-;stickySub.textContent=guests?`For ${guests} guests · ${nights} nights`:`${nights} nights selected`}const editBtn=document.getElementById("ppDatesBarEdit");if(editBtn){editBtn.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();if(typeof openBooking==="function"){openBooking({startStep:1,forceStep:true})}})}}setTimeout(showDatesChip,600)
-;const shareBtn=document.getElementById("topbarShare");if(shareBtn){shareBtn.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();const unit=window.VRM_UNIT||{};const propName=unit.name||"this property";const propId=unit.id;const PROPS_CON_SHARE=["2302","2403","2701","2801","3004","2005","2905"];let propUrl;if(propId&&PROPS_CON_SHARE.includes(propId)){
-const base=window.location.origin+window.location.pathname.replace(/\/[^/]*$/,"");propUrl=base+"/p/"+propId+".html";const params=new URLSearchParams(window.location.search);const keep=["checkin","checkout","guests"];const kept=keep.filter(k=>params.get(k)).map(k=>`${k}=${encodeURIComponent(params.get(k))}`).join("&");if(kept)propUrl+="?"+kept}else{propUrl=window.location.href}
-const shareText=`Check out ${propName} on VRM — Vacation Rental Mexico`;openShareMenu(shareText,propUrl,propName)})}function openShareMenu(text,url,propName){let menu=document.getElementById("ppShareMenu");if(menu){menu.remove()}const encodedUrl=encodeURIComponent(url);const encodedText=encodeURIComponent(text);const fullMessage=encodeURIComponent(`${text}\n\n${url}`);const options=[{
-label:"WhatsApp",
+imageList.push({url:url,label:labels[key]||key});seen.add(url)}});track.innerHTML="";const _pend=[];imageList.forEach((img,idx)=>{const slide=document.createElement("div");slide.className="pp-hero-slide";const _tam=window.VRM_tamanoFoto?VRM_tamanoFoto():"h";const _u=VRM_img(img.url,_tam);slide.dataset.fallback=VRM_imgFallback(img.url,_tam)
+;if(idx===0)slide.style.backgroundImage=`url('${_u}')`;else{slide.dataset.src=_u;_pend.push(slide)}slide.setAttribute("data-photo-idx",idx);slide.setAttribute("role","img");slide.setAttribute("aria-label",(img.label?img.label+" — ":"")+(unit.name||"VRM"));track.appendChild(slide)});window._ppLoadSlide=function(el){if(!el||!el.dataset.src)return;const u=el.dataset.src;delete el.dataset.src
+;const im=new Image;im.decoding="async";const done=()=>{el.style.backgroundImage=`url('${u}')`};const fail=()=>{const fb=el.dataset.fallback;el.style.backgroundImage=`url('${fb||u}')`};if(im.decode){im.src=u;im.decode().then(done,fail)}else{im.onload=done;im.onerror=fail;im.src=u}};(function _drain(){const nxt=_pend.shift();if(!nxt)return
+;const idle=window.requestIdleCallback||(f=>setTimeout(f,60));idle(()=>{window._ppLoadSlide(nxt);_drain()},{timeout:1200})})();track.addEventListener("scroll",()=>{const i=Math.round(track.scrollLeft/Math.max(1,track.clientWidth));for(let k=i;k<=i+1&&k<track.children.length;k++)window._ppLoadSlide(track.children[k])},{passive:true});const dotsContainer=document.getElementById("ppHeroDots")
+;if(dotsContainer){dotsContainer.innerHTML="";imageList.forEach((_,idx)=>{const dot=document.createElement("div");dot.className="pp-hero-dot"+(idx===0?" active":"");dot.setAttribute("data-dot-idx",idx);dotsContainer.appendChild(dot)})}const counterTotal=document.getElementById("ppHeroCounterTotal");if(counterTotal)counterTotal.textContent=imageList.length
+;const counterCurrent=document.getElementById("ppHeroCounterCurrent");const hint=document.getElementById("ppHeroHint");let hintHidden=false;try{if(sessionStorage.getItem("vrm_pp_hint_seen")==="1"){if(hint)hint.classList.add("is-hidden");hintHidden=true}}catch(_){}track.addEventListener("scroll",()=>{const idx=Math.round(track.scrollLeft/track.clientWidth);const oneIndexed=idx+1
+;if(counterCurrent)counterCurrent.textContent=Math.min(oneIndexed,imageList.length);const dots=dotsContainer?dotsContainer.querySelectorAll(".pp-hero-dot"):[];dots.forEach((d,i)=>d.classList.toggle("active",i===idx));if(!hintHidden&&idx>0&&hint){hint.classList.add("is-hidden");hintHidden=true;try{sessionStorage.setItem("vrm_pp_hint_seen","1")}catch(_){}}},{passive:true})}
+const RESORT_GALLERY=[["ga-16","Beach Club"],["ga-57","Resort Pool"],["ga-23","Lazy River"],["ga-69","Restaurant"],["ga-61","Cabanas"],["ga-98","La Cruz"]];const _seenFull=new Set(imageList.map(x=>x.url));const _full=imageList.slice();[].concat(unit.gallery||[],RESORT_GALLERY).forEach(([id,label])=>{if(!_seenFull.has(id)){_full.push({url:id,label:label});_seenFull.add(id)}})
+;window._ppImageList=_full;const locShort=(unit.location||"").replace(/Vallarta · /,"").replace(/Nuevo Vallarta · /,"");setText("ppHeroZone",locShort.toUpperCase());setText("ppHeroZoneBottom",locShort.toUpperCase());const titleEl=document.getElementById("ppHeroTitle");if(titleEl&&unit.name){const _e=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");if(unit.complejo){
+titleEl.innerHTML=`${_e(unit.complejo)}<br><em>${_e(unit.name)}</em>`}else{const parts=unit.name.split(" ");if(parts.length>=2){const lastWord=parts.pop();const rest=parts.join(" ");titleEl.innerHTML=`${_e(rest)}<br><em>${_e(lastWord)}</em>`}else{titleEl.textContent=unit.name}}}if(unit.priceUSD){setText("ppHeroPriceAmount",`$${unit.priceUSD}`)}const rating=unit.rating||null
+;const reviewCount=unit.reviewCount||null;const _badge=document.getElementById("ppHeroRating");if(rating&&reviewCount&&_badge){setText("ppHeroRatingText",`${rating} · ${reviewCount}`);_badge.hidden=false}setText("ppStatGuests",unit.guests);setText("ppStatBeds",(unit.bedrooms||[]).length||2);setText("ppStatBaths",unit.bathrooms);setText("ppStatSqm",unit.sqm)
+;const descEl=document.getElementById("ppDesc");if(descEl&&unit.description){let txt=unit.description;if(txt.length>180){const cut=txt.substring(0,180).lastIndexOf(".");txt=cut>80?txt.substring(0,cut+1):txt.substring(0,180)+"..."}descEl.textContent=txt;descEl.lang="es"}setText("ppMapZone",unit.location||"");if(rating&&reviewCount){
+document.querySelectorAll(".pp-reviews-score-num").forEach(el=>el.textContent=rating);document.querySelectorAll(".pp-reviews-score-count").forEach(el=>el.textContent=`· ${reviewCount} stays`)}console.log("[pp] Premium hero rendered for",unit.name)}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",renderPremiumHero)}else{renderPremiumHero()}function buildPhotoGrid(){
+const grid=document.getElementById("ppPhotosGrid");const countEl=document.getElementById("ppPhotosCount");const imageList=window._ppImageList||[];if(!grid||imageList.length===0)return;grid.innerHTML="";imageList.forEach((img,idx)=>{const tile=document.createElement("button");tile.type="button";tile.className="pp-photo-tile";tile.dataset.src=VRM_img(img.url,"l")
+;tile.setAttribute("data-photo-idx",idx);tile.setAttribute("aria-label",`View photo ${idx+1}: ${img.label}`);const shade=document.createElement("div");shade.className="pp-photo-tile-shade";tile.appendChild(shade);const label=document.createElement("div");label.className="pp-photo-tile-label";label.textContent=img.label;tile.appendChild(label);tile.addEventListener("click",()=>openLightbox(idx))
+;grid.appendChild(tile)});if("IntersectionObserver"in window){const io=new IntersectionObserver(es=>{es.forEach(e=>{if(!e.isIntersecting)return;const t=e.target;io.unobserve(t);if(t.dataset.src){t.style.backgroundImage=`url('${t.dataset.src}')`;delete t.dataset.src}})},{rootMargin:"200px 0px"});grid.querySelectorAll(".pp-photo-tile").forEach(t=>io.observe(t))}else{
+grid.querySelectorAll(".pp-photo-tile").forEach(t=>{if(t.dataset.src){t.style.backgroundImage=`url('${t.dataset.src}')`;delete t.dataset.src}})}if(countEl)countEl.textContent=`${imageList.length} photos`}let lightboxIdx=0;function openLightbox(idx){const list=window._ppImageList||[];if(list.length===0)return;lightboxIdx=idx;updateLightbox();document.getElementById("ppLightbox").hidden=false
+;document.body.style.overflow="hidden"}function closeLightbox(){document.getElementById("ppLightbox").hidden=true;document.body.style.overflow=""}function updateLightbox(){const list=window._ppImageList||[];if(list.length===0)return;const img=list[lightboxIdx];document.getElementById("ppLightboxImg").style.backgroundImage=`url('${VRM_img(img.url,"h")}')`
+;document.getElementById("ppLightboxCounter").textContent=`${lightboxIdx+1} / ${list.length}`;document.getElementById("ppLightboxLabel").textContent=img.label}document.getElementById("ppLightboxClose").addEventListener("click",closeLightbox);document.getElementById("ppLightboxPrev").addEventListener("click",()=>{const list=window._ppImageList||[];lightboxIdx=(lightboxIdx-1+list.length)%list.length
+;updateLightbox()});document.getElementById("ppLightboxNext").addEventListener("click",()=>{const list=window._ppImageList||[];lightboxIdx=(lightboxIdx+1)%list.length;updateLightbox()});document.getElementById("ppLightbox").addEventListener("click",e=>{if(e.target.id==="ppLightbox"||e.target.id==="ppLightboxImg"){closeLightbox()}});document.addEventListener("keydown",e=>{
+if(e.key==="Escape")closeLightbox();if(e.key==="ArrowLeft"&&!document.getElementById("ppLightbox").hidden){document.getElementById("ppLightboxPrev").click()}if(e.key==="ArrowRight"&&!document.getElementById("ppLightbox").hidden){document.getElementById("ppLightboxNext").click()}});if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",buildPhotoGrid)}else{
+setTimeout(buildPhotoGrid,100)}const mapPreview=document.getElementById("ppMapPreview");if(mapPreview){mapPreview.addEventListener("click",e=>{const unit=window.VRM_UNIT;let url="https://maps.google.com/?q=La+Cruz+de+Huanacaxtle+Nayarit";if(unit&&unit.coords){url=`https://maps.google.com/?q=${unit.coords.lat},${unit.coords.lng}`}else if(unit&&unit.location){
+url=`https://maps.google.com/?q=${encodeURIComponent(unit.location+" Mexico")}`}window.open(url,"_blank","noopener")})}function showDatesChip(){const bar=document.getElementById("ppDatesBar");const barText=document.getElementById("ppDatesBarText");const stickySub=document.getElementById("ppStickySub");if(!bar||!barText)return;const pre=window.VRM_PRELOAD_BOOKING||{}
+;if(!pre.checkin||!pre.checkout){bar.hidden=true;return}const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];function fmt(ymd){const[y,m,d]=ymd.split("-").map(Number);return`${months[m-1]} ${d}`}const ci=fmt(pre.checkin);const co=fmt(pre.checkout);const start=new Date(pre.checkin);const end=new Date(pre.checkout);const nights=Math.round((end-start)/(1e3*60*60*24))
+;barText.textContent=`${ci} — ${co} · ${nights} night${nights>1?"s":""}`;bar.hidden=false;if(stickySub){const guests=pre.guests||window.VRM_UNIT&&window.VRM_UNIT.guests||"";stickySub.textContent=guests?`For ${guests} guests · ${nights} nights`:`${nights} nights selected`}const editBtn=document.getElementById("ppDatesBarEdit");if(editBtn){editBtn.addEventListener("click",e=>{e.preventDefault()
+;e.stopPropagation();if(typeof openBooking==="function"){openBooking({startStep:1,forceStep:true})}})}}setTimeout(showDatesChip,600);const shareBtn=document.getElementById("topbarShare");if(shareBtn){shareBtn.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();const unit=window.VRM_UNIT||{};const propName=unit.name||"this property";const propId=unit.id
+;const PROPS_CON_SHARE=["2302","2403","2701","2801","3004","2005","2905"];let propUrl;if(propId&&PROPS_CON_SHARE.includes(propId)){const base=window.location.origin+window.location.pathname.replace(/\/[^/]*$/,"");propUrl=base+"/p/"+propId+".html";const params=new URLSearchParams(window.location.search);const keep=["checkin","checkout","guests"]
+;const kept=keep.filter(k=>params.get(k)).map(k=>`${k}=${encodeURIComponent(params.get(k))}`).join("&");if(kept)propUrl+="?"+kept}else{propUrl=window.location.href}const shareText=`Check out ${propName} on VRM — Vacation Rental Mexico`;openShareMenu(shareText,propUrl,propName)})}function openShareMenu(text,url,propName){let menu=document.getElementById("ppShareMenu");if(menu){menu.remove()}
+const encodedUrl=encodeURIComponent(url);const encodedText=encodeURIComponent(text);const fullMessage=encodeURIComponent(`${text}\n\n${url}`);const options=[{label:"WhatsApp",
 icon:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/></svg>',
 color:"#25D366",url:`https://wa.me/?text=${fullMessage}`,target:"_blank"},{label:"Email",icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></svg>',color:"#D4A574",
 url:`mailto:?subject=${encodeURIComponent(propName+" · VRM")}&body=${fullMessage}`,target:"_self"},{label:"X / Twitter",icon:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',color:"#ffffff",
@@ -1037,7 +1168,7 @@ function closeShareMenu(){const menu=document.getElementById("ppShareMenu");if(!
 "nuevo vallarta":[20.6951,-105.2911],flamingos:[20.725,-105.321],"punta de mita":[20.77,-105.53],"punta mita":[20.77,-105.53],"riviera nayarit":[20.7,-105.4]};let coords=[20.7536,-105.3719];if(unit&&unit.location){const loc=unit.location.toLowerCase();for(const[k,v]of Object.entries(zoneCoords)){if(loc.includes(k)){coords=v;break}}}if(unit&&unit.coords){coords=[unit.coords.lat,unit.coords.lng]}
 const map=L.map(mapEl,{center:coords,zoom:14,zoomControl:false,attributionControl:false,scrollWheelZoom:false,dragging:false,tap:false,touchZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false});L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{maxZoom:19}).addTo(map);const goldPinIcon=L.divIcon({className:"pp-map-pin-marker",
 html:`<svg viewBox="0 0 24 24" fill="#D4A574" xmlns="http://www.w3.org/2000/svg">\n        <path d="M12 0C7.6 0 4 3.6 4 8c0 5.5 8 16 8 16s8-10.5 8-16c0-4.4-3.6-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>\n      </svg>`,iconSize:[32,32],iconAnchor:[16,32]});L.marker(coords,{icon:goldPinIcon}).addTo(map);const pulse=document.createElement("div");pulse.className="pp-map-pin-pulse"
-;mapEl.appendChild(pulse);console.log("[pp] Mini-map initialized at",coords)}setTimeout(initMiniMap,100)})()</script>
+;mapEl.appendChild(pulse);console.log("[pp] Mini-map initialized at",coords)}})()</script>
 <div class="property-header" id="propertyHeader">
 <div class="ph-left">
 <span class="ph-zone">La Cruz de Huanacaxtle · Riviera Nayarit</span>
@@ -1063,7 +1194,7 @@ html:`<svg viewBox="0 0 24 24" fill="#D4A574" xmlns="http://www.w3.org/2000/svg"
 <div class="hero-meta">
 <div class="hero-meta-l">
 <span class="hero-zone"><span class="dot"></span>La Cruz de Huanacaxtle · Riviera Nayarit</span>
-<h1 class="hero-title"><br><em>Caracola</em></h1>
+<div class="hero-title" aria-hidden="true">Vallarta Gardens <em>Manta</em></div>
 </div>
 <div class="hero-meta-r">
 <span class="hero-price-unit">from · USD / night</span>
@@ -1137,7 +1268,7 @@ Ver 24 fotos
 <div class="section-inner">
 <div class="section-header">
 <span class="eyebrow eyebrow--coral">— What you find inside</span>
-<h2 class="section-title">Equipped with <em>intent,</em> not a checklist.</h2>
+<h2 class="section-title" data-sube>Equipped with <em>intent,</em> not a checklist.</h2>
 </div>
 <div class="amenities-grid">
 <div class="amenity-cat">
@@ -1219,7 +1350,7 @@ Location
 <div class="section-inner" style="max-width:1400px">
 <div class="section-header">
 <span class="eyebrow eyebrow--coral">— Where you are</span>
-<h2 class="section-title">La Cruz de Huanacaxtle <em>— and what's nearby.</em></h2>
+<h2 class="section-title" data-sube>La Cruz de Huanacaxtle <em>— and what's nearby.</em></h2>
 </div>
 <div class="location-grid">
 <div class="location-meta">
@@ -1267,32 +1398,26 @@ Location
 <section class="section">
 <div class="section-inner">
 <div class="section-header">
-<span class="eyebrow eyebrow--coral">— What guests say</span>
-<h2 class="section-title">Not reviews. <em>Letters.</em></h2>
+<span class="eyebrow eyebrow--coral" data-i18n="ppRev.eyebrow">— Lo que dicen de VRM</span>
+<h2 class="section-title" data-sube data-i18n-html="ppRev.title">No son reseñas. <em>Son cartas.</em></h2>
 </div>
-<div class="reviews-grid">
+<div class="reviews-grid" data-escalona>
 <div class="review">
-<p class="review-quote">Es la cuarta vez que rentamos con VRM. La diferencia es la gente — siempre disponibles, siempre honestos sobre qué casa nos conviene. Ya somos amigos.</p>
+<p class="review-quote" lang="es">Nuestra reserva fue por 2 noches al comienzo pero el departamento, las instalaciones todo superó las expectativas y al final reservamos otra noche extra, recomiendo ampliamente este Airbnb y a Rodrigo como host</p>
 <div class="review-meta">
-<span>Robert M.</span>
-<span class="sep"></span>
-<span>Calgary · March 2026</span>
+<span>Gabriela</span>
 </div>
 </div>
 <div class="review">
-<p class="review-quote">Llegamos a Vallarta cansados y Rodrigo nos recibió en la casa con todo listo. Sentimos que reservamos con un amigo, no con una empresa.</p>
+<p class="review-quote" lang="en">I had a wonderful stay! The location was perfect—close to plenty of restaurants and bars, while still being in a very safe and peaceful area. The studio was beautiful, clean, and comfortable. I really enjoyed the peaceful atmosphere and would definitely stay here again. Highly recommended!</p>
 <div class="review-meta">
-<span>Margaret &amp; David K.</span>
-<span class="sep"></span>
-<span>Toronto · January 2026</span>
+<span>Jorge</span>
 </div>
 </div>
 <div class="review">
-<p class="review-quote">We've stayed in many vacation rentals across Mexico. VRM's attention to detail and local knowledge stands apart. They know which restaurant to recommend, which beach is best for our grandkids, where to find the best fresh tuna.</p>
+<p class="review-quote" lang="es">Excelente alojamiento, las instalaciones son tales como las fotos, la ubicacion excelente cerca de la playa, tiendas de conveniencia. El condominio y alberca es muy tranquilo y controlado, recomendado al 100%</p>
 <div class="review-meta">
-<span>Linda &amp; Tom W.</span>
-<span class="sep"></span>
-<span>Vancouver · December 2025</span>
+<span>Ivan</span>
 </div>
 </div>
 </div>
@@ -1302,9 +1427,9 @@ Location
 <div class="section-inner" style="max-width:1400px">
 <div class="section-header">
 <span class="eyebrow eyebrow--coral">— Nearby homes</span>
-<h2 class="section-title">Three more homes, <em>also honest.</em></h2>
+<h2 class="section-title" data-sube>Three more homes, <em>also honest.</em></h2>
 </div>
-<div class="similar-grid" id="simGrid"></div>
+<div class="similar-grid" id="simGrid" data-escalona></div>
 </div>
 </section>
 <section class="cta-final">
@@ -2057,5 +2182,7 @@ e.preventDefault();go(idx()+1)}else if(e.key==="ArrowLeft"){e.preventDefault();g
 revelarVisibles();return}setTimeout(esperar,120)})()}if(document.readyState!=="loading")setTimeout(reveals,120);else document.addEventListener("DOMContentLoaded",function(){setTimeout(reveals,120)})})()</script>
 <script>(function(){if(!("IntersectionObserver"in window)){document.querySelectorAll(".pp-hero-slide").forEach(function(s){s.classList.add("vl-ken")});return}var track=document.querySelector(".pp-hero-track");if(!track)return;var io=new IntersectionObserver(function(es){es.forEach(function(e){e.target.classList.toggle("vl-ken",e.isIntersecting)})},{root:track,threshold:.01});function observeAll(){
 track.querySelectorAll(".pp-hero-slide").forEach(function(sl){io.observe(sl)})}observeAll();try{new MutationObserver(observeAll).observe(track,{childList:true})}catch(_){}})()</script>
+<script src="mapa/mapa3d.js" defer="defer"></script>
+<script src="mapa/mapa.js" defer="defer"></script>
 </body>
 </html>
