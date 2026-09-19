@@ -1,0 +1,411 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   VRM · EL MAPA DE LA BAHÍA EN LA FICHA           19 sep 2026
+   Un mapa, dos lecturas: "qué hay alrededor" y "las otras casas".
+   Las siete fichas comparten este archivo y sus imágenes: se descargan
+   una vez y las demás páginas ya las tienen en caché.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.mp{
+  --mp-oro:#E8C88A;
+  --mp-linea:rgba(232,228,218,.12);
+  --mp-bruma:#8A97AB;
+  --mp-curva:cubic-bezier(.16,1,.3,1);
+  --mp-serif:var(--pp-serif,"Instrument Serif",Georgia,serif);
+  --mp-sans:var(--pp-sans,"Archivo",system-ui,-apple-system,sans-serif);
+}
+
+/* ── el conmutador de lecturas ─────────────────────────────────────────
+   No es un filtro ni un menú: son las dos preguntas que se hace quien
+   mira una casa. Dónde está, y qué más tienen. */
+.mp-conmutador{display:flex;gap:4px;margin:0 0 14px;flex-wrap:wrap}
+.mp-tab{
+  appearance:none;border:1px solid var(--mp-linea);background:transparent;
+  color:rgba(243,239,230,.62);font-family:var(--mp-sans);font-size:11px;
+  font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  padding:9px 16px;border-radius:999px;cursor:pointer;
+  transition:color .35s var(--mp-curva),border-color .35s var(--mp-curva),
+             background .35s var(--mp-curva);
+}
+.mp-tab:hover{color:#fff;border-color:rgba(232,200,138,.45)}
+.mp-tab[aria-selected="true"]{
+  color:#fff;border-color:rgba(232,200,138,.65);background:rgba(232,200,138,.12)}
+.mp-tab:focus-visible{outline:2px solid var(--mp-oro);outline-offset:3px}
+
+.mp-marco{position:relative;border:.5px solid var(--mp-linea);border-radius:8px;
+  overflow:hidden;background:#08152A}
+.mp-lienzo{position:relative;aspect-ratio:1200/760;overflow:hidden;
+  cursor:grab;touch-action:none}
+.mp-lienzo.mp-arrastrando{cursor:grabbing}
+
+/* Los dos planos comparten geometría exacta: el relieve y los rótulos
+   nunca se despegan, se muevan como se muevan. */
+.mp-plano{position:absolute;inset:-6%;width:112%;height:112%;
+  will-change:transform;pointer-events:none}
+.mp-plano--rot{pointer-events:auto}
+.mp-relieve{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;display:block;background:#08152A}
+.mp-capa{position:absolute;inset:0;width:100%;height:100%;--z:1}
+
+/* ── el mar con vida ───────────────────────────────────────────────────
+   Dos texturas de destello cíclicas, enmascaradas por el propio mar y
+   sumando luz. Van giradas y a velocidades distintas: al cruzarse no se
+   repite el dibujo. Solo aparecen cuando el JS las monta. */
+.mp-agua{position:absolute;inset:0;overflow:hidden;pointer-events:none;
+  mix-blend-mode:screen;opacity:0;transition:opacity 1.2s var(--mp-curva);
+  -webkit-mask-image:var(--mp-mar);mask-image:var(--mp-mar);
+  -webkit-mask-size:100% 100%;mask-size:100% 100%;
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+.mp-vivo .mp-agua{opacity:.085}
+.mp-giro{position:absolute;inset:-45%}
+.mp-giro--a{transform:rotate(-3deg)}
+.mp-giro--b{transform:rotate(1.5deg)}
+.mp-onda{position:absolute;inset:0;background-repeat:repeat;will-change:transform;
+  animation:mpBogar var(--dur) linear infinite}
+.mp-onda--a{background-image:var(--mp-brillo1);background-size:62% auto;--paso:62%;--dur:150s}
+.mp-onda--b{background-image:var(--mp-brillo2);background-size:88% auto;--paso:-88%;--dur:230s;opacity:.85}
+@keyframes mpBogar{from{transform:translate3d(0,0,0)}to{transform:translate3d(var(--paso),0,0)}}
+
+/* ── nubes ─────────────────────────────────────────────────────────────
+   Recortes de una foto de la bahía con matte de verdad: la suavidad está
+   horneada en el alfa. Sin filter, sin blur, sin blend. */
+.mp-sombras{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.mp-sombra{position:absolute;display:block;height:auto;will-change:transform;
+  mix-blend-mode:multiply;opacity:0;transition:opacity 1.4s var(--mp-curva)}
+.mp-nubes{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.mp-nube{position:absolute;display:block;height:auto;will-change:transform;
+  transform:translate3d(0,0,0);opacity:0;transition:opacity 1.4s var(--mp-curva)}
+.mp-nubes--alto{z-index:3}
+
+/* ── avistamientos ─────────────────────────────────────────────────────── */
+.mp-ballenas{position:absolute;inset:0;width:100%;height:100%;
+  mix-blend-mode:screen;opacity:0;transition:opacity .9s var(--mp-curva);
+  pointer-events:none}
+.mp-con-ballenas .mp-ballenas{opacity:1}
+.mp-con-ballenas .mp-agua-n{opacity:.45}
+
+/* ── rótulos y líneas del mapa ─────────────────────────────────────────── */
+.mp-ruta{fill:none;stroke:rgba(196,222,240,.5);stroke-width:1.2;
+  stroke-dasharray:1 6;stroke-linecap:round}
+.mp-ruta-t,.mp-agua-n,.mp-escala-t,.mp-nota{font-family:var(--mp-sans)}
+.mp-ruta-t{font-size:9.5px;letter-spacing:.2em;fill:rgba(196,222,240,.55)}
+.mp-agua-n{font-family:var(--mp-serif);font-style:italic;font-size:25px;
+  letter-spacing:.4em;fill:rgba(180,210,232,.30);text-anchor:middle;
+  transition:opacity .9s var(--mp-curva)}
+.mp-agua-n--b{font-size:16px;letter-spacing:.32em;fill:rgba(180,210,232,.26)}
+
+/* El camino no es la línea recta: es la carretera de verdad, calculada
+   una vez sobre datos de OpenStreetMap y guardada aquí. */
+.mp-camino{fill:none;stroke:var(--mp-oro);stroke-width:2.4;stroke-linecap:round;
+  stroke-linejoin:round;opacity:0;filter:drop-shadow(0 0 4px rgba(232,200,138,.45));
+  transition:opacity .45s var(--mp-curva)}
+.mp-camino--puesto{opacity:.92}
+.mp-panga{fill:none;stroke:rgba(196,222,240,.85);stroke-width:1.8;
+  stroke-dasharray:2 7;stroke-linecap:round;opacity:0;
+  transition:opacity .5s var(--mp-curva)}
+.mp-panga--puesta{opacity:.85}
+
+.mp-lug{cursor:pointer}
+.mp-tocar{fill:transparent}
+.mp-pin{fill:none;stroke:rgba(255,255,255,.72);stroke-width:1.2;
+  transition:fill .3s var(--mp-curva),stroke .3s var(--mp-curva)}
+.mp-nombre{font-family:var(--mp-sans);font-size:10px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;fill:rgba(255,255,255,.8);
+  transition:fill .3s var(--mp-curva);paint-order:stroke;
+  stroke:rgba(4,10,20,.75);stroke-width:2.6px;stroke-linejoin:round}
+.mp-hilo{stroke:var(--mp-oro);stroke-width:1.1;stroke-dasharray:3 4;opacity:0;
+  transition:opacity .3s var(--mp-curva)}
+.mp-eligiendo .mp-nombre{fill:rgba(255,255,255,.34)}
+.mp-eligiendo .mp-pin{stroke:rgba(255,255,255,.3)}
+.mp-lug:hover .mp-nombre{fill:#fff}
+.mp-lug.mp-sel .mp-nombre{fill:#fff}
+.mp-lug.mp-sel .mp-pin{fill:var(--mp-oro);stroke:var(--mp-oro)}
+.mp-lug.mp-sel .mp-hilo{opacity:.75}
+.mp-con-camino .mp-lug.mp-sel .mp-hilo{opacity:.18}
+.mp-lug:focus{outline:none}
+.mp-lug:focus-visible .mp-pin{stroke:var(--mp-oro);stroke-width:2.6}
+
+/* ── la casa y los otros complejos ─────────────────────────────────────
+   En la lectura "alrededor" solo se ve esta casa. En "las otras casas"
+   aparecen los tres complejos y los lugares se apagan. */
+.mp-casa-anillo{fill:none;stroke:var(--mp-oro);stroke-width:1.2;opacity:.55;
+  animation:mpLate 3.8s ease-out infinite}
+@keyframes mpLate{0%{r:9;opacity:.55}70%{r:32;opacity:0}100%{r:32;opacity:0}}
+.mp-casa-t{font-family:var(--mp-serif);font-style:italic;font-size:21px;fill:#fff;
+  paint-order:stroke;stroke:rgba(4,10,20,.7);stroke-width:3px;stroke-linejoin:round}
+
+.mp-casas{opacity:0;pointer-events:none;transition:opacity .6s var(--mp-curva)}
+.mp-vista-casas .mp-casas{opacity:1;pointer-events:auto}
+.mp-vista-casas .mp-lugares{opacity:0;pointer-events:none}
+.mp-lugares{transition:opacity .6s var(--mp-curva)}
+.mp-vista-casas .mp-camino,.mp-vista-casas .mp-panga{opacity:0}
+/* en la lectura de las casas, el alfiler de la casa sobra: el complejo
+   ya está ahí, y los dos rótulos se pisaban */
+.mp-casa{transition:opacity .5s var(--mp-curva)}
+.mp-vista-casas .mp-casa{opacity:0}
+/* y al acercarse a la costa norte, el paso de las ballenas y los nombres
+   del mar quedan cortados por el encuadre: estorban más de lo que dicen */
+.mp-ruta,.mp-ruta-t{transition:opacity .5s var(--mp-curva)}
+.mp-vista-casas .mp-ruta,.mp-vista-casas .mp-ruta-t,
+.mp-vista-casas .mp-agua-n{opacity:0}
+
+.mp-cmp{cursor:pointer}
+.mp-cmp-aro{fill:none;stroke:rgba(255,255,255,.55);stroke-width:1.3;
+  transition:stroke .35s var(--mp-curva)}
+.mp-cmp-punto{fill:rgba(255,255,255,.75);transition:fill .35s var(--mp-curva)}
+.mp-cmp-t{font-family:var(--mp-serif);font-style:italic;font-size:19px;
+  fill:rgba(255,255,255,.88);paint-order:stroke;stroke:rgba(4,10,20,.7);
+  stroke-width:3px;stroke-linejoin:round;transition:fill .35s var(--mp-curva)}
+.mp-cmp-z{font-family:var(--mp-sans);font-size:9px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;fill:rgba(255,255,255,.5);
+  paint-order:stroke;stroke:rgba(4,10,20,.7);stroke-width:2.4px;stroke-linejoin:round}
+.mp-cmp:hover .mp-cmp-t,.mp-cmp.mp-sel .mp-cmp-t{fill:#fff}
+.mp-cmp.mp-sel .mp-cmp-aro{stroke:var(--mp-oro)}
+.mp-cmp.mp-sel .mp-cmp-punto{fill:var(--mp-oro)}
+.mp-cmp--aqui .mp-cmp-aro{stroke:var(--mp-oro)}
+.mp-cmp--aqui .mp-cmp-punto{fill:var(--mp-oro)}
+.mp-cmp:focus{outline:none}
+.mp-cmp:focus-visible .mp-cmp-aro{stroke:var(--mp-oro);stroke-width:2.6}
+
+/* ── adornos ───────────────────────────────────────────────────────────── */
+.mp-escala line{stroke:rgba(255,255,255,.55);stroke-width:1}
+.mp-escala-t{font-size:9.5px;letter-spacing:.16em;fill:rgba(255,255,255,.72);
+  paint-order:stroke;stroke:rgba(4,10,20,.6);stroke-width:2.4px;stroke-linejoin:round}
+.mp-rosa circle{fill:none;stroke:rgba(255,255,255,.22);stroke-width:.9}
+.mp-rosa path{fill:rgba(255,255,255,.34)} .mp-rosa .mp-n{fill:var(--mp-oro)}
+.mp-rosa-t{font-family:var(--mp-sans);font-size:10px;letter-spacing:.2em;
+  fill:rgba(255,255,255,.6)}
+.mp-nota{font-size:8.5px;letter-spacing:.18em;fill:rgba(255,255,255,.5);
+  paint-order:stroke;stroke:rgba(4,10,20,.6);stroke-width:2.4px;stroke-linejoin:round}
+
+/* ── acercarse ─────────────────────────────────────────────────────────
+   El relieve es bitmap y se escala; los rótulos son vectores y se vuelven
+   a dibujar, así que el texto sigue nítido en vez de ampliar el pixel. */
+.mp-cerca .mp-nombre{font-size:calc(10px / var(--z));stroke-width:calc(2.6px / var(--z))}
+.mp-cerca .mp-casa-t{font-size:calc(21px / var(--z));stroke-width:calc(3px / var(--z))}
+.mp-cerca .mp-cmp-t{font-size:calc(19px / var(--z));stroke-width:calc(3px / var(--z))}
+.mp-cerca .mp-cmp-z{font-size:calc(9px / var(--z));stroke-width:calc(2.4px / var(--z))}
+.mp-cerca .mp-agua-n{font-size:calc(25px / var(--z))}
+.mp-cerca .mp-agua-n--b{font-size:calc(16px / var(--z))}
+.mp-cerca .mp-ruta-t{font-size:calc(9.5px / var(--z))}
+.mp-cerca .mp-escala-t{font-size:calc(9.5px / var(--z));stroke-width:calc(2.4px / var(--z))}
+.mp-cerca .mp-nota{font-size:calc(8.5px / var(--z));stroke-width:calc(2.4px / var(--z))}
+.mp-cerca .mp-rosa-t{font-size:calc(10px / var(--z))}
+.mp-cerca .mp-pin{stroke-width:calc(1.2px / var(--z))}
+.mp-cerca .mp-hilo{stroke-width:calc(1.1px / var(--z))}
+.mp-cerca .mp-ruta{stroke-width:calc(1.2px / var(--z))}
+.mp-cerca .mp-escala line{stroke-width:calc(1px / var(--z))}
+.mp-cerca .mp-casa-anillo{animation:none;opacity:0}
+
+/* ── mandos ────────────────────────────────────────────────────────────── */
+.mp-interruptor{position:absolute;top:14px;right:14px;z-index:4;
+  display:inline-flex;align-items:center;gap:9px;padding:8px 14px 8px 12px;
+  border-radius:999px;border:1px solid rgba(232,228,218,.2);
+  background:rgba(6,13,26,.66);backdrop-filter:blur(7px);
+  -webkit-backdrop-filter:blur(7px);color:rgba(255,255,255,.82);
+  font-family:var(--mp-sans);font-size:10px;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;cursor:pointer;
+  transition:border-color .4s var(--mp-curva),color .4s var(--mp-curva),
+             background .4s var(--mp-curva),opacity .4s var(--mp-curva)}
+.mp-interruptor .mp-punto{width:7px;height:7px;border-radius:50%;
+  background:rgba(255,255,255,.3);
+  transition:background .4s var(--mp-curva),box-shadow .4s var(--mp-curva)}
+.mp-interruptor[aria-pressed="true"]{border-color:rgba(232,200,138,.6);color:#fff;
+  background:rgba(232,200,138,.14)}
+.mp-interruptor[aria-pressed="true"] .mp-punto{background:var(--mp-oro);
+  box-shadow:0 0 0 4px rgba(232,200,138,.2)}
+.mp-interruptor:focus-visible{outline:2px solid var(--mp-oro);outline-offset:3px}
+.mp-vista-casas .mp-interruptor{opacity:0;pointer-events:none}
+
+.mp-zoom{position:absolute;right:14px;bottom:14px;z-index:5;display:flex;gap:6px}
+.mp-zoom button{width:32px;height:32px;border-radius:999px;cursor:pointer;
+  border:1px solid rgba(232,228,218,.2);background:rgba(6,13,26,.66);
+  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  color:rgba(255,255,255,.85);font-family:var(--mp-sans);font-size:15px;
+  line-height:1;display:grid;place-items:center;
+  transition:border-color .3s var(--mp-curva),background .3s var(--mp-curva)}
+.mp-zoom button:hover{border-color:rgba(232,200,138,.6);background:rgba(232,200,138,.14)}
+.mp-zoom button:focus-visible{outline:2px solid var(--mp-oro);outline-offset:3px}
+.mp-zoom button[disabled]{opacity:.35;cursor:default}
+
+/* ── la barra de lectura ───────────────────────────────────────────────
+   No es un rótulo: es la respuesta. Cambia con lo que se toque y el botón
+   lleva la ruta de verdad, con esta casa como origen. */
+.mp-lectura{display:flex;align-items:center;justify-content:space-between;
+  gap:16px;flex-wrap:wrap;padding:14px 18px;border-top:1px solid var(--mp-linea);
+  background:rgba(6,13,26,.7)}
+.mp-que{font-family:var(--mp-serif);font-size:21px;line-height:1.2;display:block;
+  color:#F3EFE6}
+.mp-cuanto{font-family:var(--mp-sans);font-size:10.5px;font-weight:500;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--mp-bruma);
+  margin-top:3px;display:block;font-variant-numeric:tabular-nums}
+.mp-ir{font-family:var(--mp-sans);font-size:10.5px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--mp-oro);
+  text-decoration:none;border:1px solid rgba(232,200,138,.4);border-radius:999px;
+  padding:9px 16px;white-space:nowrap;
+  transition:background .3s var(--mp-curva),border-color .3s var(--mp-curva)}
+.mp-ir:hover{background:rgba(232,200,138,.12);border-color:var(--mp-oro)}
+.mp-ir:focus-visible{outline:2px solid var(--mp-oro);outline-offset:3px}
+
+/* ── la guía, escrita ──────────────────────────────────────────────────
+   Lo mismo que dice el mapa, en texto: es lo que lee un buscador, un
+   lector de pantalla y quien prefiere una lista a un dibujo. */
+.mp-guia{margin-top:22px}
+.mp-panel[hidden]{display:none}
+.mp-lista{list-style:none;margin:0;padding:0;display:grid;row-gap:0;
+  column-gap:44px;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.mp-fila{display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+  padding:11px 2px;border-bottom:1px solid rgba(232,228,218,.08)}
+.mp-fila b{font-weight:500;font-size:14px;color:#E6E2D9}
+.mp-fila span{font-family:var(--mp-sans);font-size:11px;letter-spacing:.08em;
+  color:var(--mp-bruma);text-align:right;font-variant-numeric:tabular-nums;
+  white-space:nowrap}
+.mp-fila--nota span{color:rgba(232,200,138,.85);white-space:normal}
+.mp-pie{font-size:12.5px;line-height:1.6;color:var(--mp-bruma);margin:16px 2px 0;
+  max-width:74ch}
+.mp-pie b{color:#D8D3C8;font-weight:500}
+
+/* las tres zonas */
+.mp-zonas{display:grid;gap:12px;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.mp-zona{display:block;text-decoration:none;color:inherit;padding:16px 16px 15px;
+  border:1px solid rgba(232,228,218,.1);border-radius:8px;background:rgba(255,255,255,.015);
+  transition:border-color .35s var(--mp-curva),background .35s var(--mp-curva)}
+.mp-zona:hover{border-color:rgba(232,200,138,.4);background:rgba(232,200,138,.05)}
+.mp-zona--aqui{border-color:rgba(232,200,138,.5);background:rgba(232,200,138,.07)}
+.mp-zona-n{font-family:var(--mp-serif);font-size:20px;color:#F3EFE6;display:block}
+.mp-zona-z{font-family:var(--mp-sans);font-size:10px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--mp-bruma);
+  display:block;margin-top:2px}
+.mp-zona-q{font-size:13px;line-height:1.55;color:#AAB4C2;margin:10px 0 0}
+.mp-zona-d{font-family:var(--mp-sans);font-size:10.5px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;color:rgba(232,200,138,.85);
+  margin-top:11px;display:block;font-variant-numeric:tabular-nums}
+
+/* la tira de unidades: donde el mapa ya no distingue, la lista sí */
+.mp-unidades{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:8px;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
+.mp-unidad{display:block;text-decoration:none;color:inherit;padding:12px 13px;
+  border:1px solid rgba(232,228,218,.09);border-radius:7px;
+  transition:border-color .3s var(--mp-curva),background .3s var(--mp-curva)}
+.mp-unidad:hover{border-color:rgba(232,200,138,.4);background:rgba(232,200,138,.05)}
+.mp-unidad--aqui{border-color:rgba(232,200,138,.5);background:rgba(232,200,138,.08);
+  pointer-events:none}
+.mp-unidad-n{font-family:var(--mp-serif);font-size:17px;color:#F3EFE6;display:block}
+.mp-unidad-d{font-family:var(--mp-sans);font-size:10px;letter-spacing:.1em;
+  color:var(--mp-bruma);display:block;margin-top:3px;font-variant-numeric:tabular-nums}
+.mp-unidad-aqui{font-family:var(--mp-sans);font-size:9px;font-weight:600;
+  letter-spacing:.18em;text-transform:uppercase;color:rgba(232,200,138,.9);
+  display:block;margin-top:6px}
+
+/* ── teléfono ──────────────────────────────────────────────────────────
+   Mismo archivo y mismo encuadre para relieve y rótulos: el mapa se acerca
+   al pedazo que importa, la costa norte, donde está la casa. */
+@media (max-width:620px){
+  .mp-lienzo{aspect-ratio:645/625}
+  .mp-plano{inset:auto;left:-66.67%;top:-8%;width:186.05%;height:121.6%}
+  .mp-rosa{display:none}
+  .mp-escala{transform:translate(452px,196px)}
+  .mp-lug[data-k="pv"] .mp-nombre{text-anchor:end;transform:translate(-16px,0)}
+  /* Bolongo está en la esquina del encuadre de teléfono: su rótulo se sale
+     por la izquierda, así que aquí cambia de lado */
+  .mp-cmp[data-c="bolongo"] .mp-cmp-t,
+  .mp-cmp[data-c="bolongo"] .mp-cmp-z{text-anchor:start;transform:translate(40px,0)}
+  .mp-nota,.mp-ruta-t,.mp-lug[data-k="cabo"]{display:none}
+  .mp-agua-n{display:none}
+  .mp-agua-n--b{display:block;font-size:26px}
+  .mp-interruptor{top:auto;bottom:12px;left:12px;right:auto}
+  .mp-que{font-size:19px}
+  .mp-tab{font-size:10px;padding:8px 13px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .mp *{animation:none!important;transition:none!important}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   EL RELIEVE — cuando el aparato puede con WebGL
+   El mapa plano no se borra: se apaga y queda debajo como red. Si los
+   shaders no compilan o la malla no cabe, mapa.js quita la clase .mp-3d y
+   lo de arriba vuelve solo.
+   ═══════════════════════════════════════════════════════════════════════ */
+.mp-gl{position:absolute;inset:0;width:100%;height:100%;display:block;
+  background:#050a14;touch-action:none}
+.mp-3d .mp-plano,.mp-3d .mp-nubes,.mp-3d .mp-sombras,.mp-3d .mp-agua{display:none}
+.mp-3d .mp-lienzo{cursor:grab}
+.mp-3d .mp-lienzo.mp-arrastrando{cursor:grabbing}
+/* mientras la malla se construye, el hueco es mar en calma y no un salto */
+.mp-3d .mp-gl{opacity:0;transition:opacity 1.1s var(--mp-curva)}
+.mp-3d-listo .mp-gl{opacity:1}
+
+.mp-capa3{position:absolute;inset:0;width:100%;height:100%;
+  pointer-events:none;overflow:visible}
+.mp-capa3 .mp-p3,.mp-capa3 .mp-casa3{pointer-events:none}
+.mp-capa3 .mp-p3{pointer-events:auto;cursor:pointer}
+/* Los rótulos van a tamaño de pantalla, no de mundo: un nombre que se
+   encoge con la perspectiva es un nombre que no se lee. Lo que sí baja con
+   la distancia es la opacidad, y eso basta para que haya fondo. */
+.mp-capa3 .mp-nombre{font-size:10px}
+.mp-capa3 .mp-cmp-z{font-size:9px}
+.mp-capa3 .mp-casa-t{font-size:19px}
+.mp-capa3 .mp-camino{stroke-width:2.6;stroke-linejoin:round}
+.mp-capa3 .mp-panga{stroke-width:2}
+.mp-cmp3 .mp-pin{r:4.2}
+.mp-cmp3.mp-cmp--aqui .mp-pin{fill:var(--mp-oro);stroke:var(--mp-oro)}
+.mp-p3:focus{outline:none}
+.mp-p3:focus-visible .mp-pin{stroke:var(--mp-oro);stroke-width:2.6}
+
+/* En teléfono el relieve no se recorta como el plano: se gira y se acerca,
+   que para eso está. */
+@media (max-width:620px){
+  .mp-3d .mp-lienzo{aspect-ratio:1/0.92}
+  .mp-capa3 .mp-nombre{font-size:9.5px}
+  .mp-capa3 .mp-casa-t{font-size:16px}
+}
+
+/* ── la carretera sobre el relieve ─────────────────────────────────────
+   Tres trazos encima del mismo camino. Con uno solo, el oro se perdía
+   sobre la mancha urbana de Vallarta, que es justo por donde pasa. */
+.mp-capa3 .mp-funda{fill:none;stroke:rgba(2,6,14,.62);stroke-width:7;
+  stroke-linecap:round;stroke-linejoin:round;opacity:0;
+  transition:opacity .45s var(--mp-curva)}
+.mp-capa3 .mp-funda.mp-camino--puesto{opacity:.85}
+.mp-capa3 .mp-camino{stroke-width:3;filter:drop-shadow(0 0 5px rgba(232,200,138,.55))}
+/* el guion corre hacia el destino: dice de un vistazo hacia dónde se va */
+.mp-capa3 .mp-flujo{fill:none;stroke:rgba(255,248,232,.92);stroke-width:1.5;
+  stroke-linecap:round;stroke-dasharray:1 16;opacity:0;
+  transition:opacity .6s var(--mp-curva);animation:mpCorre 1.6s linear infinite}
+.mp-capa3 .mp-flujo.mp-camino--puesto{opacity:.8}
+@keyframes mpCorre{to{stroke-dashoffset:-17}}
+
+/* ── el complejo elegido ───────────────────────────────────────────────
+   Antes solo cambiaba de color el punto, y con tres puntos blancos en la
+   misma costa no se veía cuál estaba puesto. */
+.mp-cmp-halo{fill:none;stroke:var(--mp-oro);stroke-width:1.4;opacity:0;
+  transition:opacity .4s var(--mp-curva)}
+.mp-cmp3.mp-sel .mp-cmp-halo{opacity:.85;animation:mpLate3 3.4s ease-out infinite}
+@keyframes mpLate3{0%{r:9;opacity:.85}70%{r:26;opacity:0}100%{r:26;opacity:0}}
+.mp-cmp3.mp-sel .mp-pin{fill:var(--mp-oro);stroke:var(--mp-oro);stroke-width:2}
+.mp-cmp3.mp-sel .mp-nombre{fill:#fff}
+.mp-cmp3.mp-sel .mp-cmp-z{fill:rgba(232,200,138,.9)}
+.mp-capa3.mp-eligiendo .mp-cmp3:not(.mp-sel) .mp-nombre{fill:rgba(255,255,255,.34)}
+.mp-capa3.mp-eligiendo .mp-cmp3:not(.mp-sel) .mp-cmp-z{fill:rgba(255,255,255,.22)}
+
+/* ── las islas ─────────────────────────────────────────────────────────
+   No son destinos: son lo que se ve desde la terraza. Van en otro tono
+   para que no compitan con los lugares a los que sí se va. */
+.mp-hito .mp-pin{stroke:rgba(196,222,240,.85);stroke-width:1;r:2.6}
+.mp-hito .mp-nombre{font-size:9px;letter-spacing:.14em;
+  fill:rgba(196,222,240,.78);font-style:normal}
+.mp-hito:hover .mp-nombre{fill:#fff}
+.mp-hito.mp-sel .mp-pin{fill:var(--mp-oro);stroke:var(--mp-oro)}
+.mp-hito.mp-sel .mp-nombre{fill:#fff}
+
+/* lo que se le hace al terreno, escrito en el propio mapa */
+.mp-pie3{display:none}
+.mp-3d .mp-pie3{display:block;position:absolute;left:14px;bottom:14px;z-index:4;
+  margin:0;max-width:60%;font-family:var(--mp-sans);font-size:8.5px;font-weight:500;
+  letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.42);
+  text-shadow:0 1px 3px rgba(4,10,20,.8);pointer-events:none;line-height:1.5}
+@media (max-width:620px){
+  .mp-3d .mp-pie3{left:12px;bottom:56px;max-width:78%;font-size:8px}
+}
