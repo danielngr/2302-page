@@ -1978,7 +1978,13 @@ if(window.__lenis&&window.__lenis.on)window.__lenis.on("scroll",upd)}catch(_){}u
   /* Se mueve sola a 42 px por segundo. El scroll la empuja: al bajar
      acelera, al subir se da la vuelta, y en cuanto dejas de mover la
      rueda vuelve despacio a su paso. */
-  var x = 0, vel = -42, empuje = 0, ancho = 0, ultY = scrollY, ultT = performance.now(), enVista = true;
+  /* En el teléfono el dedo mueve la página mucho más por gesto (y con
+     inercia), así que ahí el empuje es mucho más suave y tiene un tope
+     bajo: la cinta acompaña al scroll sin salir disparada. */
+  var MOVIL = false;
+  try { MOVIL = matchMedia('(max-width: 820px), (hover: none)').matches; } catch (e) {}
+  var FUERZA = MOVIL ? 1.1 : 9, TOPE = MOVIL ? 180 : 1600;
+  var x = 0, vel = MOVIL ? -32 : -42, empuje = 0, ancho = 0, ultY = scrollY, ultT = performance.now(), enVista = true;
   function medir() { ancho = riel.firstChild.getBoundingClientRect().width; }
   addEventListener('resize', medir);
   if ('IntersectionObserver' in window) {
@@ -1986,8 +1992,8 @@ if(window.__lenis&&window.__lenis.on)window.__lenis.on("scroll",upd)}catch(_){}u
   }
   addEventListener('scroll', function () {
     var dy = scrollY - ultY; ultY = scrollY;
-    empuje += dy * 9;
-    empuje = Math.max(-1600, Math.min(1600, empuje));
+    empuje += dy * FUERZA;
+    empuje = Math.max(-TOPE, Math.min(TOPE, empuje));
   }, { passive: true });
   function paso(t) {
     var dt = Math.min(0.05, (t - ultT) / 1000); ultT = t;
