@@ -14,22 +14,17 @@
   --mp-sans:var(--pp-sans,"Archivo",system-ui,-apple-system,sans-serif);
 }
 
-/* ── el conmutador de lecturas ─────────────────────────────────────────
-   No es un filtro ni un menú: son las dos preguntas que se hace quien
-   mira una casa. Dónde está, y qué más tienen. */
-.mp-conmutador{display:flex;gap:4px;margin:0 0 14px;flex-wrap:wrap}
+/* ── el rótulo del mapa ────────────────────────────────────────────────
+   Antes eran dos lecturas. Quedó una: el mapa contesta dónde está la
+   casa y qué tiene cerca, que es la pregunta que trae el huésped. */
+.mp-conmutador{display:flex;justify-content:center;margin:0 0 18px}
+/* ya no es un botón: es el rótulo de lo que hace el mapa, centrado */
 .mp-tab{
-  appearance:none;border:1px solid var(--mp-linea);background:transparent;
-  color:rgba(243,239,230,.62);font-family:var(--mp-sans);font-size:11px;
-  font-weight:600;letter-spacing:.14em;text-transform:uppercase;
-  padding:9px 16px;border-radius:999px;cursor:pointer;
-  transition:color .35s var(--mp-curva),border-color .35s var(--mp-curva),
-             background .35s var(--mp-curva);
+  display:inline-block;border:1px solid rgba(232,200,138,.32);
+  background:rgba(232,200,138,.08);color:rgba(243,239,230,.9);
+  font-family:var(--mp-sans);font-size:10.5px;font-weight:600;
+  letter-spacing:.2em;text-transform:uppercase;padding:9px 20px;border-radius:999px;
 }
-.mp-tab:hover{color:#fff;border-color:rgba(232,200,138,.45)}
-.mp-tab[aria-selected="true"]{
-  color:#fff;border-color:rgba(232,200,138,.65);background:rgba(232,200,138,.12)}
-.mp-tab:focus-visible{outline:2px solid var(--mp-oro);outline-offset:3px}
 
 .mp-marco{position:relative;border:.5px solid var(--mp-linea);border-radius:8px;
   overflow:hidden;background:#08152A}
@@ -228,23 +223,60 @@
 .mp-zoom button[disabled]{opacity:.35;cursor:default}
 
 /* ── la barra de lectura ───────────────────────────────────────────────
-   No es un rótulo: es la respuesta. Cambia con lo que se toque y el botón
-   lleva la ruta de verdad, con esta casa como origen. */
-.mp-lectura{display:flex;align-items:center;justify-content:space-between;
-  gap:16px;flex-wrap:wrap;padding:14px 18px;border-top:1px solid var(--mp-linea);
-  background:rgba(6,13,26,.7)}
-.mp-que{font-family:var(--mp-serif);font-size:21px;line-height:1.2;display:block;
-  color:#F3EFE6}
-.mp-cuanto{font-family:var(--mp-sans);font-size:10.5px;font-weight:500;
-  letter-spacing:.14em;text-transform:uppercase;color:var(--mp-bruma);
-  margin-top:3px;display:block;font-variant-numeric:tabular-nums}
+   No es un rótulo: es la respuesta. Y ya no es una frase con puntos
+   medios — es una fila de medidas, valor arriba y qué se midió abajo.
+   La misma información, leída de un golpe de vista. */
+.mp-lectura{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:clamp(16px,3vw,40px);flex-wrap:wrap;padding:20px 22px 19px;
+  border-top:1px solid rgba(232,200,138,.18);
+  background:linear-gradient(180deg,rgba(10,22,42,.94),rgba(6,13,26,.82));
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+}
+.mp-quien{min-width:0;flex:0 1 auto}
+.mp-que{font-family:var(--mp-serif);font-size:clamp(23px,2.3vw,30px);
+  line-height:1.06;display:block;color:#F3EFE6;letter-spacing:-.012em}
+/* el filo de oro debajo del nombre: dos píxeles de oficio */
+.mp-filo{display:block;width:26px;height:1px;background:var(--mp-oro);
+  margin-top:11px;opacity:.7}
+
+.mp-datos{display:flex;align-items:stretch;flex-wrap:wrap;
+  row-gap:12px;flex:1 1 auto;justify-content:flex-start}
+.mp-dato{display:flex;flex-direction:column;justify-content:center;
+  padding:2px 20px;border-left:1px solid var(--mp-linea)}
+.mp-dato:first-child{border-left:0;padding-left:0}
+.mp-dato b{font-family:var(--mp-serif);font-weight:400;font-size:20px;
+  line-height:1.1;color:#F3EFE6;font-variant-numeric:tabular-nums;
+  white-space:nowrap}
+.mp-dato i{font-family:var(--mp-sans);font-style:normal;font-size:8.5px;
+  font-weight:600;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--mp-bruma);margin-top:7px;white-space:nowrap}
+/* lo que no es una medida —"sin carretera", "parque nacional"— no se
+   disfraza de medida: se queda como nota */
+.mp-dato--nota{justify-content:center;font-family:var(--mp-sans);font-size:10px;
+  font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(232,200,138,.82);max-width:24ch;line-height:1.5;white-space:normal}
+
 .mp-ir{font-family:var(--mp-sans);font-size:10.5px;font-weight:600;
   letter-spacing:.16em;text-transform:uppercase;color:var(--mp-oro);
-  text-decoration:none;border:1px solid rgba(232,200,138,.4);border-radius:999px;
-  padding:9px 16px;white-space:nowrap;
-  transition:background .3s var(--mp-curva),border-color .3s var(--mp-curva)}
-.mp-ir:hover{background:rgba(232,200,138,.12);border-color:var(--mp-oro)}
+  text-decoration:none;border:1px solid rgba(232,200,138,.42);border-radius:999px;
+  padding:13px 22px;white-space:nowrap;flex:0 0 auto;
+  display:inline-flex;align-items:center;
+  transition:background .45s var(--mp-curva),border-color .45s var(--mp-curva),
+             color .45s var(--mp-curva)}
+.mp-ir::after{content:'\2192';margin-left:11px;display:inline-block;
+  transition:transform .45s var(--mp-curva)}
+.mp-ir:hover{background:var(--mp-oro);border-color:var(--mp-oro);color:#08152A}
+.mp-ir:hover::after{transform:translateX(5px)}
 .mp-ir:focus-visible{outline:2px solid var(--mp-oro);outline-offset:3px}
+.mp-ir[hidden]{display:none}
+
+@media (max-width:640px){
+  .mp-lectura{padding:16px 16px 15px;gap:14px}
+  .mp-dato{padding:2px 14px}
+  .mp-dato b{font-size:17px}
+  .mp-ir{width:100%;justify-content:center}
+}
 
 /* ── la guía, escrita ──────────────────────────────────────────────────
    Lo mismo que dice el mapa, en texto: es lo que lee un buscador, un
@@ -402,6 +434,6 @@
 
 /* el crédito de la imagen, fuera del cuadro y en voz baja: la licencia
    obliga a nombrar la fuente, no a escribirla encima del terreno */
-.mp-fuente{margin:10px 16px 2px 0;text-align:right;
-  font-family:var(--mp-sans);font-size:9px;font-weight:500;letter-spacing:.1em;
-  text-transform:uppercase;color:rgba(158,180,200,.34);line-height:1.4}
+.mp-fuente{margin:8px 4px 0 0;text-align:right;
+  font-family:var(--mp-sans);font-size:8px;font-weight:500;letter-spacing:.16em;
+  text-transform:uppercase;color:rgba(158,180,200,.22);line-height:1.4}

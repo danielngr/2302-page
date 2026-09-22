@@ -1,0 +1,34 @@
+/* ═══════════════════════════════════════════════════════════════════
+   VRM · el sello que gira con el scroll                  19 sep 2026
+   Uno solo, fijo arriba a la izquierda: no entra ni sale, acompaña
+   todo el recorrido. El texto del aro y la cola de ballena del centro
+   son los mismos de la casa — la cola sale del propio loader.
+   Gira el ARO; el emblema se queda quieto. Que el centro no gire es
+   lo que separa un sello de una rueda.
+   ═══════════════════════════════════════════════════════════════════ */
+.vrm-sello{
+  position:fixed;z-index:9986;pointer-events:none;
+  left:clamp(10px,1.2vw,20px);
+  /* por debajo de la barra flotante, que ocupa los primeros 80 px.
+     Pequeño y en voz baja a propósito: un sello fijo se cruza con el
+     texto todo el rato, y lo que lo hace tolerable es que pese poco. */
+  top:clamp(90px,10vh,112px);
+  width:clamp(84px,7.6vw,114px);aspect-ratio:1;
+  opacity:0;transition:opacity 1.6s ease 1.2s;
+}
+.vrm-sello.on{opacity:1}
+/* solo el svg de fuera se estira: si la regla alcanza al <svg> anidado
+   del centro, le borra su tamaño propio y la cola sale gigante */
+.vrm-sello>svg{width:100%;height:100%;display:block;overflow:visible}
+/* sin esto el <g> gira alrededor del origen del lienzo (0,0) y el aro
+   se va de paseo en vez de girar sobre sí mismo */
+.vrm-sello .aro{transform-box:view-box;transform-origin:center;will-change:transform}
+.vrm-sello .letra{
+  font-family:var(--pp-sans,'Satoshi',system-ui,sans-serif);font-size:20px;
+  font-weight:500;fill:rgba(184,150,104,.72);text-transform:uppercase;
+}
+.vrm-sello .linea{fill:none;stroke:rgba(184,150,104,.26);stroke-width:1.4}
+.vrm-sello .cola{fill:rgba(184,150,104,.40)}
+/* en el pulgar estorba más de lo que aporta */
+@media (max-width:900px){.vrm-sello{display:none}}
+@media (prefers-reduced-motion:reduce){.vrm-sello .aro{transform:none !important}}

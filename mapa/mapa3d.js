@@ -101,6 +101,7 @@ window.VRM_MAPA_3D = (function () {
     'precision highp float;',
     'uniform sampler2D piel; uniform sampler2D olas; uniform sampler2D mapaCosta;',
     'uniform sampler2D ballenas; uniform float verB;',
+    'uniform sampler2D nubes; uniform vec2 viento; uniform float sombraN;',
     'uniform vec3 sol; uniform vec3 ojo; uniform float tiempo;',
     'varying vec2 vUv; varying vec3 vNor; varying float vAlt; varying float vDist;',
     'varying float vCosta; varying vec3 vMundo; varying float vCresta;',
@@ -157,11 +158,31 @@ window.VRM_MAPA_3D = (function () {
        hunden con la perspectiva y la bruma, como cualquier otra cosa que
        esté ahí de verdad. */
     '  if(verB > 0.001) col += texture2D(ballenas, vUv).rgb * verB * mar;',
+    /* la sombra: cada punto del suelo mira hacia el sol y pregunta cuánta
+       nube hay en medio. Es lo que más vende que las nubes son de verdad. */
+    '  if(sombraN > 0.001){',
+    '    vec3 Ls = normalize(sol);',
+    '    vec3 qS = vMundo + Ls * ((4.4 - vMundo.y) / Ls.y);',
+    '    vec2 uS = vec2(qS.x/82.0+0.5, qS.z/64.973+0.5);',
+    '    vec2 mS = texture2D(nubes, uS - viento*tiempo, 1.5).rg;',
+    '    vec2 sS = texture2D(nubes, uS, 1.5).ba;',
+    '    float cS = clamp((mS.r - (0.655 - 0.15*sS.x))*4.2, 0.0, 1.0)*(0.45+0.55*mS.g)*sS.y;',
+    '    col *= 1.0 - 0.52 * sombraN * smoothstep(0.06, 0.55, cS);',
+    '  }',
     '  float b = 1.0 - exp(-vDist * 0.0085);',
     '  col = mix(col, vec3(0.055,0.105,0.175), clamp(b, 0.0, 0.82));',
     '  gl_FragColor = vec4(col, 1.0);',
     '}'
   ].join('\n');
+
+  /* ── las nubes ─────────────────────────────────────────────────────
+     No son fotos de una nube: son un volumen. En cada píxel se lanza un
+     rayo que atraviesa la capa (de 900 a 2 600 m, con la misma
+     exageración ×3 que el relieve) y se va sumando cuánta nube hay y
+     cuánta luz del sol le llega. Por eso están fijas en el cielo y no
+     giran contigo: al girar el mapa les ves otro lado. */
+  var VS_NUBES = "attribute vec2 pos; varying vec2 vN;\nvoid main(){ vN = pos; gl_Position = vec4(pos, 0.0, 1.0); }";
+  var FS_NUBES = "precision highp float;\nuniform sampler2D nubes; uniform sampler2D alturas;\nuniform mat4 inv; uniform vec3 ojo; uniform vec3 sol;\nuniform float tiempo; uniform vec2 viento;\nvarying vec2 vN;\nconst float BASE = 2.7, TOPE = 7.8, KX = 82.0, KZ = 64.973;\n\nfloat h3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }\nfloat n3(vec3 x){\n  vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);\n  return mix(mix(mix(h3(i), h3(i + vec3(1,0,0)), f.x), mix(h3(i + vec3(0,1,0)), h3(i + vec3(1,1,0)), f.x), f.y),\n             mix(mix(h3(i + vec3(0,0,1)), h3(i + vec3(1,0,1)), f.x), mix(h3(i + vec3(0,1,1)), h3(i + vec3(1,1,1)), f.x), f.y), f.z);\n}\nvec2 uvF(vec3 p){ return vec2(p.x / KX + 0.5, p.z / KZ + 0.5); }\n/* El campo de nubes viaja con el viento; lo que no viaja es el terreno:\n   sobre la sierra la nube crece, sobre el mar se deshace. Por eso la\n   cobertura sale de DOS lecturas de la misma textura: rojo y verde se\n   mueven, azul (la sierra) y alfa (el claro de la casa) se quedan. */\nfloat cobertura(vec3 p, out float tope){\n  vec2 m = texture2D(nubes, uvF(p) - viento * tiempo).rg;\n  vec2 s = texture2D(nubes, uvF(p)).ba;\n  tope = min(1.0, 0.30 + 0.55 * m.g + 0.25 * s.x);\n  return clamp((m.r - (0.655 - 0.15 * s.x)) * 4.2, 0.0, 1.0) * (0.45 + 0.55 * m.g) * s.y;\n}\nfloat perfil(float h, float tope){ return smoothstep(0.0, 0.08, h) * (1.0 - smoothstep(tope * 0.45, tope, h)); }\nfloat grueso(vec3 p){\n  float tope; float c = cobertura(p, tope);\n  return c * perfil((p.y - BASE) / (TOPE - BASE), tope);\n}\nfloat dens(vec3 p){\n  float g = grueso(p);\n  if (g < 0.015) return 0.0;\n  /* el detalle viaja con la nube (si no, la forma \"resbalar\u00eda\" por dentro)\n     y adem\u00e1s hierve despacio */\n  vec2 wk = viento * vec2(KX, KZ) * tiempo;\n  vec3 q = (p - vec3(wk.x, 0.0, wk.y)) * vec3(1.45, 1.9, 1.45) + vec3(0.0, tiempo * 0.006, tiempo * 0.004);\n  float d = n3(q) * 0.52 + n3(q * 2.37) * 0.30 + DETALLE;\n  return clamp(g * 1.3 - (1.0 - d) * 0.64, 0.0, 1.0);\n}\nfloat suelo(vec3 p){ return texture2D(alturas, uvF(p)).r * 8.0; }\n\nvoid main(){\n  vec4 a4 = inv * vec4(vN, -1.0, 1.0), b4 = inv * vec4(vN, 1.0, 1.0);\n  vec3 ro = ojo;\n  vec3 rd = normalize(b4.xyz / b4.w - a4.xyz / a4.w);\n  vec3 bmin = vec3(-KX * 0.5, BASE, -KZ * 0.5), bmax = vec3(KX * 0.5, TOPE, KZ * 0.5);\n  vec3 iv = 1.0 / rd;\n  vec3 t0 = (bmin - ro) * iv, t1 = (bmax - ro) * iv;\n  vec3 tn = min(t0, t1), tf = max(t0, t1);\n  float a = max(max(tn.x, tn.y), max(tn.z, 0.0));\n  float b = min(min(tf.x, tf.y), tf.z);\n  if (b <= a) discard;\n  for (int k = 1; k <= 6; k++) {\n    vec3 pk = ro + rd * (a * float(k) / 6.0);\n    if (pk.y < suelo(pk)) discard;\n  }\n  b = min(b, a + 64.0);\n  const int N = PASOS;\n  float dt = (b - a) / float(N);\n  float jit = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);\n  float t = a + dt * jit;\n  vec3 L = normalize(sol);\n  float cth = dot(rd, L);\n  float g1 = 0.6, g2 = -0.2;\n  float hg1 = (1.0 - g1 * g1) / pow(1.0 + g1 * g1 - 2.0 * g1 * cth, 1.5);\n  float hg2 = (1.0 - g2 * g2) / pow(1.0 + g2 * g2 - 2.0 * g2 * cth, 1.5);\n  float fase = 0.55 + 0.45 * mix(hg2, hg1, 0.6);\n  vec3 C = vec3(0.0); float T = 1.0; float tPrim = -1.0;\n  for (int i = 0; i < N; i++) {\n    vec3 p = ro + rd * t;\n    if (p.y < suelo(p)) break;\n    float d = dens(p);\n    if (d > 0.002) {\n      if (tPrim < 0.0) tPrim = t;\n      float sig = d * 10.0;\n      float ls = grueso(p + L * 0.35) + grueso(p + L * 0.8) + grueso(p + L * 1.5);\n      float luz = exp(-ls * 1.5);\n      float polvo = 1.0 - exp(-sig * 0.7);\n      float h = clamp((p.y - BASE) / (TOPE - BASE), 0.0, 1.0);\n      vec3 solC = vec3(1.0, 0.955, 0.885) * 2.1;\n      vec3 amb = mix(vec3(0.24, 0.29, 0.38), vec3(0.66, 0.74, 0.86), h);\n      vec3 col = solC * luz * fase * (0.35 + 0.65 * polvo) + amb;\n      float e = exp(-sig * dt);\n      C += T * col * (1.0 - e);\n      T *= e;\n      if (T < 0.02) break;\n    }\n    t += dt;\n    if (t > b) break;\n  }\n  float alfa = 1.0 - T;\n  if (alfa < 0.003) discard;\n  float db = 1.0 - exp(-(tPrim > 0.0 ? tPrim : a) * 0.0085);\n  C = mix(C, vec3(0.055, 0.105, 0.175) * alfa, clamp(db, 0.0, 0.82));\n  gl_FragColor = vec4(min(C, vec3(1.0)), alfa);\n}";
 
   /* ── ¿puede este aparato? ──────────────────────────────────────────── */
   function hayWebGL() {
@@ -188,6 +209,10 @@ window.VRM_MAPA_3D = (function () {
     var esVer2 = !!cv.getContext('webgl2');
 
     var prog, nIdx = 0, ALT = null, listo = false;
+    /* El viento sopla del oeste-noroeste, la brisa de mar de la tarde en
+       la bahía: las nubes avanzan hacia el este-sureste. Va acelerado a
+       propósito —como un time-lapse—: a velocidad real no se notaría. */
+    var OJO = [0, 40, 0], VIENTO = [0.0018, 0.0008], nubesOn = false, sombraN = 0, progN = null;
     var texBallenas = null, verB = 0;
 
     function compilar(t, s) {
@@ -356,11 +381,15 @@ window.VRM_MAPA_3D = (function () {
       }
       nIdx = p;
 
+      /* los atributos del terreno se guardan: el pase de nubes usa otro
+         programa y hay que volver a enchufarlos en cada cuadro */
+      var ATRS = [];
       function buf(datos, loc, n) {
         var bb = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, bb); gl.bufferData(gl.ARRAY_BUFFER, datos, gl.STATIC_DRAW);
         var l = gl.getAttribLocation(prog, loc);
         gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, n, gl.FLOAT, false, 0, 0);
+        ATRS.push([bb, l, n]);
       }
       buf(pos2, 'pos', 3); buf(uv2, 'uv', 2); buf(nrm2, 'nor', 3); buf(cos2, 'costa', 1);
       var ib = gl.createBuffer();
@@ -418,7 +447,175 @@ window.VRM_MAPA_3D = (function () {
           gl.generateMipmap(gl.TEXTURE_2D);
         }).catch(function () { });
       };
-      api.dibuja = function () { gl.drawElements(gl.TRIANGLES, nIdx, TIPO, 0); };
+
+      /* ═══ NUBES ══════════════════════════════════════════════════════
+         Si algo de esto falla, solo se quedan sin nubes: el mapa sigue. */
+      var triB = null, locN = -1, UN = {};
+      function uN(n) { if (!(n in UN)) UN[n] = gl.getUniformLocation(progN, n); return UN[n]; }
+      try {
+        /* En teléfono, menos pasos por rayo y una octava de detalle menos:
+           se ven casi igual a ese tamaño y cuestan la mitad. */
+        var ligero = PASO > 1;
+        var fsN = FS_NUBES.replace('PASOS', ligero ? '30' : '56')
+                          .replace('DETALLE', ligero ? '0.12' : 'n3(q * 5.3) * 0.18');
+        progN = gl.createProgram();
+        gl.attachShader(progN, compilar(gl.VERTEX_SHADER, VS_NUBES));
+        gl.attachShader(progN, compilar(gl.FRAGMENT_SHADER, fsN));
+        gl.linkProgram(progN);
+        if (!gl.getProgramParameter(progN, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(progN));
+
+        /* La textura de nubes, 512 × 512:
+             rojo  — el campo grande de nubes      (viaja con el viento)
+             verde — las bolas de cada cúmulo      (viaja con el viento)
+             azul  — cuánta sierra hay debajo      (fija)
+             alfa  — el claro encima de la casa    (fijo)
+           Rojo y verde son ruido periódico: cuando el viento los saca por
+           un lado entran por el otro sin costura. */
+        var CN = 512, cob = new Uint8Array(CN * CN * 4);
+        var hsh = function (x, y) { var s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
+        var md = function (a, p) { return ((a % p) + p) % p; };
+        var vnP = function (x, y, px, py) {
+          var i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
+          fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+          var i0 = md(i, px), i1 = md(i + 1, px), j0 = md(j, py), j1 = md(j + 1, py);
+          var a = hsh(i0, j0), b = hsh(i1, j0), c = hsh(i0, j1), d = hsh(i1, j1);
+          return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy;
+        };
+        var fbmP = function (u, v, px, py, o, sem) {
+          var s = 0, a = 0.5, t = 0;
+          for (var k = 0; k < o; k++) {
+            s += a * vnP(u * px + sem, v * py + sem * 0.7, px, py); t += a;
+            px *= 2; py *= 2; a *= 0.5;
+          }
+          return s / t;
+        };
+        var ss = function (a, b, x) { var t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+        /* la casa, en la misma rejilla (La Cruz de Huanacaxtle) */
+        var casaU = 0.598, casaV = 0.341;
+        if (opciones.casa) { var cm = aMundo(opciones.casa[0], opciones.casa[1]); casaU = cm[0] / KM_X + 0.5; casaV = cm[2] / KM_Y + 0.5; }
+        for (var cj = 0; cj < CN; cj++) for (var ci = 0; ci < CN; ci++) {
+          var uu = ci / CN, vv = cj / CN, o4 = (cj * CN + ci) * 4;
+          /* los periodos enteros hacen el ruido periódico; los tamaños salen
+             de ellos: 11 × 9 celdas ≈ nubarrones de 7 km, 66 × 52 ≈ cúmulos de 1.2 km */
+          cob[o4] = Math.round(fbmP(uu, vv, 11, 9, 4, 3.1) * 255);
+          cob[o4 + 1] = Math.round(fbmP(uu, vv, 66, 52, 3, 17.3) * 255);
+          cob[o4 + 2] = Math.round(ss(60, 950, alturaEn(uu, vv)) * 255);
+          var dx = (uu - casaU) * KM_X, dz = (vv - casaV) * KM_Y;
+          /* ~4 km despejados encima de la casa: el mapa existe para verla */
+          cob[o4 + 3] = Math.round(ss(2.2, 5.0, Math.sqrt(dx * dx + dz * dz)) * 255);
+        }
+        gl.activeTexture(gl.TEXTURE5);
+        gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, CN, CN, 0, gl.RGBA, gl.UNSIGNED_BYTE, cob);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.generateMipmap(gl.TEXTURE_2D);
+
+        /* las alturas, para que el rayo sepa cuándo se metió en una montaña */
+        var CA = 256, alt8 = new Uint8Array(CA * CA);
+        for (var aj = 0; aj < CA; aj++) for (var ai = 0; ai < CA; ai++)
+          alt8[aj * CA + ai] = Math.min(255, Math.round(alturaEn(ai / (CA - 1), aj / (CA - 1)) * EXAG * 0.001 / 8 * 255));
+        gl.activeTexture(gl.TEXTURE6);
+        gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+        gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, CA, CA, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, alt8);
+        gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.activeTexture(gl.TEXTURE0);
+
+        gl.useProgram(progN);
+        gl.uniform1i(uN('nubes'), 5);
+        gl.uniform1i(uN('alturas'), 6);
+        locN = gl.getAttribLocation(progN, 'pos');
+        triB = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, triB);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+        gl.useProgram(prog);
+        gl.uniform1i(u('nubes'), 5);
+        nubesOn = true;
+      } catch (eN) {
+        progN = null; nubesOn = false;
+        gl.useProgram(prog);
+        if (window.console) console.warn('VRM mapa: sin nubes (' + eN.message + ')');
+      }
+
+      function invertir(m) {
+        var o = new Array(16), det;
+        o[0] = m[5]*m[10]*m[15]-m[5]*m[11]*m[14]-m[9]*m[6]*m[15]+m[9]*m[7]*m[14]+m[13]*m[6]*m[11]-m[13]*m[7]*m[10];
+        o[4] = -m[4]*m[10]*m[15]+m[4]*m[11]*m[14]+m[8]*m[6]*m[15]-m[8]*m[7]*m[14]-m[12]*m[6]*m[11]+m[12]*m[7]*m[10];
+        o[8] = m[4]*m[9]*m[15]-m[4]*m[11]*m[13]-m[8]*m[5]*m[15]+m[8]*m[7]*m[13]+m[12]*m[5]*m[11]-m[12]*m[7]*m[9];
+        o[12] = -m[4]*m[9]*m[14]+m[4]*m[10]*m[13]+m[8]*m[5]*m[14]-m[8]*m[6]*m[13]-m[12]*m[5]*m[10]+m[12]*m[6]*m[9];
+        o[1] = -m[1]*m[10]*m[15]+m[1]*m[11]*m[14]+m[9]*m[2]*m[15]-m[9]*m[3]*m[14]-m[13]*m[2]*m[11]+m[13]*m[3]*m[10];
+        o[5] = m[0]*m[10]*m[15]-m[0]*m[11]*m[14]-m[8]*m[2]*m[15]+m[8]*m[3]*m[14]+m[12]*m[2]*m[11]-m[12]*m[3]*m[10];
+        o[9] = -m[0]*m[9]*m[15]+m[0]*m[11]*m[13]+m[8]*m[1]*m[15]-m[8]*m[3]*m[13]-m[12]*m[1]*m[11]+m[12]*m[3]*m[9];
+        o[13] = m[0]*m[9]*m[14]-m[0]*m[10]*m[13]-m[8]*m[1]*m[14]+m[8]*m[2]*m[13]+m[12]*m[1]*m[10]-m[12]*m[2]*m[9];
+        o[2] = m[1]*m[6]*m[15]-m[1]*m[7]*m[14]-m[5]*m[2]*m[15]+m[5]*m[3]*m[14]+m[13]*m[2]*m[7]-m[13]*m[3]*m[6];
+        o[6] = -m[0]*m[6]*m[15]+m[0]*m[7]*m[14]+m[4]*m[2]*m[15]-m[4]*m[3]*m[14]-m[12]*m[2]*m[7]+m[12]*m[3]*m[6];
+        o[10] = m[0]*m[5]*m[15]-m[0]*m[7]*m[13]-m[4]*m[1]*m[15]+m[4]*m[3]*m[13]+m[12]*m[1]*m[7]-m[12]*m[3]*m[5];
+        o[14] = -m[0]*m[5]*m[14]+m[0]*m[6]*m[13]+m[4]*m[1]*m[14]-m[4]*m[2]*m[13]-m[12]*m[1]*m[6]+m[12]*m[2]*m[5];
+        o[3] = -m[1]*m[6]*m[11]+m[1]*m[7]*m[10]+m[5]*m[2]*m[11]-m[5]*m[3]*m[10]-m[9]*m[2]*m[7]+m[9]*m[3]*m[6];
+        o[7] = m[0]*m[6]*m[11]-m[0]*m[7]*m[10]-m[4]*m[2]*m[11]+m[4]*m[3]*m[10]+m[8]*m[2]*m[7]-m[8]*m[3]*m[6];
+        o[11] = -m[0]*m[5]*m[11]+m[0]*m[7]*m[9]+m[4]*m[1]*m[11]-m[4]*m[3]*m[9]-m[8]*m[1]*m[7]+m[8]*m[3]*m[5];
+        o[15] = m[0]*m[5]*m[10]-m[0]*m[6]*m[9]-m[4]*m[1]*m[10]+m[4]*m[2]*m[9]+m[8]*m[1]*m[6]-m[8]*m[2]*m[5];
+        det = m[0]*o[0]+m[1]*o[4]+m[2]*o[8]+m[3]*o[12];
+        det = det ? 1 / det : 0;
+        for (var k = 0; k < 16; k++) o[k] *= det;
+        return o;
+      }
+
+      /* Si el aparato no aguanta, las nubes se apagan solas. Se miden los
+         primeros tres segundos con nubes: si va a menos de 24 cuadros por
+         segundo, fuera nubes y fuera sombras. Mejor un mapa fluido sin
+         cielo que un cielo que traba el mapa. */
+      var pruebaT0 = 0, pruebaN = 0, pruebaHecha = false;
+      function vigilar() {
+        if (pruebaHecha || !nubesOn || !enPantalla) return;
+        var ahora = performance.now();
+        if (!pruebaT0) { pruebaT0 = ahora; pruebaN = 0; return; }
+        pruebaN++;
+        if (ahora - pruebaT0 > 3000) {
+          pruebaHecha = true;
+          var fps = pruebaN * 1000 / (ahora - pruebaT0);
+          if (fps < 24) nubesOn = false;
+        }
+      }
+
+      api.dibuja = function () {
+        gl.useProgram(prog);
+        for (var q = 0; q < 8; q++) gl.disableVertexAttribArray(q);
+        for (q = 0; q < ATRS.length; q++) {
+          gl.bindBuffer(gl.ARRAY_BUFFER, ATRS[q][0]);
+          gl.enableVertexAttribArray(ATRS[q][1]);
+          gl.vertexAttribPointer(ATRS[q][1], ATRS[q][2], gl.FLOAT, false, 0, 0);
+        }
+        gl.drawElements(gl.TRIANGLES, nIdx, TIPO, 0);
+        /* la sombra aparece y se va suave, no de golpe */
+        sombraN += ((nubesOn ? 1 : 0) - sombraN) * 0.08;
+        if (!progN || !nubesOn || !mvp) return;
+        vigilar();
+        gl.useProgram(progN);
+        for (q = 0; q < 8; q++) gl.disableVertexAttribArray(q);
+        gl.bindBuffer(gl.ARRAY_BUFFER, triB);
+        gl.enableVertexAttribArray(locN);
+        gl.vertexAttribPointer(locN, 2, gl.FLOAT, false, 0, 0);
+        gl.uniformMatrix4fv(uN('inv'), false, new Float32Array(invertir(mvp)));
+        gl.uniform3f(uN('ojo'), OJO[0], OJO[1], OJO[2]);
+        gl.uniform3f(uN('sol'), -0.52, 0.66, 0.54);
+        gl.uniform1f(uN('tiempo'), (performance.now() - t0) / 1000);
+        gl.uniform2f(uN('viento'), VIENTO[0], VIENTO[1]);
+        gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
+        gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.disable(gl.BLEND);
+        gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
+        gl.useProgram(prog);
+      };
+
     }
 
     /* ── los avistamientos, horneados en el agua ────────────────────── */
@@ -488,7 +685,9 @@ window.VRM_MAPA_3D = (function () {
       gl.uniformMatrix4fv(u('mvp'), false, new Float32Array(mvp));
       gl.uniform1f(u('exag'), EXAG);
       gl.uniform3f(u('sol'), -0.52, 0.66, 0.54);
-      gl.uniform3f(u('ojo'), ojo[0], ojo[1], ojo[2]);
+      gl.uniform3f(u('ojo'), ojo[0], ojo[1], ojo[2]); OJO = ojo;
+      gl.uniform2f(u('viento'), VIENTO[0], VIENTO[1]);
+      gl.uniform1f(u('sombraN'), sombraN);
       gl.uniform1f(u('tiempo'), (performance.now() - t0) / 1000);
       gl.uniform1f(u('verB'), verB);
       // la ola crece cuando te acercas: a 80 km no se ve, de cerca sí
@@ -524,27 +723,69 @@ window.VRM_MAPA_3D = (function () {
         movido = 0;
         return;
       }
-      dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      dedos.set(e.pointerId, { x: e.clientX, y: e.clientY, t: e.pointerType });
       if (dedos.size === 1) { ini = { x: e.clientX, y: e.clientY, g: giro, i: inclina }; movido = 0; }
-      if (dedos.size === 2) {
+      /* Con dos punteros de ratón/lápiz se pellizca aquí. Con dos DEDOS no:
+         eso lo llevan los eventos táctiles de abajo, que en iPhone son los
+         únicos que llegan completos. */
+      if (dedos.size === 2 && e.pointerType !== 'touch') {
         var v = [].slice.call(dedos.values());
         ini = { d: Math.hypot(v[0].x - v[1].x, v[0].y - v[1].y), z: dist };
       }
-      cont.setPointerCapture(e.pointerId);
+      try { cont.setPointerCapture(e.pointerId); } catch (eC) { }
       cont.classList.add('mp-arrastrando');
     });
     cont.addEventListener('pointermove', function (e) {
       if (!dedos.has(e.pointerId)) return;
-      dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      dedos.set(e.pointerId, { x: e.clientX, y: e.clientY, t: e.pointerType });
+      if (pellizco) return;                       // dos dedos: manda el pellizco
       if (dedos.size === 1 && ini && ini.g !== undefined) {
         movido = Math.max(movido, Math.hypot(e.clientX - ini.x, e.clientY - ini.y));
-        giro = ini.g + (e.clientX - ini.x) * 0.005;
+        /* En táctil el giro va al revés que con el ratón: el dedo "empuja"
+           la bahía, así que arrastrar a la izquierda la lleva a la izquierda. */
+        var sentido = e.pointerType === 'touch' ? -1 : 1;
+        giro = ini.g + sentido * (e.clientX - ini.x) * 0.005;
         inclina = Math.max(0.14, Math.min(1.35, ini.i + (e.clientY - ini.y) * 0.004));
       } else if (dedos.size === 2 && ini && ini.d) {
         var v = [].slice.call(dedos.values());
         dist = Math.max(22, Math.min(180, ini.z * ini.d / Math.hypot(v[0].x - v[1].x, v[0].y - v[1].y)));
       }
     });
+
+    /* ── el pellizco con dos dedos ─────────────────────────────────────
+       Con eventos táctiles de siempre, no con pointer events: en Safari de
+       iPhone el pellizco a veces se lo queda la página para hacer zoom a
+       todo el sitio y al mapa no le llega el segundo dedo. Aquí se pide
+       el gesto explícitamente y se le dice al navegador que no lo use. */
+    var pellizco = null;
+    function separacion(ts) { return Math.hypot(ts[0].clientX - ts[1].clientX, ts[0].clientY - ts[1].clientY); }
+    cont.addEventListener('touchstart', function (e) {
+      if (e.touches.length === 2) {
+        pellizco = { d: separacion(e.touches), z: dist };
+        movido = 99;                              // un pellizco no es un toque
+        e.preventDefault();
+      }
+    }, { passive: false });
+    cont.addEventListener('touchmove', function (e) {
+      if (pellizco && e.touches.length === 2) {
+        e.preventDefault();
+        var d = separacion(e.touches);
+        if (d > 8) dist = Math.max(22, Math.min(180, pellizco.z * pellizco.d / d));
+      }
+    }, { passive: false });
+    function finPellizco(e) {
+      if (pellizco && e.touches.length < 2) {
+        pellizco = null;
+        /* el dedo que queda no debe dar un tirón de giro al soltar el otro */
+        if (e.touches.length === 1) ini = { x: e.touches[0].clientX, y: e.touches[0].clientY, g: giro, i: inclina };
+      }
+    }
+    cont.addEventListener('touchend', finPellizco);
+    cont.addEventListener('touchcancel', finPellizco);
+    /* Safari: que el pellizco sobre el mapa no amplíe la página entera */
+    cont.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+    cont.addEventListener('gesturechange', function (e) { e.preventDefault(); });
+
     function soltar(e) {
       dedos.delete(e.pointerId);
       if (!dedos.size) { ini = null; cont.classList.remove('mp-arrastrando'); }
@@ -568,6 +809,8 @@ window.VRM_MAPA_3D = (function () {
       mirarA: mirarA,
       arrastrado: function () { return movido; },
       acercar: function (f) { dist = Math.max(22, Math.min(180, dist * f)); },
+      objetivo: function () { return dist; },
+      nubes: function (on) { nubesOn = !!on && !!progN; },
       distancia: function () { return distD; },
       ballenas: function (on, txt) { if (on) ponerBallenas(txt); verB = on ? 1 : 0; },
       rumbo: function (g, inc) { if (g != null) giro = g; if (inc != null) inclina = inc; }

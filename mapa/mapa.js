@@ -26,6 +26,37 @@
   var que = document.getElementById('mpQue');
   var cuanto = document.getElementById('mpCuanto');
   var ir = document.getElementById('mpIr');
+
+  /* ── la barra de lectura, por partes ─────────────────────────────────
+     Sigue alimentándose con la misma cadena de siempre
+     —"16.1 km por carretera · 20 min · 10.8 km en línea recta"— así que
+     ningún sitio que la escribe tuvo que cambiar. Aquí se parte: lo que
+     es una medida se pinta con el valor arriba y qué se midió abajo; lo
+     que no lo es se queda como nota y no se disfraza de dato.
+     El orden de las unidades importa: "min" tiene que probarse ANTES
+     que "m" o "20 min" se leería como "20 m" seguido de "in". */
+  var MEDIDA = /^((?:\d+\s*h\s+)?[\d.,]+\s*(?:km|min|m|h|%))(?![a-záéíóúñ])\s*(.*)$/i;
+  function ponDatos(txt) {
+    if (!cuanto) return;
+    cuanto.textContent = '';
+    if (!txt) return;
+    var partes = String(txt).split(' · ');
+    for (var i = 0; i < partes.length; i++) {
+      var t = partes[i].trim();
+      if (!t) continue;
+      var m = t.match(MEDIDA), d = document.createElement('span');
+      if (m) {
+        d.className = 'mp-dato';
+        var v = document.createElement('b'); v.textContent = m[1];
+        var e = document.createElement('i'); e.textContent = m[2] || 'en coche';
+        d.appendChild(v); d.appendChild(e);
+      } else {
+        d.className = 'mp-dato mp-dato--nota';
+        d.textContent = t;
+      }
+      cuanto.appendChild(d);
+    }
+  }
   var quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var D = null, R = null, CMP = null;
@@ -59,7 +90,8 @@
 
   /* ─────────────────────────────── las dos lecturas ─────────────────── */
   var vista = 'cerca';
-  var tabs = [].slice.call(mp.querySelectorAll('.mp-tab'));
+  /* el rótulo que quedó ya no es botón: solo cuentan los que llevan vista */
+  var tabs = [].slice.call(mp.querySelectorAll('.mp-tab[data-vista]'));
   var paneles = [].slice.call(mp.querySelectorAll('.mp-panel'));
 
   function verPanel() {
@@ -165,8 +197,8 @@
     } else {
       txt = p.d + ' en línea recta' + (p.n ? ' · ' + p.n : '');
     }
-    cuanto.textContent = txt;
-    ir.textContent = 'Cómo llegar →';
+    ponDatos(txt);
+    ir.textContent = 'Cómo llegar';
     ir.target = '_blank';
     ir.href = 'https://www.google.com/maps/dir/?api=1&origin=' + CASA + '&destination=' + p.ll;
     ir.hidden = false;
@@ -245,11 +277,11 @@
     if (c.desde) partes.push('desde ' + c.desde + ' USD');
     partes.push(c.pvr + ' min del aeropuerto');
     if (k === AQUI) partes.push('estás aquí');
-    cuanto.textContent = partes.join(' · ');
+    ponDatos(partes.join(' · '));
     /* aquí el botón ya no lleva a Google Maps: lleva a las casas de esa
        zona, que es lo que se está preguntando */
     ir.hidden = k === AQUI;
-    ir.textContent = 'Ver las casas →';
+    ir.textContent = 'Ver las casas';
     ir.removeAttribute('target');
     ir.href = c.url;
     mp.querySelectorAll('.mp-zona').forEach(function (z) {
@@ -416,7 +448,7 @@
       var b = D && D.ballena;
       que.textContent = b ? (b.total.toLocaleString('es-MX').replace(/,/g, ' ') +
         ' avistamientos de jorobada') : 'Avistamientos de jorobada';
-      cuanto.textContent = b ? (b.desde + ' — 2026 · 98 % entre diciembre y marzo') : '';
+      ponDatos(b ? (b.desde + ' — 2026 · 98 % entre diciembre y marzo') : '');
       ir.hidden = true;
     } else if (MODO === 'relieve' && !marcado) {
       presentar();
@@ -451,8 +483,13 @@
     capa.style.setProperty('--z', Z);
     lienzo.classList.toggle('mp-cerca', Z > 1.005);
     pintarNubes();
-    if (btnMas) btnMas.disabled = Z >= ZMAX - 0.001;
-    if (btnMenos) btnMenos.disabled = Z <= 1.001;
+    /* En relieve los botones NO dependen de este zoom: el mapa plano está
+       escondido debajo y su Z se queda en 1, así que el botón − quedaba
+       apagado para siempre y no había forma de volver a alejarse. */
+    if (MODO !== 'relieve') {
+      if (btnMas) btnMas.disabled = Z >= ZMAX - 0.001;
+      if (btnMenos) btnMenos.disabled = Z <= 1.001;
+    }
     if (Z > 1.25) pedirAlta();
   }
   /* Volar a un punto del lienzo. Se usa al cambiar de lectura: los tres
@@ -492,17 +529,32 @@
     /* Con un dedo o la rueda sin más, la página sigue bajando: el mapa no
        secuestra el scroll. Se acerca con ctrl/⌘ o con los botones. */
     if (!e.ctrlKey && !e.metaKey) return;
+    if (MODO === 'relieve') return;          // eso lo lleva el motor 3D
     e.preventDefault();
     var r = lienzo.getBoundingClientRect();
     zoomEn(Z * Math.pow(1.0018, -e.deltaY), e.clientX - r.left, e.clientY - r.top);
   }, { passive: false });
   lienzo.addEventListener('dblclick', function (e) {
+    if (MODO === 'relieve') return;
     var r = lienzo.getBoundingClientRect();
     zoomEn(Z > 1.5 ? 1 : 2.2, e.clientX - r.left, e.clientY - r.top);
   });
+  /* Los botones en relieve: + se apaga al llegar lo más cerca que deja la
+     cámara, − al llegar lo más lejos. Se revisa en cada cuadro porque el
+     zoom también cambia pellizcando, con ⌘/Ctrl + rueda o al tocar un
+     lugar, no solo con los botones. */
+  var btn3 = null;   /* null: el primer cuadro siempre repone los dos botones */
+  function botones3() {
+    if (MODO !== 'relieve' || !tres || !tres.objetivo) return;
+    var d = tres.objetivo(), clave = (d <= 22.5 ? 'a' : '') + (d >= 179.5 ? 'b' : '');
+    if (clave === btn3) return;
+    btn3 = clave;
+    if (btnMas) btnMas.disabled = d <= 22.5;
+    if (btnMenos) btnMenos.disabled = d >= 179.5;
+  }
   /* Acercar y alejar sobre lo elegido, no sobre el centro del lienzo. */
   function acercarA(f) {
-    if (MODO === 'relieve') { tres.acercar(1 / f); return; }
+    if (MODO === 'relieve') { tres.acercar(1 / f); botones3(); return; }
     var nz = Math.max(1, Math.min(ZMAX, Z * f));
     if (nz === 1) volar(1, 600, 380, 520);
     else volar(nz, foco[0], foco[1], 520);
@@ -512,6 +564,9 @@
 
   var dedos = new Map(), ini = null, movido = 0;
   lienzo.addEventListener('pointerdown', function (e) {
+    /* en relieve estos dedos son del motor 3D: si el plano también los
+       cuenta, su zoom escondido se mueve y descoloca los botones */
+    if (MODO === 'relieve') return;
     if (e.target.closest && e.target.closest('button')) return;
     dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (dedos.size === 1) { ini = { x: e.clientX, y: e.clientY, px: PX, py: PY }; movido = 0; }
@@ -522,7 +577,7 @@
     lienzo.setPointerCapture(e.pointerId);
   });
   lienzo.addEventListener('pointermove', function (e) {
-    if (!dedos.has(e.pointerId)) return;
+    if (MODO === 'relieve' || !dedos.has(e.pointerId)) return;
     dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (dedos.size === 1 && ini && ini.px !== undefined) {
       var dx = e.clientX - ini.x, dy = e.clientY - ini.y;
@@ -703,7 +758,9 @@
       var h = D.islas[k];
       crearPin3('i:' + k, h.xy[0], h.xy[1], h.n, 'mp-p3 mp-hito');
     });
-    if (CMP) Object.keys(CMP).forEach(function (k) {
+    /* los otros complejos ya no salen: se fueron con la lectura de
+       "las otras casas". El código queda por si vuelve. */
+    if (false && CMP) Object.keys(CMP).forEach(function (k) {
       crearPin3('c:' + k, CMP[k].xy[0], CMP[k].xy[1], CMP[k].n, 'mp-p3 mp-cmp3', CMP[k].z);
       if (k === AQUI) pins3['c:' + k].g.classList.add('mp-cmp--aqui');
     });
@@ -740,7 +797,7 @@
     trazar3(null, null);
     encuadrar(h.xy[0], h.xy[1]);
     que.textContent = h.n;
-    cuanto.textContent = h.km + ' km en línea recta desde la casa · ' + h.que;
+    ponDatos(h.km + ' km en línea recta desde la casa · ' + h.que);
     ir.hidden = true;
   }
 
@@ -757,8 +814,8 @@
     que.textContent = f.n;
     var t = f.km + ' km por carretera · ' + reloj(f.min);
     if (f.salto > 1.5) t += ' · el dato de carretera se corta ' + f.salto.toFixed(1) + ' km antes';
-    cuanto.textContent = t + ' · ' + f.que;
-    ir.textContent = 'Cómo llegar →';
+    ponDatos(t + ' · ' + f.que);
+    ir.textContent = 'Cómo llegar';
     ir.target = '_blank';
     ir.href = 'https://www.google.com/maps/dir/?api=1&origin=' + CASA + '&destination=' + f.ll;
     ir.hidden = false;
@@ -796,6 +853,7 @@
 
   /* ── el cuadro: poner cada cosa donde le toca ────────────────────── */
   function pintarCapa3(proyectar, ancho, alto) {
+    botones3();
     if (!capa3) return;
     capa3.setAttribute('viewBox', '0 0 ' + ancho + ' ' + alto);
 
@@ -896,8 +954,8 @@
     trazar3(null, null);
     tres.mirarA(tres.aMundo(650, 250), 82, 0.47);
     que.textContent = 'La Cruz de Huanacaxtle';
-    cuanto.textContent = 'Vallarta Gardens · 5 min a pie a la marina · 35 min del aeropuerto';
-    ir.textContent = 'Cómo llegar →';
+    ponDatos('Vallarta Gardens · 5 min a pie a la marina · 35 min del aeropuerto');
+    ir.textContent = 'Cómo llegar';
     ir.target = '_blank';
     ir.href = 'https://www.google.com/maps/dir/?api=1&destination=' + CASA;
     ir.hidden = false;
