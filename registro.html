@@ -132,6 +132,18 @@
 
   .error-msg { color: var(--error); font-size: 12px; margin-top: 4px; display: none; }
   .required::after { content: " *"; color: var(--error); }
+  /* Cómo llegas (Quiya) */
+  .llegada-ops { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 4px; }
+  .llegada-op {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 12px 6px; border: 1.5px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px;
+    cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .llegada-op .ico { font-size: 22px; line-height: 1; }
+  .llegada-op.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); font-weight: 600; }
+  .llegada-op.falta { border-color: var(--error); }
+  #llegada-auto, #llegada-otro { display: none; margin-top: 12px; }
 
   #loading { display:none; text-align:center; padding:16px; color:var(--muted); font-size:14px; }
 
@@ -252,6 +264,38 @@
       <div id="ocupantes-list"></div>
     </div>
 
+    <!-- CÓMO LLEGAS (solo Quiya) -->
+    <div class="card" id="card-llegada" style="display:none;">
+      <div class="card-title" id="txt-card-llegada">¿Cómo llegas al condominio?</div>
+      <div class="llegada-ops" role="radiogroup">
+        <button type="button" class="llegada-op" data-v="auto" onclick="elegirLlegada('auto')"><span class="ico">🚗</span><span id="txt-op-auto">En auto</span></button>
+        <button type="button" class="llegada-op" data-v="taxi" onclick="elegirLlegada('taxi')"><span class="ico">🚕</span><span id="txt-op-taxi">Taxi / Uber</span></button>
+        <button type="button" class="llegada-op" data-v="otro" onclick="elegirLlegada('otro')"><span class="ico">🚶</span><span id="txt-op-otro">Otro</span></button>
+      </div>
+      <div id="llegada-auto">
+        <div class="grid2">
+          <div class="field">
+            <label class="required" id="txt-label-auto">Marca y modelo</label>
+            <input type="text" id="veh_modelo" placeholder="Nissan Versa" autocomplete="off">
+          </div>
+          <div class="field">
+            <label class="required" id="txt-label-color">Color</label>
+            <input type="text" id="veh_color" placeholder="Gris" autocomplete="off">
+          </div>
+        </div>
+        <div class="field">
+          <label class="required" id="txt-label-placas">Placas</label>
+          <input type="text" id="veh_placas" placeholder="ABC-123-D" autocomplete="off" style="text-transform:uppercase">
+        </div>
+      </div>
+      <div id="llegada-otro">
+        <div class="field">
+          <label class="required" id="txt-label-otro">¿Cómo?</label>
+          <input type="text" id="llegada_otro_txt" placeholder="Shuttle, nos traen familiares…" autocomplete="off">
+        </div>
+      </div>
+    </div>
+
     <!-- Firma digital -->
     <div id="firma-section" style="display:none;margin-bottom:20px">
       <p style="font-weight:600;font-size:14px;margin-bottom:4px;color:var(--text)">✍️ Firma del rentista</p>
@@ -319,6 +363,13 @@ const TXT = {
     errNombre: "Por favor ingresa el nombre del responsable (primera línea de huéspedes).",
     errFechas: "Por favor ingresa las fechas de tu estancia.",
     errDepto: "Departamento no especificado en el link.",
+    cardLlegada: "¿Cómo llegas al condominio?",
+    opAuto: "En auto", opTaxi: "Taxi / Uber", opOtro: "Otro",
+    labelAuto: "Marca y modelo", labelColor: "Color", labelPlacas: "Placas", labelOtro: "¿Cómo?",
+    phOtro: "Shuttle, nos traen familiares…",
+    errLlegada: "Indica cómo llegas al condominio.",
+    errAuto: "Escribe la marca, el color y las placas del auto.",
+    errOtro: "Escribe cómo llegas.",
     errEnvio: "Error al enviar. Por favor intenta de nuevo.\n",
   },
   en: {
@@ -350,6 +401,13 @@ const TXT = {
     errNombre: "Please enter the lead guest's full name (first row).",
     errFechas: "Please enter your stay dates.",
     errDepto: "Property not specified in the link.",
+    cardLlegada: "How are you arriving?",
+    opAuto: "By car", opTaxi: "Taxi / Uber", opOtro: "Other",
+    labelAuto: "Make and model", labelColor: "Color", labelPlacas: "License plate", labelOtro: "How?",
+    phOtro: "Shuttle, family drop-off…",
+    errLlegada: "Please tell us how you are arriving.",
+    errAuto: "Please enter the car's make, color and license plate.",
+    errOtro: "Please tell us how you are arriving.",
     errEnvio: "Error sending. Please try again.\n",
   }
 };
@@ -381,6 +439,10 @@ function setLang(l) {
   document.getElementById("txt-privacy").textContent      = T.privacy;
   document.getElementById("txt-success-title").textContent= T.successTitle;
   document.getElementById("txt-success-body").innerHTML   = T.successBody;
+  [["txt-card-llegada","cardLlegada"],["txt-op-auto","opAuto"],["txt-op-taxi","opTaxi"],["txt-op-otro","opOtro"],
+   ["txt-label-auto","labelAuto"],["txt-label-color","labelColor"],["txt-label-placas","labelPlacas"],["txt-label-otro","labelOtro"]]
+    .forEach(([id,k]) => { const el = document.getElementById(id); if(el) el.textContent = T[k]; });
+  const _otro = document.getElementById("llegada_otro_txt"); if(_otro) _otro.placeholder = T.phOtro;
   // Re-render ocupantes para traducir labels y opciones
   renderOcupantes();
 }
@@ -490,6 +552,10 @@ function init() {
   if(deptoInfo.template === "flamingos") {
     document.getElementById("card-flamingos").style.display = "block";
   }
+  // Quiya: la caseta pide saber cómo llega cada huésped. Obligatorio.
+  if(pideLlegada()) {
+    document.getElementById("card-llegada").style.display = "block";
+  }
 
   const hoy = new Date();
   const fmt = d => d.toISOString().split("T")[0];
@@ -547,6 +613,36 @@ function renderOcupantes() {
   });
 }
 
+// ── Cómo llegas (Quiya) ─────────────────────────────────
+let llegada = "";
+function pideLlegada() { return deptoInfo.template === "quiya"; }
+function elegirLlegada(v) {
+  llegada = v;
+  document.querySelectorAll(".llegada-op").forEach(b => {
+    b.classList.toggle("on", b.dataset.v === v);
+    b.classList.remove("falta");
+    b.setAttribute("aria-checked", b.dataset.v === v);
+  });
+  document.getElementById("llegada-auto").style.display = v === "auto" ? "block" : "none";
+  document.getElementById("llegada-otro").style.display = v === "otro" ? "block" : "none";
+}
+// Lo que se guarda en vehiculo_modelo / vehiculo_placas (lo que lee la
+// caseta y el PDF). null = algo falta.
+function datosLlegada() {
+  const val = id => (document.getElementById(id)?.value || "").trim();
+  if(llegada === "auto") {
+    const m = val("veh_modelo"), c = val("veh_color"), p = val("veh_placas").toUpperCase();
+    if(!m || !c || !p) return null;
+    return { modelo: `${m} · ${c}`, placas: p };
+  }
+  if(llegada === "taxi") return { modelo: "Taxi / Uber", placas: null };
+  if(llegada === "otro") {
+    const o = val("llegada_otro_txt");
+    return o ? { modelo: "Sin auto · " + o, placas: null } : null;
+  }
+  return null;
+}
+
 async function enviar() {
   const T = TXT[lang];
   const nombre = (ocupantes[0]?.nombre || "").trim();
@@ -556,6 +652,20 @@ async function enviar() {
   if(!nombre){ alert(T.errNombre); return; }
   if(!fecha_entrada || !fecha_salida){ alert(T.errFechas); return; }
   if(!deptoKey){ alert(T.errDepto); return; }
+  let veh = null;
+  if(pideLlegada()) {
+    const card = document.getElementById("card-llegada");
+    if(!llegada) {
+      document.querySelectorAll(".llegada-op").forEach(b => b.classList.add("falta"));
+      card.scrollIntoView({behavior:"smooth", block:"center"});
+      alert(T.errLlegada); return;
+    }
+    veh = datosLlegada();
+    if(!veh) {
+      card.scrollIntoView({behavior:"smooth", block:"center"});
+      alert(llegada === "auto" ? T.errAuto : T.errOtro); return;
+    }
+  }
 
   const btn = document.getElementById("btn-submit");
   const loading = document.getElementById("loading");
@@ -577,7 +687,8 @@ async function enviar() {
     num_adultos: parseInt(document.getElementById("num_adultos").value)||1,
     num_menores: parseInt(document.getElementById("num_menores").value)||0,
     num_mascotas: 0,
-    vehiculo_modelo: null,
+    vehiculo_modelo: veh ? veh.modelo : null,
+    vehiculo_placas: veh ? veh.placas : null,
     foto_id: window._fotoIdB64 || null,
     firma: (() => {
       const f = getFirmaB64();
