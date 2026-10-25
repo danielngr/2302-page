@@ -157,6 +157,13 @@
   }
   .upload-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,.07); }
   .upload-btn.done { border-color: var(--green); color: var(--green); border-style: solid; background: rgba(74,222,128,.07); }
+  /* Fechas: vacías hasta que el huésped las elige, y un resumen que se lee de un vistazo. */
+  input[type=date]:invalid, input[type=date].vacia { color:#9a9a9a; }
+  input[type=date].mal { border-color:#d9534f !important; box-shadow:0 0 0 3px rgba(217,83,79,.12); }
+  .fechas-resumen { display:none; margin:2px 0 14px; padding:11px 14px; border-radius:10px; font-size:13px; line-height:1.45; }
+  .fechas-resumen.ok  { display:block; background:#EEF6F0; border:1px solid #BFDCC7; color:#255C38; }
+  .fechas-resumen.mal { display:block; background:#FBEDEC; border:1px solid #EFC4C1; color:#8E2A24; }
+  .fechas-resumen b { font-weight:600; }
 </style>
 </head>
 <body>
@@ -236,15 +243,16 @@
       <div class="grid2">
         <div class="field">
           <label class="required" id="txt-label-entrada">Fecha de llegada</label>
-          <p style="font-size:11px;color:#999;margin:0 0 4px">Toca el campo para seleccionar</p>
-          <input type="date" id="fecha_entrada" style="color:#888" onfocus="this.style.color='#222'" onblur="if(!this.value)this.style.color='#888'">
+          <p class="txt-toca" style="font-size:11px;color:#999;margin:0 0 4px">Toca el campo para seleccionar</p>
+          <input type="date" id="fecha_entrada" oninput="fechasCambian('entrada')" onchange="fechasCambian('entrada')">
         </div>
         <div class="field">
           <label class="required" id="txt-label-salida">Fecha de salida</label>
-          <p style="font-size:11px;color:#999;margin:0 0 4px">Toca el campo para seleccionar</p>
-          <input type="date" id="fecha_salida" style="color:#888" onfocus="this.style.color='#222'" onblur="if(!this.value)this.style.color='#888'">
+          <p class="txt-toca" style="font-size:11px;color:#999;margin:0 0 4px">Toca el campo para seleccionar</p>
+          <input type="date" id="fecha_salida" oninput="fechasCambian('salida')" onchange="fechasCambian('salida')">
         </div>
       </div>
+      <div id="fechas-resumen" class="fechas-resumen" aria-live="polite"></div>
       <div class="grid3">
         <div class="field">
           <label id="txt-label-adultos">Adultos</label>
@@ -361,7 +369,14 @@ const TXT = {
     successTitle: "¡Registro enviado!",
     successBody: "Hemos recibido tu información.<br>Nos vemos en tu llegada. ¡Bienvenido!",
     errNombre: "Por favor ingresa el nombre del responsable (primera línea de huéspedes).",
-    errFechas: "Por favor ingresa las fechas de tu estancia.",
+    errFechas: "Por favor elige tu fecha de llegada y tu fecha de salida.",
+    toca: "Toca el campo para seleccionar",
+    resumen: "{a} → {b} · <b>{n} {noches}</b>",
+    noche: "noche", noches: "noches",
+    errOrden: "La salida tiene que ser después de la llegada. Revisa las fechas de tu reserva.",
+    errLargo: "Son {n} noches. Revisa que las fechas sean las de tu reserva.",
+    errPasado: "La llegada ya pasó. Revisa que sea la fecha de tu reserva.",
+    confirmaFechas: "Confirma tus fechas:\n\nLlegada: {a}\nSalida: {b}\n{n} {noches}\n\n¿Son exactamente las de tu reserva de Airbnb?",
     errDepto: "Departamento no especificado en el link.",
     cardLlegada: "¿Cómo llegas al condominio?",
     opAuto: "En auto", opTaxi: "Taxi / Uber", opOtro: "Otro",
@@ -399,7 +414,14 @@ const TXT = {
     successTitle: "Registration submitted!",
     successBody: "We have received your information.<br>See you at check-in. Welcome!",
     errNombre: "Please enter the lead guest's full name (first row).",
-    errFechas: "Please enter your stay dates.",
+    errFechas: "Please choose your check-in and check-out dates.",
+    toca: "Tap the field to choose",
+    resumen: "{a} → {b} · <b>{n} {noches}</b>",
+    noche: "night", noches: "nights",
+    errOrden: "Check-out must be after check-in. Please check your booking dates.",
+    errLargo: "That's {n} nights. Please make sure these are your booking dates.",
+    errPasado: "That check-in date has already passed. Please check your booking.",
+    confirmaFechas: "Please confirm your dates:\n\nCheck-in: {a}\nCheck-out: {b}\n{n} {noches}\n\nAre these exactly the dates on your Airbnb booking?",
     errDepto: "Property not specified in the link.",
     cardLlegada: "How are you arriving?",
     opAuto: "By car", opTaxi: "Taxi / Uber", opOtro: "Other",
@@ -443,6 +465,8 @@ function setLang(l) {
    ["txt-label-auto","labelAuto"],["txt-label-color","labelColor"],["txt-label-placas","labelPlacas"],["txt-label-otro","labelOtro"]]
     .forEach(([id,k]) => { const el = document.getElementById(id); if(el) el.textContent = T[k]; });
   const _otro = document.getElementById("llegada_otro_txt"); if(_otro) _otro.placeholder = T.phOtro;
+  document.querySelectorAll(".txt-toca").forEach(el => el.textContent = T.toca);
+  if(typeof fechasCambian === "function") fechasCambian();
   // Re-render ocupantes para traducir labels y opciones
   renderOcupantes();
 }
@@ -557,11 +581,11 @@ function init() {
     document.getElementById("card-llegada").style.display = "block";
   }
 
-  const hoy = new Date();
-  const fmt = d => d.toISOString().split("T")[0];
-  document.getElementById("fecha_entrada").value = fmt(hoy);
-  const manana = new Date(hoy); manana.setDate(manana.getDate()+1);
-  document.getElementById("fecha_salida").value = fmt(manana);
+  // SIN fechas por default: muchos huéspedes dejaban la de hoy/mañana tal cual
+  // y llegaba el registro con fechas que no eran las de su reserva.
+  document.getElementById("fecha_entrada").min = isoMas(hoyLocal(), -1);
+  document.getElementById("fecha_salida").min  = hoyLocal();
+  fechasCambian();
 
   renderOcupantes(); // mostrar el primer input inmediatamente
   setTimeout(syncOcupantes, 50);
@@ -643,6 +667,51 @@ function datosLlegada() {
   return null;
 }
 
+// ── Fechas ──────────────────────────────────────────────────────────
+// Todo en la fecha LOCAL del huésped (antes se usaba toISOString, que en la
+// noche de México ya daba el día siguiente).
+function hoyLocal(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function isoMas(iso, n){ const [y,m,d]=iso.split("-").map(Number); const x=new Date(Date.UTC(y,m-1,d+n)); return x.toISOString().slice(0,10); }
+function nochesEntre(a, b){ const [y1,m1,d1]=a.split("-").map(Number), [y2,m2,d2]=b.split("-").map(Number); return Math.round((Date.UTC(y2,m2-1,d2)-Date.UTC(y1,m1-1,d1))/864e5); }
+function fechaBonita(iso){
+  const [y,m,d]=iso.split("-").map(Number);
+  return new Date(Date.UTC(y,m-1,d)).toLocaleDateString(lang==="en"?"en-US":"es-MX",{weekday:"short",day:"numeric",month:"short",timeZone:"UTC"});
+}
+function fechasCambian(cual){
+  const T = TXT[lang], ent = document.getElementById("fecha_entrada"), sal = document.getElementById("fecha_salida");
+  const box = document.getElementById("fechas-resumen"); if(!ent || !sal || !box) return;
+  const a = ent.value, b = sal.value;
+  // Al elegir la llegada, la salida solo se puede elegir después; si ya
+  // había una salida igual o anterior, se borra (nunca se rellena sola).
+  if(a){ sal.min = isoMas(a, 1); if(cual === "entrada" && b && b <= a) sal.value = ""; }
+  ent.classList.toggle("vacia", !ent.value); sal.classList.toggle("vacia", !sal.value);
+  ent.classList.remove("mal"); sal.classList.remove("mal");
+  box.className = "fechas-resumen"; box.innerHTML = "";
+  if(!ent.value || !sal.value) return;
+  const n = nochesEntre(ent.value, sal.value);
+  if(n <= 0){ sal.classList.add("mal"); box.className = "fechas-resumen mal"; box.textContent = T.errOrden; return; }
+  box.className = "fechas-resumen ok";
+  box.innerHTML = "🗓 " + T.resumen.replace("{a}", fechaBonita(ent.value)).replace("{b}", fechaBonita(sal.value))
+                    .replace("{n}", n).replace("{noches}", n === 1 ? T.noche : T.noches)
+                + (n > 30 ? "<br>⚠️ " + T.errLargo.replace("{n}", n) : "");
+}
+function fechasValidas(){
+  const T = TXT[lang], a = document.getElementById("fecha_entrada").value, b = document.getElementById("fecha_salida").value;
+  if(!a || !b){
+    document.getElementById(!a ? "fecha_entrada" : "fecha_salida").classList.add("mal");
+    document.getElementById("fecha_entrada").scrollIntoView({behavior:"smooth", block:"center"});
+    alert(T.errFechas); return false;
+  }
+  const n = nochesEntre(a, b);
+  if(n <= 0){ document.getElementById("fecha_salida").classList.add("mal"); alert(T.errOrden); return false; }
+  if(a < isoMas(hoyLocal(), -1)){ document.getElementById("fecha_entrada").classList.add("mal"); alert(T.errPasado); return false; }
+  // Última revisión, con las fechas escritas en palabras: es lo que más
+  // errores evita (los huéspedes leen «dom 26 oct», no «26/10/2026»).
+  return confirm(T.confirmaFechas.replace("{a}", fechaBonita(a)).replace("{b}", fechaBonita(b))
+                  .replace("{n}", n).replace("{noches}", n === 1 ? T.noche : T.noches)
+                  + (n > 30 ? "\n\n⚠️ " + T.errLargo.replace("{n}", n) : ""));
+}
+
 async function enviar() {
   const T = TXT[lang];
   const nombre = (ocupantes[0]?.nombre || "").trim();
@@ -650,7 +719,7 @@ async function enviar() {
   const fecha_salida = document.getElementById("fecha_salida").value;
 
   if(!nombre){ alert(T.errNombre); return; }
-  if(!fecha_entrada || !fecha_salida){ alert(T.errFechas); return; }
+  if(!fechasValidas()) return;
   if(!deptoKey){ alert(T.errDepto); return; }
   let veh = null;
   if(pideLlegada()) {
