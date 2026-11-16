@@ -742,6 +742,10 @@ async function enviar() {
   }
   if(!tel.startsWith("+")) tel = (telDig.length === 10 ? "+52 " : "+") + telDig;
   telEl.value = tel;
+  // Puros ceros o el mismo dígito repetido (0000000000, 1111111111…) = no lo
+  // quiso dar: se deja pasar, pero se guarda como «no proporcionado» para que
+  // no ensucie la lista de contactos.
+  const telGuardar = /^(\d)\1+$/.test(telDig.slice(-10)) ? "no proporcionado" : tel;
   // Correo: no es obligatorio, pero si lo escriben que tenga forma de correo.
   const emEl = document.getElementById("email_vis");
   const em = (emEl.value || "").trim();
@@ -781,7 +785,7 @@ async function enviar() {
     tipo_formato: deptoInfo.tipo || "general",
     nombre,
     email: (document.getElementById("email_vis")?.value || "").trim() || null,
-    telefono: (document.getElementById("telefono_vis")?.value || "").trim() || null,
+    telefono: telGuardar,
     fecha_entrada,
     fecha_salida,
     num_adultos: parseInt(document.getElementById("num_adultos").value)||1,
