@@ -159,7 +159,7 @@
   .upload-btn.done { border-color: var(--green); color: var(--green); border-style: solid; background: rgba(74,222,128,.07); }
   /* Fechas: vacías hasta que el huésped las elige, y un resumen que se lee de un vistazo. */
   input[type=date]:invalid, input[type=date].vacia { color:#9a9a9a; }
-  input[type=date].mal { border-color:#d9534f !important; box-shadow:0 0 0 3px rgba(217,83,79,.12); }
+  input[type=date].mal, input.mal { border-color:#d9534f !important; box-shadow:0 0 0 3px rgba(217,83,79,.12); }
   .fechas-resumen { display:none; margin:2px 0 14px; padding:11px 14px; border-radius:10px; font-size:13px; line-height:1.45; }
   .fechas-resumen.ok  { display:block; background:#EEF6F0; border:1px solid #BFDCC7; color:#255C38; }
   .fechas-resumen.mal { display:block; background:#FBEDEC; border:1px solid #EFC4C1; color:#8E2A24; }
@@ -192,14 +192,6 @@
     <!-- PENINSULA ONLY -->
     <div class="card" id="card-peninsula" style="display:none;">
       <div class="card-title" id="txt-card-resp">Datos del responsable</div>
-      <div class="field">
-        <label id="txt-label-email">Correo electrónico</label>
-        <input type="email" id="email_vis" placeholder="tu@email.com" autocomplete="email">
-      </div>
-      <div class="field">
-        <label id="txt-label-tel">Teléfono / WhatsApp</label>
-        <input type="tel" id="telefono_vis" placeholder="+52 33 1234 5678" autocomplete="tel">
-      </div>
       <div class="field" style="margin-top:4px;">
         <label id="txt-label-id-pen">Foto de identificación (INE)</label>
         <p id="txt-hint-id-pen" style="font-size:12px;color:var(--muted);margin:4px 0 10px;line-height:1.5;">Toma una foto clara del frente de tu INE. Solo se usa para el control de acceso.</p>
@@ -272,6 +264,19 @@
       <div id="ocupantes-list"></div>
     </div>
 
+    <!-- CONTACTO (todos los depas) -->
+    <div class="card" id="card-contacto">
+      <div class="card-title" id="txt-card-contacto">Datos de contacto</div>
+      <div class="field">
+        <label id="txt-label-tel">WhatsApp</label>
+        <input type="tel" id="telefono_vis" placeholder="+52 322 123 4567" autocomplete="tel" inputmode="tel">
+      </div>
+      <div class="field">
+        <label id="txt-label-email">Correo electrónico</label>
+        <input type="email" id="email_vis" placeholder="tu@email.com" autocomplete="email" inputmode="email">
+      </div>
+    </div>
+
     <!-- CÓMO LLEGAS (solo Quiya) -->
     <div class="card" id="card-llegada" style="display:none;">
       <div class="card-title" id="txt-card-llegada">¿Cómo llegas al condominio?</div>
@@ -324,7 +329,7 @@
     <div id="loading">Enviando registro...</div>
     <button class="btn-submit" id="btn-submit" onclick="enviar()">ENVIAR REGISTRO</button>
     <p id="txt-privacy" style="text-align:center; font-size:11px; color:var(--muted); margin-top:12px;">
-      Tus datos se usan únicamente para el registro de acceso al condominio.
+      Tus datos se usan para el registro de acceso al condominio y para que VRM pueda contactarte, incluidas promociones. Si no quieres recibirlas, responde BAJA en cualquier mensaje.
     </p>
   </div>
 
@@ -347,7 +352,10 @@ const TXT = {
     subtitle: "Por favor completa tus datos antes de tu llegada",
     cardResp: "Datos del responsable",
     labelEmail: "Correo electrónico",
-    labelTel: "Teléfono / WhatsApp",
+    labelTel: "WhatsApp",
+    cardContacto: "Datos de contacto",
+    errTel: "Por favor escribe tu WhatsApp (10 dígitos, con lada si no es de México).",
+    errEmail: "Revisa tu correo electrónico: parece que le falta algo.",
     cardFechas: "Fechas de estancia",
     labelEntrada: "Fecha de llegada",
     labelSalida: "Fecha de salida",
@@ -365,7 +373,7 @@ const TXT = {
     tipoMenor: "Menor",
     btnSubmit: "ENVIAR REGISTRO",
     loading: "Enviando registro...",
-    privacy: "Tus datos se usan únicamente para el registro de acceso al condominio.",
+    privacy: "Tus datos se usan para el registro de acceso al condominio y para que VRM pueda contactarte, incluidas promociones. Si no quieres recibirlas, responde BAJA en cualquier mensaje.",
     successTitle: "¡Registro enviado!",
     successBody: "Hemos recibido tu información.<br>Nos vemos en tu llegada. ¡Bienvenido!",
     errNombre: "Por favor ingresa el nombre del responsable (primera línea de huéspedes).",
@@ -392,7 +400,10 @@ const TXT = {
     subtitle: "Please fill in your details before arrival",
     cardResp: "Responsible guest details",
     labelEmail: "Email address",
-    labelTel: "Phone / WhatsApp",
+    labelTel: "WhatsApp",
+    cardContacto: "Contact details",
+    errTel: "Please enter your WhatsApp number (with country code if outside Mexico).",
+    errEmail: "Please check your email address: something seems to be missing.",
     cardFechas: "Stay dates",
     labelEntrada: "Check-in date",
     labelSalida: "Check-out date",
@@ -410,7 +421,7 @@ const TXT = {
     tipoMenor: "Minor",
     btnSubmit: "SUBMIT REGISTRATION",
     loading: "Sending registration...",
-    privacy: "Your data is used solely for condominium access registration.",
+    privacy: "Your data is used for condominium access registration and so VRM can contact you, including offers. To stop receiving them, reply STOP to any message.",
     successTitle: "Registration submitted!",
     successBody: "We have received your information.<br>See you at check-in. Welcome!",
     errNombre: "Please enter the lead guest's full name (first row).",
@@ -446,6 +457,7 @@ function setLang(l) {
   document.getElementById("txt-card-resp").textContent    = T.cardResp;
   document.getElementById("txt-label-email").textContent  = T.labelEmail;
   document.getElementById("txt-label-tel").textContent    = T.labelTel;
+  document.getElementById("txt-card-contacto").textContent = T.cardContacto;
   document.getElementById("txt-card-fechas").textContent  = T.cardFechas;
   document.getElementById("txt-label-entrada").textContent= T.labelEntrada;
   document.getElementById("txt-label-salida").textContent = T.labelSalida;
@@ -719,6 +731,25 @@ async function enviar() {
   const fecha_salida = document.getElementById("fecha_salida").value;
 
   if(!nombre){ alert(T.errNombre); return; }
+  // WhatsApp obligatorio (10+ dígitos). 10 dígitos sin lada = México (+52).
+  const telEl = document.getElementById("telefono_vis");
+  let tel = (telEl.value || "").trim();
+  const telDig = tel.replace(/\D/g, "");
+  telEl.classList.remove("mal");
+  if(telDig.length < 10){
+    telEl.classList.add("mal"); telEl.scrollIntoView({behavior:"smooth", block:"center"}); telEl.focus();
+    alert(T.errTel); return;
+  }
+  if(!tel.startsWith("+")) tel = (telDig.length === 10 ? "+52 " : "+") + telDig;
+  telEl.value = tel;
+  // Correo: no es obligatorio, pero si lo escriben que tenga forma de correo.
+  const emEl = document.getElementById("email_vis");
+  const em = (emEl.value || "").trim();
+  emEl.classList.remove("mal");
+  if(em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){
+    emEl.classList.add("mal"); emEl.scrollIntoView({behavior:"smooth", block:"center"}); emEl.focus();
+    alert(T.errEmail); return;
+  }
   if(!fechasValidas()) return;
   if(!deptoKey){ alert(T.errDepto); return; }
   let veh = null;
